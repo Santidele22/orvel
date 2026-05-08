@@ -1,0 +1,62 @@
+:root {
+  /* Orvel Brand Colors */
+  --or-primary: #7C3AED;
+  --or-primary-hover: #6D28D9;
+  --or-primary-light: #A78BFA;
+
+  /* Backgrounds */
+  --or-bg-primary: #0F172A;
+  --or-bg-secondary: #1E293B;
+
+  /* Text */
+  --or-text-primary: #F1F5F9;
+  --or-text-secondary: #94A3B8;
+
+  /* States */
+  --or-success: #10B981;
+  --or-error: #EF4444;
+  --or-warning: #F59E0B;
+
+  /* Neutrals */
+  --or-border: #334155;
+  --or-divider: #475569;
+
+  /* Typography */
+  --or-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Font Sizes */
+  --or-font-h1: 36px;
+  --or-font-h2: 28px;
+  --or-font-h3: 20px;
+  --or-font-body: 16px;
+  --or-font-caption: 12px;
+
+  /* Spacing */
+  --or-space-1: 4px;
+  --or-space-2: 8px;
+  --or-space-3: 12px;
+  --or-space-4: 16px;
+  --or-space-6: 24px;
+  --or-space-8: 32px;
+  --or-space-10: 40px;
+  --or-space-12: 48px;
+
+  /* Borders */
+  --or-radius-sm: 6px;
+  --or-radius-md: 8px;
+  --or-radius-lg: 16px;
+
+  /* Shadows */
+  --or-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --or-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --or-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Transitions */
+  --or-duration: 200ms;
+  --or-easing: ease-in-out;
+
+  /* Card Design System */
+  --or-card-bg: #0F172A;
+  --or-card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}
+

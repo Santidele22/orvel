@@ -1,0 +1,372 @@
+<section [class]="ui.pageRoot" data-testid="configuracion-responsive-container" [attr.aria-busy]="loading()">
+  <div [class]="ui.pageViewport">
+    <div class="max-w-4xl mx-auto flex flex-col gap-zen-xl">
+      <header [class]="ui.sectionHeader">
+        <h1 id="settings-title" [class]="ui.titleMain">
+          Configuración
+        </h1>
+        <p [class]="ui.bodyPrimary">Business profile · Booking basics · Working hours</p>
+      </header>
+
+      <div [class]="ui.cardGlass">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+          @for (tab of settingsTabs; track tab.key) {
+          <button type="button"
+            [class]="ui.subtleAction + ' justify-center gap-zen-md transition-all ' + 
+                         (activeSettingsTab() === tab.key ? 'bg-primary text-white shadow-xl shadow-primary/30 scale-[1.02]' : 'bg-bg-primary border border-white/5 shadow-sm')"
+            (click)="setSettingsTab(tab.key)" [attr.aria-pressed]="activeSettingsTab() === tab.key">
+            <i [class]="tab.icon"></i>
+            <span class="font-semibold">{{ tab.label }}</span>
+          </button>
+          }
+        </div>
+      </div>
+
+      @if (loading()) {
+      <article [class]="ui.cardGlass" data-testid="settings-loading-state" role="status">
+        Cargando configuración...
+      </article>
+      }
+
+      @if (!loading()) {
+      <div class="sr-only" data-testid="settings-empty-state" role="status">Ready for configuration updates.</div>
+
+      <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" class="space-y-zen-xl"
+        aria-label="business settings form">
+
+        @if (activeSettingsTab() === 'perfil') {
+
+        <!-- Datos Personales (Perfil de Usuario) -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Datos Personales</h2>
+            <i class="ri-user-settings-line text-tertiary"></i>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Nombre</label>
+              <input type="text" formControlName="firstName" [class]="ui.input" placeholder="Tu nombre" />
+              @if (fieldErrors().firstName) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-firstName">{{ fieldErrors().firstName }}</p>
+              }
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Apellido</label>
+              <input type="text" formControlName="lastName" [class]="ui.input" placeholder="Tu apellido" />
+              @if (fieldErrors().lastName) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-lastName">{{ fieldErrors().lastName }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="space-y-zen-sm">
+            <label [class]="ui.labelMicro + ' text-secondary'">Teléfono Personal</label>
+            <div class="relative group">
+              <i
+                class="ri-phone-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+              <input type="text" formControlName="phone" [class]="ui.input + ' pl-11'"
+                placeholder="Tu teléfono de contacto" />
+            </div>
+          </div>
+        </article>
+
+        <!-- Información de Contacto -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Contacto Público</h2>
+            <i class="ri-customer-service-2-line text-tertiary"></i>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">WhatsApp / Teléfono</label>
+              <div class="relative group">
+                <i
+                  class="ri-whatsapp-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+                <input type="text" formControlName="whatsapp" [class]="ui.input + ' pl-11'"
+                  placeholder="+54 9 11 ..." />
+              </div>
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Instagram</label>
+              <div class="relative group">
+                <i
+                  class="ri-instagram-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+                <input type="text" formControlName="instagram" [class]="ui.input + ' pl-11'"
+                  placeholder="@tu_negocio" />
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-zen-sm">
+            <label [class]="ui.labelMicro + ' text-secondary'">Email de Soporte</label>
+            <div class="relative group">
+              <i
+                class="ri-mail-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+              <input type="email" formControlName="supportEmail" [class]="ui.input + ' pl-11'"
+                placeholder="hola@tunegocio.com" />
+            </div>
+          </div>
+        </article>
+
+        <!-- Configuración de Cuenta y Plan -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Cuenta y Suscripción</h2>
+            <div
+              class="px-zen-md py-0.5 rounded-full bg-bg-primary border border-primary/20 text-primary font-bold text-[10px] uppercase tracking-wider shadow-sm">
+              Socio {{ settingsForm.get('plan')?.value }}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+            <div
+              class="space-y-zen-md p-zen-md rounded-zen-card bg-black/20 border border-white/5 shadow-inner flex flex-col justify-between min-h-[180px]">
+              <div>
+                <p [class]="ui.labelMicro + ' uppercase tracking-widest opacity-60'">Seguridad</p>
+                <p class="text-xs text-secondary mt-2">Actualiza tu contraseña o email de acceso.</p>
+              </div>
+              <button type="button" [class]="ui.secondaryAction + ' w-full h-12'"
+                (click)="openAccountSettingsModal()">Cambiar Credenciales</button>
+            </div>
+
+            <div
+              class="space-y-zen-md p-zen-md rounded-zen-card bg-black/20 border border-white/5 shadow-inner flex flex-col justify-between min-h-[180px]">
+              <div>
+                <p [class]="ui.labelMicro + ' text-primary uppercase tracking-widest'">Plan Actual</p>
+                <div class="flex items-center justify-between mt-2">
+                  <p class="text-lg font-semibold text-primary capitalize">{{ settingsForm.get('plan')?.value }}
+                  </p>
+                  <button type="button"
+                    class="text-[10px] font-bold text-primary uppercase underline tracking-wider hover:opacity-80 transition-opacity">Ver
+                    Planes</button>
+                </div>
+              </div>
+              <a href="http://localhost:8080/auth/signup/plan" data-testid="upgrade-plan-cta"
+                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20'">
+                Mejorar Plan
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Canales de Venta -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Portal de Reservas</h2>
+            <span
+              class="px-zen-sm py-1 rounded-full bg-success/10 text-success font-bold text-[10px] uppercase tracking-wider">Online</span>
+          </div>
+
+          <div class="space-y-zen-md">
+            <div class="flex items-center gap-zen-md">
+              <div
+                class="flex-1 p-zen-md bg-bg-primary border border-white/5 rounded-zen-card shadow-inner flex items-center justify-between group">
+                <div class="truncate">
+                  <p [class]="ui.labelMicro + ' text-tertiary mb-1'">Tu link de reservas automático:</p>
+                  <p class="text-xs font-mono font-medium text-primary select-all truncate">{{ publicBookingUrl() }}</p>
+                </div>
+                <button type="button" (click)="copyBookingUrl()"
+                  class="ml-zen-md h-zen-control-sm px-zen-lg bg-bg-primary border border-white/10 rounded-zen-xl text-[10px] font-bold uppercase tracking-wider hover:bg-primary hover:text-white transition-all active:scale-95 shadow-lg shadow-black/10">
+                  {{ urlCopied() ? 'Copiado' : 'Copiar' }}
+                </button>
+              </div>
+              <a [href]="publicBookingUrl()" target="_blank"
+                class="h-zen-control-md w-zen-control-md flex items-center justify-center bg-primary text-white rounded-zen-card hover:brightness-110 transition-all shadow-xl shadow-primary/20">
+                <i class="ri-external-link-line text-lg"></i>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <article [class]="ui.cardSoft + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between gap-zen-md">
+            <h2 [class]="ui.titleSection">Sucursal activa</h2>
+          </div>
+
+          <div class="space-y-zen-sm">
+            <label [class]="ui.labelMicro + ' text-secondary'">Nombre para el público</label>
+            <input type="text" formControlName="businessName" [class]="ui.input" />
+            @if (fieldErrors().businessName) {
+            <p [class]="ui.fieldError" data-testid="config-field-error-businessName">{{ fieldErrors().businessName }}</p>
+            }
+          </div>
+
+          @if (hasMultipleBusinesses()) {
+          <div class="space-y-zen-md">
+            <label [class]="ui.labelMicro + ' text-secondary'">Sucursal activa</label>
+            <select data-testid="business-template-selector" [class]="ui.input" [value]="selectedBusinessId() ?? ''"
+              (change)="onSelectedBusinessChange($any($event.target).value)">
+              @for (business of userBusinesses; track business.id) {
+              <option [value]="business.id">{{ business.name }}</option>
+              }
+            </select>
+          </div>
+          }
+
+          <div class="flex flex-wrap gap-zen-md">
+            @for (template of visibleTemplates(); track template.id) {
+            <span data-testid="business-template-option" [class]="ui.chip">{{ template.label }}</span>
+            }
+          </div>
+        </article>
+        }
+
+        @if (activeSettingsTab() === 'negocio') {
+        <!-- Políticas de Reserva y Logística -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Políticas y Logística</h2>
+            <i class="ri-settings-3-line text-tertiary"></i>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-xl">
+            <div class="space-y-zen-md">
+              <p [class]="ui.labelMicro + ' text-secondary'">Aprobación de Turnos</p>
+              <div
+                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
+                <div class="space-y-1">
+                  <p class="text-sm font-semibold   text-primary">Confirmación Automática</p>
+                  <p class="text-[10px] text-tertiary leading-tight">Los turnos se aprueban sin intervención
+                    manual.</p>
+                </div>
+                <input type="checkbox" formControlName="autoConfirm" class="h-5 w-5 accent-primary cursor-pointer" />
+              </div>
+            </div>
+
+            <div class="space-y-zen-md">
+              <p [class]="ui.labelMicro + ' text-secondary'">Servicios</p>
+              <div
+                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
+                <div class="space-y-1">
+                  <p class="text-sm font-semibold text-primary">Reservas Múltiples</p>
+                  <p class="text-[10px] text-tertiary leading-tight">Permitir varios servicios en un solo turno.
+                  </p>
+                </div>
+                <input type="checkbox" formControlName="allowMultipleServices"
+                  class="h-5 w-5 accent-primary cursor-pointer" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Cancelación (horas)</label>
+              <div class="relative group">
+                <i
+                  class="ri-time-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+                <input type="number" formControlName="cancelationGracePeriod" [class]="ui.input + ' pl-11'" />
+              </div>
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Anticipación Máx. (días)</label>
+              <div class="relative group">
+                <i
+                  class="ri-calendar-event-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
+                <input type="number" formControlName="maxAdvanceDays" [class]="ui.input + ' pl-11'" />
+              </div>
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Limpieza (minutos)</label>
+              <div class="relative group">
+                <i
+                  class="ri-rest-time-line absolute left-zen-md top-1/2 -translate-y-1/2 text-secondary group-focus-within:text-primary transition-colors"></i>
+                <input type="number" formControlName="cleanupTimeMinutes" [class]="ui.input + ' pl-11'" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md pt-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Buffer entre turnos</label>
+              <input type="number" formControlName="bufferMinutes" [class]="ui.input" />
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Aviso previo min.</label>
+              <input type="number" formControlName="minNoticeMinutes" [class]="ui.input" />
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Intervalo (slots)</label>
+              <input type="number" formControlName="slotIntervalMinutes" [class]="ui.input" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md pt-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Capacidad (empleados)</label>
+              <input type="number" formControlName="capacity" [class]="ui.input" min="1" />
+              @if (fieldErrors().capacity) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-capacity">{{ fieldErrors().capacity }}</p>
+              }
+            </div>
+          </div>
+        </article>
+
+        <!-- Regional y Preferencias -->
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+          <div class="flex items-center justify-between pb-zen-md">
+            <h2 [class]="ui.titleSection">Regional y Preferencias</h2>
+            <i class="ri-global-line text-tertiary"></i>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Formato de Hora</label>
+              <select formControlName="timeFormat" [class]="ui.input">
+                <option value="12h">12 horas (AM/PM)</option>
+                <option value="24h">24 horas</option>
+              </select>
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Inicio de Semana</label>
+              <select formControlName="weekStartDay" [class]="ui.input">
+                <option value="monday">Lunes</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </div>
+          </div>
+        </article>
+
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'" formGroupName="workingHours">
+          <h2 [class]="ui.titleSection">Working hours</h2>
+
+          <div class="space-y-zen-md">
+            @for (day of weekdayRows; track day.key) {
+            <div class="grid grid-cols-12 gap-zen-md items-center" [formGroupName]="day.key">
+              <div class="col-span-12 md:col-span-4">
+                <span [class]="ui.labelMicro + ' text-secondary'">{{ day.label }}</span>
+              </div>
+              <div class="col-span-12 md:col-span-2">
+                <input type="checkbox" formControlName="enabled"
+                  class="h-zen-control-sm w-zen-control-sm accent-primary cursor-pointer" />
+              </div>
+              <div class="col-span-6 md:col-span-3">
+                <button type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker($any(day.key), 'start')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
+                </button>
+              </div>
+              <div class="col-span-6 md:col-span-3">
+                <button type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker($any(day.key), 'end')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
+                </button>
+              </div>
+            </div>
+            }
+          </div>
+        </article>
+        }
+
+        <div [class]="ui.cardGlass + ' flex items-center justify-between gap-zen-md'">
+          <span class="text-xs font-medium text-tertiary">{{ formMessage() || 'Ready for changes' }}</span>
+          <button type="submit" [class]="ui.primaryAction + ' shadow-xl shadow-primary/30'">Guardar cambios</button>
+        </div>
+      </form>
+      }
+    </div>
+  </div>
+</section>

@@ -1,0 +1,153 @@
+// Remixicon is loaded from CDN in index.html to avoid path issues with local fonts
+
+
+@import 'styles/tokens/index.css';
+@import 'styles/theme/index.css';
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--or-font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--or-font-family);
+  margin: 0;
+  color: var(--text-primary);
+}
+
+// Glassmorphism System (Orvel Premium Style)
+.glass-panel {
+  background: rgba(30, 41, 59, 0.7);
+  /* bg-secondary with alpha */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+.glass-nav {
+  background: rgba(15, 23, 42, 0.8);
+  /* bg-primary with alpha */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+// Typography Utilities
+.display-lg {
+  font-size: var(--or-font-h1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+
+.headline-lg {
+  font-size: var(--or-font-h2);
+  line-height: 1.2;
+}
+
+.label-md {
+  font-family: var(--or-font-family);
+  font-size: var(--or-font-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+// Custom Scrollbar (Orvel Style)
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+  border: 2px solid var(--bg-primary);
+
+  &:hover {
+    background: var(--divider);
+  }
+}
+
+// Reusable UI Classes
+.btn-primary {
+  background-color: var(--primary);
+  color: #FFFFFF;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--or-duration) var(--or-easing);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.2);
+
+  &:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 20px 25px -5px rgba(124, 58, 237, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.card {
+  background-color: var(--bg-secondary);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--or-space-6);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: transform var(--or-duration) var(--or-easing), box-shadow var(--or-duration) var(--or-easing);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.input {
+  background-color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  transition: all var(--or-duration) var(--or-easing);
+
+  &:focus {
+    outline: none;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06), 0 0 0 2px rgba(124, 58, 237, 0.1);
+  }
+
+  &::placeholder {
+    color: var(--text-secondary);
+  }
+}

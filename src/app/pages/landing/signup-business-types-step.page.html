@@ -1,0 +1,91 @@
+<!--
+  Signup Business Types Step - Template
+  
+  Step 3 of onboarding flow - Business Types Selection
+  Shows only types allowed by the plan selected in Step 1
+  User selects 1+ types and submits to complete onboarding
+-->
+<div class="business-types-container">
+  <!-- Background Decoration -->
+  <div class="background-decoration">
+    <div class="decoration-circle circle-1"></div>
+    <div class="decoration-circle circle-2"></div>
+  </div>
+
+  <div class="business-types-card">
+    <!-- Header -->
+    <header class="business-types-header">
+      <h1 class="business-types-title">¿Qué servicios ofrece tu negocio?</h1>
+      <p class="business-types-subtitle">Seleccioná uno o más tipos de servicio</p>
+    </header>
+
+    <!-- Business Types Grid -->
+    <div class="business-types-grid">
+      @for (type of allowedTypes; track type.code) {
+        <button
+          type="button"
+          class="business-type-card"
+          [class.selected]="isTypeSelected(type.code)"
+          [disabled]="!canSelect(type.code)"
+          (click)="toggleType(type.code)"
+        >
+          <span class="type-checkbox">
+            @if (isTypeSelected(type.code)) {
+              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            }
+          </span>
+          <span class="type-label">{{ type.label }}</span>
+        </button>
+      }
+    </div>
+
+    <!-- Selection Info -->
+    <div class="selection-info">
+      <span class="selection-count">
+        {{ selectedTypes.length }} / {{ getMaxTypes() }} seleccionados
+      </span>
+    </div>
+
+    <!-- Error Message -->
+    @if (errorMessage) {
+      <div class="error-message">
+        {{ errorMessage }}
+      </div>
+    }
+
+    @if (successMessage) {
+      <div class="success-message" role="status" aria-live="polite">
+        {{ successMessage }}
+      </div>
+    }
+
+    <!-- Actions -->
+    <div class="signup-actions">
+      <button
+        type="button"
+        class="btn-back"
+        (click)="goBack()"
+      >
+        Volver
+      </button>
+      <button
+        type="button"
+        class="btn-continue"
+        [disabled]="!canContinue()"
+        (click)="submit()"
+      >
+        Completar registro
+      </button>
+    </div>
+
+    @if (showWelcomeModal) {
+      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <h2 id="welcome-title">¡Bienvenida/o a Turnea!</h2>
+        <p>Tu onboarding quedó completo. Revisá tu email para el mensaje de bienvenida.</p>
+        <button type="button" class="btn-continue" (click)="continueToLogin()">Ir al login</button>
+      </section>
+    }
+  </div>
+</div>

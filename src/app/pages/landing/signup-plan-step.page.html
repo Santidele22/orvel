@@ -1,0 +1,111 @@
+<!-- Signup Plan Step Page - Step 1 of Onboarding -->
+<!-- User selects their plan (STARTER, GROWTH, PRO) -->
+
+<div class="plan-selection-container">
+  <div class="plan-selection-card">
+    <!-- Header -->
+    <header class="plan-selection-header">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/>
+          <path d="M20 10 L20 30 M10 20 L30 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-text">Orvel</span>
+      </div>
+      <p class="plan-selection-kicker">Paso 1 · Planes y suscripción</p>
+      <h1 class="plan-selection-title">Elegí tu plan</h1>
+      <p class="plan-selection-subtitle">La suscripción se procesa con Mercado Pago y mantiene el flujo actual de onboarding.</p>
+    </header>
+
+    <!-- Plan Cards -->
+    <div class="plan-cards-grid" role="radiogroup" aria-label="Selección de plan">
+      @for (plan of plans; track plan.code) {
+        <div
+          class="plan-card"
+          [class.selected]="isPlanSelected(plan.code)"
+          (click)="selectPlan(plan.code)"
+          role="radio"
+          [attr.aria-checked]="isPlanSelected(plan.code)"
+          tabindex="0"
+          (keydown.enter)="selectPlan(plan.code)"
+          (keydown.space)="selectPlan(plan.code)"
+        >
+          <!-- Plan Header -->
+          <div class="plan-card-header">
+            <span class="plan-name">{{ plan.label }}</span>
+            @if (isPlanSelected(plan.code)) {
+              <i class="ri-check-line plan-check-icon"></i>
+            }
+          </div>
+
+          <div class="plan-price-row">
+            <span class="plan-price">{{ formatMonthlyPrice(plan.priceMonthlyCents) }}</span>
+            <span class="plan-price-period">/ mes</span>
+          </div>
+
+          <p class="plan-provider">Pago con {{ plan.checkoutProvider === 'mercado_pago' ? 'Mercado Pago' : plan.checkoutProvider }}</p>
+
+          <!-- Plan Features -->
+          <div class="plan-features">
+            <div class="plan-feature">
+              <i class="ri-store-2-line feature-icon"></i>
+              <span class="feature-value">{{ plan.maxLocales }}</span>
+              <span class="feature-label">{{ plan.maxLocales === 1 ? 'local' : 'locales' }}</span>
+            </div>
+            <div class="plan-feature">
+              <i class="ri-folder-line feature-icon"></i>
+              <span class="feature-value">{{ plan.maxRubros }}</span>
+              <span class="feature-label">{{ plan.maxRubros === 1 ? 'rubro' : 'rubros' }}</span>
+            </div>
+          </div>
+
+          <!-- Selection Indicator -->
+          <div class="plan-radio">
+            <input
+              type="radio"
+              [id]="'plan-' + plan.code"
+              [name]="'plan-' + plan.code"
+              [value]="plan.code"
+              [checked]="isPlanSelected(plan.code)"
+              (change)="selectPlan(plan.code)"
+            />
+            <label [for]="'plan-' + plan.code" class="radio-label">
+              <span class="radio-custom"></span>
+            </label>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="plan-actions">
+      <button
+        type="button"
+        class="btn-back"
+        (click)="goBack()"
+        aria-label="Volver al paso anterior"
+      >
+        <i class="ri-arrow-left-line"></i>
+        <span>Volver</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-continue"
+        [disabled]="!canContinue()"
+        (click)="continue()"
+        aria-label="Continuar al siguiente paso"
+      >
+        <span>Continuar</span>
+        <i class="ri-arrow-right-line"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Background Decoration -->
+  <div class="background-decoration">
+    <div class="decoration-circle circle-1"></div>
+    <div class="decoration-circle circle-2"></div>
+    <div class="decoration-circle circle-3"></div>
+  </div>
+</div>

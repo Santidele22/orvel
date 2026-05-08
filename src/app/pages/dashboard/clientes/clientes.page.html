@@ -1,0 +1,184 @@
+<section [class]="ui.pageRoot" data-testid="clientes-responsive-container" [attr.aria-busy]="loading()">
+  <div [class]="ui.pageViewport">
+    <div [class]="ui.denseGrid">
+      <main [class]="ui.mainColumn" data-layout-section="main_agenda">
+        <header [class]="ui.sectionHeader">
+          <p class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Administración</p>
+          <h1 class="text-3xl font-semibold tracking-tight text-text-primary">Gestión de Clientes</h1>
+        </header>
+
+        <!-- Search & Action Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-8">
+            <div class="relative group">
+              <i class="ri-search-line absolute left-zen-md top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors"></i>
+              <input
+                type="search"
+                [value]="searchQuery()"
+                (input)="onSearch($any($event.target).value)"
+                [class]="ui.input + ' pl-11'"
+                placeholder="Buscar por nombre, teléfono o email..."
+              />
+            </div>
+          </div>
+          <div class="md:col-span-4">
+            <button type="button" data-testid="clientes-modal-add-trigger" [class]="ui.primaryAction + ' w-full flex items-center justify-center gap-2'" (click)="openModal()">
+              <i class="ri-user-add-line"></i>
+              <span>Nuevo cliente</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Client List -->
+        <div class="grid grid-cols-1 gap-3">
+          @for (cliente of filteredClients(); track cliente.id) {
+            <article [class]="ui.cardGlass + ' cursor-pointer flex items-center justify-between group hover:shadow-primary/5 transition-all'" (click)="startEdit(cliente)">
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary text-lg font-bold group-hover:opacity-80 transition-all uppercase">
+                  {{ cliente.fullName.charAt(0) }}
+                </div>
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-base font-semibold text-text-primary tracking-tight">{{ cliente.fullName | titlecase }}</h2>
+                    <span class="px-2 py-0.5 rounded-full bg-primary-soft text-primary text-[10px] font-bold uppercase tracking-wider shadow-sm">Premium</span>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70">
+                      <i class="ri-phone-line text-text-tertiary"></i> {{ cliente.telefono }}
+                    </p>
+                    @if (cliente.email) {
+                      <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70">
+                        <i class="ri-mail-line text-text-tertiary"></i> {{ cliente.email }}
+                      </p>
+                    }
+                  </div>
+                </div>
+              </div>
+              <button type="button" data-testid="clientes-modal-edit-trigger" [class]="ui.iconButton" (click)="$event.stopPropagation(); startEdit(cliente)">
+                <i class="ri-arrow-right-s-line text-lg"></i>
+              </button>
+            </article>
+          } @empty {
+            <article [class]="ui.cardGlass + ' text-center py-12'">
+              <i class="ri-user-search-line text-3xl text-border block mb-2"></i>
+              <p class="text-sm font-medium text-text-tertiary">No se encontraron clientes que coincidan con la búsqueda.</p>
+            </article>
+          }
+        </div>
+      </main>
+
+      <aside [class]="ui.sideColumn" data-layout-section="right_panel">
+        <article [class]="ui.cardGlass + ' space-y-4'">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="ri-donut-chart-line text-primary"></i>
+            <h3 class="text-lg font-semibold tracking-tight text-text-primary">Métricas de Clientes</h3>
+          </div>
+          
+          <div class="space-y-3">
+             <div class="flex justify-between items-center">
+               <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Total Registrados</span>
+               <span class="text-base font-semibold text-text-primary">{{ customerMetrics().total }}</span>
+             </div>
+             <div class="flex justify-between items-center">
+               <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Con Correo</span>
+               <span class="text-base font-semibold text-text-primary">{{ customerMetrics().withEmail }}</span>
+             </div>
+             <div class="flex justify-between items-center">
+               <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Clientes VIP</span>
+               <span class="text-base font-semibold text-primary">{{ customerMetrics().vip }}</span>
+             </div>
+          </div>
+
+<div class="pt-4 mt-2">
+              <!-- DB-FIX-001: data-testid for soft-delete action -->
+              <button 
+                type="button" 
+                data-testid="clientes-deactivate-action" 
+                [class]="ui.subtleAction + ' w-full flex items-center justify-center gap-2'" 
+                (click)="selectedClientId.set(null); performDeactivate(editingClientId()!)"
+                [disabled]="!editingClientId()"
+              >
+                 <i class="ri-delete-bin-pill-line"></i>
+                 <span>Gestionar Bajas</span>
+              </button>
+           </div>
+        </article>
+      </aside>
+    </div>
+  </div>
+
+  @if (showModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-xl bg-black/60 animate-in fade-in duration-300">
+      <button
+        type="button"
+        class="absolute inset-0 w-full h-full"
+        data-testid="clientes-modal-overlay"
+        (click)="closeModal()"
+      ></button>
+      <div
+        class="relative w-full max-w-md rounded-[32px] bg-[#151b2b] border border-white/5 p-10 shadow-2xl shadow-black/60"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Clientes modal"
+      >
+        <!-- Header -->
+        <div class="mb-8 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-tertiary">Formulario</p>
+            <h3 class="text-2xl font-bold tracking-tight text-white mt-1">{{ editingClientId() ? 'Editar Cliente' : 'Nuevo Cliente' }}</h3>
+          </div>
+          <button type="button" data-testid="clientes-modal-close"
+            class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-text-tertiary hover:bg-white/10 hover:text-white transition-all duration-300"
+            (click)="closeModal()">
+            <i class="ri-close-line text-lg"></i>
+          </button>
+        </div>
+
+        <form [formGroup]="clientForm" (ngSubmit)="onSubmit()" class="space-y-5">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Nombre</label>
+              <input formControlName="nombre"
+                class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+                placeholder="Ej. María" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Apellido</label>
+              <input formControlName="apellido"
+                class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+                placeholder="Ej. García" />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Teléfono</label>
+            <input formControlName="telefono"
+              class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+              placeholder="+54 11 ..." />
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Email (Opcional)</label>
+            <input formControlName="email"
+              class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+              placeholder="maria@email.com" />
+          </div>
+
+          @if (formMessage()) {
+            <p class="text-xs font-medium text-error text-center px-2">{{ formMessage() }}</p>
+          }
+
+          <div class="flex justify-center gap-4 pt-5">
+            <button type="button" data-testid="clientes-modal-cancel"
+              class="h-11 px-7 rounded-full bg-transparent border border-white/10 text-sm font-medium text-text-secondary hover:bg-white/5 hover:text-white transition-all duration-300"
+              (click)="closeModal()">Borrar</button>
+            <button type="submit"
+              class="h-11 px-10 rounded-full bg-primary text-white font-semibold text-sm shadow-lg shadow-primary/30 hover:bg-primary-hover hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
+              Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</section>

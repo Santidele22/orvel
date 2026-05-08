@@ -1,0 +1,52 @@
+<ng-container 
+  *ngComponentOutlet="activeTemplate().sidebarComponent; 
+                     inputs: templateInputs()" 
+/>
+
+<div class="sr-only sm:block md:block lg:block" data-testid="dashboard-sidebar-responsive">
+  @if (dashboards.length > 1) {
+  <select
+    data-testid="dashboard-sidebar-theme-switcher"
+    [attr.aria-label]="businessName"
+    class="focus-visible:outline-none focus-visible:ring-(--zen-size-icon-sm) focus-visible:ring-(--focus-ring)"
+  >
+    <option value="">Seleccionar negocio</option>
+  </select>
+  }
+</div>
+
+<div class="sr-only" data-testid="sidebar-account-actions">
+  <button type="button" (click)="openEditProfileModal()" data-testid="edit-profile-action">Edit profile</button>
+  <button type="button" (click)="openLogoutConfirmModal()" data-testid="logout-action">Logout</button>
+</div>
+
+@if (isEditProfileModalOpen) {
+<section data-testid="edit-profile-modal" class="fixed inset-(--zen-space-xs) z-[70] flex items-center justify-center bg-(--text)/40 p-(--zen-space-lg)">
+  <div class="w-full max-w-md rounded-2xl bg-(--surface) p-(--zen-space-lg) shadow-2xl">
+    <h2 class="text-sm font-bold">Edit Profile</h2>
+    <div class="mt-(--zen-space-lg) space-y-(--zen-space-md)">
+      <input data-testid="edit-profile-name" type="text" placeholder="Name" class="w-full rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-sm" [value]="profileForm.name" />
+      <input data-testid="edit-profile-email" type="email" placeholder="Email" class="w-full rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-sm" [value]="profileForm.email" />
+      <input data-testid="edit-profile-phone" type="tel" placeholder="Phone" class="w-full rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-sm" [value]="profileForm.phone" />
+      <input data-testid="edit-profile-avatar" type="url" placeholder="Avatar URL" class="w-full rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-sm" [value]="profileForm.avatar" />
+    </div>
+    <div class="mt-(--zen-space-lg) flex justify-end gap-(--zen-space-sm)">
+      <button type="button" class="rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-xs font-semibold" (click)="closeEditProfileModal()">Cancel</button>
+      <button type="button" class="rounded-lg bg-(--primary) px-(--zen-space-md) py-(--zen-space-sm) text-xs font-semibold text-(--onPrimary)" (click)="saveProfile()">Save</button>
+    </div>
+  </div>
+</section>
+}
+
+@if (isLogoutConfirmModalOpen) {
+<section data-testid="logout-confirm-modal" class="fixed inset-(--zen-space-xs) z-[70] flex items-center justify-center bg-(--text)/40 p-(--zen-space-lg)">
+  <div class="w-full max-w-sm rounded-2xl bg-(--surface) p-(--zen-space-lg) shadow-2xl">
+    <h2 class="text-sm font-bold">Confirm logout</h2>
+    <p class="mt-(--zen-space-sm) text-xs text-(--text)/60">¿Querés cerrar sesión ahora?</p>
+    <div class="mt-(--zen-space-lg) flex justify-end gap-(--zen-space-sm)">
+      <button type="button" data-testid="logout-cancel-action" class="rounded-lg border border-(--text)/20 px-(--zen-space-md) py-(--zen-space-sm) text-xs font-semibold" (click)="cancelLogout()">Cancel</button>
+      <button type="button" data-testid="logout-confirm-action" class="rounded-lg bg-(--accent) px-(--zen-space-md) py-(--zen-space-sm) text-xs font-semibold text-(--text)" (click)="confirmLogout()">Logout</button>
+    </div>
+  </div>
+</section>
+}
