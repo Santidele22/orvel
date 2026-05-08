@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret, verifyMercadoPagoWebhookSignature } from "../_shared/billing-security.ts";
 import { recordWebhookProcessMetric } from "../_shared/mp-rollout-observability.ts";
+import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription-guards.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -37,16 +38,6 @@ function isRateLimited(req: Request): boolean {
 // Mercado Pago API URLs
 const MP_API_BASE = "https://api.mercadopago.com";
 
-// Status mapping: MP status → internal status
-const STATUS_MAP: Record<string, string> = {
-  authorized: "active",
-  approved: "active",
-  pending: "pending",
-  paused: "paused",
-  cancelled: "canceled",
-  canceled: "canceled",
-  rejected: "canceled",
-};
 
 interface WebhookPayload {
   id?: string;
@@ -87,12 +78,6 @@ async function syncEntitlementsForBusiness(
   } else {
     console.log("Entitlements synced for business:", businessId);
   }
-}
-
-// Map MP status to internal status
-function mapStatus(mpStatus: string): string {
-  const normalizedStatus = mpStatus?.toLowerCase() || "";
-  return STATUS_MAP[normalizedStatus] || "pending";
 }
 
 // Verify payment status with MP API (server-truth)
@@ -523,7 +508,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const internalStatus = mapStatus(mpVerifiedStatus);
+    const internalStatus = mapWebhookStatusToSubscriptionStatus(eventType, mpVerifiedStatus);
 
     // =============================================================================
     // 5. FIND AND UPDATE SUBSCRIPTION
@@ -623,7 +608,7 @@ Deno.serve(async (req) => {
       // 7. INSERT INTO PAYMENTS TABLE
       // =============================================================================
       if (eventType === "payment" && amount > 0) {
-        const paymentStatus = mapStatus(mpVerifiedStatus) === "active" ? "approved" : mapStatus(mpVerifiedStatus);
+        const paymentStatus = internalStatus === "active" ? "approved" : internalStatus;
 
         const { error: paymentError } = await supabaseAdmin
           .from("payments")
@@ -648,8 +633,7 @@ Deno.serve(async (req) => {
 
       const shouldSyncEntitlements =
         internalStatus === "active" ||
-        (eventType === "payment" && mpVerifiedStatus?.toLowerCase() === "approved") ||
-        ((eventType === "preapproval" || eventType === "subscription_preapproval") && mpVerifiedStatus?.toLowerCase() === "authorized");
+        (eventType === "payment" && mpVerifiedStatus?.toLowerCase() === "approved");
 
       if (shouldSyncEntitlements) {
         await syncEntitlementsForBusiness(supabaseAdmin, subscription.business_id, subscription.tenant_id);

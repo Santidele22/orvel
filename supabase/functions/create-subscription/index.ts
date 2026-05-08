@@ -7,6 +7,7 @@ import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecr
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
 import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
 import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
+import { resolveTrustedPaidPlanMapping } from "../_shared/mp-subscription-guards.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -58,17 +59,9 @@ interface SubscriptionRequest {
   plan_code: string;
   tier?: string;
   cadence?: string;
-  preapproval_plan_id?: string;
   email?: string;
 }
-
-function hasValidPreapprovalPlanIdFormat(value: string): boolean {
-  return /^[A-Za-z0-9_-]{8,128}$/.test(value);
-}
-
-function resolvePreapprovalPlanId(plan: Plan, bodyPlanId?: string): string | null {
-  if (typeof bodyPlanId === "string" && bodyPlanId.trim().length > 0) return bodyPlanId.trim();
-
+function resolveLegacyPreapprovalPlanIdFromPlan(plan: Plan): string | null {
   const planRecord = plan as unknown as Record<string, unknown>;
   const planCandidates = [
     planRecord.mercado_pago_monthly_plan_id,
@@ -139,6 +132,8 @@ function createOpaqueCheckoutToken(): string {
 Deno.serve(async (req) => {
   const corsHeaders = getBillingCorsHeaders(req);
   const requestStartedAt = Date.now();
+  const correlationId = req.headers.get("x-correlation-id") || req.headers.get("x-request-id") || crypto.randomUUID();
+  const idempotencyKey = req.headers.get("x-idempotency-key")?.trim() || null;
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -235,7 +230,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { plan_code, tier, cadence, preapproval_plan_id } = body;
+    const { plan_code, tier, cadence } = body;
 
     let effectivePlanCode: string | null = typeof plan_code === "string" ? plan_code : null;
     let catalogRow: { id: string; tier: string; cadence: string; tier_code: string; preapproval_plan_id: string } | null = null;
@@ -411,7 +406,8 @@ Deno.serve(async (req) => {
     }
 
     const checkoutToken = createOpaqueCheckoutToken();
-    const externalReference = `checkout-session:${checkoutToken}`;
+    const idempotencySuffix = idempotencyKey ? await sha256Text(`idem:${business.owner_id}:${plan.code}:${idempotencyKey}`) : checkoutToken;
+    const externalReference = `checkout-session:${idempotencySuffix}`;
     const checkoutExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
 
     const { data: checkoutSession, error: checkoutError } = await supabaseAdmin
@@ -432,10 +428,20 @@ Deno.serve(async (req) => {
       .single();
 
     if (checkoutError || !checkoutSession) {
+      if (idempotencyKey && checkoutError?.code === "23505") {
+        return new Response(
+          JSON.stringify({
+            error: "IDEMPOTENCY_KEY_CONFLICT",
+            message: "Ya existe una sesión de checkout para esta clave de idempotencia",
+            correlation_id: correlationId,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
+        );
+      }
       console.error("Checkout session insert error:", checkoutError?.message);
       return new Response(
-        JSON.stringify({ error: "CHECKOUT_SESSION_FAILED", message: "Error al crear sesión segura de checkout" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "CHECKOUT_SESSION_FAILED", message: "Error al crear sesión segura de checkout", correlation_id: correlationId }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
       );
     }
 
@@ -448,21 +454,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const resolvedPreapprovalPlanId = catalogRow?.preapproval_plan_id || resolvePreapprovalPlanId(plan, preapproval_plan_id);
+    const mappingResolution = resolveTrustedPaidPlanMapping({
+      planPrice: Number(plan.price || 0),
+      catalogPreapprovalPlanId: catalogRow?.preapproval_plan_id,
+      legacyPlanPreapprovalId: resolveLegacyPreapprovalPlanIdFromPlan(plan),
+    });
 
-    if (!resolvedPreapprovalPlanId) {
+    if (!mappingResolution.ok) {
       return new Response(
-        JSON.stringify({ error: "PREAPPROVAL_PLAN_ID_REQUIRED", message: "preapproval_plan_id es requerido para planes pagos" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: mappingResolution.code, message: mappingResolution.message, correlation_id: correlationId }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
       );
     }
 
-    if (!hasValidPreapprovalPlanIdFormat(resolvedPreapprovalPlanId)) {
-      return new Response(
-        JSON.stringify({ error: "PREAPPROVAL_PLAN_ID_INVALID_FORMAT", message: "preapproval_plan_id tiene un formato inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const resolvedPreapprovalPlanId = mappingResolution.preapprovalPlanId;
 
     const mpPreapprovalRequest: Record<string, unknown> = {
       payer_email: payerEmail,
@@ -480,6 +485,7 @@ Deno.serve(async (req) => {
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${mpAccessToken}`,
+        ...(idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify(mpPreapprovalRequest),
     });
@@ -499,6 +505,7 @@ Deno.serve(async (req) => {
         httpStatus: mpResponse.status,
       });
       console.error("Mercado Pago API Error", {
+        correlation_id: correlationId,
         status: mpResponse.status,
         mode: "associated_plan",
         responseSize: errorText.length,
@@ -509,8 +516,9 @@ Deno.serve(async (req) => {
           error: "MP_API_ERROR",
           message: "Error al crear pre-aprobación en Mercado Pago",
           upstream_error: upstreamError,
+          correlation_id: correlationId,
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
       );
     }
 
@@ -603,11 +611,12 @@ Deno.serve(async (req) => {
           external_reference: externalReference,
         },
         init_point: effectiveInitPoint,
+        correlation_id: correlationId,
         // Include sandbox_init_point separately when in test mode for clarity
         ...(isTestMode && mpData.sandbox_init_point ? { sandbox_init_point: mpData.sandbox_init_point } : {}),
         message: "_redirect_to_mercadopago",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
     );
 
   } catch (error) {
@@ -624,8 +633,8 @@ Deno.serve(async (req) => {
     });
     console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: "INTERNAL_ERROR", message: "Error interno del servidor" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "INTERNAL_ERROR", message: "Error interno del servidor", correlation_id: correlationId }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
     );
   }
 });
