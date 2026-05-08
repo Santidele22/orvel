@@ -58,17 +58,8 @@ interface SubscriptionRequest {
   plan_code: string;
   tier?: string;
   cadence?: string;
-  card_token_id?: string;
   preapproval_plan_id?: string;
   email?: string;
-}
-
-function isStrictAssociatedPlanModeEnabled(): boolean {
-  return (Deno.env.get("MP_ASSOCIATED_PLAN_STRICT_MODE") || "false").toLowerCase() === "true";
-}
-
-function hasValidCardTokenIdFormat(value: string): boolean {
-  return /^[A-Za-z0-9_-]{16,128}$/.test(value);
 }
 
 function hasValidPreapprovalPlanIdFormat(value: string): boolean {
@@ -244,7 +235,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { plan_code, tier, cadence, card_token_id, preapproval_plan_id } = body;
+    const { plan_code, tier, cadence, preapproval_plan_id } = body;
 
     let effectivePlanCode: string | null = typeof plan_code === "string" ? plan_code : null;
     let catalogRow: { id: string; tier: string; cadence: string; tier_code: string; preapproval_plan_id: string } | null = null;
@@ -282,12 +273,13 @@ Deno.serve(async (req) => {
         );
       }
 
+      const resolvedRecord = resolved as unknown as Record<string, unknown>;
       catalogRow = {
-        id: String(resolved.id),
-        tier: String(resolved.tier),
-        cadence: String(resolved.cadence),
-        tier_code: String(resolved.tier_code),
-        preapproval_plan_id: String(resolved.preapproval_plan_id),
+        id: String(resolvedRecord.id ?? ""),
+        tier: String(resolvedRecord.tier ?? normalizedTier),
+        cadence: String(resolvedRecord.cadence ?? normalizedCadence),
+        tier_code: String(resolvedRecord.tier_code ?? ""),
+        preapproval_plan_id: String(resolvedRecord.preapproval_plan_id ?? ""),
       };
 
       effectivePlanCode = normalizedTier === "started" ? "STARTER" : normalizedTier === "medium" ? "GROWTH" : "PRO";
@@ -381,7 +373,6 @@ Deno.serve(async (req) => {
 
     // Calculate billing dates
     const now = new Date();
-    const nextBillingDate = new Date(now.getTime() + plan.duration_days * 24 * 60 * 60 * 1000);
 
     if (!business) {
       return new Response(
@@ -457,67 +448,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    const strictAssociatedPlanMode = false;
     const resolvedPreapprovalPlanId = catalogRow?.preapproval_plan_id || resolvePreapprovalPlanId(plan, preapproval_plan_id);
 
-    if (strictAssociatedPlanMode && (!card_token_id || card_token_id.trim().length === 0)) {
+    if (!resolvedPreapprovalPlanId) {
       return new Response(
-        JSON.stringify({ error: "CARD_TOKEN_ID_REQUIRED", message: "card_token_id es requerido en modo estricto" }),
+        JSON.stringify({ error: "PREAPPROVAL_PLAN_ID_REQUIRED", message: "preapproval_plan_id es requerido para planes pagos" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const normalizedCardTokenId = card_token_id?.trim();
-    if (strictAssociatedPlanMode && normalizedCardTokenId && !hasValidCardTokenIdFormat(normalizedCardTokenId)) {
-      return new Response(
-        JSON.stringify({ error: "CARD_TOKEN_ID_INVALID_FORMAT", message: "card_token_id tiene un formato inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (strictAssociatedPlanMode && !resolvedPreapprovalPlanId) {
-      return new Response(
-        JSON.stringify({ error: "PREAPPROVAL_PLAN_ID_REQUIRED", message: "preapproval_plan_id es requerido en modo estricto" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (strictAssociatedPlanMode && resolvedPreapprovalPlanId && !hasValidPreapprovalPlanIdFormat(resolvedPreapprovalPlanId)) {
+    if (!hasValidPreapprovalPlanIdFormat(resolvedPreapprovalPlanId)) {
       return new Response(
         JSON.stringify({ error: "PREAPPROVAL_PLAN_ID_INVALID_FORMAT", message: "preapproval_plan_id tiene un formato inválido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let mpPreapprovalRequest: Record<string, unknown>;
-    if (strictAssociatedPlanMode) {
-      mpPreapprovalRequest = {
-        payer_email: payerEmail,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
-        reason: `${plan.name} - Orvel`,
-        external_reference: externalReference,
-        preapproval_plan_id: resolvedPreapprovalPlanId,
-        card_token_id: normalizedCardTokenId!,
-        site_id: "MLA",
-        status: "authorized",
-      };
-    } else {
-      mpPreapprovalRequest = {
-        payer_email: payerEmail,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
-        reason: `${plan.name} - Orvel`,
-        external_reference: externalReference,
-        site_id: "MLA",
-        auto_recurring: {
-          frequency: plan.billing_frequency,
-          frequency_type: plan.billing_frequency_type,
-          transaction_amount: plan.price,
-          currency_id: plan.currency,
-          start_date: now.toISOString(),
-          end_date: nextBillingDate.toISOString(),
-        },
-      };
-    }
+    const mpPreapprovalRequest: Record<string, unknown> = {
+      payer_email: payerEmail,
+      back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
+      reason: `${plan.name} - Orvel`,
+      external_reference: externalReference,
+      preapproval_plan_id: resolvedPreapprovalPlanId,
+      site_id: "MLA",
+      status: "pending",
+    };
 
     // Create preapproval in Mercado Pago
     const mpResponse = await fetch(`${MP_API_BASE}/preapproval`, {
@@ -545,7 +500,7 @@ Deno.serve(async (req) => {
       });
       console.error("Mercado Pago API Error", {
         status: mpResponse.status,
-        mode: strictAssociatedPlanMode ? "strict" : "legacy",
+        mode: "associated_plan",
         responseSize: errorText.length,
         upstream_error: upstreamError,
       });
@@ -598,13 +553,8 @@ Deno.serve(async (req) => {
           provider_subscription_id: mpData.id,
           provider_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || null,
           mp_preapproval_id: mpData.id,
-          mp_preapproval_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || resolvedPreapprovalPlanId || null,
           mp_preapproval_status: mpData.status || "pending",
-          mp_external_reference: externalReference,
-          mp_init_point: mpData.init_point,
-          mp_plan_catalog_id: catalogRow?.id || null,
           start_date: now.toISOString(),
-          next_billing_date: nextBillingDate.toISOString(),
         })
         .select()
         .single();

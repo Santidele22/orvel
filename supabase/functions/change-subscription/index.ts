@@ -4,6 +4,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
+import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -54,6 +55,7 @@ function normalizePlanCode(planCode: string): string {
 interface ChangeSubscriptionRequest {
   business_id: string;
   new_plan_code: string;
+  cadence?: string;
 }
 
 async function sha256Text(value: string): Promise<string> {
@@ -134,7 +136,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { business_id, new_plan_code } = body;
+    const { business_id, new_plan_code, cadence } = body;
     if (!business_id || typeof business_id !== "string") {
       return new Response(
         JSON.stringify({ error: "BUSINESS_ID_REQUIRED", message: "El campo business_id es requerido" }),
@@ -235,16 +237,10 @@ Deno.serve(async (req) => {
 
     // Case 1: Downgrading to free or cheaper plan
     if ((isDowngrade || isFreePlan) && currentSubscription.mp_preapproval_id) {
-      // Set cancel_at_period_end - will cancel when current period ends
-      const periodEnd = currentSubscription.period_end 
-        ? new Date(currentSubscription.period_end) 
-        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
       updateData = {
         ...updateData,
         status: "scheduled_change",
         cancel_at_period_end: true,
-        cancel_reason: "downgrade",
       };
 
       const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
@@ -282,6 +278,38 @@ Deno.serve(async (req) => {
       // Calculate billing dates
       const nextBillingDate = new Date(now.getTime() + newPlan.duration_days * 24 * 60 * 60 * 1000);
 
+      const normalizedTier = normalizeTier(newPlan.code);
+      const normalizedCadence = normalizeCadence(cadence || "monthly") || "monthly";
+      if (!normalizedTier) {
+        return new Response(
+          JSON.stringify({ error: "INVALID_PLAN_TIER", message: "No se pudo mapear el tier del plan de destino" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: catalogRows, error: catalogError } = await supabaseAdmin
+        .from("mp_plan_catalog")
+        .select("id, tier, cadence, tier_code, preapproval_plan_id")
+        .eq("tier", normalizedTier)
+        .eq("cadence", normalizedCadence)
+        .limit(1);
+
+      if (catalogError) {
+        return new Response(
+          JSON.stringify({ error: "PLAN_CATALOG_READ_FAILED", message: "No se pudo leer mp_plan_catalog" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const resolvedCatalogRow = resolvePlanCatalogRow(catalogRows ?? [], normalizedTier, normalizedCadence);
+      const resolvedPreapprovalPlanId = resolvedCatalogRow?.preapproval_plan_id;
+      if (!resolvedPreapprovalPlanId) {
+        return new Response(
+          JSON.stringify({ error: "PREAPPROVAL_PLAN_NOT_SYNCED", message: "Plan no sincronizado con Mercado Pago" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const checkoutToken = createOpaqueCheckoutToken();
       const externalReference = `checkout-session:${checkoutToken}`;
       const checkoutExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
@@ -318,14 +346,8 @@ Deno.serve(async (req) => {
         reason: `${newPlan.name} - Salon De Belleza (Upgrade)`,
         external_reference: externalReference,
         site_id: "MLA",
-        auto_recurring: {
-          frequency: newPlan.billing_frequency,
-          frequency_type: newPlan.billing_frequency_type,
-          transaction_amount: newPlan.price,
-          currency_id: newPlan.currency,
-          start_date: now.toISOString(),
-          end_date: nextBillingDate.toISOString(),
-        },
+        preapproval_plan_id: resolvedPreapprovalPlanId,
+        status: "pending",
       };
 
       // Create preapproval in Mercado Pago
@@ -378,8 +400,6 @@ Deno.serve(async (req) => {
         tenant_id: business.owner_id,
         current_period_start: now.toISOString(),
         next_billing_date: nextBillingDate.toISOString(),
-        change_from_plan: currentSubscription.plan_code,
-        change_type: "upgrade",
       };
 
       initPoint = mpData.init_point;
@@ -397,20 +417,12 @@ Deno.serve(async (req) => {
         next_billing_date: null,
         mp_preapproval_id: null,
         mp_preapproval_status: "active",
-        change_from_plan: currentSubscription.plan_code,
-        change_type: "switch_plan",
       };
 
       message = "Has cambiado de plan";
     }
     else {
       // Same tier or equivalent - just update the plan code
-      updateData = {
-        ...updateData,
-        change_from_plan: currentSubscription.plan_code,
-        change_type: "plan_change",
-      };
-
       message = "Plan actualizado";
     }
 
