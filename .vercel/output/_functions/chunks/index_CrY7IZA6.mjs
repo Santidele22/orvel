@@ -1,6 +1,6 @@
-import { c as createComponent } from './astro-component_rBFDG-4w.mjs';
-import { m as maybeRenderHead, r as renderTemplate, h as addAttribute, l as renderComponent, n as Fragment, o as defineScriptVars } from './entrypoint_pp2NYhb9.mjs';
-import { $ as $$Layout } from './Layout_DGgiDipu.mjs';
+import { c as createComponent } from './astro-component_DqHyZRqm.mjs';
+import { m as maybeRenderHead, r as renderTemplate, h as addAttribute, l as renderComponent, n as Fragment, o as defineScriptVars } from './entrypoint_Ba8ZnvkA.mjs';
+import { $ as $$Layout } from './Layout_BeeLP-U3.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 function createPublicClient() {

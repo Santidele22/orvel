@@ -1,6 +1,6 @@
-import { c as createComponent } from './astro-component_rBFDG-4w.mjs';
-import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_pp2NYhb9.mjs';
-import { $ as $$Layout, r as renderScript } from './Layout_DGgiDipu.mjs';
+import { c as createComponent } from './astro-component_DqHyZRqm.mjs';
+import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_Ba8ZnvkA.mjs';
+import { $ as $$Layout, r as renderScript } from './Layout_BeeLP-U3.mjs';
 
 const $$TestCheckout = createComponent(async ($$result, $$props, $$slots) => {
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Orvel - Confirmá tu suscripción" }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<main class="min-h-screen bg-bg-primary text-text-primary font-body"> <div class="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 py-12 lg:grid-cols-2 lg:gap-12 lg:px-10 lg:py-16"> <!-- LEFT COLUMN: Plan Summary --> <section class="relative overflow-hidden rounded-2xl border border-border bg-bg-secondary/70 p-8 shadow-2xl"> <div class="absolute inset-0 bg-gradient-to-br from-primary/30 via-bg-primary/70 to-bg-primary"></div> <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(167,139,250,0.25),transparent_42%)]"></div> <div class="absolute inset-0 bg-[radial-gradient(circle_at_80%_75%,rgba(124,58,237,0.2),transparent_38%)]"></div> <div class="relative z-10 space-y-8"> <!-- Badge --> <div class="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">

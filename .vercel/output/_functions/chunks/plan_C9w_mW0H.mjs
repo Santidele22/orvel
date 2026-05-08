@@ -1,6 +1,6 @@
-import { c as createComponent } from './astro-component_rBFDG-4w.mjs';
-import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_pp2NYhb9.mjs';
-import { $ as $$Layout } from './Layout_DGgiDipu.mjs';
+import { c as createComponent } from './astro-component_DqHyZRqm.mjs';
+import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_Ba8ZnvkA.mjs';
+import { $ as $$Layout } from './Layout_BeeLP-U3.mjs';
 
 const $$Plan = createComponent(($$result, $$props, $$slots) => {
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Orvel - Seleccioná tu plan" }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<main class="min-h-screen bg-bg-primary text-text-primary px-6 py-16 lg:py-24 font-body"> <div class="max-w-6xl mx-auto space-y-16"> <!-- Header --> <header class="grid lg:grid-cols-2 gap-12 items-center"> <div class="space-y-6"> <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary shadow-sm">

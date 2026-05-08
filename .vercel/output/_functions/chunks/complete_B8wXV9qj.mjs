@@ -1,6 +1,6 @@
-import { c as createComponent } from './astro-component_rBFDG-4w.mjs';
-import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_pp2NYhb9.mjs';
-import { $ as $$Layout, r as renderScript } from './Layout_DGgiDipu.mjs';
+import { c as createComponent } from './astro-component_DqHyZRqm.mjs';
+import { l as renderComponent, r as renderTemplate, m as maybeRenderHead } from './entrypoint_Ba8ZnvkA.mjs';
+import { $ as $$Layout, r as renderScript } from './Layout_BeeLP-U3.mjs';
 
 const $$Complete = createComponent(async ($$result, $$props, $$slots) => {
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Orvel - Categoría de negocio" }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<main class="flex min-h-screen w-full bg-bg-primary"> <!-- Left Side: Imagery --> <section class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-bg-secondary flex-col justify-end p-12 lg:p-24"> <div class="absolute inset-0 z-10 bg-gradient-to-t from-bg-primary via-bg-primary/20 to-transparent opacity-90"></div> <img src="/banner2.png" alt="Orvel Dashboard" class="absolute inset-0 w-full h-full object-cover scale-110 blur-[1px] opacity-70"> <div class="relative z-20 space-y-4"> <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary mb-2 shadow-sm">Paso 3 de 3</div> <h2 class="text-4xl lg:text-5xl font-headline font-bold text-text-primary leading-[1.1] max-w-md">
