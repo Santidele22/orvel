@@ -1,0 +1,27 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Orvel - Tipo de negocio">
+  <main class="flex min-h-screen w-full items-center justify-center bg-bg-primary px-8">
+    <section class="max-w-md rounded-lg border border-border bg-bg-secondary p-12 text-center shadow-2xl">
+      <div class="mb-6 flex justify-center">
+        <div class="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
+      </div>
+      <p class="mb-2 text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Personalización</p>
+      <h1 class="mb-3 font-headline text-3xl font-black tracking-tighter text-text-primary">Configurando tu espacio</h1>
+      <p class="text-sm font-body text-text-secondary">Estamos preparando tu dashboard personalizado. Un momento por favor...</p>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import { buildBusinessTypeCompletionRedirect } from '../../../lib/oauth-signup-onboarding-flow';
+
+  if (typeof window !== 'undefined') {
+    // Simulamos un pequeño delay para que el usuario vea la animación y se sienta "premium"
+    setTimeout(() => {
+        window.location.replace(buildBusinessTypeCompletionRedirect(window.location.href));
+    }, 1500);
+  }
+</script>

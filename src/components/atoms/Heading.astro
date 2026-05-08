@@ -1,0 +1,30 @@
+---
+// Atom: Heading
+interface Props {
+  level?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
+  class?: string;
+}
+
+const {
+  level = 'h2',
+  class: className = ''
+} = Astro.props;
+
+const Tag = level;
+
+const baseClasses = 'font-headline font-bold tracking-tight text-text-primary';
+
+const levelClasses = {
+  h1: 'text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05]',
+  h2: 'text-4xl lg:text-5xl font-bold tracking-tight',
+  h3: 'text-3xl font-extrabold',
+  h4: 'text-2xl font-bold',
+  h5: 'text-xl font-bold'
+};
+
+const classes = `${baseClasses} ${levelClasses[level]}`;
+---
+
+<Tag class:list={[classes, className]}>
+  <slot />
+</Tag>

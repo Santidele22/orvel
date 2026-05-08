@@ -1,0 +1,87 @@
+---
+import "../styles/global.css";
+import "remixicon/fonts/remixicon.css";
+
+interface Props {
+    title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="description"
+            content="Gestioná tus turnos, cobros y clientes con una interfaz que se siente natural. El atelier digital para tu negocio."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="generator" content={Astro.generator} />
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+
+        <title>{title}</title>
+    </head>
+    <body class="bg-bg-primary text-text-primary antialiased">
+        <slot />
+
+        <!-- Lenis Smooth Scroll & Reveal Script -->
+        <script is:inline src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+        <script>
+            // Initialize Lenis with a slower, more deliberate duration
+            // @ts-ignore
+            const lenis = new Lenis({
+                duration: 2.0, // Slower scroll
+                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                orientation: 'vertical',
+                gestureOrientation: 'vertical',
+                smoothWheel: true,
+                wheelMultiplier: 0.8, // Slightly less sensitivity
+                smoothTouch: false,
+                touchMultiplier: 2,
+                infinite: false,
+            })
+
+            function raf(time) {
+                lenis.raf(time)
+                requestAnimationFrame(raf)
+            }
+
+            requestAnimationFrame(raf)
+
+            // Scroll Reveal Logic
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, observerOptions);
+
+            const setupObserver = () => {
+                const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+                revealElements.forEach(el => observer.observe(el));
+            };
+
+            // Initialize on load
+            setupObserver();
+
+            // Re-initialize on Astro page transitions
+            document.addEventListener('astro:page-load', setupObserver);
+        </script>
+    </body>
+</html>

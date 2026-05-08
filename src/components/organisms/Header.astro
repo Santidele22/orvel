@@ -1,0 +1,22 @@
+---
+// Organism: Header (Navbar)
+---
+
+<nav class="fixed top-0 w-full z-50 bg-bg-primary/80 backdrop-blur-3xl border-b border-border flex justify-between items-center px-8 md:px-12 h-16 shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
+  <a href="/" class="flex items-center gap-2">
+    <img src="/logo-white.png" alt="Orvel Logo" class="h-6 w-auto" />
+  </a>
+  
+  <div class="hidden md:flex items-center space-x-8 font-headline font-medium text-[13px] tracking-wide text-text-secondary">
+    <a class="hover:text-text-primary transition-colors" href="#tipos">Soluciones</a>
+    <a class="hover:text-text-primary transition-colors" href="#beneficios">Beneficios</a>
+    <a class="hover:text-text-primary transition-colors" href="#pricing">Precios</a>
+  </div>
+
+  <div class="flex items-center space-x-6">
+    <a href="/auth/login" class="text-text-secondary font-headline font-bold text-xs uppercase tracking-widest hover:text-text-primary transition-colors">Ingresar</a>
+    <a href="/auth/signup/plan" class="btn btn-primary py-2 px-6 text-[10px] tracking-widest uppercase shadow-lg shadow-primary/20">
+      Empezar gratis
+    </a>
+  </div>
+</nav>

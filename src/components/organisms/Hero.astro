@@ -1,0 +1,164 @@
+---
+// Organism: Hero Section
+// Displays the main value proposition and primary CTA
+---
+
+<section
+    class="relative min-h-[90vh] flex items-center pt-20 overflow-hidden bg-bg-primary"
+>
+    <!-- Background Decorative Elements -->
+    <div
+        class="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"
+    >
+    </div>
+    <div
+        class="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none"
+    >
+    </div>
+    <div
+        class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-bg-primary via-transparent to-transparent z-10"
+    >
+    </div>
+
+    <div class="max-w-7xl mx-auto px-8 md:px-12 relative z-20">
+        <div class="grid lg:grid-cols-2 gap-16 items-center">
+            <!-- Content Column -->
+            <div class="space-y-8">
+                <div
+                    class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-[0.2em] uppercase text-primary shadow-sm"
+                >
+                    <span class="relative flex h-2 w-2">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"
+                        ></span>
+                        <span
+                            class="relative inline-flex rounded-full h-2 w-2 bg-primary"
+                        ></span>
+                    </span>
+                    Nueva versión 2.0 disponible
+                </div>
+
+                <h1
+                    class="text-5xl md:text-7xl font-headline font-black tracking-tighter text-text-primary leading-[1.05] reveal"
+                >
+                    Gestioná tu salón <br />
+                    <span class="text-primary italic font-light"
+                        >con intención.</span
+                    >
+                </h1>
+
+                <p
+                    class="text-lg md:text-xl text-text-secondary font-body max-w-lg leading-relaxed reveal stagger-1"
+                >
+                    Más que una agenda, el atelier digital para profesionales
+                    que buscan excelencia en cada turno y fidelidad en cada
+                    cliente.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center gap-4 pt-4 reveal stagger-2">
+                    <a
+                        href="/auth/signup/plan"
+                        class="w-full sm:w-auto btn btn-primary py-4 px-10 text-xs tracking-widest uppercase shadow-xl shadow-primary/20"
+                    >
+                        Comenzar ahora — Es gratis
+                    </a>
+                    <a
+                        href="#how-it-works"
+                        class="w-full sm:w-auto btn btn-secondary py-4 px-10 text-xs tracking-widest uppercase"
+                    >
+                        Ver cómo funciona
+                    </a>
+                </div>
+
+                <div
+                    class="flex items-center gap-6 pt-8 border-t border-border/50"
+                >
+                    <div class="flex -space-x-3">
+                        {
+                            [1, 2, 3, 4].map((i) => (
+                                <div class="w-10 h-10 rounded-full border-2 border-bg-primary bg-bg-secondary flex items-center justify-center overflow-hidden">
+                                    <img
+                                        src={`https://i.pravatar.cc/100?img=${
+                                            i + 10
+                                        }`}
+                                        alt="User"
+                                        class="w-full h-full object-cover"
+                                    />
+                                </div>
+                            ))
+                        }
+                    </div>
+                    <div class="text-sm">
+                        <div class="flex items-center gap-1 text-warning">
+                            <i class="ri-star-fill"></i>
+                            <i class="ri-star-fill"></i>
+                            <i class="ri-star-fill"></i>
+                            <i class="ri-star-fill"></i>
+                            <i class="ri-star-fill"></i>
+                        </div>
+                        <p class="text-text-secondary font-medium">
+                            +500 salones confían en Orvel
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Column -->
+            <div class="relative lg:block hidden reveal-right stagger-3">
+                <div
+                    class="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-75 opacity-50"
+                >
+                </div>
+                <div
+                    class="relative rounded-2xl border border-white/10 bg-bg-secondary/40 backdrop-blur-sm p-4 shadow-2xl overflow-hidden group"
+                >
+                    <img
+                        src="/banner1.png"
+                        alt="Orvel Dashboard Preview"
+                        class="rounded-lg w-full shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]"
+                    />
+                    <div
+                        class="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent pointer-events-none"
+                    >
+                    </div>
+                </div>
+
+                <!-- Floating Elements -->
+                <div
+                    class="absolute -bottom-6 -left-6 bg-bg-secondary border border-border p-4 rounded-xl shadow-xl animate-float max-w-[200px]"
+                >
+                    <div class="flex items-center gap-3 mb-2">
+                        <div
+                            class="w-8 h-8 rounded-full bg-success/20 text-success flex items-center justify-center"
+                        >
+                            <i class="ri-check-line"></i>
+                        </div>
+                        <p
+                            class="text-[10px] font-bold uppercase tracking-widest text-text-primary"
+                        >
+                            Turno Confirmado
+                        </p>
+                    </div>
+                    <p class="text-xs text-text-secondary">
+                        Peluquería "La Corte" — 15:30hs
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+    .animate-float {
+        animation: float 4s ease-in-out infinite;
+    }
+</style>
