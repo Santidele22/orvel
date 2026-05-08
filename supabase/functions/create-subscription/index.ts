@@ -570,8 +570,16 @@ Deno.serve(async (req) => {
     }
 
     // =============================================================================
-    // 7. RETURN INIT POINT TO FRONTEND
-    // =============================================================================
+// 7. RETURN INIT POINT TO FRONTEND
+// =============================================================================
+    // Detect if using test token to return appropriate init_point
+    // Mercado Pago returns BOTH init_point (production) AND sandbox_init_point (test)
+    // Test tokens start with "TEST-" prefix
+    const isTestMode = mpAccessToken.startsWith("TEST-");
+    const effectiveInitPoint = isTestMode && mpData.sandbox_init_point
+      ? mpData.sandbox_init_point
+      : mpData.init_point;
+
     recordPreapprovalCreateMetric({
       tenantId: business.owner_id,
       userId: user?.id || business.owner_id,
@@ -594,7 +602,9 @@ Deno.serve(async (req) => {
           mp_preapproval_id: mpData.id,
           external_reference: externalReference,
         },
-        init_point: mpData.init_point,
+        init_point: effectiveInitPoint,
+        // Include sandbox_init_point separately when in test mode for clarity
+        ...(isTestMode && mpData.sandbox_init_point ? { sandbox_init_point: mpData.sandbox_init_point } : {}),
         message: "_redirect_to_mercadopago",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
