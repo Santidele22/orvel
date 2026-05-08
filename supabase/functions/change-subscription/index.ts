@@ -402,7 +402,15 @@ Deno.serve(async (req) => {
         next_billing_date: nextBillingDate.toISOString(),
       };
 
-      initPoint = mpData.init_point;
+      // Detect if using test token to return appropriate init_point
+      // Mercado Pago returns BOTH init_point (production) AND sandbox_init_point (test)
+      // Test tokens start with "TEST-" prefix
+      const isTestMode = mpAccessToken.startsWith("TEST-");
+      const effectiveInitPoint = isTestMode && mpData.sandbox_init_point
+        ? mpData.sandbox_init_point
+        : mpData.init_point;
+
+      initPoint = effectiveInitPoint;
       message = "_redirect_to_mercadopago";
     }
     // Case 3: Same plan without existing MP
@@ -447,14 +455,23 @@ Deno.serve(async (req) => {
     // =============================================================================
     // 9. RETURN RESPONSE
     // =============================================================================
+    // Add sandbox_init_point field when in test mode for clarity
+    const responsePayload: Record<string, unknown> = {
+      success: true,
+      subscription: updatedSubscription,
+      init_point: initPoint,
+      message: message,
+      change_type: isUpgrade ? "upgrade" : (isDowngrade || isFreePlan) ? "downgrade" : "same_tier",
+    };
+
+    // Include sandbox_init_point when in test mode
+    const mpAccessTokenForResponse = Deno.env.get("MP_ACCESS_TOKEN") || "";
+    if (mpAccessTokenForResponse.startsWith("TEST-") && initPoint) {
+      responsePayload.sandbox_init_point = initPoint;
+    }
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        subscription: updatedSubscription,
-        init_point: initPoint,
-        message: message,
-        change_type: isUpgrade ? "upgrade" : (isDowngrade || isFreePlan) ? "downgrade" : "same_tier",
-      }),
+      JSON.stringify(responsePayload),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
