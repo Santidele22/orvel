@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     );
 
     const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://app.salon-de-belleza.com";
+    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://orvel-dashboard.vercel.app";
 
     if (!mpAccessToken) {
       throw new Error("MP_ACCESS_TOKEN is not configured");
@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
 
       const mpPlanRequest = {
         reason: `Salon De Belleza ${tierCode}`,
+        site_id: "MLA",
         auto_recurring: {
           frequency: Number(row.frequency),
           frequency_type: String(row.frequency_type || "months"),

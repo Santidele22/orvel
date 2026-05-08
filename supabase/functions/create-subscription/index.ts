@@ -493,19 +493,21 @@ Deno.serve(async (req) => {
     if (strictAssociatedPlanMode) {
       mpPreapprovalRequest = {
         payer_email: payerEmail,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://app.salon-de-belleza.com"}/auth/signup/credentials?plan=${plan.code}`,
+        back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
         reason: `${plan.name} - Orvel`,
         external_reference: externalReference,
         preapproval_plan_id: resolvedPreapprovalPlanId,
         card_token_id: normalizedCardTokenId!,
+        site_id: "MLA",
         status: "authorized",
       };
     } else {
       mpPreapprovalRequest = {
         payer_email: payerEmail,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://app.salon-de-belleza.com"}/auth/signup/credentials?plan=${plan.code}`,
+        back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
         reason: `${plan.name} - Orvel`,
         external_reference: externalReference,
+        site_id: "MLA",
         auto_recurring: {
           frequency: plan.billing_frequency,
           frequency_type: plan.billing_frequency_type,
