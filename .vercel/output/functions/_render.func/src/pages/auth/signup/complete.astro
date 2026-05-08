@@ -1,0 +1,338 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="Orvel - Categoría de negocio">
+  <main class="flex min-h-screen w-full bg-bg-primary">
+    <!-- Left Side: Imagery -->
+    <section class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-bg-secondary flex-col justify-end p-12 lg:p-24">
+      <div class="absolute inset-0 z-10 bg-gradient-to-t from-bg-primary via-bg-primary/20 to-transparent opacity-90"></div>
+      <img src="/banner2.png" alt="Orvel Dashboard" class="absolute inset-0 w-full h-full object-cover scale-110 blur-[1px] opacity-70" />
+      
+      <div class="relative z-20 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary mb-2 shadow-sm">Paso 3 de 3</div>
+        <h2 class="text-4xl lg:text-5xl font-headline font-bold text-text-primary leading-[1.1] max-w-md">
+          Personalizá tu experiencia.
+        </h2>
+        <p class="text-text-secondary text-lg font-body max-w-sm">
+            Elegí las categorías que mejor describen tu salón para adaptar las herramientas.
+        </p>
+      </div>
+    </section>
+
+    <!-- Right Side: Business Type Selection -->
+    <section class="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 relative z-10">
+      <div class="max-w-md w-full mx-auto md:mx-0 lg:ml-0">
+        
+        <header class="mb-10">
+          <!-- Step indicator -->
+          <div class="flex items-center gap-4 mb-8">
+            <a href="/auth/signup/plan" class="w-8 h-8 rounded-full border border-primary bg-primary/10 flex items-center justify-center text-xs text-primary font-bold">1</a>
+            <div class="w-8 h-[2px] bg-primary"></div>
+            <a id="step2Link" href="/auth/signup/credentials" class="w-8 h-8 rounded-full border border-primary bg-primary/10 flex items-center justify-center text-xs text-primary font-bold">2</a>
+            <div class="w-8 h-[2px] bg-primary"></div>
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs text-on-secondary font-bold shadow-lg shadow-primary/20">3</div>
+          </div>
+
+          <h1 class="text-4xl md:text-5xl font-headline font-black tracking-tighter text-text-primary mb-2 leading-[1.1]">
+            Tu Rubro.
+          </h1>
+          <p class="text-text-secondary text-base font-body">
+            Seleccioná las categorías de tu negocio.
+          </p>
+        </header>
+
+        <form id="completeForm" class="space-y-8" novalidate>
+          <div class="grid grid-cols-2 gap-4">
+            
+            <label class="cursor-pointer relative group">
+              <input type="checkbox" name="rubro" value="peluqueria" class="peer sr-only" />
+              <div class="bg-bg-secondary border border-border rounded-lg p-6 flex flex-col items-center gap-4 text-text-secondary hover:border-primary transition-all peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-text-primary">
+                <div class="absolute top-3 right-3 w-4 h-4 rounded-full border border-border peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center">
+                    <svg class="w-2 h-2 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <i class="ri-scissors-line text-3xl"></i>
+                <span class="text-[10px] uppercase tracking-[0.2em] font-bold">Peluquería</span>
+              </div>
+            </label>
+
+            <label class="cursor-pointer relative group">
+              <input type="checkbox" name="rubro" value="barberia" class="peer sr-only" />
+              <div class="bg-bg-secondary border border-border rounded-lg p-6 flex flex-col items-center gap-4 text-text-secondary hover:border-primary transition-all peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-text-primary">
+                <div class="absolute top-3 right-3 w-4 h-4 rounded-full border border-border peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center">
+                    <svg class="w-2 h-2 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <i class="ri-ancient-gate-line text-3xl"></i>
+                <span class="text-[10px] uppercase tracking-[0.2em] font-bold">Barbería</span>
+              </div>
+            </label>
+
+            <label class="cursor-pointer relative group">
+              <input type="checkbox" name="rubro" value="uñas" class="peer sr-only" />
+              <div class="bg-bg-secondary border border-border rounded-lg p-6 flex flex-col items-center gap-4 text-text-secondary hover:border-primary transition-all peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-text-primary">
+                <div class="absolute top-3 right-3 w-4 h-4 rounded-full border border-border peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center">
+                    <svg class="w-2 h-2 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <i class="ri-hand-heart-line text-3xl"></i>
+                <span class="text-[10px] uppercase tracking-[0.2em] font-bold">Uñas</span>
+              </div>
+            </label>
+
+            <label class="cursor-pointer relative group">
+              <input type="checkbox" name="rubro" value="spa" class="peer sr-only" />
+              <div class="bg-bg-secondary border border-border rounded-lg p-6 flex flex-col items-center gap-4 text-text-secondary hover:border-primary transition-all peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-text-primary">
+                <div class="absolute top-3 right-3 w-4 h-4 rounded-full border border-border peer-checked:bg-primary peer-checked:border-primary flex items-center justify-center">
+                    <svg class="w-2 h-2 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <i class="ri-sparkling-2-line text-3xl"></i>
+                <span class="text-[10px] uppercase tracking-[0.2em] font-bold">Spa</span>
+              </div>
+            </label>
+
+          </div>
+
+          <p id="signupError" class="hidden text-xs text-error font-medium" aria-live="polite"></p>
+
+          <footer class="pt-6 flex items-center gap-4">
+            <button type="submit" class="flex-1 btn btn-primary py-4 px-8 rounded-full text-xs font-bold uppercase tracking-widest shadow-xl shadow-primary/20">
+              FINALIZAR CONFIGURACIÓN
+            </button>
+            <a href="/auth/signup/credentials" id="backBtn" class="btn btn-secondary px-8 py-4 rounded-full text-[10px] font-bold uppercase tracking-widest">
+              Atrás
+            </a>
+          </footer>
+        </form>
+
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<div id="accountCreatedModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-bg-primary/80 px-6 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="accountCreatedTitle">
+  <section class="w-full max-w-sm rounded-lg border border-border bg-bg-secondary p-8 text-center shadow-2xl">
+    <div class="mb-6 flex justify-center">
+        <div class="w-16 h-16 rounded-full bg-success/20 text-success flex items-center justify-center text-3xl">
+            <i class="ri-checkbox-circle-line"></i>
+        </div>
+    </div>
+    <p class="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-success">Cuenta creada</p>
+    <h2 id="accountCreatedTitle" class="mb-3 font-headline text-3xl font-black tracking-tighter text-text-primary">
+      Tu salón está listo
+    </h2>
+    <p class="mb-8 text-sm font-body text-text-secondary leading-6">
+      Te enviamos un email de bienvenida. Ahora podés ingresar a gestionar tus turnos.
+    </p>
+    <button id="accountCreatedContinue" type="button" class="w-full btn btn-primary py-4 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/20">
+      Ir al login
+    </button>
+  </section>
+</div>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+  import { createSupabaseBrowserAuthOptions } from '../../../lib/supabase-auth-adapter';
+  import { getDecryptedSessionToken } from '../../../lib/auth-provider';
+  import { completeOAuthBusinessTypeOnboarding } from '../../../lib/oauth-signup-onboarding-flow';
+
+  if (typeof window !== 'undefined') {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isOAuthOnboarding = searchParams.get('oauth') === 'google' || searchParams.has('signup_intent');
+    const normalizeSelectedPlan = (rawPlan: string | null) => {
+      const normalized = rawPlan?.trim().toUpperCase();
+      return normalized && normalized.length > 0 ? normalized : 'FREE';
+    };
+    const plan = normalizeSelectedPlan(searchParams.get('plan') || sessionStorage.getItem('orvel.signup.plan'));
+    const isPaidPlan = plan !== 'FREE';
+    const buildSignupStepUrl = (path: string) => {
+      const params = new URLSearchParams();
+      params.set('plan', plan);
+      const signupIntent = searchParams.get('signup_intent');
+      const oauth = searchParams.get('oauth');
+
+      if (signupIntent) params.set('signup_intent', signupIntent);
+      if (oauth) params.set('oauth', oauth);
+
+      return `${path}?${params.toString()}`;
+    };
+
+    sessionStorage.setItem('orvel.signup.plan', plan);
+
+    const step2Link = document.getElementById('step2Link') as HTMLAnchorElement;
+    if (step2Link) {
+      step2Link.href = buildSignupStepUrl('/auth/signup/credentials');
+    }
+
+    const backBtn = document.getElementById('backBtn') as HTMLAnchorElement;
+    if (backBtn) {
+      backBtn.href = buildSignupStepUrl('/auth/signup/credentials');
+    }
+
+    document.getElementById('completeForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const errorEl = document.getElementById('signupError');
+
+      if (!button) return;
+
+      const checkedRubros = Array.from(form.querySelectorAll('input[name="rubro"]:checked')) as HTMLInputElement[];
+      const tipoNegocioList = checkedRubros.map(el => el.value);
+
+      if (tipoNegocioList.length === 0) {
+        if (errorEl) {
+          errorEl.textContent = 'Seleccioná al menos una categoría principal de tu negocio.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const tipoNegocio = tipoNegocioList[0] || 'otro';
+
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      }
+
+      button.disabled = true;
+      button.textContent = 'Finalizando...';
+
+      const returnTo = isPaidPlan
+        ? `/billing/test-checkout?plan=${encodeURIComponent(plan)}`
+        : '/dashboard/inicio';
+
+      const client = createClient(
+        import.meta.env.PUBLIC_SUPABASE_URL,
+        import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+        createSupabaseBrowserAuthOptions(localStorage)
+      );
+
+      if (isOAuthOnboarding) {
+        try {
+          const { data, error } = await client.auth.getUser();
+          if (error) throw error;
+          if (!data.user?.id || !data.user.email) {
+            throw new Error('No pudimos validar la cuenta de Google para completar el onboarding.');
+          }
+
+          const result = await completeOAuthBusinessTypeOnboarding({
+            userId: data.user.id,
+            email: data.user.email,
+            plan,
+            businessType: tipoNegocio,
+            persistOnboarding: async (payload) => {
+              const { data: updated, error: updateError } = await client.auth.updateUser({
+                data: {
+                  plan: payload.plan,
+                  tipoNegocio: payload.businessType,
+                  businessType: payload.businessType,
+                  selectedRubros: tipoNegocioList,
+                  selectedBusinessTypes: tipoNegocioList,
+                  onboardingCompleted: payload.onboardingCompleted,
+                  onboarding_completed: payload.onboardingCompleted
+                }
+              });
+
+              if (updateError) throw updateError;
+
+              // Create basic business if not exists
+              const { data: existingBiz, error: existingBizError } = await client
+                .from('businesses')
+                .select('id')
+                .eq('owner_id', data.user.id)
+                .maybeSingle();
+
+              if (existingBizError) throw existingBizError;
+
+              if (!existingBiz) {
+                const slug = `mi-negocio-${Date.now()}`;
+                const { error: createBusinessError } = await client.from('businesses').insert({
+                  name: 'Mi Negocio',
+                  slug: slug,
+                  owner_id: data.user.id,
+                  timezone: 'America/Argentina/Buenos_Aires',
+                });
+
+                if (createBusinessError) throw createBusinessError;
+              }
+
+              return {
+                userId: updated.user?.id ?? payload.userId,
+                email: updated.user?.email ?? data.user.email
+              };
+            },
+            sendWelcomeEmail: async () => undefined
+          });
+
+          sessionStorage.removeItem('orvel.signup.plan');
+          
+          // If paid plan and business creation succeeded, go to checkout
+          if (isPaidPlan) {
+            // Small delay to ensure business is created in DB
+            setTimeout(() => {
+              window.location.href = returnTo;
+            }, 500);
+            return;
+          }
+
+          if (result.showAccountCreatedModal) {
+            const modal = document.getElementById('accountCreatedModal');
+            const continueButton = document.getElementById('accountCreatedContinue');
+            const goToLogin = () => {
+              window.location.href = result.nextRoute;
+            };
+
+            if (modal) {
+              modal.classList.remove('hidden');
+              modal.classList.add('flex');
+              continueButton?.focus();
+              continueButton?.addEventListener('click', goToLogin, { once: true });
+              window.setTimeout(goToLogin, 2500);
+              return;
+            }
+          }
+          window.location.href = result.nextRoute;
+          return;
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+          if (errorEl) {
+            errorEl.textContent = error instanceof Error ? error.message : 'No pudimos completar el onboarding con Google.';
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+
+      const token = await getDecryptedSessionToken();
+      
+      if (token) {
+        const authenticatedClient = createClient(
+          import.meta.env.PUBLIC_SUPABASE_URL,
+          import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        );
+        await authenticatedClient.auth.updateUser({
+          data: { 
+            plan,
+            tipoNegocio: tipoNegocio,
+            businessType: tipoNegocio,
+            selectedRubros: tipoNegocioList,
+            selectedBusinessTypes: tipoNegocioList,
+            onboardingCompleted: true,
+            onboarding_completed: true
+          }
+        });
+      }
+
+      sessionStorage.removeItem('orvel.signup.plan');
+      window.location.href = returnTo;
+    });
+  }
+</script>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
