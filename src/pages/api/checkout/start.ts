@@ -7,6 +7,12 @@ type CheckoutResult =
   | { ok: true; initPoint: string }
   | { ok: false; status: number; code: string; message: string };
 
+const CONTRACT_VALIDATION_MESSAGES: Record<string, string> = {
+  PLAN_MAPPING_REQUIRED: "Falta configurar la relación del plan seleccionado. Reintentá en unos minutos.",
+  PLAN_MAPPING_INVALID: "El plan seleccionado no está correctamente configurado. Contactá soporte.",
+  PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para checkout.",
+};
+
 function normalizePlan(rawPlan: string | null): string | null {
   const normalized = rawPlan?.trim().toUpperCase();
   if (!normalized) return null;
@@ -35,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function startCheckout(request: Request, plan: string | null): Promise<CheckoutResult> {
+async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null): Promise<CheckoutResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -68,12 +74,15 @@ async function startCheckout(request: Request, plan: string | null): Promise<Che
   if (authorization) {
     headers.Authorization = authorization;
   }
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
 
   try {
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify({ plan_code: plan }),
+      body: JSON.stringify({ plan_code: plan, plan_identifier: plan }),
     });
 
     if (!upstreamResponse.ok) {
@@ -85,8 +94,14 @@ async function startCheckout(request: Request, plan: string | null): Promise<Che
         if (typeof errorData?.error === "string" && errorData.error) {
           code = errorData.error;
         }
+        if (typeof errorData?.code === "string" && errorData.code) {
+          code = errorData.code;
+        }
         if (typeof errorData?.message === "string" && errorData.message) {
           message = errorData.message;
+        }
+        if (CONTRACT_VALIDATION_MESSAGES[code]) {
+          message = CONTRACT_VALIDATION_MESSAGES[code];
         }
       } catch {
         // Keep the controlled generic error if the upstream body is not JSON.
@@ -127,7 +142,8 @@ function fallbackReason(code: string): string {
 export const GET: APIRoute = async ({ request, redirect }) => {
   const requestUrl = new URL(request.url);
   const plan = normalizePlan(requestUrl.searchParams.get("plan"));
-  const result = await startCheckout(request, plan);
+  const idempotencyKey = requestUrl.searchParams.get("idempotency_key");
+  const result = await startCheckout(request, plan, idempotencyKey);
 
   if (result.ok) {
     return redirect(result.initPoint, 303);
@@ -138,10 +154,12 @@ export const GET: APIRoute = async ({ request, redirect }) => {
 
 export const POST: APIRoute = async ({ request }) => {
   let rawPlan: string | null = null;
+  let idempotencyKey: string | null = null;
 
   try {
     const body = await request.json();
     rawPlan = typeof body?.plan === "string" ? body.plan : null;
+    idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey.trim() : null;
   } catch {
     return jsonResponse(
       { error: "invalid_json", message: "El pedido de checkout no tiene un JSON válido." },
@@ -149,7 +167,7 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  const result = await startCheckout(request, normalizePlan(rawPlan));
+  const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey);
 
   if (result.ok) {
     return jsonResponse({ init_point: result.initPoint });

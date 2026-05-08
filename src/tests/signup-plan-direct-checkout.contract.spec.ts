@@ -5,6 +5,7 @@ const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.ur
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const TEST_CHECKOUT_PAGE_PATH = new URL('../pages/billing/test-checkout.astro', import.meta.url);
 const CHECKOUT_START_API_PATH = new URL('../pages/api/checkout/start.ts', import.meta.url);
+const CHECKOUT_STATUS_API_PATH = new URL('../pages/api/checkout/status.ts', import.meta.url);
 const WEBHOOK_FN_PATH = new URL('../../../supabase/functions/mercadopago-webhook/index.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
@@ -58,7 +59,7 @@ describe('Contract: signup paid plan deferred checkout flow', () => {
     expect(source).toContain('/billing/test-checkout?plan=');
     expect(source.indexOf('completeOAuthBusinessTypeOnboarding')).toBeLessThan(source.indexOf('window.location.href = returnTo'));
     expect(source).toContain("const returnTo = isPaidPlan");
-    expect(source).toContain(": '/dashboard/inicio'");
+    expect(source).toMatch(/dashboard\/inicio/);
   });
 
   it('renders billing test checkout route with plan query fallback and safe placeholder note', async () => {
@@ -70,6 +71,8 @@ describe('Contract: signup paid plan deferred checkout flow', () => {
     expect(source).toContain("fetch('/api/checkout/start'");
     expect(source).toContain("method: 'POST'");
     expect(source).toContain('headers.Authorization');
+    expect(source).toContain('idempotencyKey');
+    expect(source).toContain('/api/checkout/status?checkout_session_id=');
     expect(source).toContain('getSession()');
     expect(source).not.toContain('Pago exitoso');
     expect(source).not.toContain('window.location.href = `/api/checkout/start?plan=');
@@ -93,7 +96,16 @@ describe('Contract: same-origin checkout start endpoint', () => {
     expect(source).toContain('request.headers.get("Authorization")');
     expect(source).toContain('headers.Authorization = authorization');
     expect(source).toContain('jsonResponse({ init_point: result.initPoint })');
-    expect(source).toContain('body: JSON.stringify({ plan_code: plan })');
+    expect(source).toContain('body: JSON.stringify({ plan_code: plan, plan_identifier: plan })');
+    expect(source).toContain('Idempotency-Key');
+  });
+
+  it('includes explicit mapping validation errors from backend contract', async () => {
+    const source = await loadSource(CHECKOUT_START_API_PATH);
+
+    expect(source).toContain('PLAN_MAPPING_REQUIRED');
+    expect(source).toContain('PLAN_MAPPING_INVALID');
+    expect(source).toContain('PLAN_IDENTIFIER_INVALID');
   });
 
   it('returns controlled fallback state on provider/start failure', async () => {
@@ -101,6 +113,16 @@ describe('Contract: same-origin checkout start endpoint', () => {
 
     expect(source).toMatch(/checkout_failed|checkout_error|retry/i);
     expect(source).toMatch(/\/billing\/test-checkout/);
+  });
+});
+
+describe('Contract: checkout status polling endpoint', () => {
+  it('provides a GET proxy for backend subscription status checks', async () => {
+    const source = await loadSource(CHECKOUT_STATUS_API_PATH);
+
+    expect(source).toMatch(/export\s+const\s+GET\s*:\s*APIRoute/);
+    expect(source).toContain('subscription-status');
+    expect(source).toContain('checkout_session_id');
   });
 });
 
