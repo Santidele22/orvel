@@ -157,12 +157,11 @@ import Layout from '../../layouts/Layout.astro';
             <span>Orvel no almacena datos de tu tarjeta</span>
           </div>
 
-          <!-- Mercado Pago Card Form Container -->
-          <div id="cardPaymentBrick_container" class="mt-4 min-h-[300px]"></div>
+          <div class="mt-8"></div>
 
-          <!-- Primary CTA Button (Fallback/Original) -->
-          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center">Estado: pendiente de pago.</div>
-          <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center"></div>
+          <!-- Primary CTA Button -->
+          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center hidden">Estado: pendiente de pago.</div>
+          <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
           
           <button 
             id="checkoutContinueBtn" 
@@ -183,9 +182,6 @@ import Layout from '../../layouts/Layout.astro';
     </div>
   </main>
 </Layout>
-
-<!-- Mercado Pago SDK -->
-<script src="https://sdk.mercadopago.com/js/v2" is:inline></script>
 
 <script>
   import { createClient } from '@supabase/supabase-js';
@@ -409,117 +405,59 @@ import Layout from '../../layouts/Layout.astro';
       pollCheckoutStatus();
       window.setInterval(pollCheckoutStatus, 4000);
     }
+    // Bind Checkout Button
+    const initCheckoutBtn = document.getElementById('checkoutContinueBtn');
+    if (initCheckoutBtn) {
+      initCheckoutBtn.addEventListener('click', async () => {
+        if (errorContainer) {
+          errorContainer.textContent = '';
+          errorContainer.classList.add('hidden');
+        }
 
-    // Mercado Pago Brick Integration
-    const mp = new (window as any).MercadoPago(import.meta.env.PUBLIC_MP_KEY);
-    const bricksBuilder = mp.bricks();
+        try {
+          // Disable button to prevent double submission
+          const btnText = initCheckoutBtn.querySelector('span');
+          if (btnText) btnText.textContent = 'Procesando...';
+          initCheckoutBtn.setAttribute('disabled', 'true');
 
-    const renderCardPaymentBrick = async (bricksBuilder: any) => {
-      const settings = {
-        initialization: {
-          amount: 100, // Placeholder amount for tokenization validation
-          payer: {
-            email: "test@example.com", // Will be updated if user is logged in
-          },
-        },
-        customization: {
-          visual: {
-            style: {
-              theme: 'dark',
-              customVariables: {
-                formBackgroundColor: '#1c1b1b',
-                baseColor: '#dcc1b4',
-                secondaryColor: '#a78bfa',
-                successColor: '#10b981',
-                errorColor: '#ef4444',
-              }
-            }
-          },
-          paymentMethods: {
-            maxInstallments: 1,
-            types: {
-              excluded: ['debit_card', 'ticket', 'bank_transfer']
-            }
+          const token = await getCheckoutAccessToken();
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          };
+          if (token) headers.Authorization = `Bearer ${token}`;
+
+          const response = await fetch('/api/checkout/start', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ 
+              plan, 
+              idempotencyKey: buildIdempotencyKey() 
+            })
+          });
+          
+          const result = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
+            showCheckoutError(codeOrMessage);
+            
+            // Re-enable button
+            if (btnText) btnText.innerHTML = 'Continuar con Mercado Pago <svg class="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>';
+            initCheckoutBtn.removeAttribute('disabled');
+            return;
           }
-        },
-        callbacks: {
-          onReady: () => {
-            console.log('Card Payment Brick ready');
-            // Hide the original button since the brick has its own
-            if (continueBtn) continueBtn.classList.add('hidden');
-          },
-          onSubmit: async ({ formData }: any) => {
-            if (errorContainer) {
-              errorContainer.textContent = '';
-              errorContainer.classList.add('hidden');
-            }
 
-            try {
-              console.log("MP Brick formData:", formData);
-              
-              // Depending on the brick version/mode, the token might be in .token or .id
-              const generatedToken = formData?.token || formData?.id;
-              
-              if (!generatedToken) {
-                console.error("No se pudo obtener el token de la tarjeta desde el Brick", formData);
-                showCheckoutError('checkout_error');
-                return;
-              }
-
-              const token = await getCheckoutAccessToken();
-              const headers: Record<string, string> = {
-                'Content-Type': 'application/json'
-              };
-              if (token) headers.Authorization = `Bearer ${token}`;
-
-              // We send the token generated by the brick
-              const response = await fetch('/api/checkout/start', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ 
-                  plan, 
-                  idempotencyKey: buildIdempotencyKey(),
-                  cardToken: generatedToken
-                })
-              });
-              
-              const result = await response.json().catch(() => null);
-
-              if (!response.ok) {
-                const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
-                showCheckoutError(codeOrMessage);
-                return;
-              }
-
-              // In direct checkout, we might get a redirect to 3DS or just success
-              if (result?.init_point) {
-                window.location.href = result.init_point;
-              } else {
-                // If no redirect, poll for status
-                pollCheckoutStatus();
-              }
-            } catch (error) {
-              console.error('Checkout error:', error);
-              showCheckoutError('checkout_retry');
-            }
-          },
-          onError: (error: any) => {
-            console.error('Brick Error:', error);
-            showCheckoutError('checkout_config_error');
-          },
-        },
-      };
-      
-      window.cardPaymentBrickController = await bricksBuilder.create(
-        'cardPayment',
-        'cardPaymentBrick_container',
-        settings
-      );
-    };
-
-    renderCardPaymentBrick(bricksBuilder);
-
-    // Keep the original button as fallback or for state handling if needed,
-    // but the Brick will take over the main action.
+          if (result?.init_point) {
+            window.location.href = result.init_point;
+          } else {
+            showCheckoutError('checkout_error');
+          }
+        } catch (error) {
+          console.error('Checkout error:', error);
+          showCheckoutError('checkout_retry');
+          initCheckoutBtn.removeAttribute('disabled');
+        }
+      });
+    }
   }
 </script>
