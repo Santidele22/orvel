@@ -448,13 +448,24 @@ import Layout from '../../layouts/Layout.astro';
             // Hide the original button since the brick has its own
             if (continueBtn) continueBtn.classList.add('hidden');
           },
-          onSubmit: async (formData: any) => {
+          onSubmit: async ({ formData }: any) => {
             if (errorContainer) {
               errorContainer.textContent = '';
               errorContainer.classList.add('hidden');
             }
 
             try {
+              console.log("MP Brick formData:", formData);
+              
+              // Depending on the brick version/mode, the token might be in .token or .id
+              const generatedToken = formData?.token || formData?.id;
+              
+              if (!generatedToken) {
+                console.error("No se pudo obtener el token de la tarjeta desde el Brick", formData);
+                showCheckoutError('checkout_error');
+                return;
+              }
+
               const token = await getCheckoutAccessToken();
               const headers: Record<string, string> = {
                 'Content-Type': 'application/json'
@@ -468,7 +479,7 @@ import Layout from '../../layouts/Layout.astro';
                 body: JSON.stringify({ 
                   plan, 
                   idempotencyKey: buildIdempotencyKey(),
-                  cardToken: formData.token // The brick provides the token here
+                  cardToken: generatedToken
                 })
               });
               
