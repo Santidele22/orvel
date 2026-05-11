@@ -34,7 +34,7 @@ import Layout from '../../layouts/Layout.astro';
               <p class="text-[10px] uppercase tracking-[0.2em] text-text-secondary">Plan seleccionado</p>
               <div class="flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(124,58,237,0.6)]"></div>
-                <span class="text-[10px] font-medium text-primary">Suscripción activa</span>
+                <span id="planStateBadge" class="text-[10px] font-medium text-primary">Pago pendiente</span>
               </div>
             </div>
             <div class="mt-2 mb-3">
@@ -78,7 +78,7 @@ import Layout from '../../layouts/Layout.astro';
               Finalizá tu suscripción
             </h2>
             <p class="text-sm text-text-secondary leading-relaxed">
-              Mercado Pago procesará tu pago y activará automáticamente tu plan.
+              Mercado Pago procesará tu pago. Activamos el acceso solo cuando backend confirma el estado final.
             </p>
           </header>
 
@@ -140,11 +140,11 @@ import Layout from '../../layouts/Layout.astro';
               </li>
               <li class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-[10px] font-bold text-primary">3</span>
-                <span class="text-sm text-text-secondary">Confirmamos tu suscripción</span>
+               <span class="text-sm text-text-secondary">Backend valida el estado de pago</span>
               </li>
               <li class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-[10px] font-bold text-primary">4</span>
-                <span class="text-sm text-text-secondary">Activamos tu cuenta automáticamente</span>
+               <span class="text-sm text-text-secondary">Te habilitamos acceso cuando el estado esté aprobado</span>
               </li>
             </ol>
           </div>
@@ -158,6 +158,7 @@ import Layout from '../../layouts/Layout.astro';
           </div>
 
           <!-- Primary CTA Button -->
+          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center">Estado: pendiente de pago.</div>
           <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center"></div>
           
           <button 
@@ -239,17 +240,65 @@ import Layout from '../../layouts/Layout.astro';
 
     const errorMessages: Record<string, string> = {
       business_required: 'Primero necesitás completar la configuración de tu negocio en el dashboard.',
+      BUSINESS_REQUIRED: 'Primero necesitás completar la configuración de tu negocio en el dashboard.',
       email_required: 'Completá tus datos de contacto para continuar.',
+      EMAIL_REQUIRED: 'Completá tus datos de contacto para continuar.',
       checkout_failed: 'No pudimos iniciar el pago. Reintentá en unos segundos.',
       checkout_error: 'Ocurrió un error al procesar tu solicitud.',
       checkout_retry: 'Reintentá en unos segundos.',
       checkout_config_error: 'El checkout no está configurado para este entorno.',
-      invalid_plan: 'El plan seleccionado no está disponible.'
+      invalid_plan: 'El plan seleccionado no está disponible.',
+      PLAN_MAPPING_REQUIRED: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
+      PLAN_MAPPING_INVALID: 'El plan está mal configurado en backend. Contactá soporte.',
+      PLAN_IDENTIFIER_INVALID: 'El plan enviado no cumple el contrato de suscripción.',
+      plan_mapping_required: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
+      plan_mapping_invalid: 'El plan está mal configurado en backend. Contactá soporte.',
+      plan_identifier_invalid: 'El plan enviado no cumple el contrato de suscripción.',
+      checkout_cancelled: 'Cancelaste el pago. Podés reintentar cuando quieras.'
+    };
+
+    const normalizeCheckoutErrorCode = (value: unknown) => {
+      if (typeof value !== 'string') return '';
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+      if (errorMessages[trimmed]) return trimmed;
+
+      const upper = trimmed.toUpperCase();
+      if (errorMessages[upper]) return upper;
+
+      const lower = trimmed.toLowerCase();
+      if (errorMessages[lower]) return lower;
+
+      return trimmed;
+    };
+
+    const statusContainer = document.getElementById('checkoutStatus');
+    const stateBadge = document.getElementById('planStateBadge');
+    const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry') => {
+      if (!statusContainer || !stateBadge) return;
+      if (state === 'pending') {
+        stateBadge.textContent = 'Pago pendiente';
+        statusContainer.textContent = 'Estado: estamos esperando confirmación del pago desde backend.';
+        return;
+      }
+      if (state === 'failed') {
+        stateBadge.textContent = 'Pago fallido';
+        statusContainer.textContent = 'Estado: el pago no pudo procesarse. Revisá tus medios de pago y reintentá.';
+        return;
+      }
+      if (state === 'cancelled') {
+        stateBadge.textContent = 'Pago cancelado';
+        statusContainer.textContent = 'Estado: cancelaste el flujo de pago. Podés retomarlo desde este paso.';
+        return;
+      }
+      stateBadge.textContent = 'Reintento disponible';
+      statusContainer.textContent = 'Estado: hubo un problema temporal. Reintentá iniciar checkout.';
     };
 
     const showCheckoutError = (codeOrMessage: string) => {
       if (!errorContainer) return;
-      errorContainer.textContent = errorMessages[codeOrMessage] || codeOrMessage;
+      const normalizedCode = normalizeCheckoutErrorCode(codeOrMessage);
+      errorContainer.textContent = errorMessages[normalizedCode] || codeOrMessage;
       errorContainer.classList.remove('hidden');
     };
 
@@ -282,14 +331,77 @@ import Layout from '../../layouts/Layout.astro';
         || parseStoredAccessToken('orvel.session.v1', 'token');
     };
 
-    if (checkoutError && errorContainer && errorMessages[checkoutError]) {
-      showCheckoutError(checkoutError);
+    const paymentStatus = (params.get('payment_status') || '').trim().toLowerCase();
+    const checkoutState = (params.get('checkout_state') || '').trim().toLowerCase();
+    const checkoutSessionId = (params.get('checkout_session_id') || '').trim();
+    if (paymentStatus === 'approved' || checkoutState === 'pending') {
+      setUiState('pending');
+    } else if (paymentStatus === 'rejected' || paymentStatus === 'failed') {
+      setUiState('failed');
+    } else if (paymentStatus === 'cancelled' || checkoutState === 'cancelled') {
+      setUiState('cancelled');
+    }
+
+    const normalizedCheckoutError = normalizeCheckoutErrorCode(checkoutError);
+    if (normalizedCheckoutError && errorContainer && errorMessages[normalizedCheckoutError]) {
+      showCheckoutError(normalizedCheckoutError);
+      setUiState(normalizedCheckoutError === 'checkout_cancelled' ? 'cancelled' : 'retry');
        
       // Disable button on error
       if (continueBtn) {
         continueBtn.disabled = true;
         continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
+    }
+
+    const checkoutAttemptKey = `orvel.checkout.attempt.${plan}`;
+    const buildIdempotencyKey = () => {
+      const existing = sessionStorage.getItem(checkoutAttemptKey);
+      if (existing) return existing;
+      const generated = `landing-${plan}-${crypto.randomUUID()}`;
+      sessionStorage.setItem(checkoutAttemptKey, generated);
+      return generated;
+    };
+
+    const pollCheckoutStatus = async () => {
+      if (!checkoutSessionId) return;
+      try {
+        const token = await getCheckoutAccessToken();
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const response = await fetch(`/api/checkout/status?checkout_session_id=${encodeURIComponent(checkoutSessionId)}`, {
+          method: 'GET',
+          headers
+        });
+        const result = await response.json().catch(() => null);
+
+        const normalizedStatus = `${result?.status || result?.payment_status || ''}`.toLowerCase();
+        if (normalizedStatus === 'approved' || normalizedStatus === 'active') {
+          sessionStorage.removeItem(checkoutAttemptKey);
+          const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+          const dashboardHome = dashboardOrigin
+            ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
+            : '/dashboard/inicio';
+          window.location.href = dashboardHome;
+          return;
+        }
+
+        if (normalizedStatus === 'rejected' || normalizedStatus === 'failed') {
+          setUiState('failed');
+          return;
+        }
+
+        setUiState('pending');
+      } catch {
+        setUiState('retry');
+      }
+    };
+
+    if (checkoutSessionId) {
+      setUiState('pending');
+      pollCheckoutStatus();
+      window.setInterval(pollCheckoutStatus, 4000);
     }
 
     // Continue button handler
@@ -323,13 +435,14 @@ import Layout from '../../layouts/Layout.astro';
         const response = await fetch('/api/checkout/start', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ plan })
+          body: JSON.stringify({ plan, idempotencyKey: buildIdempotencyKey() })
         });
         const result = await response.json().catch(() => null);
 
         if (!response.ok) {
-          const codeOrMessage = result?.message || result?.error || 'No pudimos iniciar el pago. Reintentá en unos segundos.';
+          const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
           showCheckoutError(codeOrMessage);
+          setUiState('retry');
           return;
         }
 

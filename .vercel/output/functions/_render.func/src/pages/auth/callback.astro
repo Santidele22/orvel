@@ -1,0 +1,69 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Orvel - Conectando sesión">
+  <main class="flex min-h-screen w-full items-center justify-center bg-[#0e0e0e] px-8">
+    <section class="max-w-md rounded-2xl border border-[#dcc1b4]/20 bg-[#1c1b1b] p-8 text-center shadow-2xl shadow-black/30">
+      <p class="mb-4 text-[10px] uppercase tracking-[0.2em] text-[#dcc1b4]">Google OAuth</p>
+      <h1 class="mb-3 font-headline text-3xl font-bold tracking-tighter text-text-primary">Conectando tu cuenta</h1>
+      <p id="oauthCallbackStatus" class="text-sm font-light text-text-primary">Validando sesión y preparando el dashboard…</p>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+  import { createSupabaseBrowserAuthOptions } from '../../lib/supabase-auth-adapter';
+
+  if (typeof window !== 'undefined') {
+    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+    const defaultReturnTo = dashboardOrigin
+      ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
+      : '/dashboard/inicio';
+
+    const sanitizeReturnTo = (raw: string | null): string => {
+      if (!raw) return defaultReturnTo;
+      try {
+        const candidate = new URL(raw, window.location.origin);
+        if (dashboardOrigin && candidate.origin === new URL(dashboardOrigin).origin) {
+          return candidate.toString();
+        }
+        if (candidate.origin === window.location.origin && candidate.pathname.startsWith('/dashboard')) {
+          return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        }
+      } catch {
+        // Fall back below.
+      }
+      return defaultReturnTo;
+    };
+
+    const status = document.getElementById('oauthCallbackStatus');
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = sanitizeReturnTo(params.get('returnTo'));
+
+    try {
+      const code = params.get('code');
+      if (!code) {
+        throw new Error('missing_provider_code');
+      }
+
+      const client = createClient(
+        import.meta.env.PUBLIC_SUPABASE_URL,
+        import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+        createSupabaseBrowserAuthOptions(localStorage)
+      );
+
+      const { error } = await client.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+
+      window.location.href = returnTo;
+    } catch (error) {
+      if (status) status.textContent = 'No pudimos completar Google OAuth. Volvé a intentar.';
+      console.warn('[orvel-oauth-login] callback failed', error);
+      window.setTimeout(() => {
+        window.location.href = '/auth/login?oauth_error=callback_failed';
+      }, 1200);
+    }
+  }
+</script>

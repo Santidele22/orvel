@@ -24,6 +24,14 @@
 			"dest": "_render"
 		},
 		{
+			"src": "^/api/checkout/status/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/auth/callback/?$",
+			"dest": "_render"
+		},
+		{
 			"src": "^/auth/login/?$",
 			"dest": "_render"
 		},
