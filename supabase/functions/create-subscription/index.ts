@@ -60,6 +60,7 @@ interface SubscriptionRequest {
   tier?: string;
   cadence?: string;
   email?: string;
+  card_token_id?: string;
 }
 function resolveLegacyPreapprovalPlanIdFromPlan(plan: Plan): string | null {
   const planRecord = plan as unknown as Record<string, unknown>;
@@ -230,7 +231,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { plan_code, tier, cadence } = body;
+const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
 
     let effectivePlanCode: string | null = typeof plan_code === "string" ? plan_code : null;
     let catalogRow: { id: string; tier: string; cadence: string; tier_code: string; preapproval_plan_id: string } | null = null;
@@ -475,8 +476,9 @@ Deno.serve(async (req) => {
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
       preapproval_plan_id: resolvedPreapprovalPlanId,
+      card_token_id: card_token_id,
       site_id: "MLA",
-      status: "pending",
+      status: "authorized",
     };
 
     // Create preapproval in Mercado Pago
