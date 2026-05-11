@@ -507,9 +507,6 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
       preapproval_plan_id: resolvedPreapprovalPlanId,
-      card_token_id: card_token_id,
-      site_id: "MLA",
-      status: "authorized",
     };
 
     // Create preapproval in Mercado Pago
