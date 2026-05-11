@@ -157,9 +157,11 @@ import Layout from '../../layouts/Layout.astro';
             <span>Orvel no almacena datos de tu tarjeta</span>
           </div>
 
+          <div class="mt-8"></div>
+
           <!-- Primary CTA Button -->
-          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center">Estado: pendiente de pago.</div>
-          <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center"></div>
+          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center hidden">Estado: pendiente de pago.</div>
+          <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
           
           <button 
             id="checkoutContinueBtn" 
@@ -403,62 +405,59 @@ import Layout from '../../layouts/Layout.astro';
       pollCheckoutStatus();
       window.setInterval(pollCheckoutStatus, 4000);
     }
-
-    // Continue button handler
-    continueBtn?.addEventListener('click', async () => {
-      if (continueBtn.disabled) return;
-       
-      continueBtn.disabled = true;
-      continueBtn.innerHTML = `
-          <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-          </svg>
-          Redirigiendo...
-        `;
-
-      if (errorContainer) {
-        errorContainer.textContent = '';
-        errorContainer.classList.add('hidden');
-      }
-
-      try {
-        const token = await getCheckoutAccessToken();
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-        };
-
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
+    // Bind Checkout Button
+    const initCheckoutBtn = document.getElementById('checkoutContinueBtn');
+    if (initCheckoutBtn) {
+      initCheckoutBtn.addEventListener('click', async () => {
+        if (errorContainer) {
+          errorContainer.textContent = '';
+          errorContainer.classList.add('hidden');
         }
 
-        const response = await fetch('/api/checkout/start', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ plan, idempotencyKey: buildIdempotencyKey() })
-        });
-        const result = await response.json().catch(() => null);
+        try {
+          // Disable button to prevent double submission
+          const btnText = initCheckoutBtn.querySelector('span');
+          if (btnText) btnText.textContent = 'Procesando...';
+          initCheckoutBtn.setAttribute('disabled', 'true');
 
-        if (!response.ok) {
-          const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
-          showCheckoutError(codeOrMessage);
-          setUiState('retry');
-          return;
+          const token = await getCheckoutAccessToken();
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          };
+          if (token) headers.Authorization = `Bearer ${token}`;
+
+          const response = await fetch('/api/checkout/start', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ 
+              plan, 
+              idempotencyKey: buildIdempotencyKey() 
+            })
+          });
+          
+          const result = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
+            showCheckoutError(codeOrMessage);
+            
+            // Re-enable button
+            if (btnText) btnText.innerHTML = 'Continuar con Mercado Pago <svg class="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>';
+            initCheckoutBtn.removeAttribute('disabled');
+            return;
+          }
+
+          if (result?.init_point) {
+            window.location.href = result.init_point;
+          } else {
+            showCheckoutError('checkout_error');
+          }
+        } catch (error) {
+          console.error('Checkout error:', error);
+          showCheckoutError('checkout_retry');
+          initCheckoutBtn.removeAttribute('disabled');
         }
-
-        if (typeof result?.init_point === 'string' && result.init_point) {
-          window.location.href = result.init_point;
-          return;
-        }
-
-        showCheckoutError('checkout_error');
-      } catch {
-        showCheckoutError('checkout_retry');
-      } finally {
-        continueBtn.disabled = false;
-        continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        continueBtn.innerHTML = originalButtonHtml;
-      }
-    });
+      });
+    }
   }
 </script>
