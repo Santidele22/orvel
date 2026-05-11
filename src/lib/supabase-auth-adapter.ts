@@ -140,7 +140,7 @@ function isInvalidCredentialsError(message: string): boolean {
 }
 
 const CANONICAL_PLAN_CODES = ['STARTED', 'GROWTH', 'PRO'] as const;
-const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro'] as const;
+const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro', 'pendiente'] as const;
 
 function normalizeSignupPlan(plan: unknown): (typeof CANONICAL_PLAN_CODES)[number] | null {
   const normalizedPlan = normalizeOAuthSignupPlan(plan);
@@ -162,11 +162,6 @@ function normalizeBusinessType(tipoNegocio: unknown): (typeof ALLOWED_ONBOARDING
   return null;
 }
 
-function buildOnboardingRedirect(redirectTo: string): string {
-  const target = redirectTo.trim() || '/dashboard';
-  return `/auth/onboarding?returnTo=${encodeURIComponent(target)}`;
-}
-
 function resolveRedirectOrigin(redirectTo: string): string {
   try {
     return new URL(redirectTo).origin;
@@ -175,7 +170,7 @@ function resolveRedirectOrigin(redirectTo: string): string {
       return window.location.origin;
     }
 
-    return 'https://orvel.app';
+    return 'https://orvel-landing.vercel.app';
   }
 }
 
@@ -423,7 +418,7 @@ export function createSupabaseOAuthAdapter(
             })
           ).options
         : {
-            redirectTo: hasCompleteOnboarding ? redirectTo : buildOnboardingRedirect(redirectTo),
+            redirectTo,
             queryParams: hasCompleteOnboarding
               ? undefined
               : {
