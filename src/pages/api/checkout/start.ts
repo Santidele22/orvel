@@ -85,7 +85,6 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
       body: JSON.stringify({ 
         plan_code: plan, 
         plan_identifier: plan,
-        card_token_id: cardToken 
       }),
     });
 
