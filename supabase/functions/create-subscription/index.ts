@@ -291,7 +291,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
     const canonicalPlanCode = normalizePlanCode(effectivePlanCode);
 
     // =============================================================================
-    // 4. GET PLAN FROM DATABASE (NOT FROM REQUEST)
+    // 4. GET PLAN FROM DATABASE
     // =============================================================================
     const { data: plan, error: planError } = await supabaseAdmin
       .from("plans")
@@ -308,6 +308,37 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
         }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // If catalogRow is still null, try to resolve it from mp_plan_catalog using plan details
+    if (!catalogRow && plan.price > 0) {
+      let inferredTier = "";
+      if (canonicalPlanCode === "STARTER") inferredTier = "started";
+      else if (canonicalPlanCode === "GROWTH") inferredTier = "medium";
+      else if (canonicalPlanCode === "PRO") inferredTier = "pro";
+
+      if (inferredTier) {
+        // Assume monthly cadence for base plans unless specified otherwise
+        const inferredCadence = "monthly";
+        
+        const { data: catalogRows } = await supabaseAdmin
+          .from("mp_plan_catalog")
+          .select("id, tier, cadence, tier_code, preapproval_plan_id")
+          .eq("tier", inferredTier)
+          .eq("cadence", inferredCadence)
+          .limit(1);
+
+        if (catalogRows && catalogRows.length > 0) {
+           const row = catalogRows[0];
+           catalogRow = {
+             id: String(row.id),
+             tier: String(row.tier),
+             cadence: String(row.cadence),
+             tier_code: String(row.tier_code),
+             preapproval_plan_id: String(row.preapproval_plan_id || "")
+           };
+        }
+      }
     }
 
     // Free plan doesn't need Mercado Pago
