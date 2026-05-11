@@ -41,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null): Promise<CheckoutResult> {
+async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null): Promise<CheckoutResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -82,7 +82,11 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify({ plan_code: plan, plan_identifier: plan }),
+      body: JSON.stringify({ 
+        plan_code: plan, 
+        plan_identifier: plan,
+        card_token_id: cardToken 
+      }),
     });
 
     if (!upstreamResponse.ok) {
@@ -160,18 +164,19 @@ export const POST: APIRoute = async ({ request }) => {
     const body = await request.json();
     rawPlan = typeof body?.plan === "string" ? body.plan : null;
     idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey.trim() : null;
+    const cardToken = typeof body?.cardToken === "string" ? body.cardToken.trim() : null;
+    
+    const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey, cardToken);
+
+    if (result.ok) {
+      return jsonResponse({ init_point: result.initPoint });
+    }
+
+    return jsonResponse({ error: result.code, message: result.message }, result.status);
   } catch {
     return jsonResponse(
       { error: "invalid_json", message: "El pedido de checkout no tiene un JSON válido." },
       400,
     );
   }
-
-  const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey);
-
-  if (result.ok) {
-    return jsonResponse({ init_point: result.initPoint });
-  }
-
-  return jsonResponse({ error: result.code, message: result.message }, result.status);
 };
