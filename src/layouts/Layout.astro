@@ -39,12 +39,12 @@ const { title } = Astro.props;
             // Initialize Lenis with a slower, more deliberate duration
             // @ts-ignore
             const lenis = new Lenis({
-                duration: 2.0, // Slower scroll
+                duration: 1.2, // Standard smooth scroll duration
                 easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
                 orientation: 'vertical',
                 gestureOrientation: 'vertical',
                 smoothWheel: true,
-                wheelMultiplier: 0.8, // Slightly less sensitivity
+                wheelMultiplier: 1, // Standard sensitivity
                 smoothTouch: false,
                 touchMultiplier: 2,
                 infinite: false,
