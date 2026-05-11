@@ -17,6 +17,22 @@ import {
 } from './encrypted-token-storage';
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
+const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
+
+function resolveDashboardOrigin(): string | null {
+  const candidate = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+  if (!candidate) return null;
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return null;
+  }
+}
+
+function defaultDashboardReturnTo(): string {
+  const dashboardOrigin = resolveDashboardOrigin();
+  return dashboardOrigin ? `${dashboardOrigin}${DEFAULT_DASHBOARD_PATH}` : DEFAULT_DASHBOARD_PATH;
+}
 
 export interface LoginResult {
   ok: boolean;
@@ -53,19 +69,28 @@ type OrvelSession = {
 
 function sanitizeReturnTo(returnTo: string | null | undefined): string {
   if (!returnTo) {
-    return '/dashboard';
+    return defaultDashboardReturnTo();
   }
 
   const value = returnTo.trim();
-  if (!value.startsWith('/') || value.startsWith('//')) {
-    return '/dashboard';
+  if (value.startsWith('/')) {
+    if (value.startsWith('//')) {
+      return defaultDashboardReturnTo();
+    }
+    return value;
   }
 
-  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)) {
-    return '/dashboard';
+  try {
+    const requested = new URL(value);
+    const dashboardOrigin = resolveDashboardOrigin();
+    if (dashboardOrigin && requested.origin === dashboardOrigin) {
+      return requested.toString();
+    }
+  } catch {
+    // fall through
   }
 
-  return value;
+  return defaultDashboardReturnTo();
 }
 
 function sanitizeSelectedRubros(raw: unknown): string[] {

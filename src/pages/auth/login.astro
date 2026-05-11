@@ -84,6 +84,11 @@ import Layout from '../../layouts/Layout.astro';
   import { createSupabaseLoginAdapterFromEnv, loginWithProvider } from '../../lib/auth-provider';
 
   if (typeof window !== 'undefined') {
+    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+    const dashboardHome = dashboardOrigin
+      ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
+      : '/dashboard/inicio';
+
     document.getElementById('loginForm')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget as HTMLFormElement;
@@ -128,12 +133,14 @@ import Layout from '../../layouts/Layout.astro';
         return;
       }
 
-      window.location.href = result.redirectTo ?? '/dashboard/inicio';
+      window.location.href = result.redirectTo ?? dashboardHome;
     });
 
     document.getElementById('googleBtn')?.addEventListener('click', async () => {
         const { loginWithGoogle } = await import('../../lib/auth-provider');
-        const result = await loginWithGoogle({ redirectTo: window.location.origin + '/dashboard/inicio' });
+        const callbackUrl = new URL('/auth/callback', window.location.origin);
+        callbackUrl.searchParams.set('returnTo', dashboardHome);
+        const result = await loginWithGoogle({ redirectTo: callbackUrl.toString() });
         if (!result.ok) {
             const errorEl = document.getElementById('loginError');
             if (errorEl) {
