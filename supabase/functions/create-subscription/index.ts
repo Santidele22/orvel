@@ -486,27 +486,20 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
       );
     }
 
-    const mappingResolution = resolveTrustedPaidPlanMapping({
-      planPrice: Number(plan.price || 0),
-      catalogPreapprovalPlanId: catalogRow?.preapproval_plan_id,
-      legacyPlanPreapprovalId: resolveLegacyPreapprovalPlanIdFromPlan(plan),
-    });
-
-    if (!mappingResolution.ok) {
-      return new Response(
-        JSON.stringify({ error: mappingResolution.code, message: mappingResolution.message, correlation_id: correlationId }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
-      );
-    }
-
-    const resolvedPreapprovalPlanId = mappingResolution.preapprovalPlanId;
+    // We are using 'Suscripción sin plan asociado' so we build the plan dynamically.
 
     const mpPreapprovalRequest: Record<string, unknown> = {
       payer_email: payerEmail,
       back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
-      preapproval_plan_id: resolvedPreapprovalPlanId,
+      status: "pending",
+      auto_recurring: {
+        frequency: plan.billing_frequency || 1,
+        frequency_type: plan.billing_frequency_type || "months",
+        transaction_amount: Number(plan.price),
+        currency_id: plan.currency || "ARS"
+      }
     };
 
     // Create preapproval in Mercado Pago
