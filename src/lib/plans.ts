@@ -63,9 +63,8 @@ function createPublicClient() {
  * Falls back to a static list if the database is unavailable
  */
 export async function getActivePlans(): Promise<Plan[]> {
-  const supabase = createPublicClient();
-
   try {
+    const supabase = createPublicClient();
     // RPC-first to avoid direct table dependency in landing
     const { data, error } = await supabase.rpc('get_active_plans');
 
@@ -93,10 +92,10 @@ export async function getActivePlans(): Promise<Plan[]> {
  * Fetch a single plan by code
  */
 export async function getPlanByCode(code: string): Promise<Plan | null> {
-  const supabase = createPublicClient();
   const normalizedCode = normalizeStaticPlanCode(code);
 
   try {
+    const supabase = createPublicClient();
     const { data, error } = await supabase.rpc('get_plan_by_code', { p_code: normalizedCode });
 
     if (error || !data) {
