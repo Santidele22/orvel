@@ -41,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null): Promise<CheckoutResult> {
+async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, email?: string | null, businessType?: string | null, nombre?: string | null, apellido?: string | null, telefono?: string | null): Promise<CheckoutResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -85,6 +85,11 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
       body: JSON.stringify({ 
         plan_code: plan, 
         plan_identifier: plan,
+        email,
+        business_type: businessType,
+        nombre,
+        apellido,
+        telefono
       }),
     });
 
@@ -164,8 +169,13 @@ export const POST: APIRoute = async ({ request }) => {
     rawPlan = typeof body?.plan === "string" ? body.plan : null;
     idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey.trim() : null;
     const cardToken = typeof body?.cardToken === "string" ? body.cardToken.trim() : null;
+    const email = typeof body?.email === "string" ? body.email.trim() : null;
+    const businessType = typeof body?.businessType === "string" ? body.businessType.trim() : null;
+    const nombre = typeof body?.nombre === "string" ? body.nombre.trim() : null;
+    const apellido = typeof body?.apellido === "string" ? body.apellido.trim() : null;
+    const telefono = typeof body?.telefono === "string" ? body.telefono.trim() : null;
     
-    const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey, cardToken);
+    const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey, cardToken, email, businessType, nombre, apellido, telefono);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });

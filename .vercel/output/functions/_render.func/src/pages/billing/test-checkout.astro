@@ -385,6 +385,70 @@ import Layout from '../../layouts/Layout.astro';
           const dashboardHome = dashboardOrigin
             ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
             : '/dashboard/inicio';
+
+          // Manual Signup creation if deferred
+          const email = sessionStorage.getItem('orvel.signup.email');
+          if (email && !token) {
+            const { signupWithProvider, createSupabaseSignupAdapterFromEnv } = await import('../../lib/auth-provider');
+            const password = sessionStorage.getItem('orvel.signup.password') || '';
+            const nombre = sessionStorage.getItem('orvel.signup.nombre') || '';
+            const apellido = sessionStorage.getItem('orvel.signup.apellido') || '';
+            const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre') || '';
+            const telefono = sessionStorage.getItem('orvel.signup.telefono') || '';
+            const tipoNegocio = sessionStorage.getItem('orvel.signup.tipoNegocio') || 'otro';
+            
+            const supabaseSignup = createSupabaseSignupAdapterFromEnv({
+              SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
+              SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+            });
+
+            const signupResult = await signupWithProvider({
+              attempt: {
+                plan,
+                nombre,
+                apellido,
+                negocioNombre,
+                telefono,
+                tipoNegocio,
+                email,
+                password,
+                returnTo: dashboardHome
+              },
+              supabaseSignup
+            });
+
+            if (signupResult.ok) {
+              const { getDecryptedSessionToken } = await import('../../lib/auth-provider');
+              const newToken = await getDecryptedSessionToken();
+              if (newToken) {
+                const authenticatedClient = createClient(
+                  import.meta.env.PUBLIC_SUPABASE_URL,
+                  import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+                  {
+                    global: { headers: { Authorization: `Bearer ${newToken}` } }
+                  }
+                );
+                
+                const rubrosStr = sessionStorage.getItem('orvel.signup.rubros');
+                const selectedRubros = rubrosStr ? JSON.parse(rubrosStr) : [tipoNegocio];
+
+                await authenticatedClient.auth.updateUser({
+                  data: { 
+                    plan,
+                    tipoNegocio,
+                    businessType: tipoNegocio,
+                    selectedRubros,
+                    selectedBusinessTypes: selectedRubros,
+                    onboardingCompleted: true,
+                    onboarding_completed: true
+                  }
+                });
+              }
+              // Cleanup
+              ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email', 'password', 'plan', 'tipoNegocio', 'rubros'].forEach(k => sessionStorage.removeItem(`orvel.signup.${k}`));
+            }
+          }
+
           window.location.href = dashboardHome;
           return;
         }

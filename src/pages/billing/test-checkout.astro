@@ -490,12 +490,23 @@ import Layout from '../../layouts/Layout.astro';
           };
           if (token) headers.Authorization = `Bearer ${token}`;
 
+          const email = sessionStorage.getItem('orvel.signup.email');
+          const businessType = sessionStorage.getItem('orvel.signup.tipoNegocio');
+          const nombre = sessionStorage.getItem('orvel.signup.nombre');
+          const apellido = sessionStorage.getItem('orvel.signup.apellido');
+          const telefono = sessionStorage.getItem('orvel.signup.telefono');
+
           const response = await fetch('/api/checkout/start', {
             method: 'POST',
             headers,
             body: JSON.stringify({ 
               plan, 
-              idempotencyKey: buildIdempotencyKey() 
+              idempotencyKey: buildIdempotencyKey(),
+              email,
+              businessType,
+              nombre,
+              apellido,
+              telefono
             })
           });
           
