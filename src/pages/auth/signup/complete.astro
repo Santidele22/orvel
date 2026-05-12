@@ -131,7 +131,7 @@ import Layout from '../../../layouts/Layout.astro';
 <script>
   import { createClient } from '@supabase/supabase-js';
   import { createSupabaseBrowserAuthOptions } from '../../../lib/supabase-auth-adapter';
-  import { getDecryptedSessionToken } from '../../../lib/auth-provider';
+  import { getDecryptedSessionToken, signupWithProvider, createSupabaseSignupAdapterFromEnv } from '../../../lib/auth-provider';
   import { completeOAuthBusinessTypeOnboarding } from '../../../lib/oauth-signup-onboarding-flow';
 
   if (typeof window !== 'undefined') {
@@ -308,6 +308,59 @@ import Layout from '../../../layouts/Layout.astro';
         }
       }
 
+      // Manual Signup Flow
+      sessionStorage.setItem('orvel.signup.tipoNegocio', tipoNegocio);
+      sessionStorage.setItem('orvel.signup.rubros', JSON.stringify(tipoNegocioList));
+
+      if (isPaidPlan) {
+        // Defer account creation to checkout
+        window.location.href = returnTo;
+        return;
+      }
+
+      // FREE plan: Create account now
+      const nombre = sessionStorage.getItem('orvel.signup.nombre') || '';
+      const apellido = sessionStorage.getItem('orvel.signup.apellido') || '';
+      const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre') || '';
+      const telefono = sessionStorage.getItem('orvel.signup.telefono') || '';
+      const email = sessionStorage.getItem('orvel.signup.email') || '';
+      const password = sessionStorage.getItem('orvel.signup.password') || '';
+
+      if (!email || !password) {
+         window.location.href = '/auth/signup/credentials';
+         return;
+      }
+
+      const supabaseSignup = createSupabaseSignupAdapterFromEnv({
+        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
+        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+      });
+
+      const signupResult = await signupWithProvider({
+        attempt: {
+          plan,
+          nombre,
+          apellido,
+          negocioNombre,
+          telefono,
+          tipoNegocio,
+          email,
+          password,
+          returnTo: dashboardHome
+        },
+        supabaseSignup
+      });
+
+      if (!signupResult.ok) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        if (errorEl) {
+          errorEl.textContent = signupResult.error ?? 'Error al crear la cuenta.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+
       const token = await getDecryptedSessionToken();
       
       if (token) {
@@ -335,8 +388,10 @@ import Layout from '../../../layouts/Layout.astro';
         });
       }
 
-      sessionStorage.removeItem('orvel.signup.plan');
-      window.location.href = returnTo;
+      // Cleanup
+      ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email', 'password', 'plan', 'tipoNegocio', 'rubros'].forEach(k => sessionStorage.removeItem(`orvel.signup.${k}`));
+
+      window.location.href = dashboardHome;
     });
   }
 </script>
