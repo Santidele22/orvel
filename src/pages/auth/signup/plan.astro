@@ -69,11 +69,11 @@ function updatePrices(period) {
     const savingsEl = card.querySelector('.price-savings');
     const savingsAmountEl = card.querySelector('.savings-amount');
 
-    if (priceEl) priceEl.textContent = price;
+    if (priceEl) priceEl.textContent = new Intl.NumberFormat('es-AR').format(price);
     if (labelEl) labelEl.textContent = billingLabel;
     
     if (savings > 0 && savingsEl && savingsAmountEl) {
-      savingsAmountEl.textContent = savings;
+      savingsAmountEl.textContent = new Intl.NumberFormat('es-AR').format(savings);
       savingsEl.classList.remove('hidden');
     } else if (savingsEl) {
       savingsEl.classList.add('hidden');
@@ -147,11 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
       </header>
 
       <!-- Billing Toggle -->
-      <div class="flex justify-center mb-6 mt-8">
-        <div class="bg-bg-primary rounded-full p-1.5 flex items-center gap-1 border border-border shadow-sm">
-          <button class="billing-option px-6 py-2.5 rounded-full text-xs font-headline font-bold tracking-wide transition-all bg-primary text-on-secondary" data-billing="monthly">Mensual</button>
-          <button class="billing-option px-6 py-2.5 rounded-full text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary" data-billing="quarterly">Trimestral (-15%)</button>
-          <button class="billing-option px-6 py-2.5 rounded-full text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary" data-billing="annual">Anual (-30%) <span class="text-primary text-[9px]">🔥</span></button>
+      <div class="flex justify-center mb-6 mt-8 w-full overflow-x-auto pb-2 scrollbar-hide">
+        <div class="bg-bg-primary rounded-full p-1 sm:p-1.5 flex items-center gap-1 border border-border shadow-sm min-w-max mx-auto">
+          <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all bg-primary text-on-secondary whitespace-nowrap" data-billing="monthly">Mensual</button>
+          <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="quarterly">Trimestral (-15%)</button>
+          <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="annual">Anual (-30%) <span class="text-primary text-[9px]">🔥</span></button>
         </div>
       </div>
 
@@ -192,12 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </>
               ) : (
                 <div class="price-display">
-                  <h5 class="text-4xl font-headline font-black text-text-primary">
-                    $<span class="price-value">{plan.price}</span><span
-                      class="text-xs font-body text-text-secondary font-normal ml-1 price-label"
-                    >
-                      /mes</span
-                    >
+                  <h5 class="text-3xl md:text-4xl font-headline font-black text-text-primary flex flex-wrap items-baseline gap-x-1">
+                    $<!-- --><span class="price-value">{new Intl.NumberFormat('es-AR').format(plan.price)}</span>
+                    <span
+                      class="text-[10px] sm:text-xs font-body text-text-secondary font-normal price-label"
+                    >/mes</span>
                   </h5>
                   <p class="price-savings text-primary text-[10px] font-bold hidden mt-1">
                     ahorrás $<span class="savings-amount">0</span>
