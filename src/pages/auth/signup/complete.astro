@@ -131,14 +131,16 @@ import Layout from '../../../layouts/Layout.astro';
 <script>
   import { createClient } from '@supabase/supabase-js';
   import { createSupabaseBrowserAuthOptions } from '../../../lib/supabase-auth-adapter';
-  import { getDecryptedSessionToken, signupWithProvider, createSupabaseSignupAdapterFromEnv } from '../../../lib/auth-provider';
+  import { buildDashboardAuthUrl } from '../../../lib/dashboard-auth-handoff';
   import { completeOAuthBusinessTypeOnboarding } from '../../../lib/oauth-signup-onboarding-flow';
 
   if (typeof window !== 'undefined') {
-    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-    const dashboardHome = dashboardOrigin
-      ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
-      : '/dashboard/inicio';
+    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim() || window.location.origin;
+    const dashboardSignupUrl = buildDashboardAuthUrl({
+      dashboardOrigin,
+      mode: 'signup',
+      returnTo: '/dashboard/inicio'
+    });
 
     const searchParams = new URLSearchParams(window.location.search);
     const isOAuthOnboarding = searchParams.get('oauth') === 'google' || searchParams.has('signup_intent');
@@ -203,7 +205,7 @@ import Layout from '../../../layouts/Layout.astro';
 
       const returnTo = isPaidPlan
         ? `/billing/test-checkout?plan=${encodeURIComponent(plan)}`
-        : dashboardHome;
+        : '/dashboard/inicio';
 
       const client = createClient(
         import.meta.env.PUBLIC_SUPABASE_URL,
@@ -318,80 +320,7 @@ import Layout from '../../../layouts/Layout.astro';
         return;
       }
 
-      // FREE plan: Create account now
-      const nombre = sessionStorage.getItem('orvel.signup.nombre') || '';
-      const apellido = sessionStorage.getItem('orvel.signup.apellido') || '';
-      const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre') || '';
-      const telefono = sessionStorage.getItem('orvel.signup.telefono') || '';
-      const email = sessionStorage.getItem('orvel.signup.email') || '';
-      const password = sessionStorage.getItem('orvel.signup.password') || '';
-
-      if (!email || !password) {
-         window.location.href = '/auth/signup/credentials';
-         return;
-      }
-
-      const supabaseSignup = createSupabaseSignupAdapterFromEnv({
-        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-      });
-
-      const signupResult = await signupWithProvider({
-        attempt: {
-          plan,
-          nombre,
-          apellido,
-          negocioNombre,
-          telefono,
-          tipoNegocio,
-          email,
-          password,
-          returnTo: dashboardHome
-        },
-        supabaseSignup
-      });
-
-      if (!signupResult.ok) {
-        button.disabled = false;
-        button.textContent = 'FINALIZAR CONFIGURACIÓN';
-        if (errorEl) {
-          errorEl.textContent = signupResult.error ?? 'Error al crear la cuenta.';
-          errorEl.classList.remove('hidden');
-        }
-        return;
-      }
-
-      const token = await getDecryptedSessionToken();
-      
-      if (token) {
-        const authenticatedClient = createClient(
-          import.meta.env.PUBLIC_SUPABASE_URL,
-          import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-          {
-            global: {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
-            }
-          }
-        );
-        await authenticatedClient.auth.updateUser({
-          data: { 
-            plan,
-            tipoNegocio: tipoNegocio,
-            businessType: tipoNegocio,
-            selectedRubros: tipoNegocioList,
-            selectedBusinessTypes: tipoNegocioList,
-            onboardingCompleted: true,
-            onboarding_completed: true
-          }
-        });
-      }
-
-      // Cleanup
-      ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email', 'password', 'plan', 'tipoNegocio', 'rubros'].forEach(k => sessionStorage.removeItem(`orvel.signup.${k}`));
-
-      window.location.href = dashboardHome;
+      window.location.href = dashboardSignupUrl;
     });
   }
 </script>

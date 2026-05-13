@@ -81,15 +81,17 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { createSupabaseLoginAdapterFromEnv, loginWithProvider } from '../../lib/auth-provider';
+  import { buildDashboardAuthUrl } from '../../lib/dashboard-auth-handoff';
 
   if (typeof window !== 'undefined') {
-    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-    const dashboardHome = dashboardOrigin
-      ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
-      : '/dashboard/inicio';
+    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim() || window.location.origin;
+    const dashboardAuthUrl = buildDashboardAuthUrl({
+      dashboardOrigin,
+      mode: 'login',
+      returnTo: '/dashboard/inicio'
+    });
 
-    document.getElementById('loginForm')?.addEventListener('submit', async (event) => {
+    document.getElementById('loginForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const form = event.currentTarget as HTMLFormElement;
       if (!form.checkValidity()) {
@@ -98,56 +100,15 @@ import Layout from '../../layouts/Layout.astro';
       }
 
       const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-      const errorEl = document.getElementById('loginError');
-
-      const email = (form.querySelector<HTMLInputElement>('input[name="email"]')?.value ?? '').trim();
-      const password = (form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '');
-
       if (!button) return;
 
-      if (errorEl) {
-        errorEl.textContent = '';
-        errorEl.classList.add('hidden');
-      }
-
       button.disabled = true;
-      button.textContent = 'Verificando...';
-
-      const supabaseLogin = createSupabaseLoginAdapterFromEnv({
-        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-      });
-
-      const result = await loginWithProvider({
-        attempt: { email, password },
-        supabaseLogin
-      });
-
-      if (!result.ok) {
-        button.disabled = false;
-        button.textContent = 'Entrar al Dashboard';
-        if (errorEl) {
-          errorEl.textContent = result.error ?? 'Credenciales incorrectas.';
-          errorEl.classList.remove('hidden');
-        }
-        return;
-      }
-
-      window.location.href = result.redirectTo ?? dashboardHome;
+      button.textContent = 'Abriendo dashboard...';
+      window.location.href = dashboardAuthUrl;
     });
 
-    document.getElementById('googleBtn')?.addEventListener('click', async () => {
-        const { loginWithGoogle } = await import('../../lib/auth-provider');
-        const callbackUrl = new URL('/auth/callback', window.location.origin);
-        callbackUrl.searchParams.set('returnTo', dashboardHome);
-        const result = await loginWithGoogle({ redirectTo: callbackUrl.toString() });
-        if (!result.ok) {
-            const errorEl = document.getElementById('loginError');
-            if (errorEl) {
-                errorEl.textContent = result.error ?? 'OAuth no disponible';
-                errorEl.classList.remove('hidden');
-            }
-        }
+    document.getElementById('googleBtn')?.addEventListener('click', () => {
+      window.location.href = dashboardAuthUrl;
     });
   }
 </script>
