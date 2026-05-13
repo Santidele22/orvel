@@ -22,6 +22,10 @@ import {
 
 export const routes: Routes = [
   {
+    path: 'auth',
+    component: LoginPage
+  },
+  {
     path: 'login',
     redirectTo: 'auth/login',
     pathMatch: 'full'
