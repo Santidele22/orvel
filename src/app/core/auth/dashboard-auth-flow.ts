@@ -1,19 +1,29 @@
 export type DashboardAuthMode = 'login' | 'signup';
+export type DashboardAuthSource = 'checkout';
 
 const DASHBOARD_HOME = '/';
 const SAFE_MODE_VALUES = new Set<DashboardAuthMode>(['login', 'signup']);
-const TOKEN_PARAM_PATTERN = /(?:^|[?#&])(access_token|refresh_token|token|id_token|code)=/i;
 const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token)/i;
+const PAYMENT_ID_PATTERN = /(preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
+const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 
-export function normalizeDashboardAuthRequest(url: string | URL): { mode: DashboardAuthMode; returnTo: string } {
+export function normalizeDashboardAuthRequest(url: string | URL): {
+  mode: DashboardAuthMode;
+  source?: DashboardAuthSource;
+  returnTo: string;
+} {
   const parsedUrl = parseUrl(url);
   const requestedMode = parsedUrl.searchParams.get('mode');
   const mode = SAFE_MODE_VALUES.has(requestedMode as DashboardAuthMode)
     ? (requestedMode as DashboardAuthMode)
     : 'login';
 
+  const rawSource = parsedUrl.searchParams.get('source')?.trim().toLowerCase();
+  const source: DashboardAuthSource | undefined = rawSource === 'checkout' ? 'checkout' : undefined;
+
   return {
     mode,
+    ...(source ? { source } : {}),
     returnTo: sanitizeDashboardReturnTo(parsedUrl.searchParams.get('returnTo'))
   };
 }
@@ -34,13 +44,13 @@ function sanitizeDashboardReturnTo(returnTo: string | null | undefined): string 
   if (!candidate.startsWith('/') || candidate.startsWith('//')) return DASHBOARD_HOME;
   if (/^(?:javascript|data):/i.test(candidate)) return DASHBOARD_HOME;
   if (candidate === '/auth' || candidate.startsWith('/auth?') || candidate.startsWith('/auth/')) return DASHBOARD_HOME;
-  if (TOKEN_TEXT_PATTERN.test(candidate) || TOKEN_PARAM_PATTERN.test(candidate)) return DASHBOARD_HOME;
+  if (TOKEN_TEXT_PATTERN.test(candidate) || PAYMENT_ID_PATTERN.test(candidate)) return DASHBOARD_HOME;
 
   try {
     const parsed = new URL(candidate, 'https://dashboard.orvel.local');
     if (parsed.origin !== 'https://dashboard.orvel.local') return DASHBOARD_HOME;
     if (parsed.pathname === '/auth' || parsed.pathname.startsWith('/auth/')) return DASHBOARD_HOME;
-    if (hasTokenBearingParams(parsed.searchParams) || TOKEN_TEXT_PATTERN.test(parsed.hash)) return DASHBOARD_HOME;
+    if (hasBlockedParams(parsed.searchParams) || TOKEN_TEXT_PATTERN.test(parsed.hash) || PAYMENT_ID_PATTERN.test(parsed.hash)) return DASHBOARD_HOME;
 
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
@@ -48,9 +58,9 @@ function sanitizeDashboardReturnTo(returnTo: string | null | undefined): string 
   }
 }
 
-function hasTokenBearingParams(params: URLSearchParams): boolean {
+function hasBlockedParams(params: URLSearchParams): boolean {
   for (const key of params.keys()) {
-    if (/^(access_token|refresh_token|token|id_token|code)$/i.test(key)) return true;
+    if (PARAM_BLOCKLIST.test(key)) return true;
   }
   return false;
 }
