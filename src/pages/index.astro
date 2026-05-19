@@ -99,65 +99,8 @@ function updatePrices(period) {
   });
 }
 
-// Handle plan selection
-async function handlePlanSelection(planCode) {
-  const plan = PLANS_DATA.find(p => p.code === planCode);
-  if (!plan) {
-    console.error('Plan not found:', planCode);
-    return;
-  }
-
-  // For free plan, redirect to signup
-  if (plan.price === 0) {
-    window.location.href = '/auth/signup/plan?plan=FREE';
-    return;
-  }
-
-  // For paid plans, check authentication first
-  const sessionData = localStorage.getItem('orvel.session.v1');
-  if (!sessionData) {
-    // Redirect to login with plan selection
-    window.location.href = `/auth/login?plan=${planCode}&returnTo=/auth/signup/plan`;
-    return;
-  }
-
-  // Show loading state
-  const button = document.querySelector(`[data-plan="${planCode}"]`);
-  const originalText = button?.textContent;
-  if (button) {
-    button.textContent = 'Procesando...';
-    button.disabled = true;
-  }
-
-  try {
-    const result = await createSubscription(planCode);
-    
-    if (!result.success) {
-      alert(result.error || 'Error al procesar suscripción');
-      if (button) {
-        button.textContent = originalText;
-        button.disabled = false;
-      }
-      return;
-    }
-
-    // Free plan: subscription already created
-    if (!result.init_point) {
-      window.location.href = '/dashboard';
-      return;
-    }
-
-    // Redirect to Mercado Pago
-    window.location.href = result.init_point;
-  } catch (err) {
-    console.error('Subscription error:', err);
-    alert('Error de conexión. Intentá nuevamente.');
-    if (button) {
-      button.textContent = originalText;
-      button.disabled = false;
-    }
-  }
-}
+// El manejo de selección de plan y auth fue removido para pre-lanzamiento.
+// La interacción se limita puramente a la visualización de los precios de forma informativa.
 
 // Initialize billing toggle
 document.addEventListener('DOMContentLoaded', () => {
@@ -170,12 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Plan button handlers
-  document.querySelectorAll('[data-plan]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      handlePlanSelection(btn.dataset.plan);
-    });
-  });
 });
 </script>
 

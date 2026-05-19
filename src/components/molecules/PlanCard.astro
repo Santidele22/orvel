@@ -34,12 +34,11 @@ const isPro = plan.code === 'PRO';
 
 const dotColor = isFree ? 'bg-green-500' : isStarter ? 'bg-primary' : isGrowth ? 'bg-purple-500' : 'bg-yellow-500';
 
-const cardElement = isSignupPage ? 'a' : 'div';
+const CardContainer = isSignupPage ? 'a' : 'div';
 const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&billing=monthly` : undefined;
 ---
 
-<Element
-  is={cardElement}
+<CardContainer
   href={cardHref}
   class={`plan-card p-6 rounded-xl bg-bg-primary border border-border flex flex-col hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl transition-all duration-300 group cursor-pointer w-full md:w-[320px] shrink-0 ${plan.is_featured ? 'ring-2 ring-primary relative z-10' : ''}`}
   data-plan-code={plan.code}
@@ -107,20 +106,11 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     )}
   </ul>
   
-  {isSignupPage ? (
-    <div 
-      class={`w-full py-2.5 rounded-full font-headline font-bold text-xs shadow-lg hover:shadow-xl transition-all active:scale-95 text-center ${plan.is_featured ? 'bg-primary text-on-secondary hover:bg-primary-hover' : 'border border-border text-text-primary hover:bg-white/5'}`}
-    >
-      {getPlanButtonLabel(plan.code)}
-    </div>
-  ) : (
-    <button 
-      class={`w-full py-2.5 rounded-full font-headline font-bold text-xs shadow-lg hover:shadow-xl transition-all active:scale-95 ${plan.is_featured ? 'bg-primary text-on-secondary hover:bg-primary-hover' : 'border border-border text-text-primary hover:bg-white/5'}`}
-      data-plan={plan.code}
-    >
-      {getPlanButtonLabel(plan.code)}
-    </button>
-  )}
+  <div class="w-full py-3 rounded-full border border-border bg-white/5 text-center mt-auto">
+    <span class="font-headline font-bold text-xs text-text-secondary tracking-wide uppercase">
+      Disponible próximamente
+    </span>
+  </div>
   
   <p class="text-[9px] text-center text-text-primary/40 mt-3 italic">
     {isFree && "Probalo sin riesgo."}
@@ -128,4 +118,4 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     {isGrowth && "Reducí hasta un 30% las cancelaciones."}
     {isPro && "Control total para escalar sin fricción."}
   </p>
-</Element>
+</CardContainer>

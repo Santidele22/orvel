@@ -21,7 +21,7 @@
     <div class="max-w-7xl mx-auto px-8 md:px-12 relative z-20">
         <div class="grid lg:grid-cols-2 gap-16 items-center">
             <!-- Content Column -->
-            <div class="space-y-8">
+            <div class="space-y-8 relative z-10">
                 <div
                     class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-[0.2em] uppercase text-primary shadow-sm"
                 >
@@ -54,12 +54,7 @@
                 </p>
 
                 <div class="flex flex-col sm:flex-row items-center gap-4 pt-4 reveal stagger-2">
-                    <a
-                        href="/auth/signup/plan"
-                        class="w-full sm:w-auto btn btn-primary py-4 px-10 text-xs tracking-widest uppercase shadow-xl shadow-primary/20"
-                    >
-                        Comenzar ahora — Es gratis
-                    </a>
+                    <!-- Botón de signup removido en pre-lanzamiento -->
                     <a
                         href="#how-it-works"
                         class="w-full sm:w-auto btn btn-secondary py-4 px-10 text-xs tracking-widest uppercase"
@@ -69,14 +64,19 @@
                 </div>
 
                 <div class="pt-8 border-t border-border/50">
-                    <p class="text-text-secondary font-medium text-lg tracking-wide reveal stagger-3">
-                        El nuevo estándar para gestionar salones modernos.
+                    <p class="text-text-primary font-serif text-2xl tracking-wide reveal stagger-3 leading-relaxed">
+                        El <span class="text-primary italic relative inline-block">
+                            nuevo estándar
+                            <svg class="absolute w-full h-2 -bottom-1 left-0 text-primary opacity-80" viewBox="0 0 100 10" preserveAspectRatio="none">
+                                <path d="M0,5 Q25,8 50,4 T100,6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+                            </svg>
+                        </span> para gestionar salones <span class="text-primary italic">modernos.</span>
                     </p>
                 </div>
             </div>
 
             <!-- Image Column -->
-            <div class="relative lg:block hidden reveal-right stagger-3">
+            <div class="relative lg:block hidden reveal-right stagger-3 scale-110 lg:scale-[1.15] lg:translate-x-12 xl:translate-x-16">
                 <div
                     class="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-75 opacity-50"
                 >
@@ -87,6 +87,9 @@
                     <img
                         src="/banner1.png"
                         alt="Orvel Dashboard Preview"
+                        loading="eager"
+                        fetchpriority="high"
+                        decoding="sync"
                         class="rounded-lg w-full shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]"
                     />
                     <div

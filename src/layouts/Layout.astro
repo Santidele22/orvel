@@ -36,15 +36,15 @@ const { title } = Astro.props;
         <!-- Lenis Smooth Scroll & Reveal Script -->
         <script is:inline src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
         <script>
-            // Initialize Lenis with a slower, more deliberate duration
+            // Initialize Lenis with a more fluid, swingy but faster scroll
             // @ts-ignore
             const lenis = new Lenis({
-                duration: 1.2, // Standard smooth scroll duration
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                duration: 0.8, // Reduced from 1.2 to avoid feeling slow
+                easing: (t) => 1 - Math.pow(1 - t, 4), // Quartic ease-out for a nice "swing"
                 orientation: 'vertical',
                 gestureOrientation: 'vertical',
                 smoothWheel: true,
-                wheelMultiplier: 1, // Standard sensitivity
+                wheelMultiplier: 1.15, // Slightly more responsive
                 smoothTouch: false,
                 touchMultiplier: 2,
                 infinite: false,
