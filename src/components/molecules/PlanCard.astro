@@ -1,0 +1,131 @@
+---
+export interface Plan {
+  code: string;
+  name: string;
+  price: number;
+  quarterly_price: number;
+  annual_price: number;
+  duration_days: number;
+  is_featured: boolean;
+  description?: string;
+}
+
+export interface Props {
+  plan: Plan;
+  isSignupPage?: boolean;
+}
+
+const { plan, isSignupPage = false } = Astro.props;
+
+function getPlanButtonLabel(planCode: string): string {
+  switch (planCode) {
+    case 'FREE': return 'Empezar gratis';
+    case 'STARTER': return 'Elegir Starter';
+    case 'GROWTH': return 'Elegir Growth';
+    case 'PRO': return 'Elegir Pro';
+    default: return 'Elegir plan';
+  }
+}
+
+const isFree = plan.code === 'FREE';
+const isStarter = plan.code === 'STARTER';
+const isGrowth = plan.code === 'GROWTH';
+const isPro = plan.code === 'PRO';
+
+const dotColor = isFree ? 'bg-green-500' : isStarter ? 'bg-primary' : isGrowth ? 'bg-purple-500' : 'bg-yellow-500';
+
+const cardElement = isSignupPage ? 'a' : 'div';
+const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&billing=monthly` : undefined;
+---
+
+<Element
+  is={cardElement}
+  href={cardHref}
+  class={`plan-card p-6 rounded-xl bg-bg-primary border border-border flex flex-col hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl transition-all duration-300 group cursor-pointer w-full md:w-[320px] shrink-0 ${plan.is_featured ? 'ring-2 ring-primary relative z-10' : ''}`}
+  data-plan-code={plan.code}
+>
+  {plan.is_featured && (
+    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-on-secondary px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-md">
+      <i class="ri-star-fill text-[10px]"></i> Destacado
+    </div>
+  )}
+  
+  <div class="mb-4 mt-3">
+    <div class="flex items-center gap-2 mb-2">
+      <div class={`w-2 h-2 rounded-full ${dotColor}`}></div>
+      <p class="font-label text-xs uppercase tracking-widest text-text-primary font-bold">{plan.name}</p>
+    </div>
+    
+    {plan.price === 0 ? (
+      <h5 class="text-3xl font-headline font-bold text-text-primary">$0</h5>
+    ) : (
+      <div class="price-display">
+        <h5 class="text-4xl font-headline font-black text-text-primary">
+          $<span class="price-value">{plan.price}</span><span class="text-sm font-body text-text-primary/60 font-normal price-label">/mes</span>
+        </h5>
+        <p class="price-savings text-primary text-[9px] font-bold hidden">
+          ahorrás $<span class="savings-amount">0</span>
+        </p>
+      </div>
+    )}
+    <p class="text-text-primary/60 text-[10px] mt-1 h-8 line-clamp-2">{plan.description}</p>
+  </div>
+  
+  <ul class="mb-6 space-y-3 text-text-primary text-xs flex-grow border-t border-border/50 pt-4">
+    {isFree && (
+      <>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> 1 local</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Hasta 15 turnos/mes</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Reservas online</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Agenda automática</li>
+        <li class="flex items-center gap-2 text-text-primary/50"><i class="ri-close-line text-red-400"></i> Con branding Orvel</li>
+      </>
+    )}
+    {isStarter && (
+      <>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> 1 local</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Turnos ilimitados</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Link de reservas</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Sin branding</li>
+      </>
+    )}
+    {isGrowth && (
+      <>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Hasta 3 locales</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Recordatorios auto</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Métricas de tu agenda</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Reportes semanales</li>
+      </>
+    )}
+    {isPro && (
+      <>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Hasta 10 locales</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Soporte prioritario</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Reportes avanzados</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> API (opcional)</li>
+      </>
+    )}
+  </ul>
+  
+  {isSignupPage ? (
+    <div 
+      class={`w-full py-2.5 rounded-full font-headline font-bold text-xs shadow-lg hover:shadow-xl transition-all active:scale-95 text-center ${plan.is_featured ? 'bg-primary text-on-secondary hover:bg-primary-hover' : 'border border-border text-text-primary hover:bg-white/5'}`}
+    >
+      {getPlanButtonLabel(plan.code)}
+    </div>
+  ) : (
+    <button 
+      class={`w-full py-2.5 rounded-full font-headline font-bold text-xs shadow-lg hover:shadow-xl transition-all active:scale-95 ${plan.is_featured ? 'bg-primary text-on-secondary hover:bg-primary-hover' : 'border border-border text-text-primary hover:bg-white/5'}`}
+      data-plan={plan.code}
+    >
+      {getPlanButtonLabel(plan.code)}
+    </button>
+  )}
+  
+  <p class="text-[9px] text-center text-text-primary/40 mt-3 italic">
+    {isFree && "Probalo sin riesgo."}
+    {isStarter && "Con solo 3 turnos más, se paga solo."}
+    {isGrowth && "Reducí hasta un 30% las cancelaciones."}
+    {isPro && "Control total para escalar sin fricción."}
+  </p>
+</Element>

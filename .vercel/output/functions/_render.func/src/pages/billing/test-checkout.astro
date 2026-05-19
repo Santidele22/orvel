@@ -336,7 +336,9 @@ import Layout from '../../layouts/Layout.astro';
     const paymentStatus = (params.get('payment_status') || '').trim().toLowerCase();
     const checkoutState = (params.get('checkout_state') || '').trim().toLowerCase();
     const checkoutSessionId = (params.get('checkout_session_id') || '').trim();
-    if (paymentStatus === 'approved' || checkoutState === 'pending') {
+    if (paymentStatus === 'approved') {
+      // Redirect handled below — after normalizedCheckoutError block
+    } else if (checkoutState === 'pending') {
       setUiState('pending');
     } else if (paymentStatus === 'rejected' || paymentStatus === 'failed') {
       setUiState('failed');
@@ -354,6 +356,22 @@ import Layout from '../../layouts/Layout.astro';
         continueBtn.disabled = true;
         continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
+    }
+
+    // Approved checkout — hand off to dashboard auth for session/entitlement
+    // Backend/Supabase/functions/webhooks are source of truth; query params are UX only.
+    if (paymentStatus === 'approved') {
+      (async () => {
+        const { buildDashboardAuthUrl } = await import('../../lib/dashboard-auth-handoff');
+        const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL || 'http://localhost:4200';
+        const handoffUrl = buildDashboardAuthUrl({
+          dashboardOrigin,
+          mode: 'login',
+          source: 'checkout',
+          returnTo: '/dashboard/inicio?from=checkout'
+        });
+        window.location.href = handoffUrl;
+      })();
     }
 
     const checkoutAttemptKey = `orvel.checkout.attempt.${plan}`;
@@ -381,75 +399,15 @@ import Layout from '../../layouts/Layout.astro';
         const normalizedStatus = `${result?.status || result?.payment_status || ''}`.toLowerCase();
         if (normalizedStatus === 'approved' || normalizedStatus === 'active') {
           sessionStorage.removeItem(checkoutAttemptKey);
-          const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-          const dashboardHome = dashboardOrigin
-            ? `${dashboardOrigin.replace(/\/$/, '')}/dashboard/inicio`
-            : '/dashboard/inicio';
-
-          // Manual Signup creation if deferred
-          const email = sessionStorage.getItem('orvel.signup.email');
-          if (email && !token) {
-            const { signupWithProvider, createSupabaseSignupAdapterFromEnv } = await import('../../lib/auth-provider');
-            const password = sessionStorage.getItem('orvel.signup.password') || '';
-            const nombre = sessionStorage.getItem('orvel.signup.nombre') || '';
-            const apellido = sessionStorage.getItem('orvel.signup.apellido') || '';
-            const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre') || '';
-            const telefono = sessionStorage.getItem('orvel.signup.telefono') || '';
-            const tipoNegocio = sessionStorage.getItem('orvel.signup.tipoNegocio') || 'otro';
-            
-            const supabaseSignup = createSupabaseSignupAdapterFromEnv({
-              SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-              SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-            });
-
-            const signupResult = await signupWithProvider({
-              attempt: {
-                plan,
-                nombre,
-                apellido,
-                negocioNombre,
-                telefono,
-                tipoNegocio,
-                email,
-                password,
-                returnTo: dashboardHome
-              },
-              supabaseSignup
-            });
-
-            if (signupResult.ok) {
-              const { getDecryptedSessionToken } = await import('../../lib/auth-provider');
-              const newToken = await getDecryptedSessionToken();
-              if (newToken) {
-                const authenticatedClient = createClient(
-                  import.meta.env.PUBLIC_SUPABASE_URL,
-                  import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-                  {
-                    global: { headers: { Authorization: `Bearer ${newToken}` } }
-                  }
-                );
-                
-                const rubrosStr = sessionStorage.getItem('orvel.signup.rubros');
-                const selectedRubros = rubrosStr ? JSON.parse(rubrosStr) : [tipoNegocio];
-
-                await authenticatedClient.auth.updateUser({
-                  data: { 
-                    plan,
-                    tipoNegocio,
-                    businessType: tipoNegocio,
-                    selectedRubros,
-                    selectedBusinessTypes: selectedRubros,
-                    onboardingCompleted: true,
-                    onboarding_completed: true
-                  }
-                });
-              }
-              // Cleanup
-              ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email', 'password', 'plan', 'tipoNegocio', 'rubros'].forEach(k => sessionStorage.removeItem(`orvel.signup.${k}`));
-            }
-          }
-
-          window.location.href = dashboardHome;
+          const { buildDashboardAuthUrl } = await import('../../lib/dashboard-auth-handoff');
+          const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL || 'http://localhost:4200';
+          const handoffUrl = buildDashboardAuthUrl({
+            dashboardOrigin,
+            mode: 'login',
+            source: 'checkout',
+            returnTo: '/dashboard/inicio?from=checkout'
+          });
+          window.location.href = handoffUrl;
           return;
         }
 
@@ -464,7 +422,7 @@ import Layout from '../../layouts/Layout.astro';
       }
     };
 
-    if (checkoutSessionId) {
+    if (checkoutSessionId && paymentStatus !== 'approved') {
       setUiState('pending');
       pollCheckoutStatus();
       window.setInterval(pollCheckoutStatus, 4000);
@@ -490,12 +448,23 @@ import Layout from '../../layouts/Layout.astro';
           };
           if (token) headers.Authorization = `Bearer ${token}`;
 
+          const email = sessionStorage.getItem('orvel.signup.email');
+          const businessType = sessionStorage.getItem('orvel.signup.tipoNegocio');
+          const nombre = sessionStorage.getItem('orvel.signup.nombre');
+          const apellido = sessionStorage.getItem('orvel.signup.apellido');
+          const telefono = sessionStorage.getItem('orvel.signup.telefono');
+
           const response = await fetch('/api/checkout/start', {
             method: 'POST',
             headers,
             body: JSON.stringify({ 
               plan, 
-              idempotencyKey: buildIdempotencyKey() 
+              idempotencyKey: buildIdempotencyKey(),
+              email,
+              businessType,
+              nombre,
+              apellido,
+              telefono
             })
           });
           
