@@ -49,19 +49,17 @@ const faqs = [
     <div class="space-y-4">
       {faqs.map((faq, index) => (
         <div class="faq-item bg-bg-secondary rounded-2xl border border-border overflow-hidden reveal" style={`transition-delay: ${index * 50}ms`}>
-          <button class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors hover:bg-white/[0.02]">
+          <button class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-white/[0.02]">
             <span class="font-headline font-semibold text-text-primary pr-8">{faq.question}</span>
-            <div class="faq-icon-container relative w-6 h-6 shrink-0 rounded-full border border-border flex items-center justify-center bg-bg-primary transition-transform duration-300">
-              <i class="ri-add-line text-text-secondary transition-opacity duration-300 opacity-100 absolute"></i>
-              <i class="ri-subtract-line text-primary transition-opacity duration-300 opacity-0 absolute"></i>
+            <div class="faq-icon-container relative w-6 h-6 shrink-0 rounded-full border border-border flex items-center justify-center bg-bg-primary">
+              <i class="ri-add-line text-text-secondary absolute"></i>
+              <i class="ri-subtract-line text-primary opacity-0 absolute"></i>
             </div>
           </button>
-          <div class="faq-content grid grid-rows-[0fr]">
-            <div class="overflow-hidden">
-              <p class="px-6 pb-5 text-text-secondary text-sm leading-relaxed border-t border-border/50 pt-4 mt-2 mx-6">
-                {faq.answer}
-              </p>
-            </div>
+          <div class="faq-content">
+            <p class="px-6 pb-5 text-text-secondary text-sm leading-relaxed border-t border-border/50 pt-4 mt-2 mx-6">
+              {faq.answer}
+            </p>
           </div>
         </div>
       ))}
@@ -70,13 +68,15 @@ const faqs = [
 </section>
 
 <style>
+  .faq-content {
+    display: none;
+  }
+
   .faq-item.active .faq-content {
-    grid-template-rows: 1fr;
-    transition: grid-template-rows 300ms ease-in-out;
+    display: block;
   }
   
   .faq-item.active .faq-icon-container {
-    transform: rotate(180deg);
     border-color: rgba(var(--color-primary), 0.3);
     background-color: rgba(var(--color-primary), 0.1);
   }
