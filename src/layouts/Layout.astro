@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import "remixicon/fonts/remixicon.css";
+import Preloader from "../components/organisms/Preloader.astro";
 
 interface Props {
     title: string;
@@ -45,6 +46,7 @@ const { title } = Astro.props;
         <title>{title}</title>
     </head>
     <body class="bg-bg-primary text-text-primary antialiased">
+        <Preloader />
         <slot />
 
         <script>
