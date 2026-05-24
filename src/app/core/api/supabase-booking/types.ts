@@ -70,6 +70,7 @@ export type RescheduleBookingByTokenInput = ManageBookingInput & {
 
 export type AdminManualBookingPayload = {
   businessId: string;
+  branchId?: string;
   serviceId: string;
   startsAtIso: string;
   durationMinutes: number;

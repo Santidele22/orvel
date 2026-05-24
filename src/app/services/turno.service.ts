@@ -41,6 +41,11 @@ type AdminReschedulePayload = AdminActionPayload & {
 
 type CreateAdminManualBookingInput = Parameters<typeof createAdminManualBooking>[0];
 
+type BranchTenantScope = {
+  branchId: string;
+  businessId: string;
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -112,14 +117,18 @@ export class TurnoService {
   }
 
   private async loadBookingsFromSupabase(supabaseClient: SupabaseClient): Promise<Turno[]> {
-    const businessId = await this.resolveBusinessId(supabaseClient);
-    if (!businessId) return [];
+    const activeBranchId = this.resolveActiveBranchId();
+    if (!activeBranchId) return [];
 
-    // Query all bookings filtered by business_id from auth context
+    const branchScope = await this.validateBranchTenant(supabaseClient, activeBranchId);
+    if (!branchScope) return [];
+
+    // Query bookings with branch scope only. Branch isolation matters when two
+    // locations under one tenant share rubro='barberia'.
     const { data: bookings, error } = await supabaseClient
       .from('bookings')
       .select('*')
-      .eq('business_id', businessId)
+      .eq('branch_id', branchScope.branchId)
       .order('starts_at', { ascending: true });
 
 
@@ -168,6 +177,7 @@ export class TurnoService {
 
       return {
         id: booking['id'] as string,
+        branchId: (booking['branch_id'] ?? branchScope.branchId) as string,
         clienteId: booking['customer_id'] as string,
         servicioId: booking['service_id'] as string,
         fecha,
@@ -194,6 +204,9 @@ export class TurnoService {
     }
     if (!dto.servicioId?.trim()) {
       return throwError(() => new Error('servicioId es requerido'));
+    }
+    if (!dto.branchId?.trim()) {
+      return throwError(() => new Error('ACTIVE_BRANCH_REQUIRED: Se requiere branch context para crear turnos'));
     }
     if (!dto.fecha || isNaN(dto.fecha.getTime())) {
       return throwError(() => new Error('fecha inválida'));
@@ -240,11 +253,15 @@ export class TurnoService {
 
   private async createWithSupabase(dto: CreateTurnoDTO, startsAtIso: string): Promise<Turno> {
     // Build payload for createAdminManualBooking RPC
-    const businessId = await this.resolveBusinessId(this.getSupabaseClient());
-    if (!businessId) throw new Error('AUTH_REQUIRED: No se encontró ID de negocio');
+    const supabase = this.getSupabaseClient();
+    if (!supabase) throw new Error('AUTH_REQUIRED: Supabase no disponible');
+
+    const branchScope = await this.validateBranchTenant(supabase, dto.branchId);
+    if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a la cuenta activa');
 
     const payload: CreateAdminManualBookingInput = {
-      businessId: businessId,
+      businessId: branchScope.businessId,
+      branchId: branchScope.branchId,
       serviceId: dto.servicioId,
       startsAtIso: startsAtIso,
       durationMinutes: dto.duracionMinutos,
@@ -287,6 +304,7 @@ export class TurnoService {
     const now = new Date();
     return {
       id: response.data.bookingId,
+      branchId: branchScope.branchId,
       clienteId: dto.clienteId,
       servicioId: dto.servicioId,
       fecha: dto.fecha,
@@ -298,6 +316,21 @@ export class TurnoService {
       createdAt: now,
       updatedAt: now
     };
+  }
+
+  private resolveActiveBranchId(): string | null {
+    const authUser = this.authService.user() as unknown as Record<string, unknown> | null;
+    const activeBranchId = authUser?.['activeBranchId'] ?? authUser?.['branchId'];
+    if (typeof activeBranchId === 'string' && activeBranchId.trim()) {
+      return activeBranchId.trim();
+    }
+
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('activeBranchId') ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
+      return stored?.trim() || null;
+    }
+
+    return null;
   }
 
   private async resolveBusinessId(supabaseClient: SupabaseClient | null): Promise<string | null> {
@@ -312,33 +345,41 @@ export class TurnoService {
       return null;
     }
 
-    // 1. Check businesses where the user is the owner
-    const { data: businessByOwner, error: ownerError } = await supabaseClient
-      .from('businesses')
-      .select('id, name')
-      .eq('owner_id', authUserId)
+    const metadata = session.user.user_metadata as Record<string, unknown> | undefined;
+    const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+    return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
+  }
+
+  private async validateBranchTenant(supabaseClient: SupabaseClient | null, branchId?: string): Promise<BranchTenantScope | null> {
+    if (!supabaseClient) return null;
+    if (!branchId?.trim()) throw new Error('BRANCH_REQUIRED: Active branch context is required');
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.user?.id) throw new Error('AUTH_REQUIRED: No active tenant session');
+
+    const { data: branch, error } = await supabaseClient
+      .from('branches')
+      .select('id, business_id')
+      .eq('id', branchId.trim())
       .maybeSingle();
 
-    if (ownerError) {
-      console.error('[TurnoService] Error al buscar negocio por owner_id:', ownerError);
+    if (error) {
+      throw new Error('BRANCH_FORBIDDEN: No se pudo validar la sucursal contra la cuenta activa');
     }
 
-
-    if (businessByOwner?.id) {
-      return String(businessByOwner.id);
+    if (!branch?.id || !branch?.business_id) {
+      throw new Error('BRANCH_NOT_FOUND: Sucursal inválida para el tenant activo');
     }
 
-    const { data: businessById } = await supabaseClient
-      .from('businesses')
-      .select('id')
-      .eq('id', authUserId)
-      .maybeSingle();
-
-    if (businessById?.id) {
-      return String(businessById.id);
+    const businessId = await this.resolveBusinessId(supabaseClient);
+    if (businessId && String(branch.business_id) !== businessId) {
+      throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
     }
 
-    return authUserId;
+    return {
+      branchId: String(branch.id),
+      businessId: String(branch.business_id)
+    };
   }
 
   private createWithMock(dto: CreateTurnoDTO): Observable<Turno> {

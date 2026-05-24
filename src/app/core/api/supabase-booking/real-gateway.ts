@@ -485,6 +485,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       const supabase = createSupabaseClient();
       const { data, error } = await supabase.rpc('create_admin_manual_booking', {
         business_id: payload.businessId,
+        branch_id: payload.branchId,
         service_id: payload.serviceId,
         starts_at_iso: payload.startsAtIso,
         duration_minutes: payload.durationMinutes,
