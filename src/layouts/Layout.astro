@@ -21,6 +21,20 @@ const { title } = Astro.props;
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="generator" content={Astro.generator} />
 
+        <!-- SEO y Open Graph / Redes Sociales -->
+        <meta name="robots" content="index, follow" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio." />
+        <meta property="og:image" content="/logo.png" />
+        <meta property="og:site_name" content="Orvel" />
+
+        <!-- Twitter / X -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio." />
+        <meta name="twitter:image" content="/logo.png" />
+
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
