@@ -10,7 +10,7 @@ const { title } = Astro.props;
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es" class="dark scroll-smooth">
     <head>
         <meta charset="UTF-8" />
         <meta
@@ -33,30 +33,7 @@ const { title } = Astro.props;
     <body class="bg-bg-primary text-text-primary antialiased">
         <slot />
 
-        <!-- Lenis Smooth Scroll & Reveal Script -->
-        <script is:inline src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
         <script>
-            // Initialize Lenis with a more fluid, swingy but faster scroll
-            // @ts-ignore
-            const lenis = new Lenis({
-                duration: 0.8, // Reduced from 1.2 to avoid feeling slow
-                easing: (t) => 1 - Math.pow(1 - t, 4), // Quartic ease-out for a nice "swing"
-                orientation: 'vertical',
-                gestureOrientation: 'vertical',
-                smoothWheel: true,
-                wheelMultiplier: 1.15, // Slightly more responsive
-                smoothTouch: false,
-                touchMultiplier: 2,
-                infinite: false,
-            })
-
-            function raf(time) {
-                lenis.raf(time)
-                requestAnimationFrame(raf)
-            }
-
-            requestAnimationFrame(raf)
-
             // Scroll Reveal Logic
             const observerOptions = {
                 root: null,
