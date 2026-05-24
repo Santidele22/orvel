@@ -1,0 +1,124 @@
+---
+// Organism: FAQ Section
+const faqs = [
+  {
+    question: "¿Qué es Orvel y para quién es?",
+    answer: "Orvel es una plataforma integral para gestionar reservas, clientes y servicios desde un solo lugar. Está diseñada para peluquerías, barberías, salones de uñas, pestañas, spas, masajes, wellness y cualquier negocio que trabaje con turnos."
+  },
+  {
+    question: "¿Qué diferencia hay entre Orvel y tomar turnos por WhatsApp?",
+    answer: "Orvel reduce el ida y vuelta constante. Tus clientes reservan solos a través de tu link público, ven tu disponibilidad en tiempo real y vos tenés todo ordenado en una agenda automatizada, incluso fuera del horario comercial."
+  },
+  {
+    question: "¿Mis clientes necesitan crear una cuenta para reservar?",
+    answer: "No, el proceso de reserva está diseñado para tener la menor fricción posible. Tus clientes solo eligen el servicio, la fecha, y dejan sus datos básicos (nombre, WhatsApp, email) para confirmar el turno."
+  },
+  {
+    question: "¿Puedo recibir reservas fuera del horario de atención?",
+    answer: "Sí. Tu agenda digital trabaja por vos 24/7. El cliente puede reservar online en cualquier momento, aunque vos no estés disponible para responder mensajes."
+  },
+  {
+    question: "¿Necesito conocimientos técnicos para usar Orvel?",
+    answer: "Para nada. La plataforma está pensada para que puedas configurar tu negocio, tus servicios y tu disponibilidad en minutos, y empezar a recibir reservas al instante sin complicaciones."
+  },
+  {
+    question: "¿Qué pasa si un cliente quiere cancelar o no tengo disponibilidad?",
+    answer: "Si no tenés horarios libres, Orvel simplemente no muestra disponibilidad, evitando superposiciones. Además, podés definir con cuánto tiempo de anticipación un cliente puede cancelar o reprogramar su turno."
+  },
+  {
+    question: "¿Puedo usar Orvel si trabajo solo/a?",
+    answer: "¡Por supuesto! Orvel es ideal tanto para negocios unipersonales que buscan profesionalizar su gestión y ahorrar tiempo, como para salones con múltiples colaboradores que necesitan sincronizar agendas."
+  },
+  {
+    question: "¿Cómo funciona el tema de los pagos y suscripciones?",
+    answer: "Contamos con distintos planes (Free, Starter, Growth y Pro) que se adaptan al tamaño de tu negocio. Podés abonar tu suscripción de forma mensual, trimestral o anual a través de Mercado Pago. Podés cancelar tu suscripción cuando quieras."
+  }
+];
+---
+
+<section class="py-24 bg-bg-primary relative overflow-hidden" id="faq">
+  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-bg-primary to-bg-primary pointer-events-none"></div>
+  
+  <div class="max-w-4xl mx-auto px-8 md:px-12 relative z-10">
+    <div class="text-center mb-16 reveal">
+      <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary mb-4 shadow-sm">Dudas Frecuentes</div>
+      <h2 class="text-4xl md:text-5xl font-headline font-bold tracking-tighter text-text-primary mb-4">Todo lo que necesitás saber</h2>
+      <p class="text-text-secondary font-body max-w-2xl mx-auto">Respuestas claras a las preguntas más comunes sobre cómo Orvel puede transformar la gestión de tu negocio.</p>
+    </div>
+
+    <div class="space-y-4">
+      {faqs.map((faq, index) => (
+        <div class="faq-item bg-bg-secondary rounded-2xl border border-border overflow-hidden reveal" style={`transition-delay: ${index * 50}ms`}>
+          <button class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors hover:bg-white/[0.02]">
+            <span class="font-headline font-semibold text-text-primary pr-8">{faq.question}</span>
+            <div class="faq-icon-container relative w-6 h-6 shrink-0 rounded-full border border-border flex items-center justify-center bg-bg-primary transition-transform duration-300">
+              <i class="ri-add-line text-text-secondary transition-opacity duration-300 opacity-100 absolute"></i>
+              <i class="ri-subtract-line text-primary transition-opacity duration-300 opacity-0 absolute"></i>
+            </div>
+          </button>
+          <div class="faq-content grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out">
+            <div class="overflow-hidden">
+              <p class="px-6 pb-5 text-text-secondary text-sm leading-relaxed border-t border-border/50 pt-4 mt-2 mx-6">
+                {faq.answer}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq-item.active .faq-content {
+    grid-template-rows: 1fr;
+  }
+  
+  .faq-item.active .faq-icon-container {
+    transform: rotate(180deg);
+    border-color: rgba(var(--color-primary), 0.3);
+    background-color: rgba(var(--color-primary), 0.1);
+  }
+
+  .faq-item.active .faq-icon-container .ri-add-line {
+    opacity: 0;
+  }
+
+  .faq-item.active .faq-icon-container .ri-subtract-line {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  function setupFaqs() {
+    const faqItems = document.querySelectorAll('.faq-item');
+    
+    faqItems.forEach(item => {
+      const button = item.querySelector('.faq-button');
+      
+      button?.addEventListener('click', () => {
+        const isActive = item.classList.contains('active');
+        
+        // Close all other FAQs (optional: remove this block if you want multiple open at once)
+        faqItems.forEach(otherItem => {
+          if (otherItem !== item && otherItem.classList.contains('active')) {
+            otherItem.classList.remove('active');
+          }
+        });
+
+        // Toggle current FAQ
+        if (isActive) {
+          item.classList.remove('active');
+        } else {
+          item.classList.add('active');
+        }
+      });
+    });
+  }
+
+  // Initialize on load
+  setupFaqs();
+
+  // Re-initialize on Astro page transitions
+  document.addEventListener('astro:page-load', setupFaqs);
+</script>
