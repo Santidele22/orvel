@@ -72,20 +72,20 @@ const faqs = [
     display: none;
   }
 
-  .faq-item.active .faq-content {
+  .faq-item.faq-open .faq-content {
     display: block;
   }
   
-  .faq-item.active .faq-icon-container {
+  .faq-item.faq-open .faq-icon-container {
     border-color: rgba(var(--color-primary), 0.3);
     background-color: rgba(var(--color-primary), 0.1);
   }
 
-  .faq-item.active .faq-icon-container .ri-add-line {
+  .faq-item.faq-open .faq-icon-container .ri-add-line {
     opacity: 0;
   }
 
-  .faq-item.active .faq-icon-container .ri-subtract-line {
+  .faq-item.faq-open .faq-icon-container .ri-subtract-line {
     opacity: 1;
   }
 </style>
@@ -98,20 +98,20 @@ const faqs = [
       const button = item.querySelector('.faq-button');
       
       button?.addEventListener('click', () => {
-        const isActive = item.classList.contains('active');
+        const isOpen = item.classList.contains('faq-open');
         
-        // Close all other FAQs (optional: remove this block if you want multiple open at once)
+        // Close all other FAQs
         faqItems.forEach(otherItem => {
-          if (otherItem !== item && otherItem.classList.contains('active')) {
-            otherItem.classList.remove('active');
+          if (otherItem !== item && otherItem.classList.contains('faq-open')) {
+            otherItem.classList.remove('faq-open');
           }
         });
 
         // Toggle current FAQ
-        if (isActive) {
-          item.classList.remove('active');
+        if (isOpen) {
+          item.classList.remove('faq-open');
         } else {
-          item.classList.add('active');
+          item.classList.add('faq-open');
         }
       });
     });
