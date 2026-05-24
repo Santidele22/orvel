@@ -56,7 +56,7 @@ const faqs = [
               <i class="ri-subtract-line text-primary transition-opacity duration-300 opacity-0 absolute"></i>
             </div>
           </button>
-          <div class="faq-content grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out">
+          <div class="faq-content grid grid-rows-[0fr]">
             <div class="overflow-hidden">
               <p class="px-6 pb-5 text-text-secondary text-sm leading-relaxed border-t border-border/50 pt-4 mt-2 mx-6">
                 {faq.answer}
@@ -72,6 +72,7 @@ const faqs = [
 <style>
   .faq-item.active .faq-content {
     grid-template-rows: 1fr;
+    transition: grid-template-rows 300ms ease-in-out;
   }
   
   .faq-item.active .faq-icon-container {
