@@ -1,0 +1,59 @@
+:root {
+  /* Semantic Mapping */
+  --bg-primary: var(--or-bg-primary);
+  --bg-secondary: var(--or-bg-secondary);
+  
+  --text-primary: var(--or-text-primary);
+  --text-secondary: var(--or-text-secondary);
+  
+  --primary: var(--or-primary);
+  --primary-hover: var(--or-primary-hover);
+  --primary-light: var(--or-primary-light);
+  
+  --success: var(--or-success);
+  --error: var(--or-error);
+  --warning: var(--or-warning);
+  
+  --border: var(--or-border);
+  --divider: var(--or-divider);
+  
+  --radius-sm: var(--or-radius-sm);
+  --radius-md: var(--or-radius-md);
+  --radius-lg: var(--or-radius-lg);
+  
+  --shadow-sm: var(--or-shadow-sm);
+  --shadow-md: var(--or-shadow-md);
+  --shadow-lg: var(--or-shadow-lg);
+  
+  --card-bg: var(--or-card-bg);
+  --card-shadow: var(--or-card-shadow);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--or-font-family);
+  font-size: var(--or-font-body);
+  line-height: 1.5;
+}
+
+h1 { font-size: var(--or-font-h1); font-weight: 700; }
+h2 { font-size: var(--or-font-h2); font-weight: 600; }
+h3 { font-size: var(--or-font-h3); font-weight: 500; }
+
+small, .caption { font-size: var(--or-font-caption); }
+
+/* Components */
+.or-card {
+  background-color: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--or-radius-lg);
+  padding: 1.5rem;
+  transition: all var(--or-duration) var(--or-easing);
+}
+
+.or-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 30px -10px rgba(0, 0, 0, 0.3);
+}

@@ -1,0 +1,214 @@
+<section class="min-h-full bg-bg-primary text-white overflow-y-auto no-scrollbar pb-12 p-8 lg:p-10">
+  <!-- Header -->
+  @if (showOnboardingCue()) {
+    <div class="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-300" role="status" aria-live="polite">
+      ¡Bienvenida/o! Tu onboarding está completo. Empezá compartiendo tu link de reservas.
+    </div>
+  }
+  <header class="flex items-center justify-between mb-10">
+    <div class="space-y-1">
+      <h1 class="text-3xl font-bold tracking-tight flex items-center gap-3">
+        {{ greeting() }} {{ user()?.nombre }}
+        <span class="animate-bounce-subtle">👋</span>
+      </h1>
+      <p class="text-slate-400 font-medium">Tu resumen de agenda en Orvel.</p>
+    </div>
+
+    <button (click)="copyBookingUrl()"
+      class="flex items-center gap-2 px-6 py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-900/40 active:scale-95">
+      <i class="ri-share-line"></i>
+      Compartir link
+    </button>
+  </header>
+
+  <!-- Top Stats Row -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <!-- Card: Total Turnos -->
+    <div class="or-card or-card-hover group">
+      <div class="flex items-center justify-between mb-8">
+        <div class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center">
+          <i class="ri-calendar-todo-line text-purple-400 text-xl"></i>
+        </div>
+        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agenda Hoy</p>
+      </div>
+      <div class="space-y-1">
+        <p class="text-4xl font-black text-white">{{ agendaStatus().totalAppointments }}</p>
+        <p class="text-slate-400 text-sm font-medium">Turnos agendados</p>
+      </div>
+    </div>
+
+    <!-- Card: Disponibilidad -->
+    <div class="or-card or-card-hover group">
+      <div class="flex items-center justify-between mb-8">
+        <div class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center">
+          <i class="ri-time-line text-emerald-400 text-xl"></i>
+        </div>
+        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Disponibilidad</p>
+      </div>
+      <div class="space-y-1">
+        <p class="text-4xl font-black text-white">{{ agendaStatus().freeSlots }}</p>
+        <p class="text-slate-400 text-sm font-medium">Horarios libres hoy</p>
+      </div>
+    </div>
+
+    <!-- Card: Ocupación -->
+    <div class="or-card or-card-hover group">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center">
+          <i class="ri-pie-chart-line text-accent text-xl"></i>
+        </div>
+        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ocupación</p>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="relative w-20 h-20">
+          <svg class="w-full h-full transform -rotate-90">
+            <circle cx="40" cy="40" r="34" stroke-width="8" class="text-white/5" fill="transparent" />
+            <circle cx="40" cy="40" r="34" stroke-width="8" stroke-linecap="round"
+              [attr.stroke-dasharray]="213.6"
+              [attr.stroke-dashoffset]="213.6 * (1 - agendaStatus().occupancyPercentage / 100)"
+              [class]="'stroke-' + occupancyColor() + '-400 transition-all duration-1000 ease-out'" fill="transparent" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="text-lg font-black" [class]="'text-' + occupancyColor() + '-400'">{{ agendaStatus().occupancyPercentage }}%</span>
+          </div>
+        </div>
+        <div class="flex-1">
+          <p class="text-[11px] text-slate-300 font-medium leading-relaxed">
+            {{ occupancyMessage() }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Second Row: Turnos & Huecos -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Próximos Turnos -->
+    <div class="lg:col-span-2 or-card overflow-hidden !p-0">
+      <div class="p-6 border-b border-white/5 flex items-center justify-between bg-[var(--card-bg)]">
+        <div>
+          <h3 class="text-lg font-bold">Próximos Turnos</h3>
+          <p class="text-slate-500 text-xs mt-1">Gestión de agenda en tiempo real</p>
+        </div>
+        <button routerLink="/dashboard/turnos" class="px-4 py-2 bg-purple-500/10 text-purple-400 text-xs font-bold rounded-xl hover:bg-purple-500/20 transition-all">
+          Ver agenda completa
+        </button>
+      </div>
+
+      <div class="divide-y divide-white/5">
+        @for (turno of featuredAppointments(); track turno.id) {
+          <div class="p-6 flex items-center justify-between group hover:bg-white/[0.02] transition-all">
+            <div class="flex items-center gap-5">
+              <div class="w-16 h-14 rounded-2xl bg-bg-primary border border-white/5 flex items-center justify-center shrink-0 group-hover:border-purple-500/30 transition-colors">
+                <span class="text-sm font-black text-white">{{ turno.hora }}</span>
+              </div>
+              <div>
+                <p class="text-[9px] font-black uppercase tracking-[0.15em] mb-0.5"
+                  [ngClass]="{
+                    'text-purple-400': turno.dateLabel === 'Hoy',
+                    'text-emerald-400': turno.dateLabel === 'Mañana',
+                    'text-slate-500': turno.dateLabel !== 'Hoy' && turno.dateLabel !== 'Mañana'
+                  }">
+                  {{ turno.dateLabel }}
+                </p>
+                <h4 class="text-lg font-bold group-hover:text-purple-300 transition-colors">{{ turno.clienteNombre }}</h4>
+                <div class="flex items-center gap-3">
+                  <p class="text-slate-500 text-sm flex items-center gap-2">
+                    <i class="ri-scissors-2-fill text-purple-500/50"></i>
+                    {{ turno.servicioNombre }}
+                  </p>
+                  <span class="w-1 h-1 rounded-full bg-white/10"></span>
+                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {{ turno.duracionMinutos }} min
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
+                [ngClass]="{
+                  'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': turno.estado === 'confirmado',
+                  'bg-blue-500/10 text-blue-400 border border-blue-500/20': turno.estado === 'completado'
+                }">
+                {{ turno.estado }}
+              </span>
+              <button class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center text-text-tertiary hover:text-white hover:bg-white/5 transition-all">
+                <i class="ri-arrow-right-s-line text-xl"></i>
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <div class="py-20 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4 text-slate-600">
+              <i class="ri-calendar-event-line text-3xl"></i>
+            </div>
+            <h4 class="text-slate-300 font-bold">No hay turnos para hoy</h4>
+            <p class="text-slate-500 text-sm mt-1 max-w-xs mx-auto">
+              ¡Es un buen momento para compartir tu link y empezar a recibir reservas!
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Column: Gaps & Portal -->
+    <div class="space-y-8">
+      <!-- Huecos Libres -->
+      <div class="or-card space-y-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">Huecos libres</h3>
+          <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+            <i class="ri-flashlight-line text-yellow-500"></i>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          @if (agendaStatus().freeGaps.length > 0) {
+            <div class="space-y-3">
+              @for (gap of agendaStatus().freeGaps; track gap.range) {
+                <div class="group relative flex items-center gap-4 p-4 bg-[var(--card-bg)] hover:bg-white/[0.03] rounded-2xl border border-white/5 transition-all cursor-default hover:shadow-lg hover:shadow-black/20">
+                  <div class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <i class="ri-time-line text-purple-400 text-lg"></i>
+                  </div>
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{{ gap.label }}</p>
+                      <span class="text-[10px] font-bold text-purple-400 bg-purple-500/5 px-2 py-0.5 rounded-lg border border-purple-500/10">
+                        {{ gap.duration }}
+                      </span>
+                    </div>
+                    <p class="text-base font-bold text-slate-200 mt-0.5">{{ gap.range }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="py-8 text-center bg-[var(--card-bg)] rounded-2xl border border-dashed border-slate-800">
+              <p class="text-slate-500 text-sm font-medium">No hay huecos disponibles hoy</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Portal de Reservas -->
+      <div class="or-card space-y-4">
+        <div class="space-y-1">
+          <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Portal de Reservas</p>
+          <p class="text-xs text-slate-400">Link directo para tus clientes</p>
+        </div>
+
+        <div class="bg-black/20 shadow-inner rounded-xl p-3 flex items-center justify-between group border border-white/5">
+          <code class="text-[10px] text-purple-400 truncate max-w-[150px]">{{ bookingUrl() }}</code>
+          <button (click)="copyBookingUrl()"
+            class="w-8 h-8 rounded-lg bg-bg-primary border border-white/10 flex items-center justify-center text-purple-400 hover:bg-purple-500 hover:text-white transition-all">
+            <i [class]="copied() ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+          </button>
+        </div>
+        
+        <p class="text-[10px] text-slate-600 italic leading-relaxed">
+          Compartí este link en tu bio de Instagram o WhatsApp para recibir reservas.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

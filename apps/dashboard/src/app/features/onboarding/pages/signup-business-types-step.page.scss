@@ -1,0 +1,290 @@
+/**
+ * Signup Business Types Step Styles
+ *
+ * Uses the Luminous Atelier design system (glassmorphic aesthetic).
+ * Mobile-first, responsive design.
+ * Consistent with signup-credentials.page.scss
+ */
+
+// Variables based on Luminous Atelier design system
+$color-background: #F2F4F3;
+$color-primary: #8BA888;
+$color-primary-dark: #7a9576;
+$color-accent: #D9C5B2;
+$color-text: #1a1a1a;
+$color-text-muted: rgba(26, 26, 26, 0.5);
+
+$font-heading: 'Manrope', sans-serif;
+$font-body: 'Inter', sans-serif;
+
+$radius-sm: 8px;
+$radius-md: 16px;
+$radius-lg: 24px;
+$radius-full: 9999px;
+
+$transition-fast: 150ms ease;
+$transition-normal: 300ms ease;
+
+// Container
+.business-types-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: $color-background;
+  position: relative;
+  overflow: hidden;
+}
+
+// Card
+.business-types-card {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border-radius: $radius-lg;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 0 40px rgba($color-primary, 0.1);
+  position: relative;
+  z-index: 10;
+  border: 1px solid rgba($color-primary, 0.15);
+}
+
+// Header
+.business-types-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.business-types-title {
+  font-family: $font-heading;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: $color-text;
+  margin: 0 0 0.5rem 0;
+}
+
+.business-types-subtitle {
+  font-family: $font-body;
+  font-size: 0.875rem;
+  color: $color-text-muted;
+  margin: 0;
+}
+
+// Business Types Grid
+.business-types-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+// Business Type Card
+.business-type-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba($color-primary, 0.2);
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-align: left;
+
+  &:hover:not([disabled]) {
+    border-color: rgba($color-primary, 0.5);
+    background: rgba($color-primary, 0.05);
+  }
+
+  &[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.selected {
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.1);
+
+    .type-checkbox {
+      background: $color-primary;
+      border-color: $color-primary;
+
+      .check-icon {
+        opacity: 1;
+      }
+    }
+
+    .type-label {
+      font-weight: 600;
+      color: $color-primary-dark;
+    }
+  }
+}
+
+// Checkbox
+.type-checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba($color-primary, 0.4);
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all $transition-fast;
+
+  .check-icon {
+    width: 16px;
+    height: 16px;
+    color: white;
+    opacity: 0;
+    transition: opacity $transition-fast;
+  }
+}
+
+// Label
+.type-label {
+  font-family: $font-body;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: $color-text;
+  transition: all $transition-fast;
+}
+
+// Selection Info
+.selection-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+
+  .selection-count {
+    font-family: $font-body;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+}
+
+// Error Message
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: $radius-md;
+  color: #dc2626;
+  font-family: $font-body;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+// Actions
+.signup-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn-back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: none;
+  border: 1px solid rgba($color-primary, 0.3);
+  border-radius: $radius-md;
+  font-family: $font-body;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+}
+
+.btn-continue {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+  color: white;
+  border: none;
+  border-radius: $radius-md;
+  font-family: $font-heading;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not([disabled]) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba($color-primary, 0.4);
+  }
+
+  &[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+// Background Decoration
+.background-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.decoration-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba($color-primary, 0.1), rgba($color-accent, 0.05));
+  filter: blur(40px);
+}
+
+.circle-1 {
+  width: 300px;
+  height: 300px;
+  top: -100px;
+  right: -100px;
+}
+
+.circle-2 {
+  width: 200px;
+  height: 200px;
+  bottom: -50px;
+  left: -50px;
+}
+
+// Responsive
+@media (max-width: 480px) {
+  .business-types-container {
+    padding: 1rem;
+  }
+
+  .business-types-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .business-types-title {
+    font-size: 1.5rem;
+  }
+
+  .business-types-grid {
+    grid-template-columns: 1fr;
+  }
+}

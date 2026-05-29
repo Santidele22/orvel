@@ -1,0 +1,291 @@
+<main class="h-screen overflow-y-auto no-scrollbar bg-[#0F172A] font-['Inter'] selection:bg-purple-500/30 selection:text-white pb-40 overflow-x-hidden">
+  
+  <!-- Decorative background elements -->
+  <div class="fixed top-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+  <div class="fixed bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-xl mx-auto px-6 py-12 md:py-20">
+    
+    <!-- Loading State -->
+    @if (loading()) {
+      <div class="flex flex-col items-center justify-center space-y-4 py-20">
+        <div class="w-12 h-12 border-4 border-white/5 border-t-purple-500 rounded-full animate-spin"></div>
+        <p class="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-[0.2em]">Cargando experiencia...</p>
+      </div>
+    } @else {
+      
+      <!-- Successful Booking State -->
+      @if (bookingConfirmed()) {
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700">
+           <div class="w-20 h-20 bg-[#7C3AED] rounded-[28px] flex items-center justify-center mx-auto text-white shadow-lg shadow-purple-900/40">
+              <i class="ri-checkbox-circle-fill text-4xl"></i>
+           </div>
+           <div class="space-y-3">
+              <h2 class="text-3xl font-black text-white tracking-tight">¡Turno Reservado!</h2>
+              <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> ha sido confirmada. Te esperamos para brindarte la mejor atención.</p>
+           </div>
+           <div class="pt-8 border-t border-white/5">
+              <button (click)="bookingConfirmed.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+                Reservar Otro
+              </button>
+           </div>
+        </section>
+      } @else {
+        
+        <!-- Booking Form -->
+        <header class="text-center mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-black uppercase tracking-widest border border-purple-500/20">
+            <i class="ri-sparkling-2-fill"></i>
+            Portal de Reservas Online
+          </div>
+          <div class="space-y-3">
+            <h1 class="text-4xl md:text-6xl font-black text-white tracking-tighter">
+              Bienvenido a <span class="text-purple-500">{{ businessName() }}</span>
+            </h1>
+            <p class="text-slate-400 text-base md:text-lg max-w-md mx-auto leading-relaxed font-medium">
+              Reserva tu próximo tratamiento en segundos y disfruta de una experiencia premium.
+            </p>
+          </div>
+        </header>
+
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] md:rounded-[48px] p-6 md:p-12 shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+          <form class="space-y-8 md:space-y-10" (ngSubmit)="submitBooking()" aria-label="formulario de reserva pública">
+            
+            <!-- Service Selection -->
+            <div class="space-y-4">
+              <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                <i class="ri-customer-service-2-line text-purple-500 text-base"></i>
+                ¿Qué servicio necesitas?
+              </label>
+              <div class="relative group">
+                <select
+                  [(ngModel)]="selectedServiceId"
+                  (change)="onServiceChange()"
+                  name="selectedService"
+                  required
+                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
+                          (fieldErrors()['service'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
+                >
+                  <option value="" disabled class="bg-[#1E293B]">Selecciona un servicio</option>
+                  @for (svc of publicServices(); track svc.id) {
+                    <option [value]="svc.id" class="bg-[#1E293B]">{{ svc.name }} ({{ svc.duration }} min) - ${{ svc.price }}</option>
+                  }
+                </select>
+                <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
+                  <i class="ri-arrow-down-s-line text-xl"></i>
+                </div>
+              </div>
+              @if (fieldErrors()['service']) {
+                <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
+              }
+            </div>
+
+            <!-- Availability Selection (Date & Time Picker) -->
+            <div class="space-y-8">
+              <!-- Horizontal Date Picker -->
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-calendar-2-line text-purple-500 text-base"></i>
+                  1. Selecciona el día
+                  @if (loadingAvailability()) {
+                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                  }
+                </label>
+                
+                <div class="flex gap-3 overflow-x-auto pb-4 scroll-smooth no-scrollbar -mx-2 px-2">
+                  @for (day of availableDays(); track day.date) {
+                    <button
+                      type="button"
+                      (click)="selectDate(day.date)"
+                      [class]="'flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all border ' + 
+                              (selectedDate() === day.date ? 
+                               'bg-[#7C3AED] border-[#7C3AED] text-white shadow-lg shadow-purple-900/40 scale-105' : 
+                               !day.hasAvailability ?
+                               'bg-red-500/5 border-red-500/20 text-red-400' :
+                               'bg-black/20 border-white/5 text-slate-400 hover:border-purple-500/30 hover:bg-purple-500/5')"
+                    >
+                      <span class="text-[9px] font-black uppercase tracking-tighter mb-1 opacity-60">{{ day.weekday }}</span>
+                      <span class="text-lg font-black tracking-tighter">{{ day.label }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Time Slot Picker -->
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-time-line text-purple-500 text-base"></i>
+                  2. Elige tu horario
+                  @if (loadingSlots()) {
+                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                  }
+                </label>
+                
+                <div class="relative group">
+                  <select
+                    [(ngModel)]="selectedSlot"
+                    name="selectedSlot"
+                    required
+                    [disabled]="loadingSlots() || availabilitySlots().length === 0"
+                    [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer disabled:opacity-30 ' + 
+                            (fieldErrors()['slot'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
+                  >
+                    @if (availabilitySlots().length === 0 && !loadingSlots()) {
+                      <option value="" class="bg-[#1E293B]">No hay turnos disponibles para este día</option>
+                    } @else {
+                      <option value="" disabled class="bg-[#1E293B]">Selecciona un horario disponible</option>
+                      @for (slot of availabilitySlots(); track slot.startsAtIso) {
+                        @let remainingCapacity = slot.remainingCapacity;
+                        <option [value]="slot.startsAtIso" class="bg-[#1E293B]">{{ formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso) }} · Quedan {{ remainingCapacity }} lugares</option>
+                      }
+                    }
+                  </select>
+                  <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
+                    <i class="ri-arrow-down-s-line text-xl"></i>
+                  </div>
+                </div>
+                
+                @if (fieldErrors()['slot']) {
+                  <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['slot'] }}</p>
+                }
+                
+                @if (availabilitySlots().length > 0) {
+                  <p class="text-[10px] text-slate-500 ml-1 italic font-medium">
+                    * Todos los horarios se muestran en hora local.
+                  </p>
+                }
+              </div>
+            </div>
+            
+            <!-- Client Info Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-user-line text-purple-500 text-base"></i>
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  [(ngModel)]="firstName"
+                  (blur)="validateFieldOnBlur('firstName', firstName)"
+                  placeholder="Ej: Lucía"
+                  required
+                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 transition-all ' + 
+                          (fieldErrors()['firstName'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:ring-purple-500/10 focus:border-purple-500')"
+                />
+                @if (fieldErrors()['firstName']) {
+                  <p class="text-red-400 text-[9px] mt-1 ml-1 font-black uppercase tracking-widest italic">{{ fieldErrors()['firstName'] }}</p>
+                }
+              </div>
+
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-user-line text-purple-500 text-base"></i>
+                  Apellido
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  [(ngModel)]="lastName"
+                  (blur)="validateFieldOnBlur('lastName', lastName)"
+                  placeholder="Ej: García"
+                  required
+                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 transition-all ' + 
+                          (fieldErrors()['lastName'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:ring-purple-500/10 focus:border-purple-500')"
+                />
+                @if (fieldErrors()['lastName']) {
+                  <p class="text-red-400 text-[9px] mt-1 ml-1 font-black uppercase tracking-widest italic">{{ fieldErrors()['lastName'] }}</p>
+                }
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-whatsapp-line text-purple-500 text-base"></i>
+                  WhatsApp / Teléfono
+                </label>
+                <input
+                  type="tel"
+                  name="whatsapp"
+                  [(ngModel)]="whatsapp"
+                  (blur)="validateFieldOnBlur('whatsapp', whatsapp)"
+                  placeholder="11 1234 5678"
+                  required
+                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 transition-all ' + 
+                          (fieldErrors()['whatsapp'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:ring-purple-500/10 focus:border-purple-500')"
+                />
+                @if (fieldErrors()['whatsapp']) {
+                  <p class="text-red-400 text-[9px] mt-1 ml-1 font-black uppercase tracking-widest italic">{{ fieldErrors()['whatsapp'] }}</p>
+                }
+              </div>
+
+              <div class="space-y-4">
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  <i class="ri-mail-line text-purple-500 text-base"></i>
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  [(ngModel)]="email"
+                  (blur)="validateFieldOnBlur('email', email)"
+                  placeholder="tu@email.com"
+                  required
+                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 transition-all ' + 
+                          (fieldErrors()['email'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:ring-purple-500/10 focus:border-purple-500')"
+                />
+                @if (fieldErrors()['email']) {
+                  <p class="text-red-400 text-[9px] mt-1 ml-1 font-black uppercase tracking-widest italic">{{ fieldErrors()['email'] }}</p>
+                }
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                <i class="ri-message-3-line text-purple-500 text-base"></i>
+                Comentarios Especiales
+              </label>
+              <textarea
+                name="notes"
+                rows="3"
+                [(ngModel)]="notes"
+                placeholder="¿Algún detalle que debamos saber?"
+                class="w-full bg-black/20 border border-white/5 rounded-[32px] p-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all resize-none"
+              ></textarea>
+            </div>
+
+            <!-- Error Message -->
+            @if (errorMessage()) {
+              <div class="bg-red-500/10 border border-red-500/20 text-red-400 px-6 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest flex items-center gap-3 animate-head-shake">
+                <i class="ri-error-warning-line text-lg"></i>
+                {{ errorMessage() }}
+              </div>
+            }
+
+            <button
+              type="submit"
+              [disabled]="!canSubmit()"
+              class="w-full h-16 md:h-20 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-[32px] font-black text-xs uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all shadow-2xl shadow-purple-900/40 flex items-center justify-center gap-4 group"
+            >
+              @if (submitting()) {
+                <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Confirmando...</span>
+              } @else {
+                <i class="ri-calendar-check-fill text-2xl group-hover:rotate-12 transition-transform"></i>
+                <span>Confirmar Reserva</span>
+              }
+            </button>
+          </form>
+
+          <footer class="mt-12 md:mt-16 pt-8 border-t border-white/5 text-center">
+            <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">
+              Powered by <span class="text-purple-500/50">Orvel</span>
+            </p>
+          </footer>
+        </section>
+      }
+    }
+  </div>
+</main>
