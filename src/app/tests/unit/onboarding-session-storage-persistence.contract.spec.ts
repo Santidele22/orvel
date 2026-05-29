@@ -31,10 +31,10 @@ async function loadStorageModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-storage');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-storage.ts with ONBOARDING_STORAGE_KEY, persistOnboardingState(storage, state), readOnboardingState(storage).'
+      'Missing module src/app/features/onboarding/data-access/onboarding-storage.ts with ONBOARDING_STORAGE_KEY, persistOnboardingState(storage, state), readOnboardingState(storage).'
     );
   }
 
@@ -44,7 +44,7 @@ async function loadStorageModule(): Promise<{
 
   if (!ONBOARDING_STORAGE_KEY || !persistOnboardingState || !readOnboardingState) {
     throw new Error(
-      'Missing exports ONBOARDING_STORAGE_KEY, persistOnboardingState(storage, state), readOnboardingState(storage) in src/app/core/onboarding/onboarding-storage.ts'
+      'Missing exports ONBOARDING_STORAGE_KEY, persistOnboardingState(storage, state), readOnboardingState(storage) in src/app/features/onboarding/data-access/onboarding-storage.ts'
     );
   }
 

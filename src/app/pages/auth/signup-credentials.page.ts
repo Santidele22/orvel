@@ -5,8 +5,8 @@
  * This file can be imported by tests without Angular compilation.
  */
 import type { PlanCode } from '../../core/plans/plan-entitlements';
-import { readPlanSelection } from '../../core/onboarding/onboarding-plan-storage';
-import { ONBOARDING_ACCOUNT_METHOD_KEY, setCurrentStep } from '../../core/onboarding/onboarding-flow-state';
+import { readPlanSelection } from '../../features/onboarding/data-access/onboarding-plan-storage';
+import { ONBOARDING_ACCOUNT_METHOD_KEY, setCurrentStep } from '../../features/onboarding/data-access/onboarding-flow-state';
 
 // Re-export PlanCode for convenience
 export { PlanCode };

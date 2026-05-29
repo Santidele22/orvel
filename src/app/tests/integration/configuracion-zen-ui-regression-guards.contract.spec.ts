@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const ZEN_THEME_TEMPLATE = resolve(
   process.cwd(),
-  'src/app/pages/dashboard/configuracion/themes/configuracion-zen-theme.component.html'
+  'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html'
 );
 
 async function readZenThemeTemplate(): Promise<string> {

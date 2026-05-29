@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TurnoService } from '../../services/turno.service';
+import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
 
 describe('TurnoService admin management RED contract (mock mode)', () => {
   let service: TurnoService;
 
   beforeEach(async () => {
-    service = new TurnoService();
-    await service.getAll().toPromise();
-
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-20T10:30:00.000Z'));
+
+    service = createMockTurnoService();
+    await service.getAll().toPromise();
   });
 
   afterEach(() => {

@@ -7,10 +7,10 @@ const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.
 const SIDEBAR_HTML = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html';
 
 const CORE_PAGE_CONTAINERS = {
-  turnos: 'src/app/pages/dashboard/turnos/turnos-list.page.html',
+  turnos: 'src/app/features/booking/pages/turnos-list.page.html',
   servicios: 'src/app/pages/dashboard/servicios/servicios.page.html',
   clientes: 'src/app/pages/dashboard/clientes/clientes.page.html',
-  configuracion: 'src/app/pages/dashboard/configuracion/configuracion.page.html'
+  configuracion: 'src/app/features/settings/pages/configuracion.page.html'
 } as const;
 
 function fromRoot(relativePath: string): string {

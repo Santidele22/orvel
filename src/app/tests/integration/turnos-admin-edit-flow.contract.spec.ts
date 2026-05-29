@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readTurnoFormSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turno-form.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turno-form.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/booking/pages/turno-form.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/booking/pages/turno-form.page.html');
   return `${readFileSync(tsPath, 'utf-8')}\n${readFileSync(htmlPath, 'utf-8')}`;
 }
 

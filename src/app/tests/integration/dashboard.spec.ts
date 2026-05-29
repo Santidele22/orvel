@@ -6,9 +6,10 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { AuthService } from '../../services/auth.service';
-import { ClienteService } from '../../services/cliente.service';
-import { TurnoService } from '../../services/turno.service';
-import { ServicioService } from '../../services/servicio.service';
+import type { ClienteService } from '../../services/cliente.service';
+import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { ServicioService } from '../../services/servicio.service';
+import { createMockClienteService, createMockServicioService, createMockTurnoService } from '../helpers/turno-service-testbed';
 
 /**
  * Integration Tests - Dashboard Layout (US-001)
@@ -28,9 +29,9 @@ describe('Dashboard Integration Tests', () => {
   beforeEach(() => {
     localStorage.clear();
     authService = new AuthService();
-    clienteService = new ClienteService();
-    turnoService = new TurnoService();
-    servicioService = new ServicioService();
+    clienteService = createMockClienteService();
+    turnoService = createMockTurnoService();
+    servicioService = createMockServicioService();
   });
 
   afterEach(() => {
@@ -129,7 +130,7 @@ describe('Dashboard Integration Tests', () => {
 
     it('debería manejar timeline vacío (sin turnos hoy)', async () => {
       // Arrange - crear servicio limpio
-      const emptyTurnoService = new TurnoService();
+      const emptyTurnoService = createMockTurnoService();
 
       // Act
       const turnos = await emptyTurnoService.getHoy().toPromise();
@@ -377,7 +378,7 @@ describe('Dashboard Integration Tests', () => {
   describe('Empty States - Dashboard Edge Cases', () => {
     it('debería manejar dashboard sin clientes', async () => {
       // Arrange - create a new service (mock data loads lazily)
-      const emptyService = new ClienteService();
+      const emptyService = createMockClienteService();
 
       // Act - get all (returns mock data since provider is 'mock')
       const clientes = await emptyService.getAll().toPromise();
@@ -388,7 +389,7 @@ describe('Dashboard Integration Tests', () => {
 
     it('debería manejar dashboard sin turnos hoy', async () => {
       // Arrange - crear turnos para mañana
-      const turnoService = new TurnoService();
+      const turnoService = createMockTurnoService();
       
       // No cargar datos mock - tener servicio limpio
       

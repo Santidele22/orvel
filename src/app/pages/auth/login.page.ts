@@ -26,7 +26,8 @@ import {
 } from './login.validators';
 import { createSupabaseAuthClient } from '../../core/auth/supabase-auth.client';
 import { SUPABASE_CONFIG } from '../../core/auth/supabase-config';
-import { setCurrentStep } from '../../core/onboarding/onboarding-flow-state';
+import { normalizeDashboardAuthRequest } from '../../core/auth/dashboard-auth-flow';
+import { setCurrentStep } from '../../features/onboarding/data-access/onboarding-flow-state';
 
 /**
  * Login Page Component
@@ -64,6 +65,12 @@ export class LoginPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   ngOnInit(): void {
+    const authRequest = normalizeDashboardAuthRequest(typeof window !== 'undefined' ? window.location.href : '/auth');
+    if (authRequest.mode === 'signup') {
+      void this.router.navigate(['/auth/signup/plan'], { queryParams: { returnTo: authRequest.returnTo } });
+      return;
+    }
+
     // Clear any previous errors
     clearLoginError();
 

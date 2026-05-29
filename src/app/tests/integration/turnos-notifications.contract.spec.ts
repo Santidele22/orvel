@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CreateTurnoDTO } from '../../models/turno.model';
-import { TurnoService } from '../../services/turno.service';
+import type { CreateTurnoDTO } from '../../features/booking/models/turno.model';
 import { MockNotificationService } from '../../services/notification.service';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
 
 describe('TurnoService + notifications integration RED contract (mock mode)', () => {
   beforeEach(() => {
@@ -16,18 +16,18 @@ describe('TurnoService + notifications integration RED contract (mock mode)', ()
   it('emits booking-created notification after successful create()', async () => {
     // TODO(Aurora): integrar TurnoService.create() con emisión booking.created en NotificationService mock
     const notificationService = new MockNotificationService();
-    const turnoService = new TurnoService();
+    const turnoService = createMockTurnoService();
 
     expect(typeof (turnoService as any).attachNotificationService).toBe('function');
     (turnoService as any).attachNotificationService(notificationService);
 
     await turnoService.getAll().toPromise();
-    const availableSlots = turnoService.getHorariosDisponibles(new Date('2026-04-20T00:00:00.000Z'), 30);
+    const availableSlots = turnoService.getHorariosDisponibles(new Date('2035-04-20T00:00:00.000Z'), 30);
 
     const dto: CreateTurnoDTO = {
       clienteId: 'cliente-qa-notif-001',
       servicioId: 'servicio-qa-notif-001',
-      fecha: new Date('2026-04-20T00:00:00.000Z'),
+      fecha: new Date('2035-04-20T00:00:00.000Z'),
       hora: availableSlots[0],
       duracionMinutos: 30,
       estado: 'confirmado',
@@ -50,7 +50,7 @@ describe('TurnoService + notifications integration RED contract (mock mode)', ()
   it('emits cancellation notification after successful cancelByAdmin()', async () => {
     // TODO(Aurora): integrar cancelByAdmin() con emisión booking.cancelled hacia cliente
     const notificationService = new MockNotificationService();
-    const turnoService = new TurnoService();
+    const turnoService = createMockTurnoService();
 
     expect(typeof (turnoService as any).attachNotificationService).toBe('function');
     (turnoService as any).attachNotificationService(notificationService);
@@ -78,7 +78,7 @@ describe('TurnoService + notifications integration RED contract (mock mode)', ()
   it('does not emit notification when booking/cancel operation fails', async () => {
     // TODO(Aurora): asegurar no-emisión de eventos cuando create/cancel rechaza
     const notificationService = new MockNotificationService();
-    const turnoService = new TurnoService();
+    const turnoService = createMockTurnoService();
 
     expect(typeof (turnoService as any).attachNotificationService).toBe('function');
     (turnoService as any).attachNotificationService(notificationService);

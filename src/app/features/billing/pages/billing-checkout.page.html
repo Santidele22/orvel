@@ -1,0 +1,15 @@
+<main class="billing-checkout" aria-live="polite">
+  <section class="billing-checkout__card">
+    <p class="billing-checkout__kicker">Suscripción</p>
+    <h1>Activación de plan</h1>
+    <p class="billing-checkout__message">{{ state().message }}</p>
+
+    @if (state().status === 'loading') {
+      <div class="billing-checkout__spinner" aria-hidden="true"></div>
+    }
+
+    @if (state().status === 'unavailable' || state().status === 'error') {
+      <a class="billing-checkout__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
+    }
+  </section>
+</main>

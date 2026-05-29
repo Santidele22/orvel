@@ -1,15 +1,15 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../runtime/dashboard-env';
-import { computePublicAvailability, type CalendarEntry } from '../../../domain/appointments/booking-core';
+import { computePublicAvailability, type CalendarEntry } from '../../../features/booking/data-access/booking-core';
 import { SupabaseBookingGateway } from './gateway-interface';
 import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, buildDeterministicPublicSlots } from './mappers';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from './public-booking-slug';
 
 // Initialize real Supabase client
 export function createSupabaseClient(): SupabaseClient {
   const env = loadDashboardRuntimeEnv();
   const urlEnvKey = 'NEXT_PUBLIC_SUPABASE_URL';
   const anonKeyEnvKey = 'NEXT_PUBLIC_SUPABASE_ANON_KEY';
-  console.log(env[urlEnvKey], env[anonKeyEnvKey]);
   return createClient(env[urlEnvKey], env[anonKeyEnvKey]);
 }
 
@@ -47,61 +47,24 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
   async resolveBusinessBySlug({ businessSlug }) {
     try {
       const supabase = createSupabaseClient();
-      const normalizedSlug = businessSlug.toLowerCase().trim();
+      const normalizedSlug = normalizePublicBookingSlug(businessSlug);
 
-      // First, try a direct query to the businesses table
-      const { data: businessData, error: businessError } = await supabase
-        .from('businesses')
-        .select('*')
-        .ilike('slug', normalizedSlug)
-        .maybeSingle();
-
-      if (!businessError && businessData) {
-        // Also fetch settings
-        const { data: settingsData } = await supabase
-          .from('business_settings')
-          .select('*')
-          .eq('business_id', businessData.id)
-          .maybeSingle();
+      if (!isValidPublicBookingSlug(normalizedSlug)) {
         return {
-          status: 200,
-          data: mapBusinessToPublicView(businessData, settingsData)
+          status: 422,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid booking link.'
+          }
         };
       }
 
-      // If direct query fails, try the RPC
+      // Public booking lookup must stay behind the constrained RPC resolver.
       const { data, error } = await supabase.rpc('resolve_business_by_slug', {
         business_slug: normalizedSlug
       });
 
       if (error || !data) {
-        // Try with hyphens removed: "studio-roma" → "studioroma" and vice versa
-        const slugVariants = new Set([
-          normalizedSlug,
-          normalizedSlug.replace(/-/g, ''),           // Remove hyphens
-          normalizedSlug.replace(/([a-z])([A-Z])/g, '$1-$2'), // camelCase → kebab-case
-        ]);
-        
-        for (const variant of slugVariants) {
-          if (!variant || variant === normalizedSlug) continue;
-          try {
-            const retry = await supabase.rpc('resolve_business_by_slug', { business_slug: variant });
-            if (!retry.error && retry.data) {
-              const retryBiz = retry.data as { id: string; slug: string; name: string; timezone: string };
-              // Also fetch settings for the variant
-              const { data: retrySettings } = await supabase
-                .from('business_settings')
-                .select('*')
-                .eq('business_id', retryBiz.id)
-                .maybeSingle();
-              
-              return { status: 200, data: mapBusinessToPublicView(retryBiz, retrySettings) };
-            }
-          } catch (e) {
-            console.warn('[API] RPC variant retry failed:', variant, e);
-          }
-        }
-
         console.error('[API] Business resolution failed:', error || 'No data');
         return {
           status: 404,
@@ -150,7 +113,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
       // Call the improved PostgreSQL RPC
       const { data, error } = await supabase.rpc('query_public_slot_availability', {
-        business_slug: businessSlug,
+        business_slug: normalizePublicBookingSlug(businessSlug),
         service_id: serviceId,
         date_iso: dateIso
       });
@@ -226,7 +189,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
     try {
       const supabase = createSupabaseClient();
       const { data, error } = await supabase.rpc('create_public_booking', {
-        business_slug: payload.businessSlug,
+        business_slug: normalizePublicBookingSlug(payload.businessSlug),
         service_id: payload.serviceId,
         starts_at_iso: payload.startsAtIso,
         client: {

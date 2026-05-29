@@ -43,10 +43,10 @@ async function loadCatalogCrudModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-catalog-crud');
+    module = await import('../../features/onboarding/data-access/onboarding-catalog-crud');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-catalog-crud.ts with addCategory(), deleteCategory(), addService(), updateService(), deleteService().'
+      'Missing module src/app/features/onboarding/data-access/onboarding-catalog-crud.ts with addCategory(), deleteCategory(), addService(), updateService(), deleteService().'
     );
   }
 
@@ -58,7 +58,7 @@ async function loadCatalogCrudModule(): Promise<{
 
   if (!addCategory || !deleteCategory || !addService || !updateService || !deleteService) {
     throw new Error(
-      'Missing CRUD exports in src/app/core/onboarding/onboarding-catalog-crud.ts (addCategory, deleteCategory, addService, updateService, deleteService).'
+      'Missing CRUD exports in src/app/features/onboarding/data-access/onboarding-catalog-crud.ts (addCategory, deleteCategory, addService, updateService, deleteService).'
     );
   }
 
@@ -69,10 +69,10 @@ async function loadGoldenRuleModule(): Promise<BuildOnboardingRuntimeFlagsFn> {
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-runtime-flags');
+    module = await import('../../features/onboarding/data-access/onboarding-runtime-flags');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-runtime-flags.ts with buildOnboardingRuntimeFlags(input).'
+      'Missing module src/app/features/onboarding/data-access/onboarding-runtime-flags.ts with buildOnboardingRuntimeFlags(input).'
     );
   }
 
@@ -82,7 +82,7 @@ async function loadGoldenRuleModule(): Promise<BuildOnboardingRuntimeFlagsFn> {
 
   if (!buildOnboardingRuntimeFlags) {
     throw new Error(
-      'Missing export buildOnboardingRuntimeFlags(input) in src/app/core/onboarding/onboarding-runtime-flags.ts'
+      'Missing export buildOnboardingRuntimeFlags(input) in src/app/features/onboarding/data-access/onboarding-runtime-flags.ts'
     );
   }
 

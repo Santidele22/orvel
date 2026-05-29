@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const TURNOS_HTML = 'src/app/pages/dashboard/turnos/turnos-list.page.html';
+const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);

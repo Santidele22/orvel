@@ -5,15 +5,23 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { TurnoService } from '../../services/turno.service';
-import { CreateTurnoDTO, TurnoEstado } from '../../models/turno.model';
+import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { CreateTurnoDTO, TurnoEstado } from '../../features/booking/models/turno.model';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
+
+function futureDate(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(23, 0, 0, 0);
+  return date;
+}
 
 describe('TurnoService - Unit Tests', () => {
   let service: TurnoService;
 
   // Setup before each test
   beforeEach(() => {
-    service = new TurnoService();
+    service = createMockTurnoService();
   });
 
   // ============================================
@@ -76,9 +84,10 @@ describe('TurnoService - Unit Tests', () => {
     it('debería crear nuevo turno correctamente', async () => {
       // Arrange
       const nuevoTurno: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-001',
-        fecha: new Date('2026-04-20'),
+        fecha: futureDate(),
         hora: '09:00',
         duracionMinutos: 30,
         estado: 'confirmado',
@@ -99,9 +108,10 @@ describe('TurnoService - Unit Tests', () => {
     it('debería agregar turno a la lista interna', async () => {
       // Arrange
       const nuevoTurno: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-002',
         servicioId: 'servicio-002',
-        fecha: new Date(),
+        fecha: futureDate(),
         hora: '15:00',
         duracionMinutos: 45,
         estado: 'confirmado',
@@ -119,9 +129,10 @@ describe('TurnoService - Unit Tests', () => {
     it('debería generar ID único para cada turno', async () => {
       // Arrange
       const turno1: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-001',
-        fecha: new Date(),
+        fecha: futureDate(),
         hora: '09:00',
         duracionMinutos: 30,
         estado: 'confirmado',
@@ -133,9 +144,10 @@ describe('TurnoService - Unit Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
       
       const turno2: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-002',
         servicioId: 'servicio-002',
-        fecha: new Date(),
+        fecha: futureDate(),
         hora: '10:00',
         duracionMinutos: 45,
         estado: 'confirmado',
@@ -150,9 +162,10 @@ describe('TurnoService - Unit Tests', () => {
     it('debería aceptar notas opcionales', async () => {
       // Arrange
       const turnoConNotas: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-001',
-        fecha: new Date(),
+        fecha: futureDate(),
         hora: '11:00',
         duracionMinutos: 30,
         estado: 'confirmado',
@@ -364,7 +377,7 @@ describe('TurnoService - Unit Tests', () => {
       // Assert
       expect(turnos).toBeDefined();
       const hoyStr = new Date().toISOString().split('T')[0];
-      expect(turnos!.every(t => t.fecha.toString().split('T')[0] === hoyStr)).toBe(true);
+      expect(turnos!.every(t => t.fecha.toISOString().split('T')[0] === hoyStr)).toBe(true);
     });
   });
 
@@ -426,9 +439,10 @@ describe('TurnoService - Unit Tests', () => {
     it('debería excluir turnos cancelados', async () => {
       // Arrange - crear un turno cancelado
       const turnoCancelado: CreateTurnoDTO = {
+        branchId: 'branch-qa-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-001',
-        fecha: new Date(),
+        fecha: futureDate(),
         hora: '12:00',
         duracionMinutos: 30,
         estado: 'cancelado',
@@ -437,7 +451,7 @@ describe('TurnoService - Unit Tests', () => {
       await service.create(turnoCancelado).toPromise();
 
       // Act
-      const horarios = service.getHorariosDisponibles(new Date(), 30);
+      const horarios = service.getHorariosDisponibles(turnoCancelado.fecha, 30);
 
       // Assert - el horario del turno cancelado debería estar disponible
       expect(horarios).toContain('12:00');
@@ -479,7 +493,8 @@ describe('TurnoService - Unit Tests', () => {
     it('debería generar IDs únicos incluso con llamadas rápidas', async () => {
       // Arrange
       const turno1: CreateTurnoDTO = {
-        clienteId: 'c1', servicioId: 's1', fecha: new Date(), 
+        branchId: 'branch-qa-001',
+        clienteId: 'c1', servicioId: 's1', fecha: futureDate(), 
         hora: '09:00', duracionMinutos: 30, estado: 'confirmado', precio: 1000
       };
 
@@ -488,7 +503,8 @@ describe('TurnoService - Unit Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
       
       const turno2: CreateTurnoDTO = {
-        clienteId: 'c2', servicioId: 's2', fecha: new Date(), 
+        branchId: 'branch-qa-001',
+        clienteId: 'c2', servicioId: 's2', fecha: futureDate(), 
         hora: '10:00', duracionMinutos: 30, estado: 'confirmado', precio: 1000
       };
       const r2 = await service.create(turno2).toPromise();

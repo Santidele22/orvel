@@ -6,7 +6,7 @@ import {
   ONBOARDING_STEP_KEY,
   ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY,
   canAccessStep
-} from '../../core/onboarding/onboarding-flow-state';
+} from '../../features/onboarding/data-access/onboarding-flow-state';
 
 function storageFrom(values: Record<string, string>): Pick<Storage, 'getItem'> {
   return {

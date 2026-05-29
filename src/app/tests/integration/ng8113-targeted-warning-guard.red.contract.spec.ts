@@ -22,7 +22,7 @@ function extractStandaloneImports(source: string): string[] {
 describe('NG8113 targeted warning guard RED contract', () => {
   it('removes unused standalone imports from TurnosListPage', () => {
     // TODO(Magnus): remove NG8113-reported imports from TurnosListPage standalone imports array.
-    const source = readSource('src/app/pages/dashboard/turnos/turnos-list.page.ts');
+    const source = readSource('src/app/features/booking/pages/turnos-list.page.ts');
     const standaloneImports = extractStandaloneImports(source);
 
     expect(standaloneImports).not.toContain('RouterLink');

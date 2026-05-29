@@ -98,11 +98,11 @@ type OnboardingFlowWiringModule = {
 
 async function loadOnboardingFlowWiringModule(): Promise<OnboardingFlowWiringModule> {
   try {
-    const mod = await import('../../core/onboarding/landing-dashboard-onboarding-wiring.flow');
+    const mod = await import('../../features/onboarding/data-access/landing-dashboard-onboarding-wiring.flow');
     return mod as OnboardingFlowWiringModule;
   } catch {
     throw new Error(
-      'TODO(Aurora/Magnus): add src/app/core/onboarding/landing-dashboard-onboarding-wiring.flow.ts exporting createLandingDashboardOnboardingFlowWiring({ onboardingPersistenceService, fakeMoneySubscriptionSimulator }) with submitLandingOnboarding(...) and simulateBillingOutcome(...).'
+      'TODO(Aurora/Magnus): add src/app/features/onboarding/data-access/landing-dashboard-onboarding-wiring.flow.ts exporting createLandingDashboardOnboardingFlowWiring({ onboardingPersistenceService, fakeMoneySubscriptionSimulator }) with submitLandingOnboarding(...) and simulateBillingOutcome(...).'
     );
   }
 }
@@ -174,6 +174,7 @@ describe('L-02/SB-03 RED/GREEN integration contract: landing -> persistence -> d
     expect(result).toEqual({
       accountId: 'acc-001',
       accountState: 'enabled',
+      entitlements: { maxLocales: 1, maxRubros: 1, maxMonthlyBookings: 15 },
       routeTo: '/dashboard/inicio',
       selectedPlan: 'FREE'
     });
@@ -214,9 +215,10 @@ describe('L-02/SB-03 RED/GREEN integration contract: landing -> persistence -> d
     expect(result).toEqual({
       accountId: 'acc-premium',
       accountState: 'pending_payment',
+      entitlements: { maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null },
       routeTo: '/billing/test-checkout',
       selectedPlan: 'PRO',
-      pendingMessage: expect.stringMatching(/pending|payment|checkout/i)
+      pendingMessage: 'Payment pending. Continue to checkout to activate your plan.'
     });
   });
 

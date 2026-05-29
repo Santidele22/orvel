@@ -1,29 +1,21 @@
 import { Routes } from '@angular/router';
-import { TurnosListPage } from './pages/dashboard/turnos/turnos-list.page';
-import { TurnoFormPage } from './pages/dashboard/turnos/turno-form.page';
 import { DashboardShellComponent } from './shared/dashboard-shell/dashboard-shell.component';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
-import { OnboardingBusinessStepPage } from './pages/landing/onboarding-business-step.page';
-import { ServiciosPage } from './pages/dashboard/servicios/servicios.page';
-import { ClientesPage } from './pages/dashboard/clientes/clientes.page';
-import { ConfiguracionPage } from './pages/dashboard/configuracion/configuracion.page';
-import { PublicBookingPage } from './pages/booking/public-booking.page';
-import { ManageBookingPage } from './pages/booking/manage-booking.page';
+import { normalizeDashboardAuthRequest } from './core/auth/dashboard-auth-flow';
 import { LoginPage } from './pages/auth/login.page';
-import { SignupPlanStepPageComponent } from './pages/landing/signup-plan-step.component';
 import { SignupCredentialsPageComponent } from './pages/auth/signup-credentials.component';
-import { SignupBusinessTypesStepComponent } from './pages/landing/signup-business-types-step.component';
 import {
   onboardingAccountGuard,
   onboardingBusinessTypesGuard,
   onboardingLoginGuard,
   onboardingWelcomeGuard
-} from './core/onboarding/onboarding-flow.guard';
+} from './features/onboarding/data-access/onboarding-flow.guard';
 
 export const routes: Routes = [
   {
     path: 'auth',
-    component: LoginPage
+    component: LoginPage,
+    data: { normalizeDashboardAuthRequest }
   },
   {
     path: 'login',
@@ -37,7 +29,8 @@ export const routes: Routes = [
   },
   {
     path: 'auth/signup/plan',
-    component: SignupPlanStepPageComponent
+    loadComponent: () =>
+      import('./features/onboarding/pages/signup-plan-step.component').then(m => m.SignupPlanStepPageComponent)
   },
   {
     path: 'auth/signup/credentials',
@@ -46,33 +39,44 @@ export const routes: Routes = [
   },
   {
     path: 'auth/signup/complete',
-    component: SignupBusinessTypesStepComponent,
+    loadComponent: () =>
+      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
     canActivate: [onboardingBusinessTypesGuard]
   },
   {
     path: 'auth/signup/welcome',
-    component: SignupBusinessTypesStepComponent,
+    loadComponent: () =>
+      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
     canActivate: [onboardingWelcomeGuard]
   },
   {
     path: 'booking/manage',
-    component: ManageBookingPage
+    loadComponent: () =>
+      import('./features/booking/pages/public/manage-booking.page').then(m => m.ManageBookingPage)
   },
   {
     path: 'booking/:slug',
-    component: PublicBookingPage
+    loadComponent: () =>
+      import('./features/booking/pages/public/public-booking.page').then(m => m.PublicBookingPage)
   },
   {
     path: 'payments/return/success',
-    component: OnboardingBusinessStepPage
+    loadComponent: () =>
+      import('./features/onboarding/pages/onboarding-business-step.page').then(m => m.OnboardingBusinessStepPage)
   },
   {
     path: 'payments/return/pending',
-    component: OnboardingBusinessStepPage
+    loadComponent: () =>
+      import('./features/onboarding/pages/onboarding-business-step.page').then(m => m.OnboardingBusinessStepPage)
   },
   {
     path: 'payments/return/failure',
-    component: OnboardingBusinessStepPage
+    loadComponent: () =>
+      import('./features/onboarding/pages/onboarding-business-step.page').then(m => m.OnboardingBusinessStepPage)
+  },
+  {
+    path: 'billing/test-checkout',
+    loadComponent: () => import('./features/billing/pages/billing-checkout.component').then(m => m.BillingCheckoutComponent)
   },
   {
     path: 'dashboard',
@@ -87,27 +91,27 @@ export const routes: Routes = [
       },
       {
         path: 'inicio',
-        loadComponent: () => import('./pages/dashboard/home/dashboard-home.page').then(m => m.DashboardHomeComponent)
+        loadComponent: () => import('./features/dashboard-home/pages/dashboard-home.page').then(m => m.DashboardHomeComponent)
       },
       {
         path: 'turnos',
-        component: TurnosListPage
+        loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
       },
       {
         path: 'turnos/edit/:id',
-        component: TurnoFormPage
+        loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
       },
       {
         path: 'servicios',
-        component: ServiciosPage
+        loadComponent: () => import('./features/servicios/pages/servicios.page').then(m => m.ServiciosPage)
       },
       {
         path: 'clientes',
-        component: ClientesPage
+        loadComponent: () => import('./features/clientes/pages/clientes.page').then(m => m.ClientesPage)
       },
       {
         path: 'configuracion',
-        component: ConfiguracionPage
+        loadComponent: () => import('./features/settings/pages/configuracion.page').then(m => m.ConfiguracionPage)
       }
     ]
   },

@@ -24,6 +24,13 @@ vi.mock('../../core/auth/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
+vi.mock('../../core/auth/supabase-config', () => ({
+  SUPABASE_CONFIG: {
+    url: 'https://test.supabase.co',
+    anonKey: 'test-anon-key'
+  }
+}));
+
 function ensureLocalStorage(): Storage {
   if (typeof localStorage !== 'undefined') {
     return localStorage;
@@ -83,13 +90,13 @@ type BusinessTypeDefaultsModule = {
 };
 
 async function loadBusinessTypeDefaultsModule(): Promise<BusinessTypeDefaultsModule> {
-  const mod = await import('../../core/onboarding/business-type-defaults');
+  const mod = await import('../../features/onboarding/data-access/business-type-defaults');
   return mod as BusinessTypeDefaultsModule;
 }
 
 function readDashboardOnboardingSources(): { facade: string; authGuard: string; routes: string; merged: string } {
   const paths = {
-    facade: resolve(process.cwd(), 'src/app/facades/business-settings.facade.ts'),
+    facade: resolve(process.cwd(), 'src/app/features/settings/data-access/business-settings.facade.ts'),
     authGuard: resolve(process.cwd(), 'src/app/core/auth/dashboard-auth.guard.ts'),
     routes: resolve(process.cwd(), 'src/app/app.routes.ts')
   };
@@ -114,11 +121,11 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   });
 
   it('uses canonical STARTER/GROWTH/PRO plan codes for new onboarding and keeps legacy read aliases only', () => {
-    expect(CANONICAL_PLAN_CODES).toEqual(['STARTER', 'GROWTH', 'PRO']);
-    expect(PLAN_CODE_ALIASES).toEqual({ FREE: 'STARTER', BASIC: 'STARTER', MEDIUM: 'GROWTH' });
-    expect(normalizePlanCode('FREE')).toBe('STARTER');
+    expect(CANONICAL_PLAN_CODES).toEqual(['FREE', 'STARTER', 'GROWTH', 'PRO']);
+    expect(PLAN_CODE_ALIASES).toEqual({ STARTER: 'STARTER', BASIC: 'STARTER', MEDIUM: 'GROWTH' });
+    expect(normalizePlanCode('FREE')).toBe('FREE');
     expect(normalizePlanCode('medium')).toBe('GROWTH');
-    expect(getPlanEntitlements('PRO')).toEqual({ maxLocales: 5, maxRubros: 4 });
+    expect(getPlanEntitlements('PRO')).toEqual({ maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null });
   });
 
   it('creates deterministic initial settings for every allowed business type and persists capacity', async () => {
@@ -144,7 +151,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
 
       expect(first).toEqual(second);
       expect(first.businessType).toBe(businessType);
-      expect(first.plan).toBe('STARTER');
+      expect(first.plan).toBe('FREE');
       expect(first.capacity).toBeGreaterThanOrEqual(1);
       expect(first.workingHours).toBeTruthy();
       expect(first.slugSeed).not.toMatch(/^mi-negocio$|^mi-salon$/i);
@@ -237,10 +244,10 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
 
   it('security regression: OAuth onboarding cannot complete from localStorage business type selection alone', async () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/app/pages/landing/signup-business-types-step.page.ts'),
+      resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-business-types-step.page.ts'),
       'utf-8'
     );
-    const { SignupBusinessTypesStepPage } = await import('../../pages/landing/signup-business-types-step.page');
+    const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
     const navigations: string[] = [];
 
     const page = new SignupBusinessTypesStepPage();

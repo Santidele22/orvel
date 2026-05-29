@@ -73,7 +73,7 @@ describe('DB-FIX-001 RED - Gestionar bajas must be soft delete only', () => {
 
 describe('DB-FIX-002 RED - Loading skeletons for appointments views', () => {
   it('turnos list page uses deterministic skeleton hooks during loading', () => {
-    const turnosListHtml = readSource('src/app/pages/dashboard/turnos/turnos-list.page.html');
+    const turnosListHtml = readSource('src/app/features/booking/pages/turnos-list.page.html');
 
     expect(turnosListHtml).toMatch(/data-testid=["']turnos-loading-skeleton["']/i);
     expect(turnosListHtml).toMatch(/data-testid=["']turnos-skeleton-row["']/i);
@@ -81,7 +81,7 @@ describe('DB-FIX-002 RED - Loading skeletons for appointments views', () => {
   });
 
   it('turno create/edit form uses skeleton contract while bootstrapping dependencies', () => {
-    const turnoFormHtml = readSource('src/app/pages/dashboard/turnos/turno-form.page.html');
+    const turnoFormHtml = readSource('src/app/features/booking/pages/turno-form.page.html');
 
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-loading-skeleton["']/i);
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-skeleton-field["']/i);
@@ -111,7 +111,7 @@ describe('DB-FIX-003 RED - Service edit/delete must target selected service', ()
 
 describe('DB-FIX-004 RED - Turnos management via Mini Calendly integration path', () => {
   it('turnos admin UI exposes list/filter/create/edit/cancel hooks', () => {
-    const source = readSource('src/app/pages/dashboard/turnos/turnos-list.page.html');
+    const source = readSource('src/app/features/booking/pages/turnos-list.page.html');
 
     expect(source).toMatch(/data-testid=["']turnos-admin-list["']/i);
     expect(source).toMatch(/data-testid=["']turnos-admin-filter-status["']/i);
@@ -121,7 +121,7 @@ describe('DB-FIX-004 RED - Turnos management via Mini Calendly integration path'
   });
 
   it('turno service keeps create/edit/cancel integration through existing booking adapter', () => {
-    const source = readSource('src/app/services/turno.service.ts');
+    const source = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(source).toMatch(/createAdminManualBooking\(/);
     expect(source).toMatch(/updateAdminBooking\(/);
@@ -132,8 +132,8 @@ describe('DB-FIX-004 RED - Turnos management via Mini Calendly integration path'
 
 describe('DB-FIX-005 - Config section includes Profile + Business settings', () => {
   it('config page keeps both tabs and corresponding settings contracts', () => {
-    const configTs = readSource('src/app/pages/dashboard/configuracion/configuracion.page.ts');
-    const configZenHtml = readSource('src/app/pages/dashboard/configuracion/themes/configuracion-zen-theme.component.html');
+    const configTs = readSource('src/app/features/settings/pages/configuracion.page.ts');
+    const configZenHtml = readSource('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
     const merged = `${configTs}\n${configZenHtml}`;
 
     expect(merged).toMatch(/activeSettingsTab/);
@@ -148,7 +148,7 @@ describe('DB-FIX-005 - Config section includes Profile + Business settings', () 
 
 describe('DB-FIX-006 RED - Mejorar plan CTA navigates to plans landing section', () => {
   it('upgrade CTA uses direct navigation contract to plans anchor/section', () => {
-    const configZenHtml = readSource('src/app/pages/dashboard/configuracion/themes/configuracion-zen-theme.component.html');
+    const configZenHtml = readSource('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
 
     expect(configZenHtml).toMatch(/Mejorar Plan/);
     expect(configZenHtml).toMatch(/data-testid=["']upgrade-plan-cta["']/i);

@@ -15,12 +15,12 @@ type AvailabilityModule = {
 
 async function loadAvailabilityCore(): Promise<AvailabilityModule> {
   try {
-    const mod = await import('../../domain/availability/availability-core');
+    const mod = await import('../../features/booking/data-access/availability-core');
     return mod as AvailabilityModule;
   } catch {
     // TODO(Aurora): crear módulo puro availability-core con computeAvailableSlots y reglas deterministas
     throw new Error(
-      'TODO(Aurora): falta src/app/domain/availability/availability-core.ts con computeAvailableSlots()'
+      'TODO(Aurora): falta src/app/features/booking/data-access/availability-core.ts con computeAvailableSlots()'
     );
   }
 }

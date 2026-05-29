@@ -20,10 +20,10 @@ async function loadPlanEditingRulesModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-plan-rules');
+    module = await import('../../features/onboarding/data-access/onboarding-plan-rules');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-plan-rules.ts with applyPlanLimitToRubros() and canAddLocale().'
+      'Missing module src/app/features/onboarding/data-access/onboarding-plan-rules.ts with applyPlanLimitToRubros() and canAddLocale().'
     );
   }
 
@@ -32,7 +32,7 @@ async function loadPlanEditingRulesModule(): Promise<{
 
   if (!applyPlanLimitToRubros || !canAddLocale) {
     throw new Error(
-      'Missing exports applyPlanLimitToRubros(input) and canAddLocale(input) in src/app/core/onboarding/onboarding-plan-rules.ts'
+      'Missing exports applyPlanLimitToRubros(input) and canAddLocale(input) in src/app/features/onboarding/data-access/onboarding-plan-rules.ts'
     );
   }
 

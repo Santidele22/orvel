@@ -5,11 +5,11 @@ import { resolve } from 'node:path';
 function readConfiguracionPageSource(): string {
   const tsPath = resolve(
     process.cwd(),
-    'src/app/pages/dashboard/configuracion/configuracion.page.ts'
+    'src/app/features/settings/pages/configuracion.page.ts'
   );
   const htmlPath = resolve(
     process.cwd(),
-    'src/app/pages/dashboard/configuracion/configuracion.page.html'
+    'src/app/features/settings/pages/configuracion.page.html'
   );
 
   const tsSource = existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';

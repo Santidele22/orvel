@@ -16,8 +16,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // Imports
 // =============================================================================
 
-import { TurnoService } from '../../services/turno.service';
-import type { CreateTurnoDTO, Turno, TurnoEstado, UpdateTurnoDTO } from '../../models/turno.model';
+import { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { CreateTurnoDTO, Turno, TurnoEstado, UpdateTurnoDTO } from '../../features/booking/models/turno.model';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
 
 // =============================================================================
 // Test Fixtures
@@ -57,7 +58,7 @@ describe('KB-005.1: Update Turno (Booking) via Supabase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     // Ensure we're using supabase provider
     turnoService.setProvider('supabase');
   });
@@ -356,7 +357,7 @@ describe('KB-005.2: Cancel Turno (Booking) via Supabase', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
     // Load data first
     await turnoService.getAll().toPromise();
@@ -698,7 +699,7 @@ describe('KB-005.3: Status Management via Supabase', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
     await turnoService.getAll().toPromise();
   });
@@ -931,7 +932,7 @@ describe('KB-005.4: Validation', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
     await turnoService.getAll().toPromise();
   });
@@ -1184,7 +1185,7 @@ describe('KB-005.5: Error Handling', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
     await turnoService.getAll().toPromise();
   });

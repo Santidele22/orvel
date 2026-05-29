@@ -1,11 +1,9 @@
 import { describe, expectTypeOf, it } from 'vitest';
-import { createAdminManualBooking } from '../core/api/supabase-booking.api';
-
-type AdminManualPayload = Parameters<typeof createAdminManualBooking>[0];
+import { AdminManualBookingPayload } from '../features/booking/data-access/turno.service';
 
 describe('Turno manual booking payload contract', () => {
-  it('keeps Turno service payload aligned with createAdminManualBooking input', () => {
-    const payload: AdminManualPayload = {
+  it('defines expected AdminManualBookingPayload structure in TurnoService', () => {
+    const payload: AdminManualBookingPayload = {
       businessId: 'biz-qa-001',
       serviceId: 'svc-qa-001',
       startsAtIso: '2026-05-10T16:00:00.000Z',

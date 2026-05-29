@@ -24,7 +24,7 @@ async function loadPublicBookingValidationModule(): Promise<PublicBookingValidat
     return mod as PublicBookingValidationModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): falta src/app/pages/booking/public-booking.validation.ts con validatePublicBookingForm()'
+      'TODO(Magnus): falta src/app/features/booking/pages/public/public-booking.validation.ts con validatePublicBookingForm()'
     );
   }
 }

@@ -5,9 +5,10 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ClienteService } from '../../services/cliente.service';
-import { TurnoService } from '../../services/turno.service';
+import type { ClienteService } from '../../services/cliente.service';
+import type { TurnoService } from '../../features/booking/data-access/turno.service';
 import { CreateClienteDTO } from '../../models/cliente.model';
+import { createMockClienteService, createMockTurnoService } from '../helpers/turno-service-testbed';
 
 /**
  * Integration Tests - Clientes View (US-003)
@@ -22,8 +23,8 @@ describe('Clientes View Integration Tests', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    clienteService = new ClienteService();
-    turnoService = new TurnoService();
+    clienteService = createMockClienteService();
+    turnoService = createMockTurnoService();
   });
 
   afterEach(() => {

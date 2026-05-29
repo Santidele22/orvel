@@ -46,10 +46,10 @@ async function loadOnboardingTemplatesModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-templates');
+    module = await import('../../features/onboarding/data-access/onboarding-templates');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-templates.ts with sanitizeSelectedTemplateIds(), buildTemplatePreview() and applyTemplatePreload().'
+      'Missing module src/app/features/onboarding/data-access/onboarding-templates.ts with sanitizeSelectedTemplateIds(), buildTemplatePreview() and applyTemplatePreload().'
     );
   }
 
@@ -61,7 +61,7 @@ async function loadOnboardingTemplatesModule(): Promise<{
 
   if (!sanitizeSelectedTemplateIds || !buildTemplatePreview || !applyTemplatePreload) {
     throw new Error(
-      'Missing exports sanitizeSelectedTemplateIds(input), buildTemplatePreview(input), applyTemplatePreload(input) in src/app/core/onboarding/onboarding-templates.ts'
+      'Missing exports sanitizeSelectedTemplateIds(input), buildTemplatePreview(input), applyTemplatePreload(input) in src/app/features/onboarding/data-access/onboarding-templates.ts'
     );
   }
 

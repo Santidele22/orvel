@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { TURNERA_SESSION_KEY } from '../../core/auth/session-contract';
-import { readOnboardingState } from '../../core/onboarding/onboarding-storage';
+import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
 import {
   DashboardFromSessionConfig,

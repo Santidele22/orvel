@@ -5,10 +5,11 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { TurnoService } from '../../services/turno.service';
-import { ClienteService } from '../../services/cliente.service';
-import { ServicioService } from '../../services/servicio.service';
-import { CreateTurnoDTO, TurnoEstado } from '../../models/turno.model';
+import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { ClienteService } from '../../services/cliente.service';
+import type { ServicioService } from '../../services/servicio.service';
+import { CreateTurnoDTO, TurnoEstado } from '../../features/booking/models/turno.model';
+import { createMockClienteService, createMockServicioService, createMockTurnoService } from '../helpers/turno-service-testbed';
 
 /**
  * Integration Tests - Turnos View (US-002)
@@ -24,9 +25,9 @@ describe('Turnos View Integration Tests', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    turnoService = new TurnoService();
-    clienteService = new ClienteService();
-    servicioService = new ServicioService();
+    turnoService = createMockTurnoService();
+    clienteService = createMockClienteService();
+    servicioService = createMockServicioService();
   });
 
   afterEach(() => {
@@ -49,7 +50,7 @@ describe('Turnos View Integration Tests', () => {
       const nuevoTurno: CreateTurnoDTO = {
         clienteId: cliente.id,
         servicioId: servicio.id,
-        fecha: new Date('2026-04-20'),
+        fecha: new Date('2035-04-20'),
         hora: '10:00',
         duracionMinutos: servicio.duracionMinutos,
         estado: 'confirmado',
@@ -157,7 +158,7 @@ describe('Turnos View Integration Tests', () => {
       await turnoService.create({
         clienteId: 'cliente-001',
         servicioId: 'servicio-001',
-        fecha: new Date(),
+        fecha: new Date('2035-04-21'),
         hora: '12:00',
         duracionMinutos: 30,
         estado: 'cancelado',
@@ -176,7 +177,7 @@ describe('Turnos View Integration Tests', () => {
       await turnoService.create({
         clienteId: 'cliente-002',
         servicioId: 'servicio-002',
-        fecha: new Date(),
+        fecha: new Date('2035-04-22'),
         hora: '13:00',
         duracionMinutos: 45,
         estado: 'cancelado',

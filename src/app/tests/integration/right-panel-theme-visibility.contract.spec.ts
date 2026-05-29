@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 
-const TURNOS_HTML = 'src/app/pages/dashboard/turnos/turnos-list.page.html';
+const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
 const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.html';
 
 function fromRoot(relativePath: string): string {

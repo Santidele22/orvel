@@ -40,7 +40,7 @@ async function loadConfiguracionValidationModule(): Promise<ConfiguracionValidat
     return mod as ConfiguracionValidationModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): falta src/app/pages/dashboard/configuracion/configuracion.validation.ts con validateConfiguracionForm()'
+      'TODO(Magnus): falta src/app/features/settings/pages/configuracion.validation.ts con validateConfiguracionForm()'
     );
   }
 }

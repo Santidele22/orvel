@@ -8,14 +8,14 @@ function getRoutesSource(): string {
 }
 
 function getPublicBookingSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/booking/public-booking.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/booking/public-booking.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.html');
 
   try {
     return `${readFileSync(tsPath, 'utf-8')}\n${readFileSync(htmlPath, 'utf-8')}`;
   } catch {
     throw new Error(
-      'TODO(Aurora): missing public booking page at src/app/pages/booking/public-booking.page.{ts,html}'
+      'TODO(Aurora): missing public booking page at src/app/features/booking/pages/public/public-booking.page.{ts,html}'
     );
   }
 }

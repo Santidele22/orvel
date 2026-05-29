@@ -71,12 +71,12 @@ describe('RED Contract: dashboard /auth real Supabase auth flow', () => {
     const unsafeReturnTo = '/dashboard/inicio?access_token=secret&refresh_token=secret';
 
     expect(source).toMatch(/resolveDashboardAuthSuccessRedirect/);
-    expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/');
+    expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/dashboard/inicio');
 
     await handleLoginSuccess({ router, returnTo: unsafeReturnTo, session: null });
 
     const navigatedTo = router.navigate.mock.calls[0]?.[0]?.[0];
-    expect(navigatedTo).toBe('/');
+    expect(navigatedTo).toBe('/dashboard/inicio');
     expect(String(navigatedTo)).not.toMatch(/access_token|refresh_token|id_token|token|code/i);
   });
 
@@ -93,9 +93,9 @@ describe('RED Contract: dashboard /auth real Supabase auth flow', () => {
     ]) {
       expect(normalizeDashboardAuthRequest(`/auth?mode=login&returnTo=${encodeURIComponent(unsafeReturnTo)}`)).toEqual({
         mode: 'login',
-        returnTo: '/'
+        returnTo: '/dashboard/inicio'
       });
-      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/');
+      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/dashboard/inicio');
     }
   });
 

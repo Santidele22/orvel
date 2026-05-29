@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
 const SIDEBAR_HTML = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html';
-const TURNOS_HTML = 'src/app/pages/dashboard/turnos/turnos-list.page.html';
+const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);

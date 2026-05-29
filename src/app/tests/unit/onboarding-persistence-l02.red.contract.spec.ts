@@ -52,11 +52,11 @@ type OnboardingPersistenceModule = {
 
 async function loadOnboardingPersistenceModule(): Promise<OnboardingPersistenceModule> {
   try {
-    const mod = await import('../../core/onboarding/onboarding-persistence.service');
+    const mod = await import('../../features/onboarding/data-access/onboarding-persistence.service');
     return mod as OnboardingPersistenceModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/onboarding/onboarding-persistence.service.ts exporting createOnboardingPersistenceService({ accountRepository, salonRepository }) and persistOnboardingSelection({ tenantContext, payload }).'
+      'TODO(Magnus): add src/app/features/onboarding/data-access/onboarding-persistence.service.ts exporting createOnboardingPersistenceService({ accountRepository, salonRepository }) and persistOnboardingSelection({ tenantContext, payload }).'
     );
   }
 }

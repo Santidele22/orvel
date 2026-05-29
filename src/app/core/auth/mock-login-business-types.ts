@@ -1,10 +1,10 @@
 import type { TurneaSession } from './session-contract';
-import { sanitizeSelectedRubros } from '../onboarding/onboarding-rubros';
+import { sanitizeSelectedRubros } from '../../features/onboarding/data-access/onboarding-rubros';
 import {
   mergeTemplateCatalogs,
   sanitizeSelectedTemplateIds,
   TemplateCatalog
-} from '../onboarding/onboarding-templates';
+} from '../../features/onboarding/data-access/onboarding-templates';
 
 export const ALLOWED_SELECTED_BUSINESS_TYPES = ['zen'] as const;
 

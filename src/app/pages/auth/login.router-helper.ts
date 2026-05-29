@@ -7,6 +7,7 @@
  */
 
 import { Router } from '@angular/router';
+import { resolveDashboardAuthSuccessRedirect } from '../../core/auth/dashboard-auth-flow';
 import { clearLoginError, setLoginError } from './login.error-state';
 import { clearLoadingState } from './login.loading-state';
 
@@ -151,9 +152,9 @@ export async function handleLoginSuccess(options: {
   clearLoginError();
   clearLoadingState();
 
-  // Determine navigation target
-  const safeReturnTo = returnTo ? sanitizeReturnTo(returnTo) : '/dashboard/inicio';
-  const navigationTarget = safeReturnTo.startsWith('/') ? safeReturnTo : '/dashboard/inicio';
+  // Determine navigation target through the dashboard-owned sanitizer so auth
+  // callbacks never propagate access tokens, OAuth codes, or payment IDs.
+  const navigationTarget = resolveDashboardAuthSuccessRedirect({ returnTo });
 
   // Navigate to the target
   await router.navigate([navigationTarget]);
@@ -194,13 +195,13 @@ export function handleLoginError(options: {
 export function getRedirectUrl(queryReturnTo: string | null): string {
   // Priority 1: Query param
   if (queryReturnTo) {
-    return sanitizeReturnTo(queryReturnTo);
+    return resolveDashboardAuthSuccessRedirect({ returnTo: queryReturnTo });
   }
 
   // Priority 2: Preserved returnTo
   const preservedReturnTo = getPreservedReturnTo();
   if (preservedReturnTo) {
-    return sanitizeReturnTo(preservedReturnTo);
+    return resolveDashboardAuthSuccessRedirect({ returnTo: preservedReturnTo });
   }
 
   // Priority 3: Default

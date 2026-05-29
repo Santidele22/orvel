@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
-const TURNOS_HTML = 'src/app/pages/dashboard/turnos/turnos-list.page.html';
+const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
 const STATUS_BADGE_TS = 'src/app/shared/components/status-badge/status-badge.component.ts';
 
 const REQUIRED_TEMPLATE_MARKERS = ['isZen'] as const;

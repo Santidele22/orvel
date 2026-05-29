@@ -13,8 +13,8 @@ async function readSource(relativePath: string): Promise<string> {
 
 describe('TDD gate: zen-only MVP cleanup', () => {
   it('enforces only zen template visibility in configuración selectors', async () => {
-    const configuracionTs = await readSource('src/app/pages/dashboard/configuracion/configuracion.page.ts');
-    const configuracionHtml = await readSource('src/app/pages/dashboard/configuracion/configuracion.page.html');
+    const configuracionTs = await readSource('src/app/features/settings/pages/configuracion.page.ts');
+    const configuracionHtml = await readSource('src/app/features/settings/pages/configuracion.page.html');
 
     expect(configuracionTs).toMatch(/ConfiguracionZenThemeComponent/);
     expect(configuracionTs).not.toMatch(/Configuracion(Industrial|Chic|Ink)ThemeComponent/);
@@ -54,7 +54,7 @@ describe('TDD gate: zen-only MVP cleanup', () => {
   });
 
   it('prevents onboarding/session seeding from producing non-zen selections', async () => {
-    const onboardingBusinessStep = await readSource('src/app/pages/landing/onboarding-business-step.page.ts');
+    const onboardingBusinessStep = await readSource('src/app/features/onboarding/pages/onboarding-business-step.page.ts');
     expect(onboardingBusinessStep).not.toMatch(/'industrial'|'chic'|'ink'/);
 
     const { createMockSessionFromLogin } = await import('../../core/auth/mock-login-business-types');

@@ -1,8 +1,9 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import { TurnoService } from '../../services/turno.service';
-import { ClienteService } from '../../services/cliente.service';
-import { ServicioService } from '../../services/servicio.service';
-import { BusinessSettingsFacade, WeekdayKey } from '../../facades/business-settings.facade';
+import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
+import { BusinessService } from '../../features/settings/data-access/business.service';
+import { WeekdayKey } from '../../models/business.model';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +12,7 @@ export class DashboardService {
   private readonly turnoService = inject(TurnoService);
   private readonly clienteService = inject(ClienteService);
   private readonly servicioService = inject(ServicioService);
-  private readonly settingsFacade = inject(BusinessSettingsFacade);
+  private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
 
   // Time signal for real-time updates
@@ -26,7 +27,7 @@ export class DashboardService {
    */
   readonly agendaStatus = computed(() => {
     const turnos = this.turnoService.items();
-    const settings = this.settingsFacade.state();
+    const settings = this.businessService.settings();
     const now = this.now();
     
     const hoy = new Date();

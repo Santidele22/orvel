@@ -72,8 +72,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('appointments/home pipelines must resolve tenant business_id and avoid direct auth uid filtering', () => {
-    const turnoServiceSource = readSource('src/app/services/turno.service.ts');
-    const clienteServiceSource = readSource('src/app/services/cliente.service.ts');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const clienteServiceSource = readSource('src/app/features/clientes/data-access/cliente.service.ts');
 
     expect(turnoServiceSource).toMatch(/(resolve|load|get)\w*business\w*id/i);
     expect(clienteServiceSource).toMatch(/(resolve|load|get)\w*business\w*id/i);

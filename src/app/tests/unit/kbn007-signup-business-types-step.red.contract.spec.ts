@@ -66,10 +66,10 @@ async function loadOnboardingBusinessTypesStorageModule(): Promise<OnboardingBus
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-business-types-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-business-types-storage');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/core/onboarding/onboarding-business-types-storage.ts exporting ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, persistBusinessTypes(storage, types), readBusinessTypes(storage).'
+      'TODO(Aurora): create src/app/features/onboarding/data-access/onboarding-business-types-storage.ts exporting ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, persistBusinessTypes(storage, types), readBusinessTypes(storage).'
     );
   }
 
@@ -83,7 +83,7 @@ async function loadOnboardingBusinessTypesStorageModule(): Promise<OnboardingBus
 
   if (!ONBOARDING_BUSINESS_TYPES_STORAGE_KEY || !persistBusinessTypes || !readBusinessTypes) {
     throw new Error(
-      'Missing exports ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, persistBusinessTypes(storage, types), readBusinessTypes(storage) in src/app/core/onboarding/onboarding-business-types-storage.ts'
+      'Missing exports ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, persistBusinessTypes(storage, types), readBusinessTypes(storage) in src/app/features/onboarding/data-access/onboarding-business-types-storage.ts'
     );
   }
 
@@ -99,10 +99,10 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-plan-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-plan-storage');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/core/onboarding/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage).'
+      'TODO(Aurora): create src/app/features/onboarding/data-access/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage).'
     );
   }
 
@@ -113,7 +113,7 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
 
   if (!ONBOARDING_PLAN_STORAGE_KEY || !readPlanSelection) {
     throw new Error(
-      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage) in src/app/core/onboarding/onboarding-plan-storage.ts'
+      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage) in src/app/features/onboarding/data-access/onboarding-plan-storage.ts'
     );
   }
 
@@ -139,10 +139,10 @@ async function loadSignupBusinessTypesComponent(): Promise<SignupBusinessTypesCo
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../pages/landing/signup-business-types-step.page');
+    module = await import('../../features/onboarding/pages/signup-business-types-step.page');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/pages/landing/signup-business-types-step.page.ts exporting SignupBusinessTypesStepPage component with allowedTypes, selectedTypes, canContinue(), canSelect(type), toggleType(type), isTypeSelected(type), submit(), goBack().'
+      'TODO(Aurora): create src/app/features/onboarding/pages/signup-business-types-step.page.ts exporting SignupBusinessTypesStepPage component with allowedTypes, selectedTypes, canContinue(), canSelect(type), toggleType(type), isTypeSelected(type), submit(), goBack().'
     );
   }
 
@@ -152,7 +152,7 @@ async function loadSignupBusinessTypesComponent(): Promise<SignupBusinessTypesCo
 
   if (!SignupBusinessTypesStepPage) {
     throw new Error(
-      'Missing export SignupBusinessTypesStepPage in src/app/pages/landing/signup-business-types-step.page.ts'
+      'Missing export SignupBusinessTypesStepPage in src/app/features/onboarding/pages/signup-business-types-step.page.ts'
     );
   }
 
@@ -162,11 +162,11 @@ async function loadSignupBusinessTypesComponent(): Promise<SignupBusinessTypesCo
 function readBusinessTypesStepSources(): { component: string; html: string } {
   const componentPath = resolve(
     process.cwd(),
-    'src/app/pages/landing/signup-business-types-step.page.ts'
+    'src/app/features/onboarding/pages/signup-business-types-step.page.ts'
   );
   const htmlPath = resolve(
     process.cwd(),
-    'src/app/pages/landing/signup-business-types-step.page.html'
+    'src/app/features/onboarding/pages/signup-business-types-step.page.html'
   );
 
   const component = existsSync(componentPath) ? readFileSync(componentPath, 'utf-8') : '';

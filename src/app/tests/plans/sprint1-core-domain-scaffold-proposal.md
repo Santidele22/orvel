@@ -2,7 +2,7 @@
 
 ## Blocker
 
-`src/app/domain/appointments/booking-core.ts` does not exist yet.
+`src/app/features/booking/data-access/booking-core.ts` does not exist yet.
 
 Current RED tests depend on this module and intentionally fail until implementation is added.
 

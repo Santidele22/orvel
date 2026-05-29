@@ -51,10 +51,10 @@ async function loadOnboardingCredentialsStorageModule(): Promise<OnboardingCrede
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-credentials-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-credentials-storage');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/core/onboarding/onboarding-credentials-storage.ts exporting ONBOARDING_STORAGE_KEY, persistCredentials(storage, credentials), readCredentials(storage).'
+      'TODO(Aurora): create src/app/features/onboarding/data-access/onboarding-credentials-storage.ts exporting ONBOARDING_STORAGE_KEY, persistCredentials(storage, credentials), readCredentials(storage).'
     );
   }
 
@@ -68,7 +68,7 @@ async function loadOnboardingCredentialsStorageModule(): Promise<OnboardingCrede
 
   if (!ONBOARDING_STORAGE_KEY || !persistCredentials || !readCredentials) {
     throw new Error(
-      'Missing exports ONBOARDING_STORAGE_KEY, persistCredentials(storage, credentials), readCredentials(storage) in src/app/core/onboarding/onboarding-credentials-storage.ts'
+      'Missing exports ONBOARDING_STORAGE_KEY, persistCredentials(storage, credentials), readCredentials(storage) in src/app/features/onboarding/data-access/onboarding-credentials-storage.ts'
     );
   }
 
@@ -94,10 +94,10 @@ async function loadSignupCredentialsComponent(): Promise<SignupCredentialsCompon
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../pages/landing/signup-credentials-step.page');
+    module = await import('../../pages/auth/signup-credentials.page');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/pages/landing/signup-credentials-step.page.ts exporting SignupCredentialsStepPage component with credentials, errors, isValid(), canContinue(), updateField(field, value), validate(), continue(), goBack().'
+      'TODO(Aurora): create src/app/pages/auth/signup-credentials.page.ts exporting SignupCredentialsStepPage component with credentials, errors, isValid(), canContinue(), updateField(field, value), validate(), continue(), goBack().'
     );
   }
 
@@ -107,7 +107,7 @@ async function loadSignupCredentialsComponent(): Promise<SignupCredentialsCompon
 
   if (!SignupCredentialsStepPage) {
     throw new Error(
-      'Missing export SignupCredentialsStepPage in src/app/pages/landing/signup-credentials-step.page.ts'
+      'Missing export SignupCredentialsStepPage in src/app/pages/auth/signup-credentials.page.ts'
     );
   }
 
@@ -117,11 +117,11 @@ async function loadSignupCredentialsComponent(): Promise<SignupCredentialsCompon
 function readCredentialsStepSources(): { component: string; html: string } {
   const componentPath = resolve(
     process.cwd(),
-    'src/app/pages/landing/signup-credentials-step.page.ts'
+    'src/app/pages/auth/signup-credentials.page.ts'
   );
   const htmlPath = resolve(
     process.cwd(),
-    'src/app/pages/landing/signup-credentials-step.page.html'
+    'src/app/pages/auth/signup-credentials.page.html'
   );
 
   const component = existsSync(componentPath) ? readFileSync(componentPath, 'utf-8') : '';
@@ -692,10 +692,10 @@ async function loadOnboardingPlanStorageModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-plan-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-plan-storage');
   } catch {
     throw new Error(
-      'TODO: import from KBN-004 - src/app/core/onboarding/onboarding-plan-storage.ts'
+      'TODO: import from KBN-004 - src/app/features/onboarding/data-access/onboarding-plan-storage.ts'
     );
   }
 

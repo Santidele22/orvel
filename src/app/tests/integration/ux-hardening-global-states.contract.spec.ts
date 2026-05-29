@@ -7,7 +7,7 @@ const UI_STATE_COMPONENT_TS =
 
 const CORE_STATE_CONTRACTS = {
   turnos: {
-    file: 'src/app/pages/dashboard/turnos/turnos-list.page.html',
+    file: 'src/app/features/booking/pages/turnos-list.page.html',
     hooks: ['turnos-loading-state', 'turnos-empty-state', 'turnos-error-state']
   },
   servicios: {
@@ -19,7 +19,7 @@ const CORE_STATE_CONTRACTS = {
     hooks: ['clients-loading-state', 'clients-empty-state', 'clients-error-state']
   },
   configuracion: {
-    file: 'src/app/pages/dashboard/configuracion/configuracion.page.html',
+    file: 'src/app/features/settings/pages/configuracion.page.html',
     hooks: ['settings-loading-state', 'settings-empty-state', 'settings-error-state']
   }
 } as const;

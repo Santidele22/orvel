@@ -58,9 +58,9 @@ describe('RED Contract: dashboard /auth checkout source normalization', () => {
       expect(normalizeDashboardAuthRequest(url)).toEqual({
         mode: 'login',
         source: 'checkout',
-        returnTo: '/'
+        returnTo: '/dashboard/inicio'
       });
-      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/');
+      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/dashboard/inicio');
     }
   });
 

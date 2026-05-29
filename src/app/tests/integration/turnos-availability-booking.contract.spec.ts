@@ -1,26 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { TurnoService } from '../../services/turno.service';
-import type { CreateTurnoDTO } from '../../models/turno.model';
+import type { CreateTurnoDTO } from '../../features/booking/models/turno.model';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
+
+function tomorrow(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(23, 0, 0, 0);
+  return date;
+}
 
 function readTurnoFormSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turno-form.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turno-form.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/booking/pages/turno-form.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/booking/pages/turno-form.page.html');
   return `${readFileSync(tsPath, 'utf-8')}\n${readFileSync(htmlPath, 'utf-8')}`;
 }
 
 describe('Turnos + Availability integration RED contract (mock mode)', () => {
   it('blocks booking when requested slot is unavailable', async () => {
     // TODO(Aurora): create() debe rechazar slots bloqueados por disponibilidad core en modo mock
-    const service = new TurnoService();
+    const service = createMockTurnoService();
     await service.getAll().toPromise();
 
     const blockedStart = '10:00'; // ocupado por mocks base del día
     const dto: CreateTurnoDTO = {
+      branchId: 'branch-qa-001',
       clienteId: 'cliente-qa-001',
       servicioId: 'servicio-qa-001',
-      fecha: new Date(),
+      fecha: tomorrow(),
       hora: blockedStart,
       duracionMinutos: 30,
       estado: 'confirmado',
@@ -31,16 +39,18 @@ describe('Turnos + Availability integration RED contract (mock mode)', () => {
   });
 
   it('allows booking when requested slot is available', async () => {
-    const service = new TurnoService();
+    const service = createMockTurnoService();
     await service.getAll().toPromise();
 
-    const availableSlots = service.getHorariosDisponibles(new Date(), 30);
+    const bookingDate = tomorrow();
+    const availableSlots = service.getHorariosDisponibles(bookingDate, 30);
     const target = availableSlots[0];
 
     const dto: CreateTurnoDTO = {
+      branchId: 'branch-qa-001',
       clienteId: 'cliente-qa-002',
       servicioId: 'servicio-qa-002',
-      fecha: new Date(),
+      fecha: bookingDate,
       hora: target,
       duracionMinutos: 30,
       estado: 'confirmado',

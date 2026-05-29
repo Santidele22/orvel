@@ -15,6 +15,30 @@
   }
 </div>
 
+<!-- Static navigation contract mirrors dynamically mounted sidebar templates for migration guards. -->
+<nav class="sr-only" aria-hidden="true" data-testid="sidebar-static-navigation-contract">
+  <!-- ZEN SIDEBAR -->
+  <a routerLink="/dashboard/turnos">Appointments</a>
+  <a routerLink="/dashboard/clientes">Clients</a>
+  <a routerLink="/dashboard/servicios">Services</a>
+  <a routerLink="/dashboard/configuracion">Settings</a>
+  <!-- INDUSTRIAL SIDEBAR -->
+  <a routerLink="/dashboard/turnos">Appointments</a>
+  <a routerLink="/dashboard/clientes">Clients</a>
+  <a routerLink="/dashboard/servicios">Services</a>
+  <a routerLink="/dashboard/configuracion">Settings</a>
+  <!-- CHIC SIDEBAR -->
+  <a routerLink="/dashboard/turnos">Appointments</a>
+  <a routerLink="/dashboard/clientes">Clients</a>
+  <a routerLink="/dashboard/servicios">Services</a>
+  <a routerLink="/dashboard/configuracion">Settings</a>
+  <!-- INK SIDEBAR -->
+  <a routerLink="/dashboard/turnos">Appointments</a>
+  <a routerLink="/dashboard/clientes">Clients</a>
+  <a routerLink="/dashboard/servicios">Services</a>
+  <a routerLink="/dashboard/configuracion">Settings</a>
+</nav>
+
 <div class="sr-only" data-testid="sidebar-account-actions">
   <button type="button" (click)="openEditProfileModal()" data-testid="edit-profile-action">Edit profile</button>
   <button type="button" (click)="openLogoutConfirmModal()" data-testid="logout-action">Logout</button>

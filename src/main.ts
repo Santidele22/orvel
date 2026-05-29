@@ -1,8 +1,7 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
 import { App } from './app/app';
-import { initializeDashboardSupabaseBookingGateway } from './app/core/runtime/supabase-booking.runtime-init';
-import { evaluateMercadoPagoProductionConfigGate } from './app/core/payments/observability/mercadopago-production-config-gate';
+import { evaluateMercadoPagoProductionConfigGate } from './app/features/billing/data-access/payments/observability/mercadopago-production-config-gate';
 
 type RuntimeEnvironment = 'development' | 'staging' | 'production' | 'test';
 
@@ -51,11 +50,6 @@ function enforceMercadoPagoProductionConfigGate(): void {
 }
 
 enforceMercadoPagoProductionConfigGate();
-
-const supabaseRuntimeStatus = initializeDashboardSupabaseBookingGateway();
-if (supabaseRuntimeStatus.status === 'error') {
-  console.warn(supabaseRuntimeStatus.message);
-}
 
 bootstrapApplication(App, appConfig)
   .catch((err) => console.error(err));

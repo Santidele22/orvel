@@ -51,11 +51,11 @@ type BookingCoreModule = {
 
 async function loadBookingCore(): Promise<BookingCoreModule> {
   try {
-    const mod = await import('../../domain/appointments/booking-core');
+    const mod = await import('../../features/booking/data-access/booking-core');
     return mod as BookingCoreModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): missing src/app/domain/appointments/booking-core.ts with createAppointment(), computePublicAvailability(), canClientCancelOrReschedule(), validateSelfServiceToken()'
+      'TODO(Magnus): missing src/app/features/booking/data-access/booking-core.ts with createAppointment(), computePublicAvailability(), canClientCancelOrReschedule(), validateSelfServiceToken()'
     );
   }
 }

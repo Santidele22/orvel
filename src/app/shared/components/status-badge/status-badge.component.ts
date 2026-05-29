@@ -3,7 +3,7 @@
 
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TurnoEstado } from '../../../models/turno.model';
+import { TurnoEstado } from '../../../features/booking/models/turno.model';
 
 type CanonicalStatus = 'confirmed' | 'pending' | 'in_progress' | 'completed';
 type SupportedStatus = TurnoEstado | CanonicalStatus;

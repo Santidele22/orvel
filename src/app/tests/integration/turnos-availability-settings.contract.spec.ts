@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { TurnoService } from '../../services/turno.service';
-import { BusinessSettingsFacade } from '../../facades/business-settings.facade';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
+import { BusinessService } from '../../features/settings/data-access/business.service';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
+
+function createBusinessService(): BusinessService {
+  const injector = Injector.create({
+    providers: [{ provide: AuthService, useValue: { user: () => ({ id: 'qa-user-001' }) } }]
+  });
+
+  return runInInjectionContext(injector, () => new BusinessService());
+}
 
 describe('Mock business settings -> availability deterministic contract', () => {
   it('computes slots deterministically from business config', async () => {
-    // TODO(Aurora): integrar BusinessSettingsFacade con disponibilidad de turnos (modo mock, sin Supabase)
-    const turnoService = new TurnoService() as any;
-    const settingsFacade = new BusinessSettingsFacade();
+    // TODO(Aurora): integrar BusinessService con disponibilidad de turnos (modo mock, sin Supabase)
+    const turnoService = createMockTurnoService() as any;
+    const settingsFacade = createBusinessService();
 
     await turnoService.getAll().toPromise();
 
@@ -37,8 +47,8 @@ describe('Mock business settings -> availability deterministic contract', () => 
   });
 
   it('changes output predictably when interval, buffer and notice settings change', async () => {
-    const turnoService = new TurnoService() as any;
-    const settingsFacade = new BusinessSettingsFacade();
+    const turnoService = createMockTurnoService() as any;
+    const settingsFacade = createBusinessService();
     await turnoService.getAll().toPromise();
 
     const dayHours = { monday: settingsFacade.getDefaultWorkingHours().monday };

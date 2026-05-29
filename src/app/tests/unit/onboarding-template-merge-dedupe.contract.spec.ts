@@ -23,10 +23,10 @@ async function loadMergeFn(): Promise<MergeTemplateCatalogsFn> {
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-templates');
+    module = await import('../../features/onboarding/data-access/onboarding-templates');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-templates.ts with mergeTemplateCatalogs(catalogs).'
+      'Missing module src/app/features/onboarding/data-access/onboarding-templates.ts with mergeTemplateCatalogs(catalogs).'
     );
   }
 
@@ -34,7 +34,7 @@ async function loadMergeFn(): Promise<MergeTemplateCatalogsFn> {
 
   if (!mergeTemplateCatalogs) {
     throw new Error(
-      'Missing export mergeTemplateCatalogs(catalogs) in src/app/core/onboarding/onboarding-templates.ts'
+      'Missing export mergeTemplateCatalogs(catalogs) in src/app/features/onboarding/data-access/onboarding-templates.ts'
     );
   }
 

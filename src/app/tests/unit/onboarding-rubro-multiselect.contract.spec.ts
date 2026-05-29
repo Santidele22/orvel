@@ -15,10 +15,10 @@ async function loadOnboardingRubrosModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-rubros');
+    module = await import('../../features/onboarding/data-access/onboarding-rubros');
   } catch {
     throw new Error(
-      'Missing module src/app/core/onboarding/onboarding-rubros.ts with REQUIRED_RUBROS, sanitizeSelectedRubros() and canContinueOnboarding().'
+      'Missing module src/app/features/onboarding/data-access/onboarding-rubros.ts with REQUIRED_RUBROS, sanitizeSelectedRubros() and canContinueOnboarding().'
     );
   }
 
@@ -31,7 +31,7 @@ async function loadOnboardingRubrosModule(): Promise<{
 
   if (!REQUIRED_RUBROS || !sanitizeSelectedRubros || !canContinueOnboarding || !toggleSelectedRubro) {
     throw new Error(
-      'Missing exports REQUIRED_RUBROS, sanitizeSelectedRubros(input), canContinueOnboarding(selectedRubros), toggleSelectedRubro(selectedRubros, rubro) in src/app/core/onboarding/onboarding-rubros.ts'
+      'Missing exports REQUIRED_RUBROS, sanitizeSelectedRubros(input), canContinueOnboarding(selectedRubros), toggleSelectedRubro(selectedRubros, rubro) in src/app/features/onboarding/data-access/onboarding-rubros.ts'
     );
   }
 

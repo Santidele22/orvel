@@ -101,12 +101,12 @@ type PlanEntitlementsModule = {
 };
 
 async function loadWiringModule(): Promise<OnboardingWiringModule> {
-  const mod = await import('../../core/onboarding/landing-dashboard-onboarding-wiring.flow');
+  const mod = await import('../../features/onboarding/data-access/landing-dashboard-onboarding-wiring.flow');
   return mod as OnboardingWiringModule;
 }
 
 async function loadStorageModule(): Promise<OnboardingStorageModule> {
-  const mod = await import('../../core/onboarding/onboarding-storage');
+  const mod = await import('../../features/onboarding/data-access/onboarding-storage');
   return mod as OnboardingStorageModule;
 }
 
@@ -144,9 +144,9 @@ function createMemoryStorage(seed?: Record<string, string>): StorageLike {
 }
 
 function readOnboardingSources(): { storage: string; wiring: string; landingPage: string; merged: string } {
-  const storagePath = resolve(process.cwd(), 'src/app/core/onboarding/onboarding-storage.ts');
-  const wiringPath = resolve(process.cwd(), 'src/app/core/onboarding/landing-dashboard-onboarding-wiring.flow.ts');
-  const landingPath = resolve(process.cwd(), 'src/app/pages/landing/onboarding-business-step.page.ts');
+  const storagePath = resolve(process.cwd(), 'src/app/features/onboarding/data-access/onboarding-storage.ts');
+  const wiringPath = resolve(process.cwd(), 'src/app/features/onboarding/data-access/landing-dashboard-onboarding-wiring.flow.ts');
+  const landingPath = resolve(process.cwd(), 'src/app/features/onboarding/pages/onboarding-business-step.page.ts');
 
   const storage = existsSync(storagePath) ? readFileSync(storagePath, 'utf-8') : '';
   const wiring = existsSync(wiringPath) ? readFileSync(wiringPath, 'utf-8') : '';

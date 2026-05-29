@@ -3,10 +3,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readConfiguracionSources(): { pageTs: string; themeHtml: string; merged: string } {
-  const pageTsPath = resolve(process.cwd(), 'src/app/pages/dashboard/configuracion/configuracion.page.ts');
+  const pageTsPath = resolve(process.cwd(), 'src/app/features/settings/pages/configuracion.page.ts');
   const themeHtmlPath = resolve(
     process.cwd(),
-    'src/app/pages/dashboard/configuracion/themes/configuracion-zen-theme.component.html'
+    'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html'
   );
 
   const pageTs = existsSync(pageTsPath) ? readFileSync(pageTsPath, 'utf-8') : '';

@@ -50,10 +50,10 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/onboarding/onboarding-plan-storage');
+    module = await import('../../features/onboarding/data-access/onboarding-plan-storage');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/core/onboarding/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, persistPlanSelection(storage, plan), readPlanSelection(storage).'
+      'TODO(Aurora): create src/app/features/onboarding/data-access/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, persistPlanSelection(storage, plan), readPlanSelection(storage).'
     );
   }
 
@@ -67,7 +67,7 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
 
   if (!ONBOARDING_PLAN_STORAGE_KEY || !persistPlanSelection || !readPlanSelection) {
     throw new Error(
-      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, persistPlanSelection(storage, plan), readPlanSelection(storage) in src/app/core/onboarding/onboarding-plan-storage.ts'
+      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, persistPlanSelection(storage, plan), readPlanSelection(storage) in src/app/features/onboarding/data-access/onboarding-plan-storage.ts'
     );
   }
 
@@ -91,10 +91,10 @@ async function loadPlanSelectionComponent(): Promise<PlanSelectionComponentModul
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../pages/landing/signup-plan-step.page');
+    module = await import('../../features/onboarding/pages/signup-plan-step.page');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/pages/landing/signup-plan-step.page.ts exporting SignupPlanStepPage component with plans, selectedPlan, selectPlan(plan), canContinue(), continue(), goBack().'
+      'TODO(Aurora): create src/app/features/onboarding/pages/signup-plan-step.page.ts exporting SignupPlanStepPage component with plans, selectedPlan, selectPlan(plan), canContinue(), continue(), goBack().'
     );
   }
 
@@ -104,7 +104,7 @@ async function loadPlanSelectionComponent(): Promise<PlanSelectionComponentModul
 
   if (!SignupPlanStepPage) {
     throw new Error(
-      'Missing export SignupPlanStepPage in src/app/pages/landing/signup-plan-step.page.ts'
+      'Missing export SignupPlanStepPage in src/app/features/onboarding/pages/signup-plan-step.page.ts'
     );
   }
 
@@ -112,8 +112,8 @@ async function loadPlanSelectionComponent(): Promise<PlanSelectionComponentModul
 }
 
 function readPlanStepSources(): { component: string; html: string } {
-  const componentPath = resolve(process.cwd(), 'src/app/pages/landing/signup-plan-step.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/landing/signup-plan-step.page.html');
+  const componentPath = resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-plan-step.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-plan-step.page.html');
 
   const component = existsSync(componentPath) ? readFileSync(componentPath, 'utf-8') : '';
   const html = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';

@@ -16,7 +16,7 @@ function safeProcessCwd(): string {
   return '.';
 }
 
-const CONFIGURACION_DIR = 'src/app/pages/dashboard/configuracion';
+const CONFIGURACION_DIR = 'src/app/features/settings/pages';
 const CONFIGURACION_PAGE_TS = `${CONFIGURACION_DIR}/configuracion.page.ts`;
 
 async function walkFiles(dir: string): Promise<string[]> {

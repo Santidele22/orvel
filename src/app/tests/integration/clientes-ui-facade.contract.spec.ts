@@ -31,7 +31,7 @@ type ClientesUiFacade = {
 
 async function loadClientesUiFacadeModule(): Promise<{ ClientesUiFacade: new (...args: unknown[]) => ClientesUiFacade } | null> {
   try {
-    const module = await import('../../facades/clientes-ui.facade');
+    const module = await import('../../services/clientes-ui.facade');
     return module as { ClientesUiFacade: new (...args: unknown[]) => ClientesUiFacade };
   } catch {
     return null;

@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readListSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turnos-list.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turnos-list.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html');
   return `${readFileSync(tsPath, 'utf-8')}\n${readFileSync(htmlPath, 'utf-8')}`;
 }
 

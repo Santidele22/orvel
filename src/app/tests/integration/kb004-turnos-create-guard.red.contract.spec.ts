@@ -16,8 +16,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // Imports
 // =============================================================================
 
-import { TurnoService } from '../../services/turno.service';
-import type { CreateTurnoDTO, Turno } from '../../models/turno.model';
+import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
 
 // =============================================================================
 // Test Fixtures
@@ -56,7 +57,7 @@ describe('KB-004.1: Create Turno (Booking) via Supabase', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     // Ensure we're using supabase provider
     turnoService.setProvider('supabase');
   });
@@ -316,7 +317,7 @@ describe('KB-004.2: Service Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
   });
 
@@ -450,7 +451,7 @@ describe('KB-004.3: Date/Time Handling', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
   });
 
@@ -564,7 +565,7 @@ describe('KB-004.4: Error Handling', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    turnoService = new TurnoService();
+    turnoService = createMockTurnoService();
     turnoService.setProvider('supabase');
   });
 

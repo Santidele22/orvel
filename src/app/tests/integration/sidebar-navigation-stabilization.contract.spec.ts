@@ -10,8 +10,8 @@ function readSidebarTemplate(): string {
 }
 
 function readTurnosListSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turnos-list.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/turnos/turnos-list.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html');
   return `${readFileSync(tsPath, 'utf-8')}\n${readFileSync(htmlPath, 'utf-8')}`;
 }
 

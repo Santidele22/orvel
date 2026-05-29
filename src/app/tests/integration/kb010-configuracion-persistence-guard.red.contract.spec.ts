@@ -5,11 +5,47 @@
  * business settings against Supabase, form sync, and resilience fallback.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Injector, runInInjectionContext } from '@angular/core';
 
-import { BusinessSettingsFacade } from '../../facades/business-settings.facade';
+import type { BusinessSettingsFacade } from '../../features/settings/data-access/business-settings.facade';
+
+const storage = new Map<string, string>();
+const localStorageMock: Storage = {
+  get length() {
+    return storage.size;
+  },
+  clear: vi.fn(() => storage.clear()),
+  getItem: vi.fn((key: string) => storage.get(key) ?? null),
+  key: vi.fn((index: number) => Array.from(storage.keys())[index] ?? null),
+  removeItem: vi.fn((key: string) => storage.delete(key)),
+  setItem: vi.fn((key: string, value: string) => storage.set(key, String(value)))
+};
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock
+});
+
+vi.mock('../../core/auth/supabase-config', () => ({
+  SUPABASE_CONFIG: {
+    url: 'https://test.supabase.co',
+    anonKey: 'test-anon-key'
+  }
+}));
+
+vi.mock('../../core/runtime/dashboard-env', () => ({
+  loadDashboardRuntimeEnv: () => ({
+    NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key'
+  })
+}));
+
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => null)
+}));
 
 type SupabaseSettingsPort = {
   loadFromSupabase?: (businessId: string) => Promise<unknown> | unknown;
@@ -19,10 +55,27 @@ type SupabaseSettingsPort = {
   isSyncing?: () => boolean;
 };
 
+let BusinessSettingsFacadeCtor: new () => BusinessSettingsFacade;
+let AuthServiceToken: unknown;
+
+function createBusinessSettingsFacade(): BusinessSettingsFacade {
+  const injector = Injector.create({
+    providers: [{ provide: AuthServiceToken, useValue: { user: () => null } }]
+  });
+  return runInInjectionContext(injector, () => new BusinessSettingsFacadeCtor());
+}
+
+beforeAll(async () => {
+  const authMod = await import('../../services/auth.service');
+  AuthServiceToken = authMod.AuthService;
+  const mod = await import('../../features/settings/data-access/business-settings.facade');
+  BusinessSettingsFacadeCtor = mod.BusinessSettingsFacade;
+});
+
 function readConfiguracionSources(): { facade: string; pageTs: string; pageHtml: string; merged: string } {
-  const facadePath = resolve(process.cwd(), 'src/app/facades/business-settings.facade.ts');
-  const pageTsPath = resolve(process.cwd(), 'src/app/pages/dashboard/configuracion/configuracion.page.ts');
-  const pageHtmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/configuracion/configuracion.page.html');
+  const facadePath = resolve(process.cwd(), 'src/app/features/settings/data-access/business-settings.facade.ts');
+  const pageTsPath = resolve(process.cwd(), 'src/app/features/settings/pages/configuracion.page.ts');
+  const pageHtmlPath = resolve(process.cwd(), 'src/app/features/settings/pages/configuracion.page.html');
 
   const facade = existsSync(facadePath) ? readFileSync(facadePath, 'utf-8') : '';
   const pageTs = existsSync(pageTsPath) ? readFileSync(pageTsPath, 'utf-8') : '';
@@ -42,7 +95,7 @@ describe('KB-010.1 - Load settings from Supabase', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    facade = new BusinessSettingsFacade();
+    facade = createBusinessSettingsFacade();
     supabasePort = facade as unknown as SupabaseSettingsPort;
   });
 
@@ -82,7 +135,7 @@ describe('KB-010.2 - Save/update settings to Supabase', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    facade = new BusinessSettingsFacade();
+    facade = createBusinessSettingsFacade();
     supabasePort = facade as unknown as SupabaseSettingsPort;
   });
 
@@ -130,7 +183,7 @@ describe('KB-010.3 - Working hours persistence and validation', () => {
   });
 
   it('KB-010.3.2 - preserves workingHours matrix across save/get snapshot roundtrip', () => {
-    const facade = new BusinessSettingsFacade();
+    const facade = createBusinessSettingsFacade();
     const mondayStart = '08:30';
 
     const persisted = facade.save({
@@ -158,7 +211,7 @@ describe('KB-010.4 - Booking policy persistence (buffer/min notice/slot interval
   });
 
   it('KB-010.4.1 - persists booking policy primitives in current snapshot contract', () => {
-    const facade = new BusinessSettingsFacade();
+    const facade = createBusinessSettingsFacade();
     facade.save({
       businessName: 'KB010 Policy',
       bufferMinutes: 20,
@@ -189,7 +242,7 @@ describe('KB-010.5 - Form state sync and error handling', () => {
   });
 
   it('KB-010.5.2 @RED - exposes sync/error signals for remote persistence lifecycle', () => {
-    const facade = new BusinessSettingsFacade() as unknown as SupabaseSettingsPort;
+    const facade = createBusinessSettingsFacade() as unknown as SupabaseSettingsPort;
 
     expect(typeof facade.syncFormState).toBe('function');
     expect(typeof facade.lastPersistenceError).toBe('function');
@@ -205,7 +258,8 @@ describe('KB-010.6 - Fallback behavior when Supabase unavailable', () => {
   });
 
   it('KB-010.6.2 @RED - loadFromSupabase fallback returns local snapshot on remote failure', async () => {
-    const facade = new BusinessSettingsFacade();
+    localStorage.clear();
+    const facade = createBusinessSettingsFacade();
     const supabasePort = facade as unknown as SupabaseSettingsPort;
 
     facade.save({

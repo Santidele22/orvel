@@ -88,8 +88,8 @@ describe('Orvel capacity booking RED contracts', () => {
 
   it("frontend availability contract includes remaining capacity payload for 'Quedan X lugares'", () => {
     const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
-    const bookingPage = readFileSync(resolve(process.cwd(), 'src/app/pages/booking/public-booking.page.ts'), 'utf-8');
-    const bookingHtml = readFileSync(resolve(process.cwd(), 'src/app/pages/booking/public-booking.page.html'), 'utf-8');
+    const bookingPage = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.ts'), 'utf-8');
+    const bookingHtml = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.html'), 'utf-8');
     const merged = `${gateway}\n${bookingPage}\n${bookingHtml}`;
 
     expect(merged).toMatch(/remainingCapacity|remaining_capacity/);

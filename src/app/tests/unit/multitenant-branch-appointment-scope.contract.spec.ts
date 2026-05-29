@@ -34,8 +34,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
 
     const branchSources = readExistingSources([
       'src/app/models/branch.model.ts',
-      'src/app/core/branches/branch-entitlements.ts',
-      'src/app/core/onboarding/branch-onboarding.ts'
+      'src/app/core/branches/branch-entitlements.ts'
     ]);
 
     expect(branchSources).toMatch(/businessId|business_id/);
@@ -44,7 +43,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('requires appointment DTOs and records to carry an operational branch/location/salon scope', () => {
-    const turnoModel = readSource('src/app/models/turno.model.ts');
+    const turnoModel = readSource('src/app/features/booking/models/turno.model.ts');
 
     expect(turnoModel).toMatch(/branchId|branch_id|salonId|salon_id|locationId|location_id/);
     expect(turnoModel).toMatch(/CreateTurnoDTO[\s\S]*(branchId|branch_id|salonId|salon_id|locationId|location_id)/);
@@ -52,7 +51,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('scopes appointment reads by active branch and rejects legacy business-wide reads', () => {
-    const turnoService = readSource('src/app/services/turno.service.ts');
+    const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(turnoService).toMatch(/activeBranch|activeLocation|activeSalon|branchId|branch_id|salonId|salon_id|locationId|location_id/);
     expect(turnoService).toMatch(/\.from\(['"]bookings['"]\)[\s\S]*\.eq\(['"](?:branch_id|salon_id|location_id)['"]/);
@@ -60,7 +59,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('scopes appointment writes by branch and rejects missing or invalid branch context before RPC', () => {
-    const turnoService = readSource('src/app/services/turno.service.ts');
+    const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
     const apiTypes = readSource('src/app/core/api/supabase-booking/types.ts');
     const realGateway = readSource('src/app/core/api/supabase-booking/real-gateway.ts');
 
@@ -72,7 +71,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('removes old ambiguous owner_id + maybeSingle business resolution for booking scope', () => {
-    const turnoService = readSource('src/app/services/turno.service.ts');
+    const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(turnoService).not.toMatch(/owner_id[\s\S]{0,240}maybeSingle\(\)/);
     expect(turnoService).not.toMatch(/resolveBusinessId[\s\S]*return\s+authUserId/);
@@ -81,10 +80,10 @@ describe('Multitenant branch appointment scope RED contract', () => {
 
   it('keeps appointments isolated when two branches share rubro=barberia under the same tenant', () => {
     const sources = readExistingSources([
-      'src/app/services/turno.service.ts',
+      'src/app/features/booking/data-access/turno.service.ts',
       'src/app/core/api/supabase-booking/types.ts',
       'src/app/core/api/supabase-booking/real-gateway.ts',
-      'src/app/models/turno.model.ts'
+      'src/app/features/booking/models/turno.model.ts'
     ]);
 
     expect(sources).toMatch(/branch-barberia-a|branch-barberia-b|same-category|same category|rubro=barberia|rubro['"]:\s*['"]barberia/i);

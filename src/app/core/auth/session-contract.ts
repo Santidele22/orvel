@@ -2,8 +2,8 @@ import {
   ALLOWED_SELECTED_BUSINESS_TYPES,
   SelectedBusinessType
 } from './mock-login-business-types';
-import type { RequiredRubro } from '../onboarding/onboarding-rubros';
-import type { TemplateCatalog } from '../onboarding/onboarding-templates';
+import type { RequiredRubro } from '../../features/onboarding/data-access/onboarding-rubros';
+import type { TemplateCatalog } from '../../features/onboarding/data-access/onboarding-templates';
 
 export const TURNERA_SESSION_KEY = 'turnea.session.v1';
 

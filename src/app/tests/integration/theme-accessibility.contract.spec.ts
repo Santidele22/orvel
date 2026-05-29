@@ -20,7 +20,7 @@ type ThemeMap = Record<ThemeName, ThemeTokens>;
 const INTERACTIVE_TEMPLATE_FILES = [
   'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html',
   'src/app/shared/dashboard-topbar/dashboard-topbar.component.html',
-  'src/app/pages/dashboard/turnos/turnos-list.page.html'
+  'src/app/features/booking/pages/turnos-list.page.html'
 ];
 
 function fromRoot(relativePath: string): string {
@@ -100,7 +100,7 @@ describe('Theme + a11y contract (product aligned)', () => {
   });
 
   it('turnos template keeps live-region semantics for loading/empty/error states', async () => {
-    const turnosHtml = await readFile(fromRoot('src/app/pages/dashboard/turnos/turnos-list.page.html'), 'utf-8');
+    const turnosHtml = await readFile(fromRoot('src/app/features/booking/pages/turnos-list.page.html'), 'utf-8');
 
     expect(turnosHtml).toContain('data-testid="turnos-loading-state"');
     expect(turnosHtml).toContain('data-testid="turnos-empty-state"');

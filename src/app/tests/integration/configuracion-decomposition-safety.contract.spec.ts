@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const CONFIGURACION_ROOT = resolve(process.cwd(), 'src/app/pages/dashboard/configuracion');
+const CONFIGURACION_ROOT = resolve(process.cwd(), 'src/app/features/settings/pages');
 
 async function readConfiguracionFile(relativePath: string): Promise<string> {
   return readFile(resolve(CONFIGURACION_ROOT, relativePath), 'utf-8');

@@ -1,7 +1,7 @@
 import { TURNERA_SESSION_KEY } from './session-contract';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
-import { isAllowedOnboardingBusinessType } from '../onboarding/business-type-defaults';
+import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY,
   markWelcomeEmailTriggeredOnce
-} from '../../core/onboarding/onboarding-flow-state';
+} from '../../features/onboarding/data-access/onboarding-flow-state';
 
 function createMemoryStorage(seed?: Record<string, string>): Pick<Storage, 'getItem' | 'setItem'> {
   const map = new Map<string, string>(Object.entries(seed ?? {}));

@@ -1,7 +1,7 @@
 export type DashboardAuthMode = 'login' | 'signup';
 export type DashboardAuthSource = 'checkout';
 
-const DASHBOARD_HOME = '/';
+const DASHBOARD_HOME = '/dashboard/inicio';
 const SAFE_MODE_VALUES = new Set<DashboardAuthMode>(['login', 'signup']);
 const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token)/i;
 const PAYMENT_ID_PATTERN = /(preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;

@@ -29,7 +29,7 @@ export type EntitlementDecision =
 type EntitlementMetric = 'maxLocales' | 'maxRubros';
 
 const BUSINESS_PLAN: Record<string, PlanCode> = {
-  biz_qa_001: 'STARTER'
+  biz_qa_001: 'BASIC'
 };
 
 const BUSINESS_USAGE: Record<string, { locales: number; rubros: number }> = {

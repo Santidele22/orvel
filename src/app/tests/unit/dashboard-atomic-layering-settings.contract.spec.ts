@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 function readConfiguracionTsSource(): string {
   const tsPath = resolve(
     process.cwd(),
-    'src/app/pages/dashboard/configuracion/configuracion.page.ts'
+    'src/app/features/settings/pages/configuracion.page.ts'
   );
 
   return existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ThemeService } from '../../../core/theming/theme.service';
 import { AuthService } from '../../../services/auth.service';
-import { BusinessSettingsFacade } from '../../../facades/business-settings.facade';
+import { BusinessService } from '../../../features/settings/data-access/business.service';
 import { DashboardNotificationsService } from '../../../core/notifications/dashboard-notifications.service';
 
 @Component({
@@ -148,7 +148,7 @@ export class ZenTopbarComponent {
   readonly themeService = inject(ThemeService);
   readonly authService = inject(AuthService);
   readonly notifications = inject(DashboardNotificationsService);
-  private readonly businessFacade = inject(BusinessSettingsFacade);
+  private readonly businessFacade = inject(BusinessService);
   readonly showUserMenu = signal(false);
   readonly showNotificationList = signal(false);
 
@@ -156,7 +156,7 @@ export class ZenTopbarComponent {
   readonly notificationList = this.notifications.notifications;
 
   readonly businessName = computed(() => {
-    return this.businessFacade.state()?.businessName || this.authService.user()?.negocioNombre || 'Mi Negocio';
+    return this.businessFacade.settings()?.businessName || this.authService.user()?.negocioNombre || 'Mi Negocio';
   });
 
   @Input() onLogout: () => void = () => { this.authService.logout(); };
