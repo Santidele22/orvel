@@ -53,7 +53,7 @@ async function patchVercelOutputConfig() {
 
 async function main() {
   await rm(join(dashboardDir, 'dist'), { recursive: true, force: true });
-  await run('bun', ['run', '--cwd', 'apps/dashboard', 'build', '--', '--base-href', '/', '--deploy-url', '/dashboard/']);
+  await run('pnpm', ['--dir', 'apps/dashboard', 'run', 'build', '--base-href', '/', '--deploy-url', '/dashboard/']);
 
   if (!existsSync(dashboardBrowserDir)) {
     throw new Error(`Dashboard browser output not found at ${dashboardBrowserDir}`);

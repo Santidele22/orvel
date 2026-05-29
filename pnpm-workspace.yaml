@@ -1,9 +1,13 @@
 packages:
   - apps/landing
+  - apps/dashboard
 
 allowBuilds:
+  '@parcel/watcher': true
   esbuild: true
+  lmdb: true
+  msgpackr-extract: true
   sharp: true
 
-# apps/dashboard declares Bun and is intentionally not a pnpm workspace package yet.
-# Root scripts delegate to Bun for dashboard commands without changing its lockfile.
+# apps/dashboard keeps Bun support for local development, while Vercel/root builds
+# install its dependencies through the pnpm workspace.

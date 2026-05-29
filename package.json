@@ -5,15 +5,18 @@
   "packageManager": "pnpm@11.0.8",
   "scripts": {
     "build": "pnpm run build:dashboard && pnpm run build:landing",
-    "build:dashboard": "bun run --cwd apps/dashboard build",
+    "build:dashboard": "pnpm --dir apps/dashboard run build",
+    "build:dashboard:bun": "bun run --cwd apps/dashboard build",
     "build:landing": "pnpm --dir apps/landing run build",
     "build:vercel": "node scripts/build-vercel.mjs",
     "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run supabase:functions:check",
-    "check:dashboard": "bun run --cwd apps/dashboard build",
+    "check:dashboard": "pnpm --dir apps/dashboard run build",
+    "check:dashboard:bun": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm --dir apps/landing run build",
     "supabase:dry-run": "supabase db lint --local",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
-    "test:dashboard": "bun run --cwd apps/dashboard test",
+    "test:dashboard": "pnpm --dir apps/dashboard run test",
+    "test:dashboard:bun": "bun run --cwd apps/dashboard test",
     "test:landing": "pnpm --dir apps/landing run test"
   }
 }
