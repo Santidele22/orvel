@@ -1,3 +1,9 @@
+-- Mercado Pago preapproval plan support.
+-- Timestamp includes time to avoid colliding with 20260507_convert_prices_to_ars
+-- while sorting before 20260508_add_mp_external_reference.sql.
+-- Non-destructive/idempotent: creates objects if missing, adds nullable columns,
+-- creates indexes if missing, and upserts catalog rows.
+
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.mp_plan_catalog (
