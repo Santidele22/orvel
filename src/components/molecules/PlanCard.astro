@@ -59,8 +59,9 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
       <h5 class="text-3xl font-headline font-bold text-text-primary">$0</h5>
     ) : (
       <div class="price-display">
-        <h5 class="text-4xl font-headline font-black text-text-primary">
-          $<span class="price-value">{plan.price}</span><span class="text-sm font-body text-text-primary/60 font-normal price-label">/mes</span>
+        <h5 class="text-4xl font-headline font-black text-text-primary flex items-baseline">
+          {isPro && <span class="text-sm font-normal mr-1.5 text-text-primary/70 uppercase tracking-wider text-[10px]">Desde</span>}
+          $<span class="price-value">{plan.price.toLocaleString('es-AR')}</span><span class="text-sm font-body text-text-primary/60 font-normal price-label ml-1">/mes</span>
         </h5>
         <p class="price-savings text-primary text-[9px] font-bold hidden">
           ahorrás $<span class="savings-amount">0</span>
@@ -73,35 +74,42 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
   <ul class="mb-6 space-y-3 text-text-primary text-xs flex-grow border-t border-border/50 pt-4">
     {isFree && (
       <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> 1 local</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> 1 agenda</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Hasta 15 turnos/mes</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Reservas online</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Agenda automática</li>
-        <li class="flex items-center gap-2 text-text-primary/50"><i class="ri-close-line text-red-400"></i> Con branding Orvel</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Link de reservas</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Gestión básica de clientes</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Servicios y horarios</li>
       </>
     )}
     {isStarter && (
       <>
-        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> 1 local</li>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Turnos ilimitados</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Clientes</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Servicios</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Horarios personalizados</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Descansos y bloqueos</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Reprogramaciones</li>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Link de reservas</li>
-        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Sin branding</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Recordatorios automáticos</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Métricas básicas</li>
       </>
     )}
     {isGrowth && (
       <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Hasta 3 locales</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Recordatorios auto</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Métricas de tu agenda</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Incluye todo lo de Starter +</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Hasta 3 profesionales/agendas</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Optimización de disponibilidad</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Métricas del negocio</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Reportes semanales</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Prioridad de soporte</li>
       </>
     )}
     {isPro && (
       <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Hasta 10 locales</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Soporte prioritario</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Reportes avanzados</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> API (opcional)</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Múltiples sucursales</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Configuraciones avanzadas</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Onboarding personalizado</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Soporte dedicado</li>
       </>
     )}
   </ul>
@@ -113,9 +121,9 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
   </div>
   
   <p class="text-[9px] text-center text-text-primary/40 mt-3 italic">
-    {isFree && "Probalo sin riesgo."}
-    {isStarter && "Con solo 3 turnos más, se paga solo."}
-    {isGrowth && "Reducí hasta un 30% las cancelaciones."}
+    {isFree && "Que entren y usen el producto."}
+    {isStarter && "Ideal para peluquerías chicas, uñas, barberías, independientes."}
+    {isGrowth && "Menos cancelaciones, más ocupación, menos tiempo perdido."}
     {isPro && "Control total para escalar sin fricción."}
   </p>
 </CardContainer>

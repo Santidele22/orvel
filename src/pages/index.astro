@@ -88,11 +88,11 @@ function updatePrices(period) {
     const savingsEl = card.querySelector('.price-savings');
     const savingsAmountEl = card.querySelector('.savings-amount');
 
-    if (priceEl) priceEl.textContent = price;
+    if (priceEl) priceEl.textContent = price.toLocaleString('es-AR');
     if (labelEl) labelEl.textContent = billingLabel;
     
     if (savings > 0 && savingsEl && savingsAmountEl) {
-      savingsAmountEl.textContent = savings;
+      savingsAmountEl.textContent = savings.toLocaleString('es-AR');
       savingsEl.classList.remove('hidden');
     } else if (savingsEl) {
       savingsEl.classList.add('hidden');
