@@ -77,9 +77,8 @@ jobs:
     steps:
       - name: Document current Supabase CI posture
         run: |
-          cat <<'EOF'
-          Supabase migration validation is intentionally manual for the first CI pass.
-          Reason: remote migration history mismatch is known, and DB push/repair is not allowed in CI.
-          Runbook: docs/runbooks/supabase-migrations.md
-          Future non-blocking check can run `supabase migration list` only when project ref and token are available.
-          EOF
+          printf '%s\n' \
+            'Supabase migration validation is intentionally manual for the first CI pass.' \
+            'Reason: remote migration history mismatch is known, and DB push/repair is not allowed in CI.' \
+            'Runbook: docs/runbooks/supabase-migrations.md' \
+            'Future non-blocking check can run `supabase migration list` only when project ref and token are available.'
