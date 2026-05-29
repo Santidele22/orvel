@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.mp_plan_catalog (
 ALTER TABLE public.business_subscriptions
   ADD COLUMN IF NOT EXISTS mp_plan_catalog_id uuid REFERENCES public.mp_plan_catalog(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS mp_external_reference text,
+  ADD COLUMN IF NOT EXISTS next_billing_date timestamptz,
   ADD COLUMN IF NOT EXISTS mp_init_point text,
   ADD COLUMN IF NOT EXISTS mp_preapproval_plan_id text,
   ADD COLUMN IF NOT EXISTS mp_last_webhook_at timestamptz;
@@ -60,6 +61,10 @@ CREATE INDEX IF NOT EXISTS mp_plan_catalog_sync_idx
 
 CREATE INDEX IF NOT EXISTS business_subscriptions_mp_reference_idx
   ON public.business_subscriptions (mp_external_reference);
+
+CREATE UNIQUE INDEX IF NOT EXISTS business_subscriptions_mp_external_reference_uidx
+  ON public.business_subscriptions(mp_external_reference)
+  WHERE mp_external_reference IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS business_subscriptions_mp_preapproval_idx
   ON public.business_subscriptions (mp_preapproval_id, mp_preapproval_plan_id);
