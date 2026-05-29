@@ -1,0 +1,19 @@
+@theme {
+  --color-bg-primary: #0A0A0A;
+  --color-bg-secondary: #121212;
+
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-on-secondary: #FFFFFF;
+
+  --color-primary: #7C3AED;
+  --color-primary-hover: #6D28D9;
+  --color-primary-light: #A78BFA;
+
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+
+  --color-border: #334155;
+  --color-divider: #475569;
+}

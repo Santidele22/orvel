@@ -1,0 +1,13 @@
+---
+// Molecule: NavLink
+interface Props {
+  href: string;
+  class?: string;
+}
+
+const { href, class: className = '' } = Astro.props;
+---
+
+<a href={href} class:list={['hover:text-stone-100 transition-colors', className]}>
+  <slot />
+</a>

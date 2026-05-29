@@ -1,0 +1,17 @@
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-headline: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+
+  /* Typography Scale */
+  --text-caption: 12px;
+  --text-body: 14px;
+  --text-body-lg: 16px;
+  --text-h3: 18px;
+  --text-h3-lg: 20px;
+  --text-h2: 24px;
+  --text-h2-lg: 28px;
+  --text-h1: 32px;
+  --text-h1-lg: 36px;
+}

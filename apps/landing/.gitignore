@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+target/
+.pnpm-store/
+.npm/
+.yarn/cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output / generated
+dist/
+.astro/
+.vercel/
+.cache/
+coverage/
+
+# Environment
+.env
+.env*
+.env.local
+.funemon/
+.funemon/workspace.json
+.funemon/local.json
+.funemon/cache/
+.funemon/sessions/
