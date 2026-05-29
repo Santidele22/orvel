@@ -19,19 +19,29 @@ import {
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
 const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
 
-function resolveDashboardOrigin(): string | null {
+function resolveDashboardBaseUrl(): URL | null {
   const candidate = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
   if (!candidate) return null;
   try {
-    return new URL(candidate).origin;
+    const url = new URL(candidate);
+    if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
+    url.search = '';
+    url.hash = '';
+    return url;
   } catch {
     return null;
   }
 }
 
 function defaultDashboardReturnTo(): string {
-  const dashboardOrigin = resolveDashboardOrigin();
-  return dashboardOrigin ? `${dashboardOrigin}${DEFAULT_DASHBOARD_PATH}` : DEFAULT_DASHBOARD_PATH;
+  const dashboardBaseUrl = resolveDashboardBaseUrl();
+  if (!dashboardBaseUrl) return DEFAULT_DASHBOARD_PATH;
+
+  const basePath = dashboardBaseUrl.pathname;
+  const relativePath = DEFAULT_DASHBOARD_PATH.startsWith(basePath)
+    ? DEFAULT_DASHBOARD_PATH.slice(basePath.length)
+    : DEFAULT_DASHBOARD_PATH.replace(/^\//, '');
+  return new URL(relativePath, dashboardBaseUrl).toString();
 }
 
 export interface LoginResult {
@@ -82,8 +92,12 @@ function sanitizeReturnTo(returnTo: string | null | undefined): string {
 
   try {
     const requested = new URL(value);
-    const dashboardOrigin = resolveDashboardOrigin();
-    if (dashboardOrigin && requested.origin === dashboardOrigin) {
+    const dashboardBaseUrl = resolveDashboardBaseUrl();
+    if (
+      dashboardBaseUrl &&
+      requested.origin === dashboardBaseUrl.origin &&
+      requested.pathname.startsWith(dashboardBaseUrl.pathname.replace(/\/$/, ''))
+    ) {
       return requested.toString();
     }
   } catch {

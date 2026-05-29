@@ -2,7 +2,7 @@
 // Handles Mercado Pago webhook notifications for subscription status updates
 // Endpoint: POST /functions/v1/mercadopago-webhook
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret, verifyMercadoPagoWebhookSignature } from "../_shared/billing-security.ts";
 import { recordWebhookProcessMetric } from "../_shared/mp-rollout-observability.ts";
 import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription-guards.ts";
@@ -64,7 +64,7 @@ async function sha256(message: string, secret: string): Promise<string> {
 }
 
 async function syncEntitlementsForBusiness(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: SupabaseClient<any, "public", any>,
   businessId: string,
   tenantId: string
 ): Promise<void> {

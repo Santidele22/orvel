@@ -13,7 +13,7 @@ export function buildDashboardAuthUrl(input: {
   source?: CheckoutSource;
   returnTo?: string | null;
 }): string {
-  const authUrl = new URL('/auth', normalizeDashboardOrigin(input.dashboardOrigin));
+  const authUrl = new URL('auth', normalizeDashboardBaseUrl(input.dashboardOrigin));
   authUrl.searchParams.set('mode', input.mode === 'signup' ? 'signup' : 'login');
   if (input.source === 'checkout') {
     authUrl.searchParams.set('source', 'checkout');
@@ -22,8 +22,17 @@ export function buildDashboardAuthUrl(input: {
   return authUrl.toString();
 }
 
-function normalizeDashboardOrigin(dashboardOrigin: string): string {
-  return dashboardOrigin.trim().replace(/\/$/, '') || 'http://localhost:4200';
+function normalizeDashboardBaseUrl(dashboardOrigin: string): string {
+  const candidate = dashboardOrigin.trim() || 'http://localhost:4200';
+  try {
+    const url = new URL(candidate);
+    if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return 'http://localhost:4200/';
+  }
 }
 
 function sanitizeDashboardReturnTo(returnTo: string | null | undefined): string {

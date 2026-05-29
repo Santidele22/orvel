@@ -29,26 +29,26 @@ describe('RED Contract: Model C landing-to-dashboard auth handoff', () => {
 
     const loginUrl = new URL(
       buildDashboardAuthUrl({
-        dashboardOrigin: 'https://dashboard.orvel.pro/',
+        dashboardOrigin: 'https://orvel.pro/dashboard',
         mode: 'login',
         returnTo: '/dashboard/turnos?view=week'
       })
     );
 
-    expect(loginUrl.origin).toBe('https://dashboard.orvel.pro');
-    expect(loginUrl.pathname).toBe('/auth');
+    expect(loginUrl.origin).toBe('https://orvel.pro');
+    expect(loginUrl.pathname).toBe('/dashboard/auth');
     expect(loginUrl.searchParams.get('mode')).toBe('login');
     expect(loginUrl.searchParams.get('returnTo')).toBe('/dashboard/turnos?view=week');
 
     const signupUrl = new URL(
       buildDashboardAuthUrl({
-        dashboardOrigin: 'https://dashboard.orvel.pro',
+        dashboardOrigin: 'https://orvel.pro/dashboard/',
         mode: 'signup',
         returnTo: '/dashboard/inicio'
       })
     );
 
-    expect(signupUrl.pathname).toBe('/auth');
+    expect(signupUrl.pathname).toBe('/dashboard/auth');
     expect(signupUrl.searchParams.get('mode')).toBe('signup');
     expect(signupUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
@@ -64,7 +64,7 @@ describe('RED Contract: Model C landing-to-dashboard auth handoff', () => {
       '/dashboard/inicio#refresh_token=secret'
     ]) {
       const handoff = buildDashboardAuthUrl({
-        dashboardOrigin: 'https://dashboard.orvel.pro',
+        dashboardOrigin: 'https://orvel.pro/dashboard',
         mode: 'login',
         returnTo
       });

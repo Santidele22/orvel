@@ -7,6 +7,7 @@
     "build": "pnpm run build:dashboard && pnpm run build:landing",
     "build:dashboard": "bun run --cwd apps/dashboard build",
     "build:landing": "pnpm --dir apps/landing run build",
+    "build:vercel": "node scripts/build-vercel.mjs",
     "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run supabase:functions:check",
     "check:dashboard": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm --dir apps/landing run build",

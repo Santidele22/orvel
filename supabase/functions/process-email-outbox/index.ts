@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as AppointmentTemplates from "../_shared/templates/appointment-templates.ts";
 import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
+import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "no-reply@orvel.test";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro"; // Fallback URL
+    const dashboardUrl = buildDashboardUrl();
 
     if (!apiKey) {
       console.error("SENDGRID_API_KEY is missing");
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
                 .eq("business_id", booking.business_id)
                 .maybeSingle();
 
-              const manageBaseUrl = `${frontendUrl}/turnos/gestionar?token=${booking.manage_token}`;
+              const manageBaseUrl = `${dashboardUrl}/turnos/gestionar?token=${booking.manage_token}`;
 
               fullData = {
                 ...fullData,
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
                 name: fullData.business_name || "Tu Negocio", 
                 ownerName: fullData.owner_name || "Propietario" 
               },
-              dashboardUrl: `${frontendUrl}/dashboard`,
+              dashboardUrl,
               supportContact: "soporte@orvel.app"
             });
             subject = result.subject;
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
     return new Response("No action taken", { status: 200 });
   } catch (err) {
     console.error("Error processing email:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 });

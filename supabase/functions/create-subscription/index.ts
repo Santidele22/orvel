@@ -8,6 +8,7 @@ import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shar
 import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
 import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
 import { resolveTrustedPaidPlanMapping } from "../_shared/mp-subscription-guards.ts";
+import { buildAppUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -59,6 +60,7 @@ interface SubscriptionRequest {
   plan_code: string;
   tier?: string;
   cadence?: string;
+  preapproval_plan_id?: string;
   email?: string;
   card_token_id?: string;
 }
@@ -490,7 +492,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
 
     const mpPreapprovalRequest: Record<string, unknown> = {
       payer_email: payerEmail,
-      back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel.pro"}/auth/signup/credentials?plan=${plan.code}`,
+      back_url: buildAppUrl(`auth/signup/credentials?plan=${plan.code}`),
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
       status: "pending",

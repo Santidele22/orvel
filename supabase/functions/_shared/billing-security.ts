@@ -10,7 +10,6 @@ const DEFAULT_DEV_ALLOWED_ORIGINS = [
 const DEFAULT_PRODUCTION_ALLOWED_ORIGINS = [
   "https://orvel.pro",
   "https://www.orvel.pro",
-  "https://dashboard.orvel.pro",
 ];
 
 export const BILLING_ALLOWED_HEADERS = [

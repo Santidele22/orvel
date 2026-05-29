@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
+import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -342,7 +343,7 @@ Deno.serve(async (req) => {
       // Build MP preapproval request
       const mpPreapprovalRequest = {
         payer_email: user.email,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro"}/dashboard/billing/success`,
+        back_url: buildDashboardUrl("billing/success"),
         reason: `${newPlan.name} - Salon De Belleza (Upgrade)`,
         external_reference: externalReference,
         site_id: "MLA",

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { buildTierCode } from "../_shared/mp-plan-catalog.ts";
+import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const MP_API_BASE = "https://api.mercadopago.com";
 
@@ -32,7 +33,6 @@ Deno.serve(async (req) => {
     );
 
     const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro";
 
     if (!mpAccessToken) {
       throw new Error("MP_ACCESS_TOKEN is not configured");
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
           transaction_amount: Number(row.amount),
           currency_id: String(row.currency || "ARS"),
         },
-        back_url: `${frontendUrl}/dashboard/billing/success`,
+        back_url: buildDashboardUrl("billing/success"),
       };
 
         const mpResponse = await fetch(`${MP_API_BASE}/preapproval_plan`, {
@@ -112,7 +112,8 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Unexpected error:", error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ success: false, error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
