@@ -18,3 +18,7 @@ Root scripts delegate to each local toolchain, for example:
 - `pnpm run supabase:dry-run` -> local Supabase database linting when the Supabase CLI/local stack is available
 
 Do not run root installs to migrate apps between package managers unless an explicit migration decision is made.
+
+## Validation
+
+Validation is local-only for now. GitHub Actions is intentionally not enabled because Santi does not want CI that requires billing or payment setup.
