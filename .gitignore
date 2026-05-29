@@ -1,0 +1,54 @@
+# Environment and secrets
+.env*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Funemon local metadata
+.funemon/
+
+# Dependencies
+node_modules/
+
+# Build outputs and generated artifacts
+dist/
+build/
+coverage/
+.angular/
+.astro/
+.turbo/
+.vite/
+.parcel-cache/
+.svelte-kit/
+.next/
+out/
+
+# Supabase local/temp state
+supabase/.branches/
+supabase/.temp/
+.supabase/
+
+# Hosting/tooling local state
+.vercel/
+.netlify/
+
+# Logs and caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+.eslintcache
+.stylelintcache
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.funemon/workspace.json
+.funemon/local.json
+.funemon/cache/
+.funemon/sessions/
