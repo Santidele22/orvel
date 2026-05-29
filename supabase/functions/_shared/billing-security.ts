@@ -7,6 +7,12 @@ const DEFAULT_DEV_ALLOWED_ORIGINS = [
   "http://127.0.0.1:4321",
 ];
 
+const DEFAULT_PRODUCTION_ALLOWED_ORIGINS = [
+  "https://orvel.pro",
+  "https://www.orvel.pro",
+  "https://dashboard.orvel.pro",
+];
+
 export const BILLING_ALLOWED_HEADERS = [
   "authorization",
   "x-client-info",
@@ -37,6 +43,7 @@ export function getBillingAllowedOrigins(): string[] {
   const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL")?.trim();
 
   const origins = [
+    ...DEFAULT_PRODUCTION_ALLOWED_ORIGINS,
     ...configuredOrigins,
     ...(appBaseUrl ? [appBaseUrl] : []),
     ...(publicSiteUrl ? [publicSiteUrl] : []),

@@ -12,7 +12,7 @@ async function resolveDashboardAccessRedirect(
 
   const router = inject(Router);
   const safeReturnTo = sanitizeReturnTo(currentUrl ?? '/dashboard');
-  return router.parseUrl(access.redirectTo ?? buildLandingLoginRedirect(safeReturnTo));
+  return router.parseUrl(buildLandingLoginRedirect(safeReturnTo));
 }
 
 export const dashboardAuthGuard: CanActivateFn = async (_route, state) => {

@@ -490,7 +490,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
 
     const mpPreapprovalRequest: Record<string, unknown> = {
       payer_email: payerEmail,
-      back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-landing.vercel.app"}/auth/signup/credentials?plan=${plan.code}`,
+      back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel.pro"}/auth/signup/credentials?plan=${plan.code}`,
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
       status: "pending",

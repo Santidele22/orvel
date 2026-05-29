@@ -14,7 +14,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     const redirect = buildLandingLoginRedirect('/dashboard/agenda?date=2026-05-13&view=week');
     const parsed = new URL(redirect);
 
-    expect(parsed.origin).toBe('https://orvel-landing.vercel.app');
+    expect(parsed.origin).toBe('https://orvel.pro');
     expect(['/auth', '/auth/login']).toContain(parsed.pathname);
     expect(parsed.searchParams.get('returnTo')).toBe('/dashboard/agenda?date=2026-05-13&view=week');
   });
@@ -29,7 +29,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     ]) {
       expect(sanitizeReturnTo(unsafeReturnTo)).toBe('/dashboard');
       expect(buildLandingLoginRedirect(unsafeReturnTo)).toBe(
-        'https://orvel-landing.vercel.app/auth/login?returnTo=%2Fdashboard'
+        'https://orvel.pro/auth/login?returnTo=%2Fdashboard'
       );
     }
   });

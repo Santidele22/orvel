@@ -29,14 +29,14 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
 
     const handoff = new URL(
       buildDashboardAuthUrl({
-        dashboardOrigin: 'https://orvel-dashboard.vercel.app/',
+        dashboardOrigin: 'https://dashboard.orvel.pro/',
         mode: 'login',
         source: 'checkout',
         returnTo: '/dashboard/inicio?from=checkout'
       })
     );
 
-    expect(handoff.origin).toBe('https://orvel-dashboard.vercel.app');
+    expect(handoff.origin).toBe('https://dashboard.orvel.pro');
     expect(handoff.pathname).toBe('/auth');
     expect(handoff.searchParams.get('mode')).toBe('login');
     expect(handoff.searchParams.get('source')).toBe('checkout');
@@ -58,7 +58,7 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
       '//evil.example/dashboard?token=leak'
     ]) {
       const handoff = buildDashboardAuthUrl({
-        dashboardOrigin: 'https://orvel-dashboard.vercel.app',
+        dashboardOrigin: 'https://dashboard.orvel.pro',
         mode: 'login',
         source: 'checkout',
         returnTo: unsafeReturnTo

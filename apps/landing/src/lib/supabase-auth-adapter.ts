@@ -170,7 +170,7 @@ function resolveRedirectOrigin(redirectTo: string): string {
       return window.location.origin;
     }
 
-    return 'https://orvel-landing.vercel.app';
+    return 'https://orvel.pro';
   }
 }
 

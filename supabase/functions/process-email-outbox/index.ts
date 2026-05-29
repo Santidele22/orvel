@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "no-reply@orvel.test";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://orvel-dashboard.vercel.app"; // Fallback URL
+    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro"; // Fallback URL
 
     if (!apiKey) {
       console.error("SENDGRID_API_KEY is missing");
@@ -192,4 +192,3 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 });
-

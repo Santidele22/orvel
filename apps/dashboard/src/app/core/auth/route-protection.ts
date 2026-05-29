@@ -6,6 +6,8 @@ import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitleme
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
 
+const LANDING_ORIGIN = 'https://orvel.pro';
+
 /**
  * Gets the Supabase Auth client (cached for performance).
  */
@@ -39,7 +41,7 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
 
 export function buildLandingLoginRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
-  return `/login?returnTo=${encodeURIComponent(safeReturnTo)}`;
+  return `${LANDING_ORIGIN}/auth/login?returnTo=${encodeURIComponent(safeReturnTo)}`;
 }
 
 export function buildMandatoryOnboardingRedirect(returnTo: string): string {
@@ -149,5 +151,5 @@ export async function logoutAndRedirect(): Promise<string> {
   // Clear legacy localStorage data, but never trust it for dashboard access.
   localStorage.removeItem(TURNERA_SESSION_KEY);
 
-  return '/login';
+  return `${LANDING_ORIGIN}/auth/login`;
 }

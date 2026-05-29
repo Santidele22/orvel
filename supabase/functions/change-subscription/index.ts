@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
       // Build MP preapproval request
       const mpPreapprovalRequest = {
         payer_email: user.email,
-        back_url: `${Deno.env.get("FRONTEND_URL") || "https://orvel-dashboard.vercel.app"}/dashboard/billing/success`,
+        back_url: `${Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro"}/dashboard/billing/success`,
         reason: `${newPlan.name} - Salon De Belleza (Upgrade)`,
         external_reference: externalReference,
         site_id: "MLA",

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     );
 
     const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://orvel-dashboard.vercel.app";
+    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://dashboard.orvel.pro";
 
     if (!mpAccessToken) {
       throw new Error("MP_ACCESS_TOKEN is not configured");

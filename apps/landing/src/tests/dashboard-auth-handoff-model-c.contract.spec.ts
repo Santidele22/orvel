@@ -29,20 +29,20 @@ describe('RED Contract: Model C landing-to-dashboard auth handoff', () => {
 
     const loginUrl = new URL(
       buildDashboardAuthUrl({
-        dashboardOrigin: 'https://orvel-dashboard.vercel.app/',
+        dashboardOrigin: 'https://dashboard.orvel.pro/',
         mode: 'login',
         returnTo: '/dashboard/turnos?view=week'
       })
     );
 
-    expect(loginUrl.origin).toBe('https://orvel-dashboard.vercel.app');
+    expect(loginUrl.origin).toBe('https://dashboard.orvel.pro');
     expect(loginUrl.pathname).toBe('/auth');
     expect(loginUrl.searchParams.get('mode')).toBe('login');
     expect(loginUrl.searchParams.get('returnTo')).toBe('/dashboard/turnos?view=week');
 
     const signupUrl = new URL(
       buildDashboardAuthUrl({
-        dashboardOrigin: 'https://orvel-dashboard.vercel.app',
+        dashboardOrigin: 'https://dashboard.orvel.pro',
         mode: 'signup',
         returnTo: '/dashboard/inicio'
       })
@@ -64,7 +64,7 @@ describe('RED Contract: Model C landing-to-dashboard auth handoff', () => {
       '/dashboard/inicio#refresh_token=secret'
     ]) {
       const handoff = buildDashboardAuthUrl({
-        dashboardOrigin: 'https://orvel-dashboard.vercel.app',
+        dashboardOrigin: 'https://dashboard.orvel.pro',
         mode: 'login',
         returnTo
       });

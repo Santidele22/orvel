@@ -84,7 +84,7 @@ describe('Mock Auth Contract - Dashboard', () => {
       const access = canAccessDashboard();
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
     });
 
     it('allows dashboard access when session is valid', () => {
@@ -121,7 +121,7 @@ describe('Mock Auth Contract - Dashboard', () => {
 
     it('encodes returnTo into login URL', () => {
       expect(buildLandingLoginRedirect('/dashboard/turnos?filtro=hoy')).toBe(
-        '/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
+        'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
       );
     });
   });
@@ -143,7 +143,7 @@ describe('Mock Auth Contract - Dashboard', () => {
       const redirectTo = logoutAndRedirect();
 
       expect(localStorage.getItem(TURNERA_SESSION_KEY)).toBeNull();
-      expect(redirectTo).toBe('/login');
+      expect(redirectTo).toBe('https://orvel.pro/auth/login');
     });
   });
 });
