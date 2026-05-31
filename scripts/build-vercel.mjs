@@ -8,6 +8,7 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const landingDir = join(rootDir, 'apps', 'landing');
 const dashboardDir = join(rootDir, 'apps', 'dashboard');
 const landingOutputDir = join(landingDir, '.vercel', 'output');
+const rootOutputDir = join(rootDir, '.vercel', 'output');
 const dashboardBrowserDir = join(dashboardDir, 'dist', 'salon-de-belleza', 'browser');
 const dashboardStaticDir = join(landingOutputDir, 'static', 'dashboard');
 const outputConfigPath = join(landingOutputDir, 'config.json');
@@ -65,6 +66,10 @@ async function main() {
   await mkdir(dashboardStaticDir, { recursive: true });
   await cp(dashboardBrowserDir, dashboardStaticDir, { recursive: true });
   await patchVercelOutputConfig();
+
+  await rm(rootOutputDir, { recursive: true, force: true });
+  await mkdir(dirname(rootOutputDir), { recursive: true });
+  await cp(landingOutputDir, rootOutputDir, { recursive: true });
 }
 
 main().catch((error) => {
