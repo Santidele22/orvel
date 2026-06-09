@@ -1,8 +1,11 @@
 import { normalizePlanCode, type CanonicalPlanCode } from '../../../core/plans/plan-entitlements';
+import {
+  resolveBusinessTypeCodeFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+import type { BusinessTypeCode } from './onboarding-business-types-storage';
 
-export const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro'] as const;
-
-export type OnboardingBusinessType = (typeof ALLOWED_ONBOARDING_BUSINESS_TYPES)[number];
+export type OnboardingBusinessType = BusinessTypeCode;
 
 export type OnboardingWorkingHours = Record<string, { enabled: boolean; start: string; end: string }>;
 
@@ -30,16 +33,7 @@ const DEFAULT_WORKING_HOURS: OnboardingWorkingHours = {
   sunday: { enabled: false, start: '00:00', end: '00:00' }
 };
 
-const BUSINESS_TYPE_CAPACITY: Record<OnboardingBusinessType, number> = {
-  uñas: 1,
-  peluqueria: 2,
-  barberia: 2,
-  spa: 2,
-  pestañas: 1,
-  cejas: 1,
-  masajes: 1,
-  otro: 1
-};
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 
 function slugify(input: string): string {
   return input
@@ -52,7 +46,23 @@ function slugify(input: string): string {
 }
 
 export function isAllowedOnboardingBusinessType(value: unknown): value is OnboardingBusinessType {
-  return typeof value === 'string' && (ALLOWED_ONBOARDING_BUSINESS_TYPES as readonly string[]).includes(value.trim().toLowerCase());
+  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, value);
+
+  return resolved !== null && REFERENCE_CATALOG.businessTypes.some((businessType) => businessType.code === resolved);
+}
+
+function normalizeOnboardingBusinessType(value: unknown): OnboardingBusinessType {
+  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, value);
+  const catalogBusinessType = REFERENCE_CATALOG.businessTypes.find((businessType) => businessType.code === resolved);
+
+  return (catalogBusinessType?.code.toLowerCase() ?? 'otro') as OnboardingBusinessType;
+}
+
+function getDefaultCapacityForBusinessType(businessType: OnboardingBusinessType): number {
+  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, businessType);
+  const defaultCapacity = REFERENCE_CATALOG.businessTypes.find((type) => type.code === resolved)?.defaultCapacity;
+
+  return typeof defaultCapacity === 'number' && Number.isFinite(defaultCapacity) ? defaultCapacity : 1;
 }
 
 export function buildInitialBusinessSettingsForOnboarding(input: {
@@ -63,15 +73,16 @@ export function buildInitialBusinessSettingsForOnboarding(input: {
   now?: string;
 }): InitialBusinessSettings {
   const normalizedBusinessName = input.businessName.trim();
-  const slugSeed = `${slugify(normalizedBusinessName)}-${slugify(input.businessType)}`;
+  const businessType = normalizeOnboardingBusinessType(input.businessType);
+  const slugSeed = `${slugify(normalizedBusinessName)}-${slugify(businessType)}`;
 
   return {
     businessId: input.businessId,
-    businessType: input.businessType,
+    businessType,
     businessName: normalizedBusinessName,
     slugSeed,
     plan: normalizePlanCode(input.plan),
-    capacity: BUSINESS_TYPE_CAPACITY[input.businessType],
+    capacity: getDefaultCapacityForBusinessType(businessType),
     bufferMinutes: 15,
     minNoticeMinutes: 120,
     slotIntervalMinutes: 30,

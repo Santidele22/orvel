@@ -81,7 +81,7 @@ export const CANONICAL_PLAN_ENTITLEMENTS = {
 ### 4. Account-Level Plan Policy (resolveTransition)
 The `onboarding-persistence.service.ts` determines post-onboarding flow based on plan:
 - **FREE** → `accountState: 'enabled'`, `nextRoute: 'dashboard_home'`
-- **Paid plans** (STARTER/GROWTH/PRO) → `accountState: 'pending_payment'`, `nextRoute: 'billing_checkout'`
+- **Paid plans** (STARTER/GROWTH/PRO) → `accountState: 'pending_payment'`, `nextRoute: 'billing_subscription'`
 
 ### 5. Server-Side Entitlements
 `server-entitlements.api.ts` provides server-side entitlement enforcement:
@@ -173,7 +173,7 @@ plans.forEach(plan => {
 - [ ] Legacy aliases (BASIC, MEDIUM) map correctly to canonical codes
 - [ ] `getPlanEntitlements()` handles unknown/null/undefined inputs gracefully
 - [ ] Server-side entitlements RPC (`get_business_entitlements_snapshot`) is wired through the repository pattern
-- [ ] Account plan policy correctly routes free plans to dashboard, paid plans to checkout
+- [ ] Account plan policy correctly routes free plans to dashboard, paid plans to subscription/preapproval
 - [ ] Upgrade screen uses server-truth (not client-side entitlements)
 - [ ] Landing plans page sources data from correct location (static fallback or Supabase RPC)
 - [ ] No hard-coded plan strings in component logic

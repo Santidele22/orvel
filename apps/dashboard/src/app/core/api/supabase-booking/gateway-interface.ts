@@ -1,22 +1,14 @@
-import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload } from './types';
+import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from './types';
 
 export type SupabaseBookingGateway = {
   resolveBusinessBySlug: (input: { businessSlug: string }) => Promise<ApiResponse<BusinessPublicView>>;
   queryPublicSlotAvailability: (
     input: PublicSlotAvailabilityInput
-  ) => Promise<ApiResponse<{ slots: Array<{ startsAtIso: string; endsAtIso: string }> }>>;
+  ) => Promise<ApiResponse<{ slots: PublicSlot[] }>>;
   createPublicBooking: (
     payload: PublicBookingPayload
-  ) => Promise<ApiResponse<{ bookingId: string; status: 'confirmed'; source: 'client-self-service' }>>;
-  manageBookingByToken: (input: ManageBookingInput) => Promise<
-    ApiResponse<{
-      bookingId: string;
-      businessId: string;
-      serviceId: string;
-      startsAtIso: string;
-      canCancelOrReschedule: boolean;
-    }>
-  >;
+  ) => Promise<ApiResponse<PublicBookingConfirmation>>;
+  manageBookingByToken: (input: ManageBookingInput) => Promise<ApiResponse<ManageBookingDetails>>;
   cancelBookingByToken: (input: CancelBookingByTokenInput) => Promise<ApiResponse<{ bookingId: string; status: 'cancelled' }>>;
   rescheduleBookingByToken: (
     input: RescheduleBookingByTokenInput

@@ -1,4 +1,4 @@
-import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload } from './types';
+import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from './types';
 import { SupabaseBookingGateway } from './gateway-interface';
 import { realSupabaseGateway } from './real-gateway';
 
@@ -15,7 +15,7 @@ export async function resolveBusinessBySlug(input: { businessSlug: string }): Pr
 
 export async function queryPublicSlotAvailability(
   input: PublicSlotAvailabilityInput
-): Promise<ApiResponse<{ slots: Array<{ startsAtIso: string; endsAtIso: string }> }>> {
+): Promise<ApiResponse<{ slots: PublicSlot[] }>> {
   const maybeFn = (gateway as Partial<SupabaseBookingGateway>).queryPublicSlotAvailability;
   if (typeof maybeFn === 'function') {
     return maybeFn(input);
@@ -25,19 +25,11 @@ export async function queryPublicSlotAvailability(
 
 export async function createPublicBooking(
   payload: PublicBookingPayload
-): Promise<ApiResponse<{ bookingId: string; status: 'confirmed'; source: 'client-self-service' }>> {
+): Promise<ApiResponse<PublicBookingConfirmation>> {
   return gateway.createPublicBooking(payload);
 }
 
-export async function manageBookingByToken(input: ManageBookingInput): Promise<
-  ApiResponse<{
-    bookingId: string;
-    businessId: string;
-    serviceId: string;
-    startsAtIso: string;
-    canCancelOrReschedule: boolean;
-  }>
-> {
+export async function manageBookingByToken(input: ManageBookingInput): Promise<ApiResponse<ManageBookingDetails>> {
   return gateway.manageBookingByToken(input);
 }
 
