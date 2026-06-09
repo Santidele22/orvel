@@ -1,14 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { PublicBookingService, type ManageBookingDetails } from '../../data-access/public-booking.service';
+import { PublicBookingService, type ManageBookingDetails, type PublicSlot } from '../../data-access/public-booking.service';
 
 type ManageErrorCode =
   | 'INVALID_TOKEN'
   | 'TOKEN_EXPIRED'
   | 'TOKEN_REVOKED'
   | 'BOOKING_ALREADY_CANCELLED'
-  | 'POLICY_WINDOW_CLOSED';
+  | 'POLICY_WINDOW_CLOSED'
+  | 'BACKEND_UNAVAILABLE'
+  | 'SLOT_CONFLICT'
+  | 'BLOCKED_TIME_COLLISION';
 
 const CLOSED_STATUSES = new Set(['cancelled', 'canceled']);
 
@@ -21,6 +24,17 @@ function pickText(record: Record<string, unknown> | undefined, keys: string[], f
   }
 
   return fallback;
+}
+
+function pickOptionalText(record: Record<string, unknown> | undefined, keys: string[]): string {
+  for (const key of keys) {
+    const value = record?.[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return '';
 }
 
 @Component({
@@ -40,10 +54,22 @@ export class ManageBookingPage implements OnInit {
   protected readonly alreadyCancelled = signal(false);
   protected readonly policyWindowClosed = signal(false);
   protected readonly canCancelOrReschedule = signal(false);
+  protected readonly canReschedule = signal(false);
   protected readonly cancelling = signal(false);
   protected readonly cancelled = signal(false);
+  protected readonly rescheduled = signal(false);
+  protected readonly reschedulePickerOpen = signal(false);
+  protected readonly loadingRescheduleAvailability = signal(false);
+  protected readonly submittingReschedule = signal(false);
+  protected readonly rescheduleAvailabilityUnavailable = signal(false);
+  protected readonly rescheduleRequired = signal(false);
+  protected readonly rescheduleStale = signal(false);
+  protected readonly availableRescheduleSlots = signal<PublicSlot[]>([]);
+  protected readonly selectedDate = signal('');
+  protected readonly selectedSlot = signal('');
   protected readonly bookingId = signal('');
   protected readonly bookingDetails = signal<ManageBookingDetails | null>(null);
+  protected readonly hasLoadedAvailability = signal(false);
 
   async ngOnInit(): Promise<void> {
     const token = this.route.snapshot.queryParamMap.get('token') ?? '';
@@ -83,15 +109,75 @@ export class ManageBookingPage implements OnInit {
     if (response.data?.status === 'cancelled') {
       this.cancelled.set(true);
       this.canCancelOrReschedule.set(false);
+      this.canReschedule.set(false);
       return;
     }
 
     this.applyFailClosedError(response.error?.code as ManageErrorCode | undefined);
   }
 
-  protected handleReschedule(): void {
-    this.canCancelOrReschedule.set(false);
-    this.policyWindowClosed.set(true);
+  protected async handleReschedule(): Promise<void> {
+    const token = this.route.snapshot.queryParamMap.get('token') ?? '';
+    if (!token || !this.canReschedule()) {
+      this.applyFailClosedError(!token ? 'INVALID_TOKEN' : 'POLICY_WINDOW_CLOSED');
+      return;
+    }
+
+    this.reschedulePickerOpen.set(true);
+    this.rescheduleRequired.set(false);
+    this.rescheduleStale.set(false);
+    this.rescheduleAvailabilityUnavailable.set(false);
+    this.selectedDate.set(this.currentDateInputValue());
+    await this.loadPublicRescheduleSlots();
+  }
+
+  protected async onRescheduleDateChange(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    this.selectedDate.set(input.value);
+    this.selectedSlot.set('');
+    this.hasLoadedAvailability.set(false);
+    await this.loadPublicRescheduleSlots();
+  }
+
+  protected selectRescheduleSlot(startsAtIso: string): void {
+    this.selectedSlot.set(startsAtIso);
+    this.rescheduleRequired.set(false);
+    this.rescheduleStale.set(false);
+  }
+
+  protected async submitReschedule(): Promise<void> {
+    const token = this.route.snapshot.queryParamMap.get('token') ?? '';
+    if (!token || !this.canReschedule()) {
+      this.applyFailClosedError(!token ? 'INVALID_TOKEN' : 'POLICY_WINDOW_CLOSED');
+      return;
+    }
+
+    const selectedSlot = this.selectedSlot();
+    if (!this.selectedDate() || !selectedSlot) {
+      this.rescheduleRequired.set(true);
+      return;
+    }
+
+    if (!this.hasLoadedAvailability() || !this.isSelectedSlotAvailable(selectedSlot)) {
+      this.rescheduleStale.set(true);
+      return;
+    }
+
+    this.submittingReschedule.set(true);
+    const nowIso = new Date().toISOString();
+    const response = await this.publicBookingService.rescheduleBookingByToken(token, nowIso, selectedSlot);
+    this.submittingReschedule.set(false);
+
+    if (response.data?.startsAtIso) {
+      this.rescheduled.set(true);
+      this.reschedulePickerOpen.set(false);
+      this.canCancelOrReschedule.set(false);
+      this.canReschedule.set(false);
+      this.bookingDetails.update((details) => details ? { ...details, startsAtIso: response.data!.startsAtIso } : details);
+      return;
+    }
+
+    this.applyFailClosedError(response.error?.code as ManageErrorCode | undefined);
   }
 
   protected businessLabel(): string {
@@ -119,6 +205,75 @@ export class ManageBookingPage implements OnInit {
     }).format(new Date(startsAtIso));
   }
 
+  protected slotLabel(startsAtIso: string): string {
+    const date = new Date(startsAtIso);
+    if (Number.isNaN(date.getTime())) {
+      return startsAtIso;
+    }
+
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  protected canSubmitReschedule(): boolean {
+    return Boolean(
+      this.canReschedule()
+      && !this.submittingReschedule()
+      && !this.rescheduleAvailabilityUnavailable()
+      && this.hasLoadedAvailability()
+      && this.isSelectedSlotAvailable(this.selectedSlot())
+    );
+  }
+
+  private async loadPublicRescheduleSlots(): Promise<void> {
+    const details = this.bookingDetails();
+    const businessSlug = pickOptionalText(details?.business, ['slug', 'businessSlug', 'business_slug']);
+    const serviceId = details?.serviceId ?? '';
+    const dateIso = this.selectedDate();
+
+    this.availableRescheduleSlots.set([]);
+    this.selectedSlot.set('');
+    this.rescheduleRequired.set(false);
+    this.rescheduleStale.set(false);
+    this.hasLoadedAvailability.set(false);
+
+    if (!businessSlug || !serviceId || !dateIso) {
+      this.rescheduleAvailabilityUnavailable.set(true);
+      return;
+    }
+
+    this.loadingRescheduleAvailability.set(true);
+    try {
+      const response = await this.publicBookingService.queryPublicSlotAvailability({
+        businessSlug,
+        serviceId,
+        dateIso
+      });
+
+      const slots = response.data?.slots ?? [];
+      this.availableRescheduleSlots.set(slots);
+      this.hasLoadedAvailability.set(true);
+      this.rescheduleAvailabilityUnavailable.set(slots.length === 0);
+    } catch (error) {
+      this.rescheduleAvailabilityUnavailable.set(true);
+      this.hasLoadedAvailability.set(false);
+    } finally {
+      this.loadingRescheduleAvailability.set(false);
+    }
+  }
+
+  private isSelectedSlotAvailable(selectedStartsAtIso: string): boolean {
+    return this.availableRescheduleSlots().some((slot) => slot.startsAtIso === selectedStartsAtIso);
+  }
+
+  private currentDateInputValue(): string {
+    const startsAtIso = this.bookingDetails()?.startsAtIso;
+    if (startsAtIso) {
+      return startsAtIso.split('T')[0];
+    }
+
+    return new Date().toISOString().split('T')[0];
+  }
+
   private applyManageDetails(details: ManageBookingDetails): void {
     const status = (details.status ?? pickText(details.booking, ['status'], '')).toLowerCase();
 
@@ -126,15 +281,24 @@ export class ManageBookingPage implements OnInit {
     this.bookingId.set(details.bookingId);
     this.cancelled.set(CLOSED_STATUSES.has(status));
     this.canCancelOrReschedule.set(Boolean(details.canCancelOrReschedule && !CLOSED_STATUSES.has(status)));
+    const backendCanReschedule = typeof details.actions?.['canReschedule'] === 'boolean'
+      ? details.actions['canReschedule']
+      : details.canCancelOrReschedule;
+    this.canReschedule.set(Boolean(backendCanReschedule && !CLOSED_STATUSES.has(status)));
   }
 
   private applyFailClosedError(code: ManageErrorCode | undefined): void {
     this.canCancelOrReschedule.set(false);
+    this.canReschedule.set(false);
+    this.reschedulePickerOpen.set(false);
+    this.hasLoadedAvailability.set(false);
     this.invalidToken.set(code === 'INVALID_TOKEN' || !code);
     this.expiredToken.set(code === 'TOKEN_EXPIRED');
     this.revokedToken.set(code === 'TOKEN_REVOKED');
     this.alreadyCancelled.set(code === 'BOOKING_ALREADY_CANCELLED');
     this.policyWindowClosed.set(code === 'POLICY_WINDOW_CLOSED');
+    this.rescheduleAvailabilityUnavailable.set(code === 'BACKEND_UNAVAILABLE');
+    this.rescheduleStale.set(code === 'SLOT_CONFLICT' || code === 'BLOCKED_TIME_COLLISION');
     this.cancelled.set(code === 'BOOKING_ALREADY_CANCELLED');
   }
 }

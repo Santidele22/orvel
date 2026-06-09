@@ -122,7 +122,7 @@ export class PublicBookingPage implements OnInit {
       if (response.data?.slots && response.data.slots.length > 0) {
         const slots = response.data.slots.map(s => ({
           startsAtIso: s.startsAtIso,
-          remainingCapacity: 1
+          remainingCapacity: s.remainingCapacity ?? 1
         }));
         this.availabilitySlots.set(slots);
         this.selectedSlot = slots[0]?.startsAtIso || '';

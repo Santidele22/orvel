@@ -37,6 +37,7 @@ export interface ManageBookingDetails {
   businessId: string;
   serviceId: string;
   startsAtIso: string;
+  status?: string;
   canCancelOrReschedule: boolean;
   booking?: Record<string, unknown>;
   business?: Record<string, unknown>;
