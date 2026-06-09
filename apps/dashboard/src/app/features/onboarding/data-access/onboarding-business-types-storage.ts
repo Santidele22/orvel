@@ -10,9 +10,33 @@
  * - readBusinessTypes(storage): Retrieves the stored business types or null
  */
 
-export type BusinessTypeCode = 'peluqueria' | 'unas' | 'barberia' | 'spa';
+import {
+  resolveBusinessTypeCodeFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+
+export type BusinessTypeCode =
+  | 'peluqueria'
+  | 'unas'
+  | 'barberia'
+  | 'spa'
+  | 'pestanas'
+  | 'cejas'
+  | 'masajes'
+  | 'otro';
 
 export const ONBOARDING_BUSINESS_TYPES_STORAGE_KEY = 'turnea.onboarding.rubros.v1';
+
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
+
+function normalizeBusinessTypeCode(value: unknown): BusinessTypeCode | null {
+  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, value);
+  if (!resolved) {
+    return null;
+  }
+
+  return resolved.toLowerCase() as BusinessTypeCode;
+}
 
 /**
  * Persists the selected business types to storage.
@@ -20,7 +44,11 @@ export const ONBOARDING_BUSINESS_TYPES_STORAGE_KEY = 'turnea.onboarding.rubros.v
  * @param types - Array of business type codes to persist
  */
 export function persistBusinessTypes(storage: Pick<Storage, 'setItem'>, types: BusinessTypeCode[]): void {
-  storage.setItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, JSON.stringify(types));
+  const normalizedTypes = types
+    .map((type) => normalizeBusinessTypeCode(type))
+    .filter((type): type is BusinessTypeCode => type !== null);
+
+  storage.setItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, JSON.stringify(normalizedTypes));
 }
 
 /**
@@ -40,15 +68,15 @@ export function readBusinessTypes(storage: Pick<Storage, 'getItem'>): BusinessTy
       return null;
     }
 
-    // Validate all items are valid business type codes
-    const validTypes: BusinessTypeCode[] = ['peluqueria', 'unas', 'barberia', 'spa'];
-    const isValid = parsed.every((item): item is BusinessTypeCode => validTypes.includes(item as BusinessTypeCode));
+    const normalizedTypes = parsed
+      .map((item) => normalizeBusinessTypeCode(item))
+      .filter((item): item is BusinessTypeCode => item !== null);
 
-    if (!isValid) {
+    if (normalizedTypes.length !== parsed.length) {
       return null;
     }
 
-    return parsed as BusinessTypeCode[];
+    return normalizedTypes;
   } catch {
     // Corrupted JSON, return null
     return null;

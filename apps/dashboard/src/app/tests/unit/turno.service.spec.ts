@@ -458,6 +458,80 @@ describe('TurnoService - Unit Tests', () => {
     });
   });
 
+  describe('createBlockedTime()', () => {
+    function installSupabaseBlockedTimeDouble(serviceUnderTest: TurnoService) {
+      const rpc = vi.fn(() => Promise.resolve({
+        data: { blocked_time_id: 'block-qa-001' },
+        error: null
+      }));
+      const branchBuilder = {
+        select: () => branchBuilder,
+        eq: () => branchBuilder,
+        maybeSingle: () => Promise.resolve({
+          data: { id: 'branch-qa-001', business_id: 'biz-from-branch-tenant' },
+          error: null
+        })
+      };
+
+      (serviceUnderTest as unknown as { supabaseClient: unknown }).supabaseClient = {
+        auth: {
+          getSession: () => Promise.resolve({
+            data: {
+              session: {
+                user: {
+                  id: 'qa-user-001',
+                  user_metadata: { businessId: 'biz-from-branch-tenant' }
+                }
+              }
+            },
+            error: null
+          })
+        },
+        from: () => branchBuilder,
+        rpc
+      };
+      serviceUnderTest.setProvider('supabase');
+      return rpc;
+    }
+
+    it('resuelve businessId desde la sucursal activa validada y mantiene performedBy como usuario admin', async () => {
+      const rpc = installSupabaseBlockedTimeDouble(service);
+
+      await service.createBlockedTime({
+        businessId: 'qa-user-001',
+        branchId: 'branch-qa-001',
+        startsAtIso: '2035-01-15T13:00:00.000Z',
+        endsAtIso: '2035-01-15T14:00:00.000Z',
+        reason: 'Capacitación interna',
+        performedBy: 'qa-user-001'
+      }).toPromise();
+
+      expect(rpc).toHaveBeenCalledWith('create_admin_blocked_time', expect.objectContaining({
+        business_id: 'biz-from-branch-tenant',
+        branch_id: 'branch-qa-001',
+        performed_by: 'qa-user-001'
+      }));
+    });
+
+    it('falla cerrado y no llama RPC si no hay sucursal activa/default', async () => {
+      const rpc = installSupabaseBlockedTimeDouble(service);
+      (service as unknown as { authService: { user: () => unknown } }).authService = {
+        user: () => ({ id: 'qa-user-001', nombre: 'QA Admin' })
+      };
+      window.localStorage.removeItem('activeBranchId');
+      window.localStorage.removeItem('activeSalonId');
+      window.localStorage.removeItem('activeLocationId');
+
+      await expect(service.createBlockedTime({
+        startsAtIso: '2035-01-15T13:00:00.000Z',
+        endsAtIso: '2035-01-15T14:00:00.000Z',
+        reason: 'Capacitación interna',
+        performedBy: 'qa-user-001'
+      }).toPromise()).rejects.toThrow(/ACTIVE_BRANCH_REQUIRED/);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+  });
+
   // ============================================
   // TEST: Edge Cases
   // ============================================

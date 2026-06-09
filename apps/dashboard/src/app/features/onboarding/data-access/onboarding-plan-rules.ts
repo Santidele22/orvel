@@ -1,4 +1,7 @@
-import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
+import {
+  getPlanEntitlementsFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 
 function sanitizeStringArray(input: unknown): string[] {
   if (!Array.isArray(input)) {
@@ -25,13 +28,14 @@ function resolveLocaleCount(currentLocales: unknown): number {
 }
 
 export function applyPlanLimitToRubros(input: { plan: unknown; selectedRubros: unknown }): string[] {
-  const { maxRubros } = getPlanEntitlements(input.plan);
+  const referenceCatalog = getRuntimeReferenceCatalogSnapshot();
+  const maxRubros = getPlanEntitlementsFromCatalog(referenceCatalog, input.plan)?.maxRubros ?? 1;
   const selectedRubros = sanitizeStringArray(input.selectedRubros);
   return selectedRubros.slice(0, maxRubros);
 }
 
 export function canAddLocale(input: { plan: unknown; currentLocales: unknown }): boolean {
-  const { maxLocales } = getPlanEntitlements(input.plan);
+  const maxLocales = getPlanEntitlementsFromCatalog(getRuntimeReferenceCatalogSnapshot(), input.plan)?.maxLocales ?? 1;
   const currentLocales = resolveLocaleCount(input.currentLocales);
   return currentLocales < maxLocales;
 }

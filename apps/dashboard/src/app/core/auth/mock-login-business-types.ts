@@ -1,12 +1,15 @@
 import type { TurneaSession } from './session-contract';
-import { sanitizeSelectedRubros } from '../../features/onboarding/data-access/onboarding-rubros';
+import {
+  REQUIRED_RUBROS,
+  sanitizeSelectedRubros
+} from '../../features/onboarding/data-access/onboarding-rubros';
 import {
   mergeTemplateCatalogs,
   sanitizeSelectedTemplateIds,
   TemplateCatalog
 } from '../../features/onboarding/data-access/onboarding-templates';
 
-export const ALLOWED_SELECTED_BUSINESS_TYPES = ['zen'] as const;
+export const ALLOWED_SELECTED_BUSINESS_TYPES = REQUIRED_RUBROS;
 
 export type SelectedBusinessType = (typeof ALLOWED_SELECTED_BUSINESS_TYPES)[number];
 

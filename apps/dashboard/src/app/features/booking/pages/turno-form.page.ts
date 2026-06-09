@@ -1,13 +1,14 @@
 // Turno Form Page - US-002
 // Create/Edit Turno with conflict detection
 
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TurnoService } from '../data-access/turno.service';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
+import { AuthService } from '../../../services/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
@@ -23,6 +24,7 @@ export class TurnoFormPage implements OnInit {
   private turnoService = inject(TurnoService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
+  private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -37,12 +39,20 @@ export class TurnoFormPage implements OnInit {
   protected clientes = signal<Cliente[]>([]);
   protected servicios = signal<Servicio[]>([]);
   protected disponibles = signal<string[]>([]);
+  protected availabilityLoading = signal<boolean>(false);
+  protected availabilityError = signal<string | null>(null);
+  protected availabilityEmpty = signal<boolean>(false);
+  protected hasLoadedAvailability = signal<boolean>(false);
+  protected availabilityStale = signal<boolean>(true);
+  protected availabilityRequestKey = signal<string>('');
+  private latestAvailabilityVersion = 0;
 
   // Form fields
   protected clienteId = signal<string>('');
+  protected walkInName = signal<string>('');
   protected servicioId = signal<string>('');
   protected fecha = signal<string>(new Date().toISOString().split('T')[0]);
-  protected hora = signal<string>('10:00');
+  protected hora = signal<string>('');
   protected duracionMinutos = signal<number>(30);
   protected precio = signal<number>(0);
   protected notas = signal<string>('');
@@ -52,6 +62,19 @@ export class TurnoFormPage implements OnInit {
   protected conflictError = signal<string | null>(null);
   protected isPastDate = signal<boolean>(false);
   private readonly unavailableSlotMessage = 'Este horario no está disponible. Elegí otro turno.';
+  protected canSave = computed(() => {
+    return !this.saving()
+      && !this.availabilityLoading()
+      && !this.availabilityError()
+      && !this.availabilityEmpty()
+      && !this.availabilityStale()
+      && this.hasLoadedAvailability()
+      && !this.conflictError()
+      && (!!this.clienteId() || !!this.walkInName().trim())
+      && !!this.servicioId()
+      && !!this.hora()
+      && this.disponibles().includes(this.hora());
+  });
 
   async ngOnInit() {
     this.loading.set(true);
@@ -108,7 +131,7 @@ export class TurnoFormPage implements OnInit {
   }
 
   protected onfechaChange() {
-    this.conflictError.set(null);
+    this.resetAvailability('La disponibilidad cambió: elegí un horario disponible.');
     this.checkAvailability();
   }
 
@@ -118,40 +141,103 @@ export class TurnoFormPage implements OnInit {
       this.duracionMinutos.set(servicio.duracionMinutos);
       this.precio.set(servicio.precio);
     }
+    this.resetAvailability('La disponibilidad cambió: elegí un horario disponible.');
     this.checkAvailability();
   }
 
-  protected checkAvailability() {
+  protected async checkAvailability() {
+    const availabilityVersion = ++this.latestAvailabilityVersion;
     const fechaDate = new Date(this.fecha());
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+    const requestKey = `${this.fecha()}|${this.duracionMinutos()}|${this.servicioId()}|${this.turnoId() ?? ''}|${availabilityVersion}`;
+    this.availabilityRequestKey.set(requestKey);
+    this.availabilityLoading.set(true);
+    this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
+    this.availabilityStale.set(true);
+    this.hasLoadedAvailability.set(false);
+    this.disponibles.set([]);
+    this.hora.set('');
+
     // Check if past date
     this.isPastDate.set(fechaDate < today);
-    
-    // Get available times
-    const horarios = this.turnoService.getHorariosDisponibles(fechaDate, this.duracionMinutos());
-    this.disponibles.set(horarios);
-    
-    // Check if current time slot is available
-    if (!horarios.includes(this.hora()) && this.hora()) {
-      this.conflictError.set(this.unavailableSlotMessage);
-    } else {
+
+    try {
+      const horarios = await this.turnoService.loadAvailabilityAdminSlotTimes({
+        fecha: fechaDate,
+        durationMinutes: this.duracionMinutos(),
+        serviceId: this.servicioId() || null,
+        context: this.isEdit() ? 'admin-reschedule' : 'admin-create',
+        bookingId: this.turnoId()
+      });
+
+      if (availabilityVersion !== this.latestAvailabilityVersion || requestKey !== this.availabilityRequestKey()) {
+        return;
+      }
+
+      this.disponibles.set(horarios);
+      this.availabilityEmpty.set(horarios.length === 0);
+      this.hasLoadedAvailability.set(true);
+      this.availabilityStale.set(false);
       this.conflictError.set(null);
+    } catch (error) {
+      if (availabilityVersion !== this.latestAvailabilityVersion) return;
+
+      console.error('Error checking admin availability:', error);
+      this.disponibles.set([]);
+      this.hora.set('');
+      this.availabilityError.set('No pudimos consultar disponibilidad. Reintentá antes de guardar.');
+      this.availabilityStale.set(true);
+      this.hasLoadedAvailability.set(false);
+      this.conflictError.set(this.unavailableSlotMessage);
+    } finally {
+      if (availabilityVersion === this.latestAvailabilityVersion) {
+        this.availabilityLoading.set(false);
+      }
     }
+  }
+
+  protected validateSelectedHour() {
+    if (!this.hora()) {
+      this.conflictError.set(null);
+      return;
+    }
+
+    this.conflictError.set(this.disponibles().includes(this.hora()) ? null : this.unavailableSlotMessage);
+  }
+
+  protected resetAvailability(staleMessage?: string) {
+    this.latestAvailabilityVersion += 1;
+    this.turnoService.invalidateAdminAvailability();
+    this.disponibles.set([]);
+    this.hora.set('');
+    this.availabilityLoading.set(false);
+    this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
+    this.hasLoadedAvailability.set(false);
+    this.availabilityStale.set(true);
+    this.conflictError.set(staleMessage ?? null);
   }
 
   protected async save() {
     // Validate
-    if (!this.clienteId()) {
-      this.error.set('Seleccione un cliente');
+    const walkInName = this.walkInName().trim();
+    const branchId = this.turnoService.getActiveBranchId();
+
+    if (!this.clienteId() && !walkInName) {
+      this.error.set('Seleccione un cliente o ingresá un nombre para atención sin ficha');
       return;
     }
     if (!this.servicioId()) {
       this.error.set('Seleccione un servicio');
       return;
     }
-    if (this.conflictError()) {
+    if (!this.canSave()) {
+      return;
+    }
+    if (!branchId) {
+      this.error.set('No encontramos la sucursal activa para crear el turno');
       return;
     }
 
@@ -160,7 +246,9 @@ export class TurnoFormPage implements OnInit {
 
     try {
       const dto: CreateTurnoDTO = {
+        branchId: branchId,
         clienteId: this.clienteId(),
+        walkInName: this.clienteId() ? undefined : walkInName,
         servicioId: this.servicioId(),
         fecha: new Date(this.fecha()),
         hora: this.hora(),
@@ -175,13 +263,15 @@ export class TurnoFormPage implements OnInit {
         await this.turnoService.rescheduleByAdmin(this.turnoId()!, {
           fecha: new Date(this.fecha()),
           hora: this.hora(),
-          performedBy: 'admin-ui',
+          performedBy: this.currentAdminActor(),
           reason: this.notas() || 'Reprogramación desde formulario administrativo'
         }).toPromise();
       } else {
         // Create new
         await this.turnoService.create(dto).toPromise();
       }
+
+      this.resetAvailability();
 
       this.router.navigate(['/dashboard/turnos']);
     } catch (error) {
@@ -197,6 +287,10 @@ export class TurnoFormPage implements OnInit {
       }
       this.saving.set(false);
     }
+  }
+
+  private currentAdminActor(): string {
+    return this.authService.user()?.nombre?.trim() || this.authService.user()?.email?.trim() || 'dashboard-admin';
   }
 
   protected getHorarioLabel(hora: string): string {

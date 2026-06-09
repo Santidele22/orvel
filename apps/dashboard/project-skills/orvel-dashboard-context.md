@@ -1,6 +1,6 @@
 ---
 name: orvel-dashboard-context
-description: Workspace-only repository context for orvel-dashboard; use when any agent works in this repo to align on architecture, migration campaign, Supabase rules, testing gates, and known blockers.
+description: Dashboard app context for the Orvel monorepo; use when any agent works in apps/dashboard to align on architecture, migration campaign, Supabase rules, testing gates, and known blockers.
 triggers: "orvel-dashboard, Orvel dashboard, salon dashboard, turnos, booking, Supabase, feature slices, migration, tenant scoping, branch scoping"
 ---
 
@@ -8,7 +8,7 @@ triggers: "orvel-dashboard, Orvel dashboard, salon dashboard, turnos, booking, S
 
 ## Scope
 
-This skill is **only for `/home/santid/santi/orvel-dashboard`**. Use it when an agent starts or continues work in this repository so everyone shares the same map, vocabulary, and working rules.
+This skill is **only for the dashboard app at `apps/dashboard` inside the Orvel monorepo**. Use it when an agent starts or continues dashboard work so everyone shares the same map, vocabulary, and working rules.
 
 ## What We Are Building
 
@@ -120,7 +120,7 @@ When failures appear, classify them clearly:
 
 At task start:
 
-1. Confirm you are in `/home/santid/santi/orvel-dashboard`.
+1. Confirm you are in the Orvel monorepo and targeting `apps/dashboard`.
 2. Inspect current branch/status and protect unrelated changes.
 3. Load this workspace context and any more specific `project-skills/*` skill relevant to the area.
 4. Identify whether the work belongs in `src/app/features/*` or a remaining transitional area.

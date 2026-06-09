@@ -1,3 +1,7 @@
+import { resolvePlanCodeFromCatalog } from '../../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../../core/catalog/reference-catalog.gateway';
+import type { CanonicalPlanCode } from '../../../../core/plans/plan-entitlements';
+
 export type SubscriptionStatus =
   | 'trialing'
   | 'active'
@@ -7,7 +11,7 @@ export type SubscriptionStatus =
   | 'expired'
   | 'scheduled_change';
 
-export type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+export type PlanCode = CanonicalPlanCode;
 
 export type SubscriptionSnapshot = {
   businessId: string;
@@ -68,12 +72,15 @@ export function configureSubscriptionTransitionRepository(repository: Subscripti
   configuredTransitionRepository = repository;
 }
 
-const PLAN_RANK: Record<PlanCode, number> = {
-  FREE: 0,
-  BASIC: 1,
-  MEDIUM: 2,
-  PRO: 3
-};
+function normalizePlanCode(planCode: unknown, fallback: PlanCode = 'FREE'): PlanCode {
+  return (resolvePlanCodeFromCatalog(getRuntimeReferenceCatalogSnapshot(), planCode) as PlanCode | null) ?? fallback;
+}
+
+function planRank(planCode: unknown): number {
+  const normalizedPlanCode = normalizePlanCode(planCode);
+  const rank = getRuntimeReferenceCatalogSnapshot().plans.findIndex((plan) => plan.code === normalizedPlanCode);
+  return rank >= 0 ? rank : 0;
+}
 
 function bumpVersion(current: SubscriptionSnapshot, patch: Partial<SubscriptionSnapshot>): SubscriptionSnapshot {
   return {
@@ -121,7 +128,7 @@ export async function reduceSubscriptionEvent(input: {
         action: 'RENEW',
         next: bumpVersion(current, {
           status: 'active',
-          planCode: event.planCode ?? current.planCode,
+          planCode: normalizePlanCode(event.planCode, normalizePlanCode(current.planCode)),
           currentPeriodStart: nextPeriodStart,
           currentPeriodEnd: nextPeriodEnd,
           cancelAtPeriodEnd: false
@@ -156,7 +163,7 @@ export async function reduceSubscriptionEvent(input: {
       return {
         accepted: true,
         action: 'APPLY_PLAN_CHANGE',
-        next: bumpVersion(current, { planCode: event.planCode ?? current.planCode, status: 'active' })
+        next: bumpVersion(current, { planCode: normalizePlanCode(event.planCode, normalizePlanCode(current.planCode)), status: 'active' })
       };
   }
 }
@@ -217,19 +224,21 @@ export async function changeSubscriptionPlan(input: {
   effective: 'immediate' | 'next_period';
   requestedAtIso: string;
 }): Promise<StateMachineDecision> {
-  const isUpgrade = PLAN_RANK[input.targetPlanCode] > PLAN_RANK[input.current.planCode];
+  const currentPlanCode = normalizePlanCode(input.current.planCode);
+  const targetPlanCode = normalizePlanCode(input.targetPlanCode, currentPlanCode);
+  const isUpgrade = planRank(targetPlanCode) > planRank(currentPlanCode);
 
   if (input.effective === 'immediate' || isUpgrade) {
     return {
       accepted: true,
       action: 'APPLY_PLAN_CHANGE',
-      next: bumpVersion(input.current, { planCode: input.targetPlanCode, status: 'active' })
+      next: bumpVersion(input.current, { planCode: targetPlanCode, status: 'active' })
     };
   }
 
   return {
     accepted: true,
     action: 'SCHEDULE_PLAN_CHANGE',
-    next: bumpVersion(input.current, { status: 'scheduled_change' })
+    next: bumpVersion(input.current, { planCode: currentPlanCode, status: 'scheduled_change' })
   };
 }

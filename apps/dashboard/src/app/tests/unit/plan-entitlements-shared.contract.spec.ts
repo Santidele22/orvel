@@ -5,11 +5,19 @@ type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
 type PlanEntitlements = {
   maxLocales: number;
   maxRubros: number;
+  maxMonthlyBookings: number | null;
+  aiCreditsMonthly: number;
 };
 
 type PlanEntitlementsModule = {
   PLAN_ENTITLEMENTS: Record<PlanCode, PlanEntitlements>;
   getPlanEntitlements: (plan: unknown) => PlanEntitlements;
+};
+
+type ReferenceCatalogModule = {
+  getDefaultDashboardReferenceCatalog: () => {
+    plans: Array<{ code: string; label: string } & PlanEntitlements>;
+  };
 };
 
 async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
@@ -35,25 +43,51 @@ async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
   return { PLAN_ENTITLEMENTS, getPlanEntitlements };
 }
 
-describe('RED contract: shared plan entitlements matrix', () => {
-  it('matches canonical starter/growth/pro salon limits matrix with legacy aliases translated cleanly', async () => {
-    const { PLAN_ENTITLEMENTS } = await loadPlanEntitlementsModule();
+async function loadReferenceCatalogModule(): Promise<ReferenceCatalogModule> {
+  return (await import('../../core/catalog/reference-catalog')) as ReferenceCatalogModule;
+}
 
-    expect(PLAN_ENTITLEMENTS.STARTER.maxLocales).toBe(3);
-    expect(PLAN_ENTITLEMENTS.GROWTH.maxLocales).toBe(4);
-    expect(PLAN_ENTITLEMENTS.PRO.maxLocales).toBe(5);
+function catalogEntitlementsByCode(catalog: ReturnType<ReferenceCatalogModule['getDefaultDashboardReferenceCatalog']>) {
+  return Object.fromEntries(
+    catalog.plans.map((plan) => [
+      plan.code,
+      {
+        maxLocales: plan.maxLocales,
+        maxRubros: plan.maxRubros,
+        maxMonthlyBookings: plan.maxMonthlyBookings,
+        aiCreditsMonthly: plan.aiCreditsMonthly
+      } satisfies PlanEntitlements
+    ])
+  );
+}
+
+describe('RED contract: shared plan entitlements matrix', () => {
+  it('matches canonical starter/growth/pro salon limits from the reference catalog', async () => {
+    const [{ PLAN_ENTITLEMENTS }, referenceCatalog] = await Promise.all([
+      loadPlanEntitlementsModule(),
+      loadReferenceCatalogModule()
+    ]);
+    const catalogPlans = catalogEntitlementsByCode(referenceCatalog.getDefaultDashboardReferenceCatalog());
+
+    expect(PLAN_ENTITLEMENTS.STARTER).toEqual(catalogPlans['STARTER']);
+    expect(PLAN_ENTITLEMENTS.GROWTH).toEqual(catalogPlans['GROWTH']);
+    expect(PLAN_ENTITLEMENTS.PRO).toEqual(catalogPlans['PRO']);
   });
 
-  it('resolves plan keys deterministically (case-insensitive) and falls back to starter salon limit', async () => {
-    const { getPlanEntitlements } = await loadPlanEntitlementsModule();
+  it('resolves plan keys deterministically (case-insensitive) and falls back to the FREE catalog plan', async () => {
+    const [{ getPlanEntitlements }, referenceCatalog] = await Promise.all([
+      loadPlanEntitlementsModule(),
+      loadReferenceCatalogModule()
+    ]);
+    const catalogPlans = catalogEntitlementsByCode(referenceCatalog.getDefaultDashboardReferenceCatalog());
 
-    expect(getPlanEntitlements('free').maxLocales).toBe(3);
-    expect(getPlanEntitlements('BASIC').maxLocales).toBe(3);
-    expect(getPlanEntitlements('medium').maxLocales).toBe(4);
-    expect(getPlanEntitlements('starter').maxLocales).toBe(3);
-    expect(getPlanEntitlements('growth').maxLocales).toBe(4);
-    expect(getPlanEntitlements('PRO').maxLocales).toBe(5);
-    expect(getPlanEntitlements('enterprise').maxLocales).toBe(3);
-    expect(getPlanEntitlements(null).maxLocales).toBe(3);
+    expect(getPlanEntitlements('free')).toEqual(catalogPlans['FREE']);
+    expect(getPlanEntitlements('BASIC')).toEqual(catalogPlans['STARTER']);
+    expect(getPlanEntitlements('medium')).toEqual(catalogPlans['GROWTH']);
+    expect(getPlanEntitlements('starter')).toEqual(catalogPlans['STARTER']);
+    expect(getPlanEntitlements('growth')).toEqual(catalogPlans['GROWTH']);
+    expect(getPlanEntitlements('PRO')).toEqual(catalogPlans['PRO']);
+    expect(getPlanEntitlements('enterprise')).toEqual(catalogPlans['FREE']);
+    expect(getPlanEntitlements(null)).toEqual(catalogPlans['FREE']);
   });
 });

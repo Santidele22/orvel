@@ -1,8 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../runtime/dashboard-env';
-import { computePublicAvailability, type CalendarEntry } from '../../../features/booking/data-access/booking-core';
 import { SupabaseBookingGateway } from './gateway-interface';
-import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, buildDeterministicPublicSlots } from './mappers';
+import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail } from './mappers';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from './public-booking-slug';
 
 // Initialize real Supabase client
@@ -127,7 +126,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
       const slots = (data as any[] || []).map(row => ({
         startsAtIso: new Date(row.starts_at_iso).toISOString(),
-        endsAtIso: new Date(row.ends_at_iso).toISOString()
+        endsAtIso: new Date(row.ends_at_iso).toISOString(),
+        remainingCapacity: Number(row.remaining_capacity ?? row.remainingCapacity ?? 0)
       }));
 
       return {
@@ -137,8 +137,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
     } catch (err) {
       console.error('[API] queryPublicSlotAvailability catch error:', err);
       return {
-        status: 200,
-        data: { slots: buildDeterministicPublicSlots(dateIso) }
+        status: 400,
+        error: mapRpcErrorToApiError(err as { message?: string })
       };
     }
   },
@@ -207,6 +207,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       }
 
       const bookingId = (data as { booking_id: string }).booking_id;
+      const manageToken = (data as { manage_token?: string; manageToken?: string }).manage_token ?? (data as { manageToken?: string }).manageToken;
       const booking = await loadBookingNotificationRow(supabase, bookingId);
 
       if (booking) {
@@ -254,13 +255,19 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         });
       }
 
+      const responseData: { bookingId: string; status: 'confirmed'; source: 'client-self-service'; manageToken?: string } = {
+        bookingId,
+        status: 'confirmed',
+        source: 'client-self-service'
+      };
+
+      if (manageToken) {
+        responseData.manageToken = manageToken;
+      }
+
       return {
         status: 201,
-        data: {
-          bookingId,
-          status: 'confirmed',
-          source: 'client-self-service'
-        }
+        data: responseData
       };
     } catch (err) {
       const error = err as { message?: string };
@@ -292,22 +299,45 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         return { status: statusCode, error: apiError };
       }
 
-      // Get booking details
-      const { data: bookingData } = await supabase
-        .from('bookings')
-        .select('id, business_id, service_id, starts_at')
-        .eq('manage_token', token)
-        .maybeSingle();
+      const row = data as any;
+      const booking = row?.booking && typeof row.booking === 'object' && !Array.isArray(row.booking) ? row.booking : undefined;
+      const business = row?.business && typeof row.business === 'object' && !Array.isArray(row.business) ? row.business : undefined;
+      const service = row?.service && typeof row.service === 'object' && !Array.isArray(row.service) ? row.service : undefined;
+      const policy = row?.policy && typeof row.policy === 'object' && !Array.isArray(row.policy) ? row.policy : undefined;
+      const actions = row?.actions && typeof row.actions === 'object' && !Array.isArray(row.actions) ? row.actions : undefined;
+
+      const responseData: {
+        bookingId: string;
+        businessId: string;
+        serviceId: string;
+        startsAtIso: string;
+        canCancelOrReschedule: boolean;
+        status?: string;
+        booking?: Record<string, unknown>;
+        business?: Record<string, unknown>;
+        service?: Record<string, unknown>;
+        policy?: Record<string, unknown>;
+        actions?: Record<string, unknown>;
+      } = {
+        bookingId: row?.booking_id ?? booking?.id ?? '',
+        businessId: row?.business_id ?? business?.id ?? '',
+        serviceId: row?.service_id ?? service?.id ?? '',
+        startsAtIso: row?.starts_at_iso ?? booking?.startsAtIso ?? booking?.starts_at_iso ?? '',
+        canCancelOrReschedule: Boolean(
+          row?.can_cancel_or_reschedule ?? actions?.canCancel ?? actions?.can_cancel ?? actions?.canReschedule ?? actions?.can_reschedule
+        )
+      };
+
+      if (typeof row?.status === 'string') responseData.status = row.status;
+      if (booking) responseData.booking = booking;
+      if (business) responseData.business = business;
+      if (service) responseData.service = service;
+      if (policy) responseData.policy = policy;
+      if (actions) responseData.actions = actions;
 
       return {
         status: 200,
-        data: {
-          bookingId: (bookingData as { id: string })?.id || '',
-          businessId: (bookingData as { business_id: string })?.business_id || '',
-          serviceId: (bookingData as { service_id: string })?.service_id || '',
-          startsAtIso: (bookingData as { starts_at: string })?.starts_at || '',
-          canCancelOrReschedule: true
-        }
+        data: responseData
       };
     } catch (err) {
       const error = err as { message?: string };
@@ -519,40 +549,12 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
   async updateAdminBooking(payload) {
     try {
       const supabase = createSupabaseClient();
-      const requestedBusinessId = (payload as { businessId?: string }).businessId;
-
-      // First check if booking exists
-      const fetchQuery = supabase
-        .from('bookings')
-        .select('id, notes, business_id')
-        .eq('id', payload.bookingId);
-
-      if (requestedBusinessId) {
-        fetchQuery.eq('business_id', requestedBusinessId);
-      }
-
-      const { data: existing, error: fetchError } = await fetchQuery.maybeSingle();
-
-      if (fetchError || !existing) {
-        return {
-          status: 404,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_NOT_FOUND: Booking not found' }
-        };
-      }
-
-      // Update booking with notes
-      const updatedNotes = payload.notes ? payload.notes : undefined;
-
-      const { data: updated, error } = await supabase
-        .from('bookings')
-        .update({
-          notes: updatedNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', payload.bookingId)
-        .eq('business_id', (existing as { business_id: string }).business_id)
-        .select('id, updated_at')
-        .single();
+      const { data, error } = await supabase.rpc('update_admin_booking', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy,
+        notes: payload.notes,
+        reason: payload.reason
+      });
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
@@ -562,8 +564,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       return {
         status: 200,
         data: {
-          bookingId: payload.bookingId,
-          updatedAt: (updated as { updated_at: string })?.updated_at || new Date().toISOString()
+          bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
+          updatedAt: (data as { updatedAt?: string; updated_at?: string })?.updatedAt ?? (data as { updated_at?: string })?.updated_at ?? new Date().toISOString()
         }
       };
     } catch (err) {
@@ -578,47 +580,12 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
   async cancelAdminBooking(payload) {
     try {
       const supabase = createSupabaseClient();
-      const requestedBusinessId = (payload as { businessId?: string }).businessId;
-
-      // First check if booking exists and its current status
-      const fetchQuery = supabase
-        .from('bookings')
-        .select('id, status, business_id')
-        .eq('id', payload.bookingId);
-
-      if (requestedBusinessId) {
-        fetchQuery.eq('business_id', requestedBusinessId);
-      }
-
-      const { data: existing, error: fetchError } = await fetchQuery.maybeSingle();
-
-      if (fetchError || !existing) {
-        return {
-          status: 404,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_NOT_FOUND: Booking not found' }
-        };
-      }
-
-      const currentStatus = (existing as { status: string }).status;
-      if (currentStatus === 'cancelled' || currentStatus === 'completed' || currentStatus === 'no_show') {
-        return {
-          status: 400,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_INVALID_STATUS_TRANSITION: Cannot cancel booking in current status' }
-        };
-      }
-
-      // Append audit info to notes
-      const auditEntry = `[admin:cancel] by=${payload.performedBy} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
-
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          status: 'cancelled',
-          notes: payload.notes ? `${payload.notes}\n${auditEntry}` : auditEntry,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', payload.bookingId)
-        .eq('business_id', (existing as { business_id: string }).business_id);
+      const { data, error } = await supabase.rpc('cancel_admin_booking', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy,
+        notes: payload.notes,
+        reason: payload.reason
+      });
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
@@ -628,8 +595,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       return {
         status: 200,
         data: {
-          bookingId: payload.bookingId,
-          status: 'cancelled'
+          bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
+          status: (data as { status?: 'cancelled' })?.status ?? 'cancelled'
         }
       };
     } catch (err) {
@@ -644,48 +611,13 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
   async rescheduleAdminBooking(payload) {
     try {
       const supabase = createSupabaseClient();
-      const requestedBusinessId = (payload as { businessId?: string }).businessId;
-
-      // First check if booking exists
-      const fetchQuery = supabase
-        .from('bookings')
-        .select('id, status, starts_at, ends_at, business_id')
-        .eq('id', payload.bookingId);
-
-      if (requestedBusinessId) {
-        fetchQuery.eq('business_id', requestedBusinessId);
-      }
-
-      const { data: existing, error: fetchError } = await fetchQuery.maybeSingle();
-
-      if (fetchError || !existing) {
-        return {
-          status: 404,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_NOT_FOUND: Booking not found' }
-        };
-      }
-
-      const currentStatus = (existing as { status: string }).status;
-      if (currentStatus === 'cancelled' || currentStatus === 'completed' || currentStatus === 'no_show') {
-        return {
-          status: 400,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_INVALID_STATUS_TRANSITION: Cannot reschedule booking in current status' }
-        };
-      }
-
-      // Append audit info to notes
-      const newStartsAt = payload.startsAtIso;
-      const auditEntry = `[admin:reschedule] by=${payload.performedBy || 'admin'} at=${new Date().toISOString()}${payload.notes ? ' | reason=' + payload.notes : ''}`;
-
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          starts_at: newStartsAt,
-          notes: payload.notes ? `${payload.notes}\n${auditEntry}` : auditEntry,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', payload.bookingId)
-        .eq('business_id', (existing as { business_id: string }).business_id);
+      const { data, error } = await supabase.rpc('reschedule_admin_booking', {
+        booking_id: payload.bookingId,
+        starts_at_iso: payload.startsAtIso,
+        performed_by: payload.performedBy,
+        notes: payload.notes,
+        reason: payload.reason
+      });
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
@@ -696,8 +628,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       return {
         status: 200,
         data: {
-          bookingId: payload.bookingId,
-          startsAtIso: newStartsAt
+          bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
+          startsAtIso: (data as { startsAtIso?: string; starts_at_iso?: string })?.startsAtIso ?? (data as { starts_at_iso?: string })?.starts_at_iso ?? payload.startsAtIso
         }
       };
     } catch (err) {
@@ -712,76 +644,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
   async updateBookingStatus(payload) {
     try {
       const supabase = createSupabaseClient();
-      const requestedBusinessId = (payload as { businessId?: string }).businessId;
-
-      if (requestedBusinessId) {
-        const { data: scopedBooking } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('id', payload.bookingId)
-          .eq('business_id', requestedBusinessId)
-          .maybeSingle();
-
-        if (!scopedBooking) {
-          return {
-            status: 404,
-            error: { code: 'VALIDATION_ERROR', message: 'TURNO_NOT_FOUND: Booking not found' }
-          };
-        }
-      }
-
-      // Validate status - whitelist all valid booking statuses
-      const validStatuses = ['booked', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show', 'rejected'];
-      if (!validStatuses.includes(payload.status)) {
-        return {
-          status: 400,
-          error: { code: 'VALIDATION_ERROR', message: 'VALIDATION_ERROR: status must be one of: booked, pending, confirmed, in_progress, completed, cancelled, no_show, rejected' }
-        };
-      }
-
-      // First check if booking exists
-      const { data: existing, error: fetchError } = await supabase
-        .from('bookings')
-        .select('id, status, business_id')
-        .eq('id', payload.bookingId)
-        .maybeSingle();
-
-      if (fetchError || !existing) {
-        return {
-          status: 404,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_NOT_FOUND: Booking not found' }
-        };
-      }
-
-      const currentStatus = (existing as { status: string }).status;
-
-      // Validate status transitions
-      const allowedTransitions: Record<string, string[]> = {
-        pending: ['confirmed', 'cancelled'],
-        confirmed: ['in_progress', 'cancelled', 'no_show'],
-        in_progress: ['completed', 'cancelled']
-      };
-
-      const allowed = allowedTransitions[currentStatus] || [];
-      if (!allowed.includes(payload.status)) {
-        return {
-          status: 400,
-          error: { code: 'VALIDATION_ERROR', message: 'TURNO_INVALID_STATUS_TRANSITION: Cannot transition from ' + currentStatus + ' to ' + payload.status }
-        };
-      }
-
-      // Append audit to notes
-      const auditEntry = `[admin:status_${payload.status}] by=${payload.performedBy} at=${new Date().toISOString()}`;
-
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          status: payload.status,
-          notes: auditEntry,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', payload.bookingId)
-        .eq('business_id', (existing as { business_id: string }).business_id);
+      const { data, error } = await supabase.rpc('update_booking_status', {
+        booking_id: payload.bookingId,
+        status: payload.status,
+        performed_by: payload.performedBy
+      });
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
@@ -791,8 +658,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       return {
         status: 200,
         data: {
-          bookingId: payload.bookingId,
-          status: payload.status
+          bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
+          status: (data as { status?: string })?.status ?? payload.status
         }
       };
     } catch (err) {

@@ -1,14 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { PlanCode, SubscriptionStatus } from './subscription-state-machine.api';
+import {
+  getPlanEntitlementsFromCatalog,
+  resolvePlanCodeFromCatalog
+} from '../../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../../core/catalog/reference-catalog.gateway';
+import type { SubscriptionStatus } from './subscription-state-machine.api';
 
-type EntitlementMetric = 'maxLocales' | 'maxRubros' | 'aiCreditsMonthly';
-type EntitlementLimits = Record<EntitlementMetric, number>;
+type EntitlementMetric = 'maxLocales' | 'maxRubros' | 'maxMonthlyBookings' | 'aiCreditsMonthly';
+type EntitlementLimits = Record<EntitlementMetric, number | null>;
+type CanonicalBillingPlanCode = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
 
 export type EntitlementsSnapshot = {
   businessId: string;
   tenantId: string;
   subscriptionStatus: Extract<SubscriptionStatus, 'active' | 'trialing'>;
-  planCode: PlanCode;
+  planCode: CanonicalBillingPlanCode;
   limits: EntitlementLimits;
   source: 'subscription_state_machine';
 };
@@ -17,21 +23,16 @@ export type EntitlementsRepository = {
   getActiveSnapshot(input: { businessId: string; tenantId: string }): Promise<EntitlementsSnapshot>;
 };
 
-const PLAN_LIMITS: Record<PlanCode, EntitlementLimits> = {
-  FREE: { maxLocales: 1, maxRubros: 1, aiCreditsMonthly: 0 },
-  BASIC: { maxLocales: 1, maxRubros: 1, aiCreditsMonthly: 100 },
-  MEDIUM: { maxLocales: 3, maxRubros: 3, aiCreditsMonthly: 500 },
-  PRO: { maxLocales: 10, maxRubros: 10, aiCreditsMonthly: 2000 }
-};
-
 let configuredRepository: EntitlementsRepository | null = null;
+const DEFAULT_PLAN: CanonicalBillingPlanCode = 'FREE';
 
-function normalizePlanCode(planCode: string): PlanCode {
-  const normalized = planCode.toUpperCase();
-  if (normalized === 'STARTER') return 'BASIC';
-  if (normalized === 'GROWTH') return 'MEDIUM';
-  if (normalized === 'FREE' || normalized === 'BASIC' || normalized === 'MEDIUM' || normalized === 'PRO') return normalized;
-  return 'FREE';
+function normalizePlanCode(planCode: unknown): CanonicalBillingPlanCode {
+  return (resolvePlanCodeFromCatalog(getRuntimeReferenceCatalogSnapshot(), planCode) as CanonicalBillingPlanCode | null) ?? DEFAULT_PLAN;
+}
+
+function getCatalogLimits(planCode: CanonicalBillingPlanCode): EntitlementLimits {
+  const referenceCatalog = getRuntimeReferenceCatalogSnapshot();
+  return getPlanEntitlementsFromCatalog(referenceCatalog, planCode) ?? getPlanEntitlementsFromCatalog(referenceCatalog, DEFAULT_PLAN)!;
 }
 
 function assertActive(status: string): Extract<SubscriptionStatus, 'active' | 'trialing'> {
@@ -52,17 +53,13 @@ export function createSupabaseEntitlementsRepository(supabase: Pick<SupabaseClie
       const row = Array.isArray(data) ? data[0] : data;
       if (!row) throw new Error('Subscription tenant scope not found or forbidden by RLS.');
 
-      const planCode = normalizePlanCode(String(row.plan_code));
+      const planCode = normalizePlanCode(row.plan_code);
       return {
         businessId: String(row.business_id),
         tenantId: String(row.tenant_id),
         subscriptionStatus: assertActive(String(row.subscription_status)),
         planCode,
-        limits: {
-          maxLocales: Number(row.max_locales ?? PLAN_LIMITS[planCode].maxLocales),
-          maxRubros: Number(row.max_rubros ?? PLAN_LIMITS[planCode].maxRubros),
-          aiCreditsMonthly: Number(row.ai_credits_monthly ?? PLAN_LIMITS[planCode].aiCreditsMonthly)
-        },
+        limits: getCatalogLimits(planCode),
         source: 'subscription_state_machine'
       };
     }
@@ -98,7 +95,9 @@ export async function assertEntitlement(input: {
     return { allowed: false, reason: 'SUBSCRIPTION_NOT_ACTIVE' };
   }
 
-  return input.requestedUnits <= snapshot.limits[input.metric]
+  const limit = snapshot.limits[input.metric];
+
+  return limit === null || input.requestedUnits <= limit
     ? { allowed: true, reason: 'OK' }
     : { allowed: false, reason: 'ENTITLEMENT_LIMIT_EXCEEDED' };
 }

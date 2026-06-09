@@ -7,10 +7,9 @@
  *  - Behavior: Select 1+ types → Review → Submit → Onboarding complete
  *
  * Plan-to-Business-Type Rules:
- *  - Plan: FREE  → allowed: ["peluqueria"]
- *  - Plan: BASIC → allowed: ["peluqueria", "unas"]
- *  - Plan: MEDIUM → allowed: ["peluqueria", "unas", "barberia"]
- *  - Plan: PRO → allowed: ["peluqueria", "unas", "barberia", "spa"]
+ *  - Business type options are catalog-owned, not defined locally in the component.
+ *  - Plans resolve through the Supabase/reference catalog aliases and planBusinessTypes mapping.
+ *  - PRO/full-access catalog plans expose every catalog business type.
  *
  * Scope:
  *  1) UI filters by plan - Only allowed types shown based on Step 1 plan
@@ -29,29 +28,13 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
 
-type BusinessTypeCode = 'peluqueria' | 'unas' | 'barberia' | 'spa';
+type BusinessTypeCode = 'peluqueria' | 'unas' | 'barberia' | 'spa' | 'pestanas' | 'cejas' | 'masajes' | 'otro';
 
 type BusinessType = {
   code: BusinessTypeCode;
   label: string;
-};
-
-// All available business types
-const ALL_BUSINESS_TYPES: BusinessType[] = [
-  { code: 'peluqueria', label: 'Peluquería' },
-  { code: 'unas', label: 'Uñas' },
-  { code: 'barberia', label: 'Barbería' },
-  { code: 'spa', label: 'Spa' }
-];
-
-// Plan-to-business-type mapping per spec
-const PLAN_BUSINESS_TYPES: Record<PlanCode, BusinessTypeCode[]> = {
-  FREE: ['peluqueria'],
-  BASIC: ['peluqueria', 'unas'],
-  MEDIUM: ['peluqueria', 'unas', 'barberia'],
-  PRO: ['peluqueria', 'unas', 'barberia', 'spa']
 };
 
 type OnboardingStorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -130,6 +113,8 @@ type SignupBusinessTypesComponentModule = {
       toggleType(type: BusinessTypeCode): void;
       isTypeSelected(type: BusinessTypeCode): boolean;
       submit(): void;
+      submitAsync(): Promise<void>;
+      setOnboardingCompletionHandler(handler: ((input: unknown) => Promise<boolean>) | null): void;
       goBack(): void;
     };
   };
@@ -178,7 +163,7 @@ function readBusinessTypesStepSources(): { component: string; html: string } {
 function createMemoryStorage(seed?: Record<string, string>): OnboardingStorageLike {
   const map = new Map<string, string>(Object.entries(seed ?? {}));
 
-  return {
+  const storage = {
     getItem(key: string): string | null {
       return map.has(key) ? map.get(key)! : null;
     },
@@ -189,7 +174,107 @@ function createMemoryStorage(seed?: Record<string, string>): OnboardingStorageLi
       map.delete(key);
     }
   };
+
+  installWindowLocalStorage(storage);
+  return storage;
 }
+
+function installWindowLocalStorage(storage: OnboardingStorageLike): void {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: storage
+  });
+
+  if (typeof window.dispatchEvent !== 'function') {
+    Object.defineProperty(window, 'dispatchEvent', {
+      configurable: true,
+      value: () => true
+    });
+  }
+
+  if (typeof globalThis.CustomEvent !== 'function') {
+    Object.defineProperty(globalThis, 'CustomEvent', {
+      configurable: true,
+      value: class CustomEvent<T = unknown> extends Event {
+        detail: T;
+
+        constructor(type: string, init?: CustomEventInit<T>) {
+          super(type, init);
+          this.detail = init?.detail as T;
+        }
+      }
+    });
+  }
+}
+
+describe('KBN-007.CATALOG - onboarding business types use the reference catalog', () => {
+  it('CAT-OBT-001 @RED - component must not define local ALL_BUSINESS_TYPES as source of truth', () => {
+    const { component } = readBusinessTypesStepSources();
+
+    expect(component).toMatch(/REFERENCE_CATALOG|getDefaultDashboardReferenceCatalog|getAllowedBusinessTypesForPlan/);
+    expect(component, 'Business type options must come from catalog.businessTypes/planBusinessTypes, not a local component array').not.toMatch(
+      /export\s+const\s+ALL_BUSINESS_TYPES\s*[:=]/
+    );
+  });
+
+  it('CAT-OBT-002 @RED - component must not keep a four-item local allowlist', () => {
+    const { component } = readBusinessTypesStepSources();
+
+    expect(component, 'Remove local allowlist limited to the legacy four business types').not.toMatch(
+      /\[\s*['"]peluqueria['"]\s*,\s*['"]unas['"]\s*,\s*['"]barberia['"]\s*,\s*['"]spa['"]\s*\]/
+    );
+    expect(component, 'Alias/canonicalization should delegate to catalog helpers, not local switch/list code').toMatch(
+      /resolveBusinessTypeCodeFromCatalog|businessTypeAliases|getAllowedBusinessTypesForPlan/
+    );
+  });
+
+  it('CAT-OBT-003 @RED - PRO plan exposes every catalog business type', async () => {
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    installWindowLocalStorage(storage);
+
+    const component = new SignupBusinessTypesStepPage();
+
+    expect(component.allowedTypes.map((type) => type.code)).toEqual([
+      'peluqueria',
+      'unas',
+      'barberia',
+      'spa',
+      'pestanas',
+      'cejas',
+      'masajes',
+      'otro'
+    ]);
+  });
+
+  it('CAT-OBT-004 @RED - accented aliases are normalized through catalog helpers into canonical ascii selected codes', async () => {
+    const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({
+      'turnea.onboarding.plan': 'PRO',
+      [ONBOARDING_BUSINESS_TYPES_STORAGE_KEY]: JSON.stringify(['uñas', 'pestañas'])
+    });
+    installWindowLocalStorage(storage);
+
+    const component = new SignupBusinessTypesStepPage();
+
+    expect(component.selectedTypes).toEqual(['unas', 'pestanas']);
+  });
+
+  it('CAT-OBT-005 @RED - selection and submit persist canonical ascii codes for expanded catalog types', async () => {
+    const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    installWindowLocalStorage(storage);
+    const component = new SignupBusinessTypesStepPage();
+    component.setOnboardingCompletionHandler(async () => true);
+
+    component.toggleType('pestanas');
+    await component.submitAsync();
+
+    expect(JSON.parse(storage.getItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY) ?? '[]')).toEqual(['pestanas']);
+  });
+});
 
 describe('KBN-007.1 - UI filters by plan', () => {
   it('KBN-007.1.1 @RED - FREE plan shows only peluqueria', async () => {
@@ -213,7 +298,7 @@ describe('KBN-007.1 - UI filters by plan', () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'BASIC');
-    expect(readPlanSelection(storage)).toBe('BASIC');
+    expect(readPlanSelection(storage)).toBe('STARTER');
 
     const component = new SignupBusinessTypesStepPage();
     expect(component.allowedTypes.map((t) => t.code)).toContain('peluqueria');
@@ -227,7 +312,7 @@ describe('KBN-007.1 - UI filters by plan', () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
-    expect(readPlanSelection(storage)).toBe('MEDIUM');
+    expect(readPlanSelection(storage)).toBe('GROWTH');
 
     const component = new SignupBusinessTypesStepPage();
     const codes = component.allowedTypes.map((t) => t.code);
@@ -237,7 +322,7 @@ describe('KBN-007.1 - UI filters by plan', () => {
     expect(component.allowedTypes.length).toBe(3);
   });
 
-  it('KBN-007.1.4 @RED - PRO plan shows all 4 business types', async () => {
+  it('KBN-007.1.4 @RED - PRO plan shows all catalog business types', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
@@ -251,16 +336,19 @@ describe('KBN-007.1 - UI filters by plan', () => {
     expect(codes).toContain('unas');
     expect(codes).toContain('barberia');
     expect(codes).toContain('spa');
-    expect(component.allowedTypes.length).toBe(4);
+    expect(codes).toContain('pestanas');
+    expect(codes).toContain('cejas');
+    expect(codes).toContain('masajes');
+    expect(codes).toContain('otro');
+    expect(component.allowedTypes.length).toBe(8);
   });
 
-  it('KBN-007.1.5 @RED - template displays business type labels', async () => {
+  it('KBN-007.1.5 @RED - template renders catalog-derived business type labels dynamically', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    expect(html).toMatch(/Peluquería/i);
-    expect(html).toMatch(/Uñas/i);
-    expect(html).toMatch(/Barbería/i);
-    expect(html).toMatch(/Spa/i);
+    expect(html).toMatch(/allowedTypes/);
+    expect(html).toMatch(/type\.label/);
+    expect(html, 'Template should not duplicate catalog labels as static local markup').not.toMatch(/Peluquería[\s\S]*Uñas[\s\S]*Barbería[\s\S]*Spa/i);
   });
 });
 
@@ -436,8 +524,9 @@ describe('KBN-007.5 - Visual feedback for selected types', () => {
   it('KBN-007.5.3 @RED - template uses checkbox or multi-select pattern', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    // Should use checkboxes (multi-select) NOT radio buttons (single-select)
-    expect(html).toMatch(/type="checkbox"|type='checkbox'|\[checked\]/i);
+    // Should use a multi-select card/checkbox pattern, NOT radio buttons (single-select)
+    expect(html).toMatch(/type="checkbox"|type='checkbox'|\[checked\]|\[class\.selected\]|isTypeSelected/i);
+    expect(html).not.toMatch(/type="radio"|type='radio'/i);
   });
 });
 
@@ -529,8 +618,10 @@ describe('KBN-007.8 - Final submit completes onboarding', () => {
     component.toggleType('peluqueria');
     component.toggleType('unas');
 
-    // submit() should persist business types
-    component.submit();
+    component.setOnboardingCompletionHandler(async () => true);
+
+    // submitAsync() should persist business types before mandatory completion succeeds
+    await component.submitAsync();
 
     const { readBusinessTypes } = await loadOnboardingBusinessTypesStorageModule();
     expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas']);
@@ -598,21 +689,21 @@ describe('KBN-007.11 - Edge cases', () => {
     expect(readBusinessTypes(corruptedStorage)).toBeNull();
   });
 
-  it('KBN-007.11.2 @RED - when no plan in storage, defaults to FREE', async () => {
+  it('KBN-007.11.2 @RED - when no plan in storage, defaults to catalog STARTER', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const emptyStorage = createMemoryStorage();
 
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
     const plan = readPlanSelection(emptyStorage);
 
-    // No plan selected = FREE by default
-    expect(plan ?? 'FREE').toBe('FREE');
+    // No stored plan: component falls back to the catalog starter plan.
+    expect(plan).toBeNull();
 
     const component = new SignupBusinessTypesStepPage();
-    expect(component.allowedTypes.map((t) => t.code)).toEqual(['peluqueria']);
+    expect(component.allowedTypes.map((t) => t.code)).toEqual(['peluqueria', 'unas']);
   });
 
-  it('KBN-007.11.3 @RED - reads persisted plan from Step 1 storage', async () => {
+  it('KBN-007.11.3 @RED - reads persisted plan aliases from Step 1 storage as canonical catalog plans', async () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
     const storage = createMemoryStorage();
 
@@ -620,6 +711,6 @@ describe('KBN-007.11 - Edge cases', () => {
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
     const plan = readPlanSelection(storage);
 
-    expect(plan).toBe('MEDIUM');
+    expect(plan).toBe('GROWTH');
   });
 });

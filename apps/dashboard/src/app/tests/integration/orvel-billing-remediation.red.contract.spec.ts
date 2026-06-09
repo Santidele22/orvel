@@ -210,6 +210,7 @@ const WEBHOOK_BODY_RENEWAL_APPROVED = JSON.stringify({
   action: 'subscription.payment_approved',
   date_created: '2026-06-01T00:00:02.000Z',
   data: { id: PROVIDER_SUBSCRIPTION_ID },
+  // Legacy webhook compatibility fixture: canonical code emits subscription/preapproval sessions.
   external_reference: `checkout-session:${RUN_ID}`,
   preapproval_plan_id: 'mp_plan_medium_monthly',
   status: 'authorized',

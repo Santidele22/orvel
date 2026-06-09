@@ -1,6 +1,13 @@
+import {
+  getPlanEntitlementsFromCatalog,
+  type DashboardReferenceCatalog,
+  resolvePlanCodeFromCatalog
+} from '../catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../catalog/reference-catalog.gateway';
+
 export type CanonicalPlanCode = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
 
-export type LegacyPlanCode = 'STARTER' | 'BASIC' | 'MEDIUM';
+export type LegacyPlanCode = string;
 
 export type PlanCode = CanonicalPlanCode | LegacyPlanCode;
 
@@ -8,52 +15,45 @@ export type PlanEntitlements = {
   maxLocales: number;
   maxRubros: number;
   maxMonthlyBookings: number | null; // null for unlimited
-};
-
-export const CANONICAL_PLAN_CODES = ['FREE', 'STARTER', 'GROWTH', 'PRO'] as const;
-
-export const PLAN_CODE_ALIASES: Record<LegacyPlanCode, CanonicalPlanCode> = {
-  STARTER: 'STARTER',
-  BASIC: 'STARTER',
-  MEDIUM: 'GROWTH'
-};
-
-export const CANONICAL_PLAN_ENTITLEMENTS: Record<CanonicalPlanCode, PlanEntitlements> = {
-  FREE: { maxLocales: 1, maxRubros: 1, maxMonthlyBookings: 15 },
-  STARTER: { maxLocales: 1, maxRubros: 2, maxMonthlyBookings: null },
-  GROWTH: { maxLocales: 3, maxRubros: 5, maxMonthlyBookings: null },
-  PRO: { maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null }
-};
-
-export const PLAN_ENTITLEMENTS: Record<PlanCode, PlanEntitlements> = {
-  FREE: CANONICAL_PLAN_ENTITLEMENTS.FREE,
-  STARTER: CANONICAL_PLAN_ENTITLEMENTS.STARTER,
-  GROWTH: CANONICAL_PLAN_ENTITLEMENTS.GROWTH,
-  PRO: CANONICAL_PLAN_ENTITLEMENTS.PRO,
-  BASIC: CANONICAL_PLAN_ENTITLEMENTS.STARTER,
-  MEDIUM: CANONICAL_PLAN_ENTITLEMENTS.GROWTH
+  aiCreditsMonthly: number;
 };
 
 const DEFAULT_PLAN: CanonicalPlanCode = 'FREE';
+const referenceCatalog = getRuntimeReferenceCatalogSnapshot();
 
-export function normalizePlanCode(plan: unknown): CanonicalPlanCode {
-  if (typeof plan !== 'string') {
-    return DEFAULT_PLAN;
-  }
+export const CANONICAL_PLAN_CODES = referenceCatalog.plans.map((plan) => plan.code) as readonly CanonicalPlanCode[];
 
-  const normalizedPlan = plan.trim().toUpperCase();
+export const PLAN_CODE_ALIASES = Object.fromEntries(
+  referenceCatalog.planAliases.map((alias) => [alias.alias, alias.planCode as CanonicalPlanCode])
+) as Record<LegacyPlanCode, CanonicalPlanCode>;
 
-  if ((CANONICAL_PLAN_CODES as readonly string[]).includes(normalizedPlan)) {
-    return normalizedPlan as CanonicalPlanCode;
-  }
+export const CANONICAL_PLAN_ENTITLEMENTS = Object.fromEntries(
+  referenceCatalog.plans.map((plan) => [
+    plan.code,
+    {
+      maxLocales: plan.maxLocales,
+      maxRubros: plan.maxRubros,
+      maxMonthlyBookings: plan.maxMonthlyBookings,
+      aiCreditsMonthly: plan.aiCreditsMonthly
+    } satisfies PlanEntitlements
+  ])
+) as Record<CanonicalPlanCode, PlanEntitlements>;
 
-  if (normalizedPlan in PLAN_CODE_ALIASES) {
-    return PLAN_CODE_ALIASES[normalizedPlan as LegacyPlanCode];
-  }
+export const PLAN_ENTITLEMENTS = Object.fromEntries([
+  ...referenceCatalog.plans.map((plan) => [plan.code, CANONICAL_PLAN_ENTITLEMENTS[plan.code as CanonicalPlanCode]]),
+  ...referenceCatalog.planAliases.map((alias) => [
+    alias.alias,
+    CANONICAL_PLAN_ENTITLEMENTS[alias.planCode as CanonicalPlanCode]
+  ])
+]) as Record<PlanCode, PlanEntitlements>;
 
-  return DEFAULT_PLAN;
+export function normalizePlanCode(plan: unknown, catalog: DashboardReferenceCatalog = getRuntimeReferenceCatalogSnapshot()): CanonicalPlanCode {
+  return (resolvePlanCodeFromCatalog(catalog, plan) as CanonicalPlanCode | null) ?? DEFAULT_PLAN;
 }
 
-export function getPlanEntitlements(plan: unknown): PlanEntitlements {
-  return PLAN_ENTITLEMENTS[normalizePlanCode(plan)] || CANONICAL_PLAN_ENTITLEMENTS[DEFAULT_PLAN];
+export function getPlanEntitlements(plan: unknown, catalog: DashboardReferenceCatalog = getRuntimeReferenceCatalogSnapshot()): PlanEntitlements {
+  return (
+    (getPlanEntitlementsFromCatalog(catalog, plan) as PlanEntitlements | null) ??
+    CANONICAL_PLAN_ENTITLEMENTS[DEFAULT_PLAN]
+  );
 }

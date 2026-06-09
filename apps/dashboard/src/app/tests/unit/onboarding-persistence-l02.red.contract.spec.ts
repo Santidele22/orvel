@@ -1,8 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+type PlanCode = string | null | undefined;
 type AccountState = 'enabled' | 'pending_payment';
-type NextRouteDecision = 'dashboard_home' | 'billing_checkout';
+type NextRouteDecision = 'dashboard_home' | 'billing_subscription';
 
 type OnboardingPayload = {
   profile: {
@@ -21,8 +23,17 @@ type PersistOnboardingResult = {
   accountId: string;
   accountState: AccountState;
   nextRoute: NextRouteDecision;
-  selectedPlan: PlanCode;
+  selectedPlan: string;
 };
+
+const ONBOARDING_PERSISTENCE_SOURCE = path.resolve(
+  process.cwd(),
+  'src/app/features/onboarding/data-access/onboarding-persistence.service.ts'
+);
+
+function readOnboardingPersistenceSource(): string {
+  return fs.readFileSync(ONBOARDING_PERSISTENCE_SOURCE, 'utf8');
+}
 
 type OnboardingPersistenceModule = {
   createOnboardingPersistenceService: (deps: {
@@ -118,7 +129,7 @@ describe('L-02 RED contract: onboarding persistence + deterministic account tran
     });
   });
 
-  it('marks premium onboarding as pending_payment until payment is confirmed and routes to checkout', async () => {
+  it('marks premium onboarding as pending_payment until payment is confirmed and routes to subscription', async () => {
     const onboardingPersistence = await loadOnboardingPersistenceModule();
     const accountUpsertSpy = vi.fn(async () => ({ accountId: 'acc-premium', tenantAccountId: 'acc-premium' }));
     const salonReplaceSpy = vi.fn(async () => undefined);
@@ -158,7 +169,7 @@ describe('L-02 RED contract: onboarding persistence + deterministic account tran
     expect(result).toEqual({
       accountId: 'acc-premium',
       accountState: 'pending_payment',
-      nextRoute: 'billing_checkout',
+      nextRoute: 'billing_subscription',
       selectedPlan: 'PRO'
     });
   });
@@ -253,7 +264,168 @@ describe('L-02 RED contract: onboarding persistence + deterministic account tran
     const second = await service.persistOnboardingSelection(input);
 
     expect(first.accountState).toBe('pending_payment');
-    expect(first.nextRoute).toBe('billing_checkout');
+    expect(first.nextRoute).toBe('billing_subscription');
     expect(second).toEqual(first);
+  });
+
+  it.each(['STARTER', 'GROWTH'] as const)(
+    'accepts canonical %s as a first-class catalog plan and stores it without legacy indirection',
+    async (selectedPlan) => {
+      const onboardingPersistence = await loadOnboardingPersistenceModule();
+      const accountUpsertSpy = vi.fn(async () => ({
+        accountId: `acc-${selectedPlan}`,
+        tenantAccountId: `acc-${selectedPlan}`
+      }));
+      const salonReplaceSpy = vi.fn(async () => undefined);
+
+      const service = onboardingPersistence.createOnboardingPersistenceService({
+        accountRepository: {
+          upsertForTenant: accountUpsertSpy
+        },
+        salonRepository: {
+          replaceForAccount: salonReplaceSpy
+        }
+      });
+
+      const result = await service.persistOnboardingSelection({
+        tenantContext: { accountId: `acc-${selectedPlan}` },
+        payload: {
+          profile: {
+            ownerName: `${selectedPlan} Owner`,
+            email: `${selectedPlan.toLowerCase()}@turnea.app`
+          },
+          account: {
+            businessName: `${selectedPlan} Beauty`
+          },
+          salons: [{ name: 'Central' }, { name: 'Second' }],
+          selectedPlan
+        }
+      });
+
+      expect(accountUpsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedPlan,
+          accountState: 'pending_payment'
+        })
+      );
+      expect(result).toEqual({
+        accountId: `acc-${selectedPlan}`,
+        accountState: 'pending_payment',
+        nextRoute: 'billing_subscription',
+        selectedPlan
+      });
+    }
+  );
+
+  it.each([
+    ['BASIC', 'STARTER'],
+    ['MEDIUM', 'GROWTH']
+  ] as const)('normalizes legacy alias %s to canonical %s before storing and decisioning', async (legacyPlan, canonicalPlan) => {
+    const onboardingPersistence = await loadOnboardingPersistenceModule();
+    const accountUpsertSpy = vi.fn(async () => ({
+      accountId: `acc-${legacyPlan}`,
+      tenantAccountId: `acc-${legacyPlan}`
+    }));
+    const salonReplaceSpy = vi.fn(async () => undefined);
+
+    const service = onboardingPersistence.createOnboardingPersistenceService({
+      accountRepository: {
+        upsertForTenant: accountUpsertSpy
+      },
+      salonRepository: {
+        replaceForAccount: salonReplaceSpy
+      }
+    });
+
+    const result = await service.persistOnboardingSelection({
+      tenantContext: { accountId: `acc-${legacyPlan}` },
+      payload: {
+        profile: {
+          ownerName: `${legacyPlan} Owner`,
+          email: `${legacyPlan.toLowerCase()}@turnea.app`
+        },
+        account: {
+          businessName: `${legacyPlan} Beauty`
+        },
+        salons: [{ name: 'Central' }, { name: 'Second' }],
+        selectedPlan: legacyPlan
+      }
+    });
+
+    expect(accountUpsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedPlan: canonicalPlan,
+        accountState: 'pending_payment'
+      })
+    );
+    expect(result).toEqual({
+      accountId: `acc-${legacyPlan}`,
+      accountState: 'pending_payment',
+      nextRoute: 'billing_subscription',
+      selectedPlan: canonicalPlan
+    });
+  });
+
+  it.each([null, undefined, '', '   ', 'ENTERPRISE'] as const)(
+    'falls back unknown or empty plan %s to FREE consistently at persistence boundary',
+    async (selectedPlan) => {
+      const onboardingPersistence = await loadOnboardingPersistenceModule();
+      const accountUpsertSpy = vi.fn(async () => ({ accountId: 'acc-fallback', tenantAccountId: 'acc-fallback' }));
+      const salonReplaceSpy = vi.fn(async () => undefined);
+
+      const service = onboardingPersistence.createOnboardingPersistenceService({
+        accountRepository: {
+          upsertForTenant: accountUpsertSpy
+        },
+        salonRepository: {
+          replaceForAccount: salonReplaceSpy
+        }
+      });
+
+      const result = await service.persistOnboardingSelection({
+        tenantContext: { accountId: 'acc-fallback' },
+        payload: {
+          profile: {
+            ownerName: 'Fallback Owner',
+            email: 'fallback@turnea.app'
+          },
+          account: {
+            businessName: 'Fallback Beauty'
+          },
+          salons: [{ name: 'Central' }, { name: 'Second' }],
+          selectedPlan
+        }
+      });
+
+      expect(accountUpsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedPlan: 'FREE',
+          accountState: 'enabled'
+        })
+      );
+      expect(result).toEqual({
+        accountId: 'acc-fallback',
+        accountState: 'enabled',
+        nextRoute: 'dashboard_home',
+        selectedPlan: 'FREE'
+      });
+    }
+  );
+
+  it('uses catalog/account plan policy normalization instead of local FREE-vs-premium branching', () => {
+    const source = readOnboardingPersistenceSource();
+
+    expect(source, 'Onboarding persistence must import the catalog-backed account plan policy or plan normalizer').toMatch(
+      /account-plan-policy|normalizePlanCode|resolvePlanCodeFromCatalog/
+    );
+    expect(source, 'Do not keep legacy BASIC/MEDIUM as local onboarding source of truth').not.toMatch(
+      /type\s+PlanCode\s*=\s*['"]FREE['"]\s*\|\s*['"]BASIC['"]\s*\|\s*['"]MEDIUM['"]\s*\|\s*['"]PRO['"]/
+    );
+    expect(source, 'Transition decisions must not branch only on raw payload.selectedPlan === FREE').not.toMatch(
+      /payload\.selectedPlan\s*={2,3}\s*['"]FREE['"]/
+    );
+    expect(source, 'A local resolveTransition(plan) helper must not decide premium/free from raw plan === FREE').not.toMatch(
+      /function\s+resolveTransition\s*\(\s*plan[\s\S]*?plan\s*={2,3}\s*['"]FREE['"]/
+    );
   });
 });

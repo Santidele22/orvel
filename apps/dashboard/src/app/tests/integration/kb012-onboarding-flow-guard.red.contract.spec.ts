@@ -28,7 +28,7 @@ type LandingState = {
 type PersistResult = {
   accountId: string;
   accountState: 'enabled' | 'pending_payment';
-  nextRoute: 'dashboard_home' | 'billing_checkout';
+  nextRoute: 'dashboard_home' | 'billing_subscription';
   selectedPlan: PlanCode;
 };
 
@@ -64,7 +64,7 @@ type OnboardingWiringModule = {
     }) => Promise<{
       accountId: string;
       accountState: 'enabled' | 'pending_payment';
-      routeTo: '/dashboard/inicio' | '/billing/test-checkout';
+      routeTo: '/dashboard/inicio' | '/billing/subscription';
       selectedPlan: PlanCode;
       pendingMessage?: string;
     }>;
@@ -282,7 +282,7 @@ describe('KB-012.3 - Plan selection + entitlement bootstrap', () => {
         persistOnboardingSelection: async () => ({
           accountId: 'acc-pro',
           accountState: 'pending_payment',
-          nextRoute: 'billing_checkout',
+          nextRoute: 'billing_subscription',
           selectedPlan: 'PRO'
         })
       },
@@ -312,7 +312,7 @@ describe('KB-012.3 - Plan selection + entitlement bootstrap', () => {
         persistOnboardingSelection: async () => ({
           accountId: 'acc-ent-pro',
           accountState: 'pending_payment',
-          nextRoute: 'billing_checkout',
+          nextRoute: 'billing_subscription',
           selectedPlan: 'PRO'
         })
       },
@@ -363,14 +363,14 @@ describe('KB-012.4 - Landing -> dashboard wiring after completion', () => {
     expect(result.accountState).toBe('enabled');
   });
 
-  it('KB-012.4.2 - paid plan completion routes to billing checkout while pending payment', async () => {
+  it('KB-012.4.2 - paid plan completion routes to billing subscription while pending payment', async () => {
     const wiringModule = await loadWiringModule();
     const wiring = wiringModule.createLandingDashboardOnboardingFlowWiring({
       onboardingPersistenceService: {
         persistOnboardingSelection: async () => ({
           accountId: 'acc-basic',
           accountState: 'pending_payment',
-          nextRoute: 'billing_checkout',
+          nextRoute: 'billing_subscription',
           selectedPlan: 'BASIC'
         })
       },
@@ -387,8 +387,8 @@ describe('KB-012.4 - Landing -> dashboard wiring after completion', () => {
       activeStateVersion: 3
     });
 
-    expect(result.routeTo).toBe('/billing/test-checkout');
-    expect(result.pendingMessage).toMatch(/pending|payment|checkout/i);
+    expect(result.routeTo).toBe('/billing/subscription');
+    expect(result.pendingMessage).toMatch(/pending|payment|subscription|suscripci[oó]n/i);
   });
 });
 
@@ -453,7 +453,7 @@ describe('KB-012.6 - Error handling + fallback states', () => {
       submitStateVersion: 10,
       activeStateVersion: 10
     }) as unknown as {
-      routeTo: '/landing/onboarding' | '/dashboard/inicio' | '/billing/test-checkout';
+      routeTo: '/landing/onboarding' | '/dashboard/inicio' | '/billing/subscription';
       fallbackReason?: string;
       retryable?: boolean;
     };

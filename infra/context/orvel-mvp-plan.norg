@@ -1,0 +1,62 @@
+* Orvel MVP / Core Cleanup Plan
+
+  Product focus: Orvel is a turnos-first SaaS for beauty businesses.
+  Target: MVP before/around 2026-06-25.
+
+** Billing rule
+
+   - No checkout as source of truth.
+   - Billing source of truth is MercadoPago subscriptions/preapproval only.
+   - Official docs: https://www.mercadopago.com.ar/developers/es/docs/subscriptions/overview
+
+** MVP milestones
+
+   - (-) M1 unified availability :: in_progress via core slices; admin availability backend + admin UX/runtime async behavior GREEN; public end-to-end booking UX pending.
+   - (x) M2 real admin new turno :: done/GREEN.
+   - (x) M3 blocked time form :: done/GREEN.
+   - (x) M4 admin reschedule picker UX :: done/GREEN.
+   - (x) M5 public cancel by private link/token :: done/GREEN.
+   - (-) M6 public reschedule by private link/token :: current/next; backend/core contracts done; UI final wiring/fallback pending and needs final validation.
+   - ( ) M7 minimal admin auth :: pending.
+   - (-) M8 remove hardcoded/test hooks :: in_progress; core cleanup slices ongoing.
+
+** Core cleanup slices
+
+   - (x) Slice 1 catalog/entitlements backend contract and gateway :: done.
+   - (x) Slice 2 runtime catalog/entitlements wiring :: done.
+   - (x) Slice 3 canonical booking backend + core gateway fail-closed/RPC-only :: done.
+   - (x) Slice 4 PublicBookingService gateway-only + TurnoService admin lifecycle RPC-only :: done.
+   - (x) Slice 5 admin availability backend-first :: done/GREEN.
+   - (x) Slice 6 admin availability UX/runtime async behavior :: done/GREEN.
+
+*** Current working item
+
+    Current/next: M6 public reschedule by private link/token final UI wiring/fallback, unless Santi decides otherwise.
+
+    M2 delivered `/dashboard/turnos/new` route, visible primary create action from `/dashboard/turnos`, and form create with branch/service/client or walkIn/date/time/duration/notes using backend availability; success invalidates availability and navigates back.
+
+    M3 delivered visible admin blocked-time CTA/form in the turnos list with date, start time, end time, and reason fields. Real submit uses `TurnoService.createBlockedTime`, resolves `businessId` from validated branch/session metadata, requires branch, passes `branch_id` to the RPC, fails closed without branch, and on success invalidates admin availability then refreshes timeline/list. Removed the previous hardcoded current-time/+1h/Lunch break submit behavior.
+
+    M4 delivered visible per-row admin reschedule action `turnos-admin-reschedule-action` that opens the real picker/form. Runtime quick-shift +60min and hardcoded reason behavior were removed. The picker loads backend-first availability through `TurnoService` with context `admin-reschedule`, booking/service/branch/duration metadata, then submits the selected date/slot through the lifecycle RPC path `reschedule_admin_booking`; success invalidates availability and refreshes the list/timeline.
+
+    M5 delivered public manage-page cancel by private link/token. The page reads the token from the URL, loads through `PublicBookingService.manageBookingByToken`, renders a safe summary, shows cancel only when the backend allows it, calls `PublicBookingService.cancelBookingByToken`, shows terminal cancelled state, and maps fail-closed errors including `TOKEN_REVOKED` and `BOOKING_ALREADY_CANCELLED`. Mapper/gateway behavior preserves those error codes deterministically after the blocker fix.
+
+    Last validation: M5 GREEN by D-O, from `apps/dashboard`: `npm test -- src/app/features/booking/pages/public/manage-booking-m5-public-cancel.red.contract.spec.ts src/app/features/booking/data-access/public-booking.service.contract.spec.ts src/app/core/api/supabase-booking.gateway.contract.spec.ts src/app/tests/integration/mini-cal-booking-manage-ui.contract.spec.ts src/app/core/api/supabase-booking/mappers.contract.spec.ts`; 5 files passed, 49 tests passed. D-O also checked no direct `manage_token` lookup regression in `apps/dashboard/src/app`.
+
+    Residual risk: validation recorded here is the focused contract suite only; no full dashboard build/regression was run. Email outbox still has an old route/raw token exposure risk and remains a follow-up.
+
+    Follow-up: `mini-cal-admin-turnos-ui.contract.spec.ts` is stale/legacy because it expects direct create from list; new admin create flow is route-based.
+
+** Launch gates / checkpoints
+
+   - ( ) Business can configure basic services.
+   - ( ) Business can configure working hours and booking rules.
+   - ( ) Business can share a public booking URL.
+   - ( ) Public users can create bookings without overlaps or double-bookings.
+   - ( ) Admin can see turnos dashboard.
+   - (x) Admin can create manual turnos.
+   - ( ) Admin can cancel and reschedule turnos.
+   - (x) Admin can block unavailable times.
+   - ( ) Private token/link cancel and reschedule flows are wired in UI and validated.
+   - ( ) Minimal admin auth protects admin flows.
+   - ( ) Checkout remnants/hardcoded test hooks removed or migrated to subscription/preapproval semantics.

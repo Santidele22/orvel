@@ -10,7 +10,7 @@ type LandingPlanViewModel = {
   billingCadences: { monthly: number; quarterly: number; annual: number };
   maxLocales: number;
   maxRubros: number;
-  checkoutProvider: 'mercado_pago';
+  subscriptionProvider: 'mercado_pago';
 };
 
 type LandingPlansSourceModule = {
@@ -86,7 +86,7 @@ describe('Landing plans + Mercado Pago subscriptions readiness (RED contracts)',
             }),
             maxLocales: expect.any(Number),
             maxRubros: expect.any(Number),
-            checkoutProvider: 'mercado_pago'
+            subscriptionProvider: 'mercado_pago'
           })
         ])
       );

@@ -6,6 +6,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret, verifyMercadoPagoWebhookSignature } from "../_shared/billing-security.ts";
 import { recordWebhookProcessMetric } from "../_shared/mp-rollout-observability.ts";
 import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription-guards.ts";
+import { parseBillingSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -547,10 +548,11 @@ Deno.serve(async (req) => {
     // 6. UPDATE BUSINESS SUBSCRIPTION
     // =============================================================================
     if (subscription) {
-      if (!externalReference || !externalReference.startsWith("checkout-session:")) {
+      const billingSessionReference = parseBillingSessionReference(externalReference);
+      if (!billingSessionReference) {
         await supabaseAdmin.rpc("mark_payment_webhook_event_state", { p_provider: provider, p_provider_event_id: providerEventId, p_state: "failed", p_failure_reason: "invalid_external_reference" });
         return new Response(
-          JSON.stringify({ error: "INVALID_EXTERNAL_REFERENCE", message: "Webhook external_reference is not a valid checkout session reference" }),
+          JSON.stringify({ error: "INVALID_EXTERNAL_REFERENCE", message: "Webhook external_reference is not a valid subscription/preapproval session reference" }),
           { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -558,7 +560,11 @@ Deno.serve(async (req) => {
       const expectedBusinessId = String(verifiedMetadata?.business_id || subscription.business_id);
       const expectedTenantId = String(verifiedMetadata?.tenant_id || subscription.tenant_id);
       const expectedPlanCode = String(verifiedMetadata?.plan_code || subscription.plan_code);
-      const { error: checkoutValidationError } = await supabaseAdmin.rpc("validate_billing_checkout_session", {
+      if (!billingSessionReference.canonical) {
+        console.log("Accepted legacy Mercado Pago checkout-session external_reference for backward compatibility only");
+      }
+
+      const { error: subscriptionSessionValidationError } = await supabaseAdmin.rpc("validate_billing_subscription_session", {
         p_external_reference: externalReference,
         p_business_id: expectedBusinessId,
         p_tenant_id: expectedTenantId,
@@ -568,11 +574,11 @@ Deno.serve(async (req) => {
         p_provider_subscription_id: lookupResourceId,
       });
 
-      if (checkoutValidationError) {
-        console.error("Checkout session validation failed:", checkoutValidationError.message);
-        await supabaseAdmin.rpc("mark_payment_webhook_event_state", { p_provider: provider, p_provider_event_id: providerEventId, p_state: "failed", p_failure_reason: "checkout_session_mismatch" });
+      if (subscriptionSessionValidationError) {
+        console.error("Subscription session validation failed:", subscriptionSessionValidationError.message);
+        await supabaseAdmin.rpc("mark_payment_webhook_event_state", { p_provider: provider, p_provider_event_id: providerEventId, p_state: "failed", p_failure_reason: "subscription_session_mismatch" });
         return new Response(
-          JSON.stringify({ error: "CHECKOUT_SESSION_MISMATCH", message: "Webhook does not match checkout session business, tenant, plan or amount" }),
+          JSON.stringify({ error: "SUBSCRIPTION_SESSION_MISMATCH", message: "Webhook does not match subscription session business, tenant, plan or amount" }),
           { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

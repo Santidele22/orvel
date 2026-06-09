@@ -6,7 +6,7 @@ const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = path.resolve(TEST_DIR, '../../../../..');
 const WEBHOOK_FN = path.join(ROOT, 'supabase', 'functions', 'mercadopago-webhook', 'index.ts');
 const BILLING_SQL = path.join(ROOT, 'supabase', 'migrations', '20260506_consolidated_billing.sql');
-const LANDING_CHECKOUT_START_API = path.join(ROOT, 'landing', 'src', 'pages', 'api', 'checkout', 'start.ts');
+const LANDING_SUBSCRIPTION_START_API = path.join(ROOT, 'landing', 'src', 'pages', 'api', 'subscriptions', 'start.ts');
 const SUBSCRIPTION_STATUS_API = path.join(ROOT, 'landing', 'src', 'pages', 'api', 'subscriptions', 'status.ts');
 
 function readRequiredFile(filePath: string): string {
@@ -69,8 +69,8 @@ describe('Sprint2 MP preapproval_plan QA gate contracts', () => {
 
   it('verifies status read endpoint contract when introduced', () => {
     if (!fs.existsSync(SUBSCRIPTION_STATUS_API)) {
-      const checkoutStartApi = readRequiredFile(LANDING_CHECKOUT_START_API);
-      expect(checkoutStartApi).toContain('/functions/v1/create-subscription');
+      const subscriptionStartApi = readRequiredFile(LANDING_SUBSCRIPTION_START_API);
+      expect(subscriptionStartApi).toContain('/functions/v1/create-subscription');
       return;
     }
 

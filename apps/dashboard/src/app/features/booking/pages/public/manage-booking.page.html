@@ -21,22 +21,64 @@
       @if (invalidToken()) {
         <div data-testid="manage-token-invalid-state" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-bold text-red-400 flex items-center gap-3" role="alert">
           <i class="ri-error-warning-line text-lg"></i>
-          Link de reserva inválido o malformado.
+          Invalid or malformed booking link.
         </div>
       }
 
       @if (expiredToken()) {
         <div data-testid="manage-token-expired-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-6 py-4 text-sm font-bold text-amber-400 flex items-center gap-3" role="alert">
           <i class="ri-time-line text-lg"></i>
-          Este link de reserva ha expirado.
+          This booking link has expired.
+        </div>
+      }
+
+      @if (revokedToken()) {
+        <div data-testid="manage-token-revoked-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-6 py-4 text-sm font-bold text-amber-300 flex items-center gap-3" role="alert">
+          <i class="ri-lock-line text-lg"></i>
+          Este link ya no está disponible.
+        </div>
+      }
+
+      @if (alreadyCancelled()) {
+        <div data-testid="manage-already-cancelled-state" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm font-bold text-emerald-300 flex items-center gap-3" role="status">
+          <i class="ri-checkbox-circle-line text-lg"></i>
+          Esta reserva ya estaba cancelada.
         </div>
       }
 
       @if (policyWindowClosed()) {
         <div data-testid="manage-policy-window-state" class="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-bold text-slate-400 flex items-center gap-3" role="status">
           <i class="ri-information-line text-lg"></i>
-          Esta reserva ya no puede ser modificada online.
+          This booking can no longer be changed online.
         </div>
+      }
+
+      @if (cancelled()) {
+        <div data-testid="manage-cancelled-state" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm font-bold text-emerald-300 flex items-center gap-3" role="status">
+          <i class="ri-checkbox-circle-line text-lg"></i>
+          Reserva cancelada. No hay más acciones disponibles desde este link.
+        </div>
+      }
+
+      @if (bookingDetails()) {
+        <section data-testid="manage-booking-summary" class="mb-8 grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300" aria-label="Resumen seguro de reserva">
+          <div class="flex items-center justify-between gap-4">
+            <span class="font-black uppercase tracking-[0.2em] text-slate-500">Negocio</span>
+            <span class="font-bold text-white text-right">{{ businessLabel() }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="font-black uppercase tracking-[0.2em] text-slate-500">Servicio</span>
+            <span class="font-bold text-white text-right">{{ serviceLabel() }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="font-black uppercase tracking-[0.2em] text-slate-500">Fecha y horario</span>
+            <span class="font-bold text-white text-right">{{ startsAtLabel() }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="font-black uppercase tracking-[0.2em] text-slate-500">Estado</span>
+            <span class="font-bold text-white text-right">{{ statusLabel() }}</span>
+          </div>
+        </section>
       }
 
       @if (canCancelOrReschedule()) {
@@ -48,10 +90,11 @@
             <button
               data-testid="manage-cancel-action"
               type="button"
-              class="px-6 py-3 rounded-xl border border-red-500/30 bg-red-500/5 text-xs font-black uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+              class="px-6 py-3 rounded-xl border border-red-500/30 bg-red-500/5 text-xs font-black uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              [disabled]="cancelling()"
               (click)="handleCancel()"
             >
-              Cancelar reserva
+              {{ cancelling() ? 'Cancelando...' : 'Cancelar reserva' }}
             </button>
             <button
               data-testid="manage-reschedule-action"

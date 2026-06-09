@@ -107,13 +107,13 @@ export type OnboardingResumeCheckpoint = {
 `onboarding-persistence.service.ts` is the wiring to backend repositories:
 
 - Free plans → `accountState: 'enabled'`, `nextRoute: 'dashboard_home'`.
-- Paid plans → `accountState: 'pending_payment'`, `nextRoute: 'billing_checkout'`.
+- Paid plans → `accountState: 'pending_payment'`, `nextRoute: 'billing_subscription'`.
 - Uses dependency injection pattern: `createOnboardingPersistenceService(deps)` with `accountRepository` and `salonRepository`.
 - Salon names are normalized (deduplicated, trimmed) and capped to 1.
 
 ### 7. Landing-Dashboard Wiring + Simulation
 `createLandingDashboardOnboardingFlowWiring(deps)` provides:
-- `submitLandingOnboarding()`: Validates profile, persists via `onboardingPersistenceService`, routes to dashboard or checkout.
+- `submitLandingOnboarding()`: Validates profile, persists via `onboardingPersistenceService`, routes to dashboard or subscription/preapproval.
 - `simulateBillingOutcome()`: Test-mode billing simulation for development.
 - `resumeOnboardingFromStorage()`: Rehydrates checkpoint from localStorage.
 - State version validation prevents stale submissions.

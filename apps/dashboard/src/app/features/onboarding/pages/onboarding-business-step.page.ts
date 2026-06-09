@@ -1,19 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import {
-  SelectedBusinessType,
-  createMockSessionFromLogin,
-  sanitizeSelectedBusinessTypes
-} from '../../../core/auth/mock-login-business-types';
+import { createMockSessionFromLogin } from '../../../core/auth/mock-login-business-types';
 import { TURNERA_SESSION_KEY } from '../../../core/auth/session-contract';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 import {
-  REQUIRED_RUBROS,
   RequiredRubro,
   canContinueOnboarding,
   toggleSelectedRubro
 } from '../data-access/onboarding-rubros';
 import { sanitizeSelectedTemplateIds } from '../data-access/onboarding-templates';
+
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
+
+// Catalog-backed rubros: peluqueria/Peluquería, unas/Uñas, barberia/Barbería, spa/Spa,
+// pestanas/Pestañas, cejas/Cejas, masajes/Masajes, otro/Otro.
+const RUBRO_OPTIONS = REFERENCE_CATALOG.businessTypes.map(({ code, label }) => ({
+  slug: code.toLowerCase() as RequiredRubro,
+  label
+}));
 
 @Component({
   selector: 'app-onboarding-business-step-page',
@@ -22,13 +27,7 @@ import { sanitizeSelectedTemplateIds } from '../data-access/onboarding-templates
   templateUrl: './onboarding-business-step.page.html'
 })
 export class OnboardingBusinessStepPage {
-  protected readonly rubroOptions = [
-    { slug: 'peluqueria' as const, label: 'Peluquería' },
-    { slug: 'unas' as const, label: 'Uñas' },
-    { slug: 'barberia' as const, label: 'Barbería' },
-    { slug: 'pestanas' as const, label: 'Pestañas' },
-    { slug: 'spa' as const, label: 'Spa' }
-  ];
+  protected readonly rubroOptions = RUBRO_OPTIONS;
 
   protected selectedRubros: RequiredRubro[] = [];
   protected selectedTemplateIds: string[] = [];
@@ -52,7 +51,7 @@ export class OnboardingBusinessStepPage {
       return;
     }
 
-    const selectedBusinessTypes = this.mapRubrosToBusinessTypes(this.selectedRubros);
+    const selectedBusinessTypes = this.selectedRubros;
     const safeSelectedTemplateIds = sanitizeSelectedTemplateIds(this.selectedTemplateIds);
 
     const session = createMockSessionFromLogin({
@@ -64,21 +63,5 @@ export class OnboardingBusinessStepPage {
 
     localStorage.setItem(TURNERA_SESSION_KEY, JSON.stringify(session));
     this.router.navigateByUrl('/dashboard/turnos');
-  }
-
-  private mapRubrosToBusinessTypes(selectedRubros: RequiredRubro[]): SelectedBusinessType[] {
-    const map: Record<RequiredRubro, SelectedBusinessType> = {
-      peluqueria: 'zen',
-      unas: 'zen',
-      barberia: 'zen',
-      pestanas: 'zen',
-      spa: 'zen'
-    };
-
-    const rawSelectedBusinessTypes = selectedRubros
-      .filter((rubro) => REQUIRED_RUBROS.includes(rubro))
-      .map((rubro) => map[rubro]);
-
-    return sanitizeSelectedBusinessTypes(rawSelectedBusinessTypes);
   }
 }

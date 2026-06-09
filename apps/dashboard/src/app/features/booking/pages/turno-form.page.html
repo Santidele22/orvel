@@ -52,8 +52,8 @@
             <!-- Cliente Selection -->
             <div class="form-group">
               <label for="cliente">Cliente *</label>
-              <select id="cliente" [ngModel]="clienteId()" (ngModelChange)="clienteId.set($event)" name="cliente"
-                required class="form-control">
+              <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
+                (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente" class="form-control">
                 <option value="">Seleccionar cliente</option>
                 @for (cliente of clientes(); track cliente.id) {
                 <option [value]="cliente.id">
@@ -63,10 +63,19 @@
               </select>
             </div>
 
+            @if (!clienteId()) {
+            <div class="form-group">
+              <label for="walkInName">Nombre walk-in *</label>
+              <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name"
+                [ngModel]="walkInName()" (ngModelChange)="walkInName.set($event)" name="walkInName"
+                placeholder="Nombre de la persona" class="form-control" />
+            </div>
+            }
+
             <!-- Servicio Selection -->
             <div class="form-group">
               <label for="servicio">Servicio *</label>
-              <select id="servicio" [ngModel]="servicioId()"
+              <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
                 (ngModelChange)="servicioId.set($event); onServicioChange()" name="servicio" required
                 class="form-control">
                 <option value="">Seleccionar servicio</option>
@@ -83,7 +92,7 @@
               <!-- Fecha -->
               <div class="form-group">
                 <label for="fecha">Fecha *</label>
-                <input type="date" id="fecha" [ngModel]="fecha()" (ngModelChange)="fecha.set($event); onfechaChange()"
+                <input type="date" id="fecha" data-testid="turno-admin-date" [ngModel]="fecha()" (ngModelChange)="fecha.set($event); onfechaChange()"
                   name="fecha" required class="form-control" />
 
                 @if (isPastDate()) {
@@ -94,13 +103,31 @@
               <!-- Hora -->
               <div class="form-group">
                 <label for="hora">Hora *</label>
-                <select id="hora" [ngModel]="hora()" (ngModelChange)="hora.set($event); checkAvailability()" name="hora"
-                  required class="form-control">
+                <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()" (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora"
+                  required class="form-control" [disabled]="availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
                   <option value="">Seleccionar hora</option>
                   @for (horario of disponibles(); track horario) {
-                  <option [value]="horario">{{ getHorarioLabel(horario) }}</option>
+                  <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
                   }
                 </select>
+
+                @if (availabilityLoading()) {
+                <span class="help-text" data-testid="turno-admin-availability-loading" aria-live="polite">
+                  Consultando disponibilidad...
+                </span>
+                }
+
+                @if (availabilityError()) {
+                <span class="error-text" data-testid="turno-admin-availability-error" aria-live="polite">
+                  {{ availabilityError() }}
+                </span>
+                }
+
+                @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
+                <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">
+                  No hay horarios disponibles para esta fecha.
+                </span>
+                }
 
                 @if (conflictError()) {
                 <span class="error-text" data-testid="turno-slot-blocked-feedback" aria-live="polite">
@@ -120,8 +147,8 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="duracion">Duración (minutos)</label>
-                <input type="number" id="duracion" [ngModel]="duracionMinutos()"
-                  (ngModelChange)="duracionMinutos.set($event)" name="duracion" min="15" step="15"
+                <input type="number" id="duracion" data-testid="turno-admin-duration" [ngModel]="duracionMinutos()"
+                  (ngModelChange)="duracionMinutos.set($event); resetAvailability('La disponibilidad cambió: elegí un horario disponible.'); checkAvailability()" name="duracion" min="15" step="15"
                   class="form-control" />
               </div>
 
@@ -152,7 +179,7 @@
             <!-- Notas -->
             <div class="form-group">
               <label for="notas">Notas</label>
-              <textarea id="notas" [ngModel]="notas()" (ngModelChange)="notas.set($event)" name="notas" rows="3"
+              <textarea id="notas" data-testid="turno-admin-notes" [ngModel]="notas()" (ngModelChange)="notas.set($event)" name="notas" rows="3"
                 placeholder="Notas opcionales sobre el turno..." class="form-control"></textarea>
             </div>
 
@@ -172,7 +199,7 @@
             <div class="form-actions">
               <a routerLink="/dashboard/turnos" class="btn-secondary">Cancelar</a>
               <button type="submit" data-testid="turno-admin-reschedule-submit" class="btn-primary"
-                [disabled]="saving() || conflictError() || !clienteId() || !servicioId()">
+                [disabled]="!canSave()">
                 @if (saving()) {
                 <span class="spinner-sm"></span>
                 Guardando...

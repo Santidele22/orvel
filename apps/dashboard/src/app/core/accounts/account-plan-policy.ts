@@ -1,68 +1,45 @@
+import {
+  getPlanEntitlementsFromCatalog,
+  type DashboardReferenceCatalog,
+  resolvePlanCodeFromCatalog
+} from '../catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../catalog/reference-catalog.gateway';
+
 export type AccountPlanPolicy = {
   accountEnabled: boolean;
   maxSalons: number;
 };
 
-type CanonicalPlanCode = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
-type LegacyPlanCode = 'STARTER' | 'BASIC' | 'MEDIUM';
-type PlanCode = CanonicalPlanCode | LegacyPlanCode;
-
-const PLAN_CODE_ALIASES: Record<string, CanonicalPlanCode> = {
-  FREE: 'FREE',
-  BASIC: 'STARTER',
-  MEDIUM: 'GROWTH',
-  STARTER: 'STARTER'
-};
-
-const PLAN_LIMITS: Record<CanonicalPlanCode, number> = {
-  FREE: 1,
-  STARTER: 1,
-  GROWTH: 3,
-  PRO: 10
-};
-
-function resolvePlanCode(plan: unknown): CanonicalPlanCode {
-  if (typeof plan !== 'string') {
-    return 'FREE';
-  }
-
-  const normalizedPlan = plan.trim().toUpperCase();
-
-  if (normalizedPlan in PLAN_CODE_ALIASES) {
-    return PLAN_CODE_ALIASES[normalizedPlan];
-  }
-
-  if (['FREE', 'STARTER', 'GROWTH', 'PRO'].includes(normalizedPlan)) {
-    return normalizedPlan as CanonicalPlanCode;
-  }
-
-  return 'FREE';
+function resolvePlanCode(plan: unknown, referenceCatalog: DashboardReferenceCatalog): string {
+  return resolvePlanCodeFromCatalog(referenceCatalog, plan) ?? 'FREE';
 }
 
-export function resolveAccountPlanPolicy(input: { plan: unknown; premiumPaid: boolean }): AccountPlanPolicy {
-  const planCode = resolvePlanCode(input.plan);
+function resolveMaxSalons(plan: unknown, referenceCatalog: DashboardReferenceCatalog): number {
+  return getPlanEntitlementsFromCatalog(referenceCatalog, plan)?.maxLocales ?? 1;
+}
 
-  // If it's FREE plan, it's always enabled but with limits
+export function resolveAccountPlanPolicy(input: { plan: unknown; premiumPaid: boolean; referenceCatalog?: DashboardReferenceCatalog }): AccountPlanPolicy {
+  const referenceCatalog = input.referenceCatalog ?? getRuntimeReferenceCatalogSnapshot();
+  const planCode = resolvePlanCode(input.plan, referenceCatalog);
+  const freeMaxSalons = resolveMaxSalons('FREE', referenceCatalog);
+
   if (planCode === 'FREE') {
     return {
       accountEnabled: true,
-      maxSalons: PLAN_LIMITS.FREE
+      maxSalons: freeMaxSalons
     };
   }
 
-  // For other plans, check if premium is paid
-  // If not paid, they stay as FREE equivalent or disabled?
-  // Usually, if they chose STARTER but didn't pay, they should be restricted.
   if (!input.premiumPaid) {
     return {
       accountEnabled: false,
-      maxSalons: 1
+      maxSalons: freeMaxSalons
     };
   }
 
   return {
     accountEnabled: true,
-    maxSalons: PLAN_LIMITS[planCode]
+    maxSalons: resolveMaxSalons(planCode, referenceCatalog)
   };
 }
 

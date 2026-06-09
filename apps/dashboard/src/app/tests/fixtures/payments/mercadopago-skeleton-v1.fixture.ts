@@ -1,5 +1,5 @@
 export const MERCADO_PAGO_SKELETON_V1 = {
-  checkoutIntentRequest: {
+  subscriptionStartRequest: {
     businessId: 'biz_mp_qa_001',
     planCode: 'MEDIUM',
     payer: {

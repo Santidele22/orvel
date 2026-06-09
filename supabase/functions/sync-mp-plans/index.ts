@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const { data: rows, error: rowsError } = await supabaseAdmin
       .from("mp_plan_catalog")
       .select("id, tier, cadence, tier_code, amount, currency, frequency, frequency_type, preapproval_plan_id")
-      .in("tier", ["started", "medium", "pro"])
+      .in("tier", ["starter", "growth", "pro"])
       .in("cadence", ["monthly", "quarterly", "annual"]);
 
     if (rowsError) throw rowsError;
