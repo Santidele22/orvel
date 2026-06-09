@@ -22,3 +22,11 @@ Do not run root installs to migrate apps between package managers unless an expl
 ## Validation
 
 Validation is local-only for now. GitHub Actions is intentionally not enabled because Santi does not want CI that requires billing or payment setup.
+
+## Agent and Project Context
+
+Agents and contributors should start with:
+
+- `AGENTS.md` for repo-wide Funemon Lab rules.
+- `project-skills/orvel-global-context/SKILL.md` for neutral project context loading.
+- `infra/context/` for product, architecture, Supabase, deployment, environment, and operational notes.

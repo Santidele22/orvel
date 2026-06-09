@@ -1,6 +1,6 @@
 # Runbook: Monorepo Migration
 
-Use this runbook when moving Orvel assets into `/home/santid/santi/orvel`.
+Use this runbook when moving Orvel assets into the Orvel monorepo root.
 
 ## Known Inputs
 
@@ -32,5 +32,5 @@ Use this runbook when moving Orvel assets into `/home/santid/santi/orvel`.
 
 - Source repo has unexpected uncommitted changes.
 - Required package manager or build command is unknown.
-- Supabase migration history mismatch blocks DB push.
+- Supabase CLI output differs from the recorded repo context that migration history was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date.
 - Any step would require destructive commands or migration repair.

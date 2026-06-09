@@ -2,7 +2,7 @@
 
 ## Repository Boundaries
 
-- Work inside `/home/santid/santi/orvel` for this monorepo.
+- Work inside this monorepo for Orvel tasks.
 - Do not touch the existing source repos unless Santi explicitly authorizes it in the current task.
 - Do not commit, push, or open PRs unless Santi explicitly requests it.
 
@@ -16,7 +16,7 @@
 - Every Supabase schema/function change must be pushed or updated immediately with the Supabase CLI.
 - No destructive commands without Santi approval.
 - No migration repair without Santi approval.
-- Current known blocker: remote migration history mismatch involving `20260508`, `20260508000000`, and `20260524`.
+- Repository context records that the previous remote migration history mismatch was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date. If fresh CLI output differs, stop and ask Santi.
 
 ## Documentation
 
