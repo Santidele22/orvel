@@ -9,6 +9,7 @@ type ApiErrorCode =
   | 'POLICY_WINDOW_CLOSED'
   | 'SLOT_CONFLICT'
   | 'BLOCKED_TIME_COLLISION'
+  | 'AUTH_REQUIRED'
 
 type ApiError = {
   code: ApiErrorCode
@@ -449,12 +450,12 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       const policy = toObjectRecord(row.policy);
       const actions = toObjectRecord(row.actions);
       const data: ManageBookingDetails = {
-        bookingId: row.booking_id ?? booking?.id ?? '',
-        businessId: row.business_id ?? business?.id ?? '',
-        serviceId: row.service_id ?? service?.id ?? '',
-        startsAtIso: row.starts_at_iso ?? booking?.startsAtIso ?? booking?.starts_at_iso ?? '',
+        bookingId: row.booking_id ?? booking?.['id'] ?? '',
+        businessId: row.business_id ?? business?.['id'] ?? '',
+        serviceId: row.service_id ?? service?.['id'] ?? '',
+        startsAtIso: row.starts_at_iso ?? booking?.['startsAtIso'] ?? booking?.['starts_at_iso'] ?? '',
         canCancelOrReschedule: Boolean(
-          row.can_cancel_or_reschedule ?? actions?.canCancel ?? actions?.can_cancel ?? actions?.canReschedule ?? actions?.can_reschedule
+          row.can_cancel_or_reschedule ?? actions?.['canCancel'] ?? actions?.['can_cancel'] ?? actions?.['canReschedule'] ?? actions?.['can_reschedule']
         )
       };
 

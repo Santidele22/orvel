@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { environment } from '../../../../environments/environment';
 import { createMockSessionFromLogin } from '../../../core/auth/mock-login-business-types';
 import { TURNERA_SESSION_KEY } from '../../../core/auth/session-contract';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
@@ -21,8 +22,15 @@ const RUBRO_OPTIONS = REFERENCE_CATALOG.businessTypes.map(({ code, label }) => (
 }));
 
 function canCreateMockOnboardingSession(): boolean {
+  if (environment.production) return false;
   if (typeof window === 'undefined') return true;
-  return ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+  const isLocalHost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+  return isLocalHost && window.location.search.includes('orvel_mock_onboarding=1');
+}
+
+function persistDevOnboardingSession(sessionJson: string): void {
+  const storage = window.localStorage;
+  storage.setItem(TURNERA_SESSION_KEY, sessionJson);
 }
 
 @Component({
@@ -65,13 +73,13 @@ export class OnboardingBusinessStepPage {
     }
 
     const session = createMockSessionFromLogin({
-      email: 'demo@turnea.app',
+      email: 'mock-onboarding@turnea.app',
       selectedBusinessTypes,
       selectedRubros: this.selectedRubros,
       selectedTemplateIds: safeSelectedTemplateIds
     });
 
-    localStorage.setItem(TURNERA_SESSION_KEY, JSON.stringify(session));
+    persistDevOnboardingSession(JSON.stringify(session));
     this.router.navigateByUrl('/dashboard/turnos');
   }
 }

@@ -133,6 +133,7 @@ export class TurnoService {
   private adminAvailabilityCache = new Map<string, AdminSlotAvailabilityRow[]>();
   private pendingAdminAvailabilityKeys = new Set<string>();
   private adminAvailabilityRequestVersions = new Map<string, number>();
+  private mockBlockedTimeSequence = 0;
   private authService = inject(AuthService);
 
   // Readonly signals
@@ -164,7 +165,7 @@ export class TurnoService {
     const userId = user?.id?.trim();
     if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
 
-    const metadata = user.user_metadata as Record<string, unknown> | undefined;
+    const metadata = user?.user_metadata as Record<string, unknown> | undefined;
     const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
     const businessId = typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
       ? metadataBusinessId.trim()
@@ -340,7 +341,7 @@ export class TurnoService {
     this.loading.set(true);
 
     if (this.provider === 'mock') {
-      return of(this.getMockTurnos()).pipe(
+      return of(this.getMockProviderTurnos()).pipe(
         tap(turnos => {
           this.turnos.set(turnos);
           this.loading.set(false);
@@ -1123,7 +1124,8 @@ export class TurnoService {
     }
 
     if (this.provider === 'mock') {
-      return of({ blockId: 'mock-block-' + Date.now() });
+      this.mockBlockedTimeSequence += 1;
+      return of({ blockId: `mock-block-${this.mockBlockedTimeSequence}` });
     }
 
     return from(this.createBlockedTimeWithResolvedTenant(payload, branchId)).pipe(
@@ -1512,122 +1514,124 @@ export class TurnoService {
     this.provider = provider;
   }
 
-  private getMockTurnos(): Turno[] {
-    const hoy = new Date();
-    const ayer = new Date(hoy);
-    ayer.setDate(ayer.getDate() - 1);
-    const manana = new Date(hoy);
-    manana.setDate(manana.getDate() + 1);
+  private getMockProviderTurnos(): Turno[] {
+    const fixtureDate = (dateKey: string) => new Date(`${dateKey}T12:00:00.000Z`);
+    const fixtureTimestamp = new Date('2026-04-18T09:00:00.000Z');
+    const fixtureDates = {
+      past: fixtureDate('2026-04-19'),
+      current: fixtureDate('2026-04-20'),
+      future: fixtureDate('2026-04-21')
+    };
 
     return [
       {
         id: 'turno-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-002',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '10:00',
         duracionMinutos: 45,
         estado: 'confirmado',
         precio: 3500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-002',
         clienteId: 'cliente-002',
         servicioId: 'servicio-001',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '11:00',
         duracionMinutos: 30,
         estado: 'confirmado',
         notas: 'Primera vez',
         precio: 2500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-003',
         clienteId: 'cliente-003',
         servicioId: 'servicio-003',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '14:00',
         duracionMinutos: 90,
         estado: 'completado',
         precio: 8000,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-006',
         clienteId: 'cliente-006',
         servicioId: 'servicio-005',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '16:30',
         duracionMinutos: 60,
         estado: 'en-proceso',
         precio: 5500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-007',
         clienteId: 'cliente-007',
         servicioId: 'servicio-006',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '17:30',
         duracionMinutos: 60,
         estado: 'confirmado',
         precio: 4500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-004',
         clienteId: 'cliente-004',
         servicioId: 'servicio-007',
-        fecha: manana,
+        fecha: fixtureDates.future,
         hora: '10:00',
         duracionMinutos: 120,
         estado: 'confirmado',
         precio: 12000,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-005',
         clienteId: 'cliente-005',
         servicioId: 'servicio-004',
-        fecha: manana,
+        fecha: fixtureDates.future,
         hora: '14:00',
         duracionMinutos: 90,
         estado: 'confirmado',
         precio: 8500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-008',
         clienteId: 'cliente-001',
         servicioId: 'servicio-002',
-        fecha: ayer,
+        fecha: fixtureDates.past,
         hora: '10:00',
         duracionMinutos: 45,
         estado: 'completado',
         precio: 3500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-009',
         clienteId: 'cliente-002',
         servicioId: 'servicio-001',
-        fecha: ayer,
+        fecha: fixtureDates.past,
         hora: '15:00',
         duracionMinutos: 30,
         estado: 'completado',
         precio: 2500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       }
     ];
   }

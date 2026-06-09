@@ -46,7 +46,7 @@ export class DashboardShellComponent implements AfterViewInit {
 
   protected readonly isSingleDashboard = computed(() => this.dashboards().length <= 1);
 
-  private readonly defaultDashboardTheme = this.dashboards()[0]?.theme ?? 'zen';
+  private readonly defaultDashboardTheme: DashboardThemeName = this.resolveDashboardThemeName(this.dashboards()[0]?.theme);
 
   protected readonly activeTheme = signal<DashboardThemeName>(this.defaultDashboardTheme);
 
@@ -66,6 +66,10 @@ export class DashboardShellComponent implements AfterViewInit {
 
   protected trackDashboard(index: number, dashboard: DashboardFromSessionConfig['dashboards'][number]): string {
     return `${dashboard.businessType}-${index}`;
+  }
+
+  private resolveDashboardThemeName(theme: unknown): DashboardThemeName {
+    return theme === 'zen' ? theme : 'zen';
   }
 
   private readSelectedBusinessTypesFromSession(): string[] {

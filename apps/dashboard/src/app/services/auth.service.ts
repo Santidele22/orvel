@@ -251,14 +251,13 @@ export class AuthService {
 
   private generateToken(): string {
     // SECURE: Use Web Crypto API for cryptographically secure random tokens
-    return 'mock_' + crypto.randomUUID();
+    return `dev_${crypto.randomUUID()}`;
   }
 
   private getMockUser(email: string): AuthUser | null {
-    // Hardcoded mock user
-    if (email === 'demo@salon.com' || email.includes('@')) {
+    if (this.provider === 'mock' && email.includes('@')) {
       const mockUser: User = {
-        id: 'user-001',
+        id: `dev-user-${crypto.randomUUID()}`,
         email: email,
         nombre: 'Demo',
         apellido: 'Usuario',
