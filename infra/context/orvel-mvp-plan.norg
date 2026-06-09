@@ -16,8 +16,8 @@
    - (x) M3 blocked time form :: done/GREEN.
    - (x) M4 admin reschedule picker UX :: done/GREEN.
    - (x) M5 public cancel by private link/token :: done/GREEN.
-   - (-) M6 public reschedule by private link/token :: current/next; backend/core contracts done; UI final wiring/fallback pending and needs final validation.
-   - ( ) M7 minimal admin auth :: pending.
+   - (x) M6 public reschedule by private link/token :: done/GREEN.
+   - (-) M7 minimal admin auth :: current/next.
    - (-) M8 remove hardcoded/test hooks :: in_progress; core cleanup slices ongoing.
 
 ** Core cleanup slices
@@ -31,7 +31,7 @@
 
 *** Current working item
 
-    Current/next: M6 public reschedule by private link/token final UI wiring/fallback, unless Santi decides otherwise.
+    Current/next: M7 minimal admin auth hardening, unless Santi decides otherwise.
 
     M2 delivered `/dashboard/turnos/new` route, visible primary create action from `/dashboard/turnos`, and form create with branch/service/client or walkIn/date/time/duration/notes using backend availability; success invalidates availability and navigates back.
 
@@ -41,9 +41,11 @@
 
     M5 delivered public manage-page cancel by private link/token. The page reads the token from the URL, loads through `PublicBookingService.manageBookingByToken`, renders a safe summary, shows cancel only when the backend allows it, calls `PublicBookingService.cancelBookingByToken`, shows terminal cancelled state, and maps fail-closed errors including `TOKEN_REVOKED` and `BOOKING_ALREADY_CANCELLED`. Mapper/gateway behavior preserves those error codes deterministically after the blocker fix.
 
-    Last validation: M5 GREEN by D-O, from `apps/dashboard`: `npm test -- src/app/features/booking/pages/public/manage-booking-m5-public-cancel.red.contract.spec.ts src/app/features/booking/data-access/public-booking.service.contract.spec.ts src/app/core/api/supabase-booking.gateway.contract.spec.ts src/app/tests/integration/mini-cal-booking-manage-ui.contract.spec.ts src/app/core/api/supabase-booking/mappers.contract.spec.ts`; 5 files passed, 49 tests passed. D-O also checked no direct `manage_token` lookup regression in `apps/dashboard/src/app`.
+    M6 delivered public manage-page reschedule by private link/token. The reschedule action is gated by backend `actions.canReschedule` with fail-closed fallback, uses the real `manage-reschedule-picker`, queries backend slots through `PublicBookingService.queryPublicSlotAvailability` with `businessSlug`, `serviceId`, and `dateIso`, validates required/stale/unavailable slot cases, submits through `PublicBookingService.rescheduleBookingByToken(token, nowIso, selected slot)`, and terminal `rescheduled` state hides unsafe actions.
 
-    Residual risk: validation recorded here is the focused contract suite only; no full dashboard build/regression was run. Email outbox still has an old route/raw token exposure risk and remains a follow-up.
+    Last validation: M6 GREEN by D-O, from `apps/dashboard`: `npm test -- src/app/features/booking/pages/public/manage-booking-m6-public-reschedule.red.contract.spec.ts src/app/features/booking/pages/public/manage-booking-m5-public-cancel.red.contract.spec.ts src/app/features/booking/data-access/public-booking.service.contract.spec.ts src/app/core/api/supabase-booking.gateway.contract.spec.ts src/app/tests/integration/mini-cal-booking-manage-ui.contract.spec.ts`; 5 files passed, 60 tests passed. M5 cancel remains GREEN.
+
+    Residual risk: validation recorded here is the focused contract suite only; no full dashboard build was run because known unrelated TypeScript errors remain; no Supabase remote validation or browser E2E was run. Email outbox still has an old route/raw token exposure risk and remains a follow-up.
 
     Follow-up: `mini-cal-admin-turnos-ui.contract.spec.ts` is stale/legacy because it expects direct create from list; new admin create flow is route-based.
 
@@ -57,6 +59,6 @@
    - (x) Admin can create manual turnos.
    - ( ) Admin can cancel and reschedule turnos.
    - (x) Admin can block unavailable times.
-   - ( ) Private token/link cancel and reschedule flows are wired in UI and validated.
+   - (x) Private token/link cancel and reschedule flows are wired in UI and validated by focused contracts.
    - ( ) Minimal admin auth protects admin flows.
    - ( ) Checkout remnants/hardcoded test hooks removed or migrated to subscription/preapproval semantics.
