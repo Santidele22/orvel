@@ -174,29 +174,22 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.loading.set(true);
-    console.log('[TurnosListPage] Iniciando carga de datos...');
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
     
     try {
-      console.log('[TurnosListPage] Cargando Turnos...');
       await firstValueFrom(this.turnoService.getAll());
       
-      console.log('[TurnosListPage] Cargando Clientes...');
       await firstValueFrom(this.clienteService.getAll());
       
-      console.log('[TurnosListPage] Cargando Servicios...');
       await firstValueFrom(this.servicioService.getAll());
       
       this.clientes.set(this.clienteService.items());
       this.servicios.set(this.servicioService.items());
       
-      console.log('[TurnosListPage] Procesando turnos finales...');
       await this.processTurnos();
       
       this.loading.set(false);
-      console.log('[TurnosListPage] Carga completada con éxito.');
-    } catch (error) {
-      console.error('[TurnosListPage] Error crítico durante ngOnInit:', error);
+    } catch {
       this.loading.set(false);
     }
   }
@@ -295,8 +288,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.turnoService.updateEstado(turnoId, nuevoEstado));
       await this.processTurnos();
-    } catch (error) {
-      console.error('Error updating estado:', error);
+    } catch {
+      // Keep runtime details out of logs/UI for admin actions.
     }
   }
 
@@ -305,22 +298,25 @@ export class TurnosListPage implements OnInit, OnDestroy {
       try {
         await this.turnoService.delete(turnoId).toPromise();
         await this.processTurnos();
-      } catch (error) {
-        console.error('Error deleting turno:', error);
+      } catch {
+        // Keep runtime details out of logs/UI for admin actions.
       }
     }
   }
 
   protected async cancelTurnoByAdmin(turnoId: string) {
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) return;
+
     try {
       await this.turnoService.cancelByAdmin(turnoId, {
-        performedBy: 'admin-ui',
+        performedBy,
         reason: 'Cancelado desde listado administrativo'
       }).toPromise();
 
       await this.processTurnos();
-    } catch (error) {
-      console.error('Error canceling turno by admin:', error);
+    } catch {
+      // Keep runtime details out of logs/UI for admin actions.
     }
   }
 
@@ -360,7 +356,6 @@ export class TurnosListPage implements OnInit, OnDestroy {
       await this.refreshTurnosFromSource();
       this.closeAdminReschedulePicker();
     } catch (error) {
-      console.error('Error al reprogramar turno:', error);
       this.adminRescheduleSubmitting.set(false);
       const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(String(error));
       this.adminRescheduleFeedback.set(isConflict
@@ -371,16 +366,18 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected async cancelTurno(turno: TurnoWithRelations) {
     if (!confirm(`¿Estás seguro de que deseas cancelar el turno de ${turno.clienteNombre}?`)) return;
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) return;
 
     try {
       await firstValueFrom(this.turnoService.cancelByAdmin(turno.id, {
-        performedBy: 'admin-ui',
+        performedBy,
         reason: 'Cancelado desde acceso rápido'
       }));
 
       await this.refreshTurnosFromSource();
-    } catch (error) {
-      console.error('Error al cancelar turno:', error);
+    } catch {
+      // Keep runtime details out of logs/UI for admin actions.
     }
   }
 
@@ -448,8 +445,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
       if (availableSlots.length === 0) {
         this.adminRescheduleFeedback.set('No hay horarios disponibles para esa fecha.');
       }
-    } catch (error) {
-      console.error('Error loading admin reschedule availability:', error);
+    } catch {
       this.availabilityError.set('No pudimos consultar disponibilidad. Intentá nuevamente.');
       this.adminRescheduleFeedback.set('No pudimos consultar disponibilidad. Intentá nuevamente.');
     } finally {
@@ -586,7 +582,6 @@ export class TurnosListPage implements OnInit, OnDestroy {
         this.closeBlockedTimePanel();
       }
     } catch (error) {
-      console.error('Error creating blocked time:', error);
       this.blockedTimeSubmitting.set(false);
       const isConflict = /BLOCKED_TIME_COLLISION|SLOT_CONFLICT|blocked time collision|conflict/i.test(String(error));
       this.blockedTimeCollision.set(isConflict);

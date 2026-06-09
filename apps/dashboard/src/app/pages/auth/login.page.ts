@@ -29,6 +29,8 @@ import { SUPABASE_CONFIG } from '../../core/auth/supabase-config';
 import { normalizeDashboardAuthRequest } from '../../core/auth/dashboard-auth-flow';
 import { setCurrentStep } from '../../features/onboarding/data-access/onboarding-flow-state';
 
+const GENERIC_LOGIN_ERROR_MESSAGE = 'Credenciales inválidas o sesión no disponible';
+
 /**
  * Login Page Component
  *
@@ -182,11 +184,12 @@ export class LoginPage implements OnInit {
 
       if (error) {
         // Login failed - show error and stay on page
-        this.formError = error.message || 'Credenciales inválidas';
-        setLoginError({ message: error.message || 'Credenciales inválidas' });
+        const safeMessage = GENERIC_LOGIN_ERROR_MESSAGE;
+        this.formError = safeMessage;
+        setLoginError({ message: safeMessage });
         handleLoginError({
           router: this.router,
-          error: { message: error.message || 'Credenciales inválidas' }
+          error: { message: safeMessage }
         });
         return;
       }
@@ -204,9 +207,9 @@ export class LoginPage implements OnInit {
         returnTo: redirectUrl,
         session: data.session
       });
-    } catch (err) {
+    } catch {
       // Unexpected error
-      const message = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
+      const message = 'Ocurrió un error inesperado. Intentá nuevamente.';
       this.formError = message;
       setLoginError({ message });
       handleLoginError({

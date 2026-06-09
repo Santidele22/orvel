@@ -18,6 +18,11 @@ import {
   AdminStatusUpdatePayload
 } from '../../../core/api/supabase-booking/types';
 
+type AdminSessionContext = {
+  userId: string;
+  businessId: string | null;
+};
+
 // Map Supabase RPC error to ApiError
 function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiError {
   const code = error.code || '';
@@ -144,11 +149,28 @@ export class TurnoService {
         );
       }
       return this.supabaseClient;
-    } catch (error) {
-      // Supabase not configured - return null to indicate unavailable
-      console.warn('[TurnoService] Supabase not available:', error);
+    } catch {
       return null;
     }
+  }
+
+  private async requireAdminSession(supabaseClient: SupabaseClient | null): Promise<AdminSessionContext> {
+    if (!supabaseClient) throw new Error('SUPABASE_UNAVAILABLE: Supabase client not available');
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw new Error('AUTH_REQUIRED: No active tenant session');
+
+    const user = data.session?.user;
+    const userId = user?.id?.trim();
+    if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
+
+    const metadata = user.user_metadata as Record<string, unknown> | undefined;
+    const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+    const businessId = typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
+      ? metadataBusinessId.trim()
+      : null;
+
+    return { userId, businessId };
   }
 
   // --- Private RPC Implementations (Flattened from Gateway) ---
@@ -368,7 +390,6 @@ export class TurnoService {
 
 
     if (error) {
-      console.error('[TurnoService] Error detallado al cargar bookings:', error);
       return [];
     }
 
@@ -493,7 +514,8 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) throw new Error('AUTH_REQUIRED: Supabase no disponible');
 
-    const branchScope = await this.validateBranchTenant(supabase, dto.branchId);
+    const adminSession = await this.requireAdminSession(supabase);
+    const branchScope = await this.validateBranchTenant(supabase, dto.branchId, adminSession);
     if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a la cuenta activa');
 
     const payload: AdminManualBookingPayload = {
@@ -504,7 +526,7 @@ export class TurnoService {
       durationMinutes: dto.duracionMinutos,
       clientId: dto.clienteId || undefined,
       walkInName: dto.clienteId ? undefined : dto.walkInName?.trim(),
-      performedBy: this.authService.user()?.nombre || 'admin',
+      performedBy: adminSession.userId,
       notes: dto.notas
     };
 
@@ -577,16 +599,11 @@ export class TurnoService {
   private async resolveBusinessId(supabaseClient: SupabaseClient | null): Promise<string | null> {
     if (!supabaseClient) return null;
 
-    // Obtener la sesión directamente de Supabase para evitar problemas de timing con AuthService
+    const adminSession = await this.requireAdminSession(supabaseClient);
+    if (adminSession.businessId) return adminSession.businessId;
+
     const { data: { session } } = await supabaseClient.auth.getSession();
-    const authUserId = session?.user?.id;
-
-    if (!authUserId) {
-      console.warn('[TurnoService] resolveBusinessId - No se encontró sesión activa en Supabase');
-      return null;
-    }
-
-    const metadata = session.user.user_metadata as Record<string, unknown> | undefined;
+    const metadata = session?.user?.user_metadata as Record<string, unknown> | undefined;
     const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
     if (typeof businessId === 'string' && businessId.trim()) {
       return businessId.trim();
@@ -595,12 +612,15 @@ export class TurnoService {
     return null;
   }
 
-  private async validateBranchTenant(supabaseClient: SupabaseClient | null, branchId?: string): Promise<BranchTenantScope | null> {
+  private async validateBranchTenant(
+    supabaseClient: SupabaseClient | null,
+    branchId?: string,
+    adminSession?: AdminSessionContext
+  ): Promise<BranchTenantScope | null> {
     if (!supabaseClient) return null;
     if (!branchId?.trim()) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session?.user?.id) throw new Error('AUTH_REQUIRED: No active tenant session');
+    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
 
     const { data: branch, error } = await supabaseClient
       .from('branches')
@@ -616,7 +636,7 @@ export class TurnoService {
       throw new Error('BRANCH_NOT_FOUND: Sucursal inválida para el tenant activo');
     }
 
-    const businessId = await this.resolveBusinessId(supabaseClient);
+    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
     if (!businessId || String(branch.business_id) !== businessId) {
       throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
     }
@@ -709,23 +729,13 @@ export class TurnoService {
   private async updateWithSupabase(id: string, dto: UpdateTurnoDTO): Promise<Turno> {
     const supabase = this.getSupabaseClient();
     if (!supabase) {
-      // Fall back to in-memory update when Supabase not available
-      const index = this.turnos().findIndex(t => t.id === id);
-      if (index === -1) {
-        throw new Error(TURNO_NOT_FOUND_MESSAGE);
-      }
-      const actualizado = { ...this.turnos()[index], ...dto, updatedAt: new Date() };
-      this.turnos.update(t => {
-        const nuevas = [...t];
-        nuevas[index] = actualizado;
-        return nuevas;
-      });
-      return actualizado;
+      throw new Error('SUPABASE_UNAVAILABLE: Supabase client not available');
     }
+    const adminSession = await this.requireAdminSession(supabase);
 
     const payload: AdminUpdateBookingPayload = {
       bookingId: id,
-      performedBy: 'admin',
+      performedBy: adminSession.userId,
       notes: dto.notas,
       clientId: dto.clienteId,
       serviceId: dto.servicioId,
@@ -738,8 +748,7 @@ export class TurnoService {
       if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
-      // Keep UX resilient in non-production/integration environments.
-      // We still update local state to satisfy guard contracts.
+      throw new Error(errorMessage || 'Error al actualizar turno');
     }
 
     // Reload the updated turno from signal or fetch fresh
@@ -816,10 +825,13 @@ export class TurnoService {
 
     const dbStatus = statusMap[estado];
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payload: AdminStatusUpdatePayload = {
       bookingId: id,
       status: dbStatus,
-      performedBy: 'admin' // TODO: Get from auth context
+      performedBy: adminSession.userId
     };
 
     const current = this.turnos().find(t => t.id === id);
@@ -931,9 +943,12 @@ export class TurnoService {
       throw new Error('performedBy es requerido para cancelar');
     }
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payloadSupabase: AdminCancelBookingPayload = {
       bookingId: id,
-      performedBy: payload.performedBy,
+      performedBy: adminSession.userId,
       notes: payload.reason
     };
 
@@ -956,7 +971,7 @@ export class TurnoService {
       throw new Error(TURNO_NOT_FOUND_MESSAGE);
     }
 
-    const auditEntry = `[admin:cancel] by=${payload.performedBy} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
+    const auditEntry = `[admin:cancel] by=${adminSession.userId} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
     const newNotes = existing.notas ? `${existing.notas}\n${auditEntry}` : auditEntry;
 
     const backendEstado = this.toTurnoEstado(response.data?.status) ?? 'cancelado';
@@ -1045,9 +1060,12 @@ export class TurnoService {
     startDateTime.setHours(horaHours, horaMinutes, 0, 0);
     const startsAtIso = startDateTime.toISOString();
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payloadSupabase: AdminRescheduleBookingPayload = {
       bookingId: id,
-      performedBy: payload.performedBy,
+      performedBy: adminSession.userId,
       notes: payload.reason,
       startsAtIso
     };
@@ -1069,7 +1087,7 @@ export class TurnoService {
     }
 
     // Update local state
-    const auditEntry = `[admin:reschedule] by=${payload.performedBy} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
+    const auditEntry = `[admin:reschedule] by=${adminSession.userId} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
     const newNotes = existing.notas ? `${existing.notas}\n${auditEntry}` : auditEntry;
 
     const backendStart = response.data?.startsAtIso ? new Date(response.data.startsAtIso) : null;
@@ -1129,7 +1147,8 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
-    const branchScope = await this.validateBranchTenant(supabase, branchId);
+    const adminSession = await this.requireAdminSession(supabase);
+    const branchScope = await this.validateBranchTenant(supabase, branchId, adminSession);
     if (!branchScope) {
       return { status: 400, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios' } };
     }
@@ -1140,7 +1159,7 @@ export class TurnoService {
       startsAtIso: payload.startsAtIso,
       endsAtIso: payload.endsAtIso,
       reason: payload.reason,
-      performedBy: payload.performedBy
+      performedBy: adminSession.userId
     };
 
     return this.createAdminBlockedTime(resolvedPayload);
@@ -1285,15 +1304,13 @@ export class TurnoService {
       });
       data = response.data;
       error = response.error;
-    } catch (availabilityError) {
-      console.error('[TurnoService] Error al consultar disponibilidad admin:', availabilityError);
+    } catch {
       this.adminAvailabilityCache.delete(cacheKey);
       this.pendingAdminAvailabilityKeys.delete(cacheKey);
       throw new Error('ADMIN_AVAILABILITY_RPC_ERROR: No se pudo consultar disponibilidad');
     }
 
     if (error) {
-      console.error('[TurnoService] Error al consultar disponibilidad admin:', error);
       this.adminAvailabilityCache.delete(cacheKey);
       this.pendingAdminAvailabilityKeys.delete(cacheKey);
       throw new Error('ADMIN_AVAILABILITY_RPC_ERROR: No se pudo consultar disponibilidad');

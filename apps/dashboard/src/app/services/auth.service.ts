@@ -3,7 +3,7 @@
 // SECURE: Tokens are encrypted before storing in localStorage
 
 import { Injectable, signal } from '@angular/core';
-import { Observable, of, delay, tap, map, throwError } from 'rxjs';
+import { Observable, of, from, delay, tap, map } from 'rxjs';
 import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../models/user.model';
 import {
   initEncryption,
@@ -104,8 +104,22 @@ export class AuthService {
         })
       );
     }
-    // TODO: Supabase Auth
-    return of({ user: {} as User, token: '' });
+    return from(this.supabase.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })).pipe(
+      map(({ data, error }) => {
+        if (error || !data.session?.user) {
+          throw new Error('AUTH_REQUIRED: Credenciales inválidas');
+        }
+        return this.toAuthUser(data.session);
+      }),
+      tap(authUser => {
+        this.currentUser.set(authUser.user);
+        this.isAuthenticated.set(true);
+        this.token.set(authUser.token);
+      })
+    );
   }
 
   register(data: RegisterDTO): Observable<AuthUser> {
@@ -124,8 +138,30 @@ export class AuthService {
         })
       );
     }
-    // TODO: Supabase Auth
-    return of({ user: {} as User, token: '' });
+    return from(this.supabase.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          nombre: data.nombre,
+          apellido: data.apellido,
+          negocioNombre: data.negocioNombre,
+          tipoNegocio: data.tipoNegocio
+        }
+      }
+    })).pipe(
+      map(({ data: result, error }) => {
+        if (error || !result.session?.user) {
+          throw new Error('AUTH_REQUIRED: No active tenant session');
+        }
+        return this.toAuthUser(result.session);
+      }),
+      tap(authUser => {
+        this.currentUser.set(authUser.user);
+        this.isAuthenticated.set(true);
+        this.token.set(authUser.token);
+      })
+    );
   }
 
   logout(): void {
@@ -194,6 +230,25 @@ export class AuthService {
   }
 
 // PRIVATE HELPERS
+  private toAuthUser(session: SupabaseSession): AuthUser {
+    const metadata = session.user.user_metadata || {};
+    return {
+      user: {
+        id: session.user.id,
+        email: session.user.email || '',
+        nombre: (metadata['nombre'] as string) || (metadata['full_name'] as string)?.split(' ')[0] || '',
+        apellido: (metadata['apellido'] as string) || (metadata['full_name'] as string)?.split(' ').slice(1).join(' ') || '',
+        negocioNombre: metadata['negocioNombre'] as string || '',
+        tipoNegocio: (metadata['tipoNegocio'] as TipoNegocio) || 'otro',
+        telefono: metadata['telefono'] as string,
+        plan: (metadata['plan'] as UserPlan) || '',
+        createdAt: new Date(session.user.created_at),
+        updatedAt: new Date()
+      },
+      token: session.access_token
+    };
+  }
+
   private generateToken(): string {
     // SECURE: Use Web Crypto API for cryptographically secure random tokens
     return 'mock_' + crypto.randomUUID();
