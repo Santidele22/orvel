@@ -40,13 +40,14 @@ describe('Turnos list admin actions integration RED contract', () => {
     expect(source).not.toMatch(/canCompleteByAdmin\(/);
   });
 
-  it('removes Add action from admin app turnos entry points', () => {
-    // TODO(Aurora): eliminar entry points de creación (ej. /dashboard/turnos/new) y CTAs add/new en admin turnos.
+  it('keeps admin new turno action wired to the real create route', () => {
+    // M2: admin creation is allowed only through the real form route, not through fake list-side payloads.
     const listSource = readListSource();
     const routesSource = readRoutesSource();
 
     expect(listSource).not.toMatch(/data-testid=["']turno-admin-add-action["']/i);
-    expect(listSource).not.toMatch(/\b(addTurno|createTurno|newTurno)\b/);
-    expect(routesSource).not.toMatch(/path:\s*['"]turnos\/new['"]/);
+    expect(listSource).toMatch(/data-testid=["']turnos-admin-create-primary-action["']/i);
+    expect(listSource).toMatch(/routerLink=["']\/dashboard\/turnos\/new["']/i);
+    expect(routesSource).toMatch(/path:\s*['"]turnos\/new['"]/);
   });
 });

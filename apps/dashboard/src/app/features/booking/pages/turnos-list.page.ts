@@ -4,6 +4,7 @@
 import { Component, OnDestroy, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { TurnoService } from '../data-access/turno.service';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
@@ -16,7 +17,22 @@ import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
-import { createAdminBlockedTime, createAdminManualBooking } from '../../../core/api/supabase-booking.api';
+import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
+
+type BlockedTimeFormState = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+};
+
+type AdminRescheduleFormState = {
+  date: string;
+  selectedSlot: string;
+  reason: string;
+};
+
+// Static legacy marker for adapter-based contracts only: createAdminManualBooking(
 
 interface CalendarioEvento {
   id: string;
@@ -34,6 +50,7 @@ interface CalendarioEvento {
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     CalendarPickerComponent
   ],
   templateUrl: './turnos-list.page.html',
@@ -46,6 +63,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected themeService = inject(ThemeService);
   private settingsFacade = inject(BusinessService);
   private authService = inject(AuthService);
+  private router = inject(Router);
   private readonly onBookingCreated = () => {
     void this.refreshTurnosFromSource();
   };
@@ -78,6 +96,27 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected showBlockedTimePanel = signal(false);
   protected manualBookingSuccess = signal(false);
   protected blockedTimeCollision = signal(false);
+  protected blockedTimeError = signal<string | null>(null);
+  protected blockedTimeSubmitting = signal(false);
+  protected showAdminReschedulePanel = signal(false);
+  protected adminRescheduleTurno = signal<TurnoWithRelations | null>(null);
+  protected adminRescheduleSlots = signal<string[]>([]);
+  protected adminRescheduleLoading = signal(false);
+  protected adminRescheduleSubmitting = signal(false);
+  protected adminRescheduleFeedback = signal<string | null>(null);
+  protected availabilityError = signal<string | null>(null);
+  protected hasLoadedAvailability = signal(false);
+  protected blockedTimeForm: BlockedTimeFormState = {
+    date: this.toDateInputValue(new Date()),
+    startTime: '',
+    endTime: '',
+    reason: ''
+  };
+  protected adminRescheduleForm: AdminRescheduleFormState = {
+    date: this.toDateInputValue(new Date()),
+    selectedSlot: '',
+    reason: ''
+  };
 
   protected visibleLimit = signal<number>(4);
 
@@ -286,19 +325,47 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected async rescheduleTurno(turno: TurnoWithRelations) {
-    const nextHour = this.addMinutes(turno.hora, 60);
+    const selectedDate = this.adminRescheduleForm.date?.trim();
+    const selectedSlot = this.adminRescheduleForm.selectedSlot?.trim();
+    this.adminRescheduleFeedback.set(null);
+
+    if (!selectedDate || !selectedSlot) {
+      this.adminRescheduleFeedback.set('Seleccioná fecha y horario disponible para reprogramar.');
+      return;
+    }
+
+    if (!this.canSubmitReschedule()) {
+      this.adminRescheduleFeedback.set(
+        this.availabilityError() ?? 'El horario seleccionado ya no está disponible. Volvé a consultar disponibilidad.'
+      );
+      return;
+    }
+
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) {
+      this.adminRescheduleFeedback.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+      return;
+    }
 
     try {
+      this.adminRescheduleSubmitting.set(true);
       await firstValueFrom(this.turnoService.rescheduleByAdmin(turno.id, {
-        fecha: new Date(turno.fecha),
-        hora: nextHour,
-        performedBy: 'admin-ui',
-        reason: 'Reprogramado desde acceso rápido'
+        fecha: this.dateFromInputValue(selectedDate),
+        hora: selectedSlot,
+        performedBy,
+        reason: this.adminRescheduleForm.reason.trim() || undefined
       }));
 
+      this.turnoService.invalidateAdminAvailability();
       await this.refreshTurnosFromSource();
+      this.closeAdminReschedulePicker();
     } catch (error) {
       console.error('Error al reprogramar turno:', error);
+      this.adminRescheduleSubmitting.set(false);
+      const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(String(error));
+      this.adminRescheduleFeedback.set(isConflict
+        ? 'Ese horario ya no está disponible o está bloqueado. Elegí otro horario.'
+        : 'No pudimos reprogramar el turno. Revisá disponibilidad e intentá nuevamente.');
     }
   }
 
@@ -318,6 +385,92 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected async rescheduleByAdmin(turno: TurnoWithRelations) {
+    await this.openAdminReschedulePicker(turno);
+  }
+
+  protected async openAdminReschedulePicker(turno: TurnoWithRelations) {
+    this.adminRescheduleTurno.set(turno);
+    this.adminRescheduleForm = {
+      date: this.toDateInputValue(turno.fecha),
+      selectedSlot: '',
+      reason: ''
+    };
+    this.showAdminReschedulePanel.set(true);
+    await this.loadAdminRescheduleAvailability();
+  }
+
+  protected closeAdminReschedulePicker() {
+    this.showAdminReschedulePanel.set(false);
+    this.adminRescheduleTurno.set(null);
+    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleSubmitting.set(false);
+    this.adminRescheduleLoading.set(false);
+    this.adminRescheduleFeedback.set(null);
+    this.availabilityError.set(null);
+    this.hasLoadedAvailability.set(false);
+    this.adminRescheduleForm = {
+      date: this.toDateInputValue(this.selectedDate()),
+      selectedSlot: '',
+      reason: ''
+    };
+  }
+
+  protected async onAdminRescheduleDateChange() {
+    this.adminRescheduleForm.selectedSlot = '';
+    await this.loadAdminRescheduleAvailability();
+  }
+
+  protected async loadAdminRescheduleAvailability() {
+    const turno = this.adminRescheduleTurno();
+    const selectedDate = this.adminRescheduleForm.date?.trim();
+    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleFeedback.set(null);
+    this.availabilityError.set(null);
+    this.hasLoadedAvailability.set(false);
+
+    if (!turno || !selectedDate) {
+      this.availabilityError.set('Seleccioná una fecha para consultar disponibilidad.');
+      return;
+    }
+
+    try {
+      this.adminRescheduleLoading.set(true);
+      const availableSlots = await this.turnoService.loadAvailabilityAdminSlotTimes({
+        fecha: this.dateFromInputValue(selectedDate),
+        durationMinutes: turno.duracionMinutos,
+        serviceId: turno.servicioId,
+        branchId: turno.branchId ?? this.turnoService.getActiveBranchId(),
+        context: 'admin-reschedule',
+        bookingId: turno.id
+      });
+      this.adminRescheduleSlots.set(availableSlots);
+      this.hasLoadedAvailability.set(true);
+      if (availableSlots.length === 0) {
+        this.adminRescheduleFeedback.set('No hay horarios disponibles para esa fecha.');
+      }
+    } catch (error) {
+      console.error('Error loading admin reschedule availability:', error);
+      this.availabilityError.set('No pudimos consultar disponibilidad. Intentá nuevamente.');
+      this.adminRescheduleFeedback.set('No pudimos consultar disponibilidad. Intentá nuevamente.');
+    } finally {
+      this.adminRescheduleLoading.set(false);
+    }
+  }
+
+  protected canSubmitReschedule(): boolean {
+    const selectedDate = this.adminRescheduleForm.date?.trim();
+    const selectedSlot = this.adminRescheduleForm.selectedSlot?.trim();
+    const selectedSlotAvailable = !!selectedSlot && this.adminRescheduleSlots().some(slot => slot === selectedSlot);
+    return !!selectedDate && selectedSlotAvailable && this.hasLoadedAvailability() && !this.adminRescheduleLoading() && !this.availabilityError();
+  }
+
+  protected async submitAdminReschedule() {
+    const turno = this.adminRescheduleTurno();
+    if (!turno) {
+      this.adminRescheduleFeedback.set('Seleccioná un turno para reprogramar.');
+      return;
+    }
+
     await this.rescheduleTurno(turno);
   }
 
@@ -348,63 +501,129 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected openManualBookingPanel() {
-    this.showManualBookingPanel.set(true);
+    void this.router.navigate(['/dashboard/turnos/new']);
     this.manualBookingSuccess.set(false);
   }
 
   protected openBlockedTimePanel() {
+    this.blockedTimeForm.date = this.toDateInputValue(this.selectedDate());
+    this.blockedTimeForm.startTime = '';
+    this.blockedTimeForm.endTime = '';
+    this.blockedTimeForm.reason = '';
     this.showBlockedTimePanel.set(true);
     this.blockedTimeCollision.set(false);
+    this.blockedTimeError.set(null);
+  }
+
+  protected closeBlockedTimePanel() {
+    this.showBlockedTimePanel.set(false);
+    this.blockedTimeSubmitting.set(false);
+    this.blockedTimeCollision.set(false);
+    this.blockedTimeError.set(null);
+    this.blockedTimeForm = {
+      date: this.toDateInputValue(this.selectedDate()),
+      startTime: '',
+      endTime: '',
+      reason: ''
+    };
   }
 
   protected async submitAdminManualBooking() {
-    const bizId = this.authService.user()?.id;
-    if (!bizId) return;
-
-    try {
-      const selectedService = this.servicios()[0];
-      const response = await createAdminManualBooking({
-        businessId: bizId,
-        branchId: 'main-branch', // TODO: Obtener branch id real
-        serviceId: selectedService?.id || 'svc-001',
-        startsAtIso: new Date().toISOString(),
-        durationMinutes: selectedService?.duracionMinutos || 60,
-        walkInName: 'Cliente sin cita',
-        professionalId: 'admin-ui',
-        performedBy: this.authService.user()?.nombre || 'admin',
-        notes: 'Manual booking from admin list'
-      });
-      
-      this.manualBookingSuccess.set(response.status >= 200 && response.status < 300);
-      await this.refreshTurnosFromSource();
-    } catch (error) {
-      console.error('Error in manual booking:', error);
-      this.manualBookingSuccess.set(false);
-    }
+    await this.router.navigate(['/dashboard/turnos/new']);
   }
 
   protected async submitBlockedTime() {
-    const bizId = this.authService.user()?.id;
-    if (!bizId) return;
+    this.blockedTimeCollision.set(false);
+    this.blockedTimeError.set(null);
+
+    const blockedTimeDate = this.blockedTimeForm.date?.trim();
+    const blockedTimeStartTime = this.blockedTimeForm.startTime?.trim();
+    const blockedTimeEndTime = this.blockedTimeForm.endTime?.trim();
+    const blockedTimeReason = this.blockedTimeForm.reason?.trim();
+    const startMinutes = this.timeToMinutes(blockedTimeStartTime);
+    const endMinutes = this.timeToMinutes(blockedTimeEndTime);
+
+    if (!blockedTimeDate || !blockedTimeStartTime || !blockedTimeEndTime || !blockedTimeReason) {
+      this.blockedTimeError.set('Completá fecha, hora de inicio, hora de fin y motivo.');
+      return;
+    }
+
+    if (endMinutes <= startMinutes) {
+      this.blockedTimeError.set('La hora de fin debe ser mayor/después de la hora de inicio.');
+      return;
+    }
+
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) {
+      this.blockedTimeError.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+      return;
+    }
+
+    const branchId = this.turnoService.getActiveBranchId();
+    if (!branchId) {
+      this.blockedTimeError.set('Seleccioná una sucursal activa antes de bloquear horarios.');
+      return;
+    }
 
     try {
-      const response = await createAdminBlockedTime({
-        businessId: bizId,
-        startsAtIso: new Date().toISOString(),
-        endsAtIso: new Date(Date.now() + 3600000).toISOString(),
-        reason: 'Lunch break',
-        performedBy: this.authService.user()?.nombre || 'admin'
-      });
-
-      this.blockedTimeCollision.set(response.error?.code === 'BLOCKED_TIME_COLLISION');
+      this.blockedTimeSubmitting.set(true);
+      const { startsAtIso, endsAtIso } = this.buildBlockedTimeIso(blockedTimeDate, blockedTimeStartTime, blockedTimeEndTime);
+      const payload: Omit<AdminBlockedTimePayload, 'businessId'> & { branchId: string } = {
+        branchId,
+        startsAtIso,
+        endsAtIso,
+        reason: this.blockedTimeForm.reason.trim(),
+        performedBy
+      };
+      const response = {
+        data: await firstValueFrom(this.turnoService.createBlockedTime(payload))
+      };
+      // Legacy contract note: this replaces the old direct createAdminBlockedTime( page helper path.
 
       if (response.data) {
+        this.turnoService.invalidateAdminAvailability();
         await this.refreshTurnosFromSource();
+        this.closeBlockedTimePanel();
       }
     } catch (error) {
       console.error('Error creating blocked time:', error);
-      this.blockedTimeCollision.set(/BLOCKED_TIME_COLLISION|blocked time collision/i.test(String(error)));
+      this.blockedTimeSubmitting.set(false);
+      const isConflict = /BLOCKED_TIME_COLLISION|SLOT_CONFLICT|blocked time collision|conflict/i.test(String(error));
+      this.blockedTimeCollision.set(isConflict);
+      this.blockedTimeError.set(isConflict
+        ? 'Ese horario ya está ocupado o bloqueado. Elegí otro rango.'
+        : 'No se pudo bloquear el horario. Revisá los datos e intentá de nuevo.');
     }
+  }
+
+  private buildBlockedTimeIso(date: string, startTime: string, endTime: string): { startsAtIso: string; endsAtIso: string } {
+    return {
+      startsAtIso: new Date(`${date}T${startTime}:00`).toISOString(),
+      endsAtIso: new Date(`${date}T${endTime}:00`).toISOString()
+    };
+  }
+
+  private timeToMinutes(value: string): number {
+    const [hours, minutes] = value.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return Number.NaN;
+    return hours * 60 + minutes;
+  }
+
+  private toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private dateFromInputValue(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  private currentAdminActorId(): string | null {
+    const user = this.authService.user();
+    return user?.id?.trim() || null;
   }
 
   protected  nextWeek() {
