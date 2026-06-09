@@ -68,7 +68,7 @@ export function createMockSessionFromLogin(input: MockLoginInput): TurneaSession
 
   return {
     version: 'v1',
-    token: `mock.jwt.${now}`,
+    token: `dev-session.${now}`,
     user: {
       id: `mock-user-${now}`,
       email: input.email,

@@ -77,11 +77,13 @@ const LANDING_ONBOARDING_ROUTE = '/landing/onboarding' as const;
 const PENDING_SUBSCRIPTION_MESSAGE = 'Payment pending. Continue to subscription preapproval to activate your plan.';
 const PENDING_RETRY_MESSAGE = 'Payment pending. Retry subscription preapproval to complete payment.';
 const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
-const FALLBACK_LIMITS = getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, 'FREE');
+const FREE_PLAN_LIMITS = getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, 'FREE');
 
-if (!FALLBACK_LIMITS) {
+if (!FREE_PLAN_LIMITS) {
   throw new Error('Reference catalog must include FREE plan entitlements.');
 }
+
+const FALLBACK_LIMITS: EntitlementsSnapshot = FREE_PLAN_LIMITS;
 
 function normalizeText(value: string): string {
   return value.trim();
