@@ -20,6 +20,11 @@ const RUBRO_OPTIONS = REFERENCE_CATALOG.businessTypes.map(({ code, label }) => (
   label
 }));
 
+function canCreateMockOnboardingSession(): boolean {
+  if (typeof window === 'undefined') return true;
+  return ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+}
+
 @Component({
   selector: 'app-onboarding-business-step-page',
   standalone: true,
@@ -53,6 +58,11 @@ export class OnboardingBusinessStepPage {
 
     const selectedBusinessTypes = this.selectedRubros;
     const safeSelectedTemplateIds = sanitizeSelectedTemplateIds(this.selectedTemplateIds);
+
+    if (!canCreateMockOnboardingSession()) {
+      this.router.navigateByUrl('/auth');
+      return;
+    }
 
     const session = createMockSessionFromLogin({
       email: 'demo@turnea.app',

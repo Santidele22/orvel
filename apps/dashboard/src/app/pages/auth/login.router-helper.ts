@@ -112,27 +112,6 @@ export function preserveReturnTo(returnTo: string): void {
 }
 
 /**
- * Gets the preserved returnTo value.
- *
- * @returns The preserved returnTo or null
- */
-export function getPreservedReturnTo(): string | null {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return localStorage.getItem(PRESERVED_RETURN_TO_KEY);
-  }
-  return null;
-}
-
-/**
- * Clears the preserved returnTo value.
- */
-export function clearPreservedReturnTo(): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    localStorage.removeItem(PRESERVED_RETURN_TO_KEY);
-  }
-}
-
-/**
  * Handles successful login by navigating to the appropriate page.
  *
  * @param options - The options object
@@ -199,11 +178,36 @@ export function getRedirectUrl(queryReturnTo: string | null): string {
   }
 
   // Priority 2: Preserved returnTo
-  const preservedReturnTo = getPreservedReturnTo();
+  const preservedReturnTo = readPreservedReturnTo();
   if (preservedReturnTo) {
     return resolveDashboardAuthSuccessRedirect({ returnTo: preservedReturnTo });
   }
 
   // Priority 3: Default
   return '/dashboard/inicio';
+}
+
+/**
+ * Gets the preserved returnTo value.
+ *
+ * @returns The preserved returnTo or null
+ */
+export function getPreservedReturnTo(): string | null {
+  return readPreservedReturnTo();
+}
+
+function readPreservedReturnTo(): string | null {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return localStorage.getItem(PRESERVED_RETURN_TO_KEY);
+  }
+  return null;
+}
+
+/**
+ * Clears the preserved returnTo value.
+ */
+export function clearPreservedReturnTo(): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem(PRESERVED_RETURN_TO_KEY);
+  }
 }

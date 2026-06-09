@@ -101,8 +101,7 @@ export class TurnoFormPage implements OnInit {
       }
 
       this.loading.set(false);
-    } catch (error) {
-      console.error('Error initializing form:', error);
+    } catch {
       this.error.set('Error al cargar datos');
       this.loading.set(false);
     }
@@ -124,8 +123,7 @@ export class TurnoFormPage implements OnInit {
         // Check availability after loading
         this.checkAvailability();
       }
-    } catch (error) {
-      console.error('Error loading turno:', error);
+    } catch {
       this.error.set('Turno no encontrado');
     }
   }
@@ -181,10 +179,9 @@ export class TurnoFormPage implements OnInit {
       this.hasLoadedAvailability.set(true);
       this.availabilityStale.set(false);
       this.conflictError.set(null);
-    } catch (error) {
+    } catch {
       if (availabilityVersion !== this.latestAvailabilityVersion) return;
 
-      console.error('Error checking admin availability:', error);
       this.disponibles.set([]);
       this.hora.set('');
       this.availabilityError.set('No pudimos consultar disponibilidad. Reintentá antes de guardar.');
@@ -259,11 +256,17 @@ export class TurnoFormPage implements OnInit {
       };
 
       if (this.isEdit() && this.turnoId()) {
+        const performedBy = this.currentAdminActor();
+        if (!performedBy) {
+          this.error.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+          this.saving.set(false);
+          return;
+        }
         // Admin-managed reschedule/edit flow
         await this.turnoService.rescheduleByAdmin(this.turnoId()!, {
           fecha: new Date(this.fecha()),
           hora: this.hora(),
-          performedBy: this.currentAdminActor(),
+          performedBy,
           reason: this.notas() || 'Reprogramación desde formulario administrativo'
         }).toPromise();
       } else {
@@ -275,7 +278,6 @@ export class TurnoFormPage implements OnInit {
 
       this.router.navigate(['/dashboard/turnos']);
     } catch (error) {
-      console.error('Error saving turno:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (/TURNO_SLOT_COLLISION/i.test(errorMessage) || /(ocupado|no disponible|conflict|bloqueado)/i.test(errorMessage)) {
         this.conflictError.set(this.unavailableSlotMessage);
@@ -289,8 +291,8 @@ export class TurnoFormPage implements OnInit {
     }
   }
 
-  private currentAdminActor(): string {
-    return this.authService.user()?.nombre?.trim() || this.authService.user()?.email?.trim() || 'dashboard-admin';
+  private currentAdminActor(): string | null {
+    return this.authService.user()?.id?.trim() || null;
   }
 
   protected getHorarioLabel(hora: string): string {
