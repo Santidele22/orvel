@@ -2,12 +2,17 @@ import {
   readOnboardingResumeCheckpoint,
   type OnboardingResumeCheckpoint
 } from './onboarding-storage';
-import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
+import {
+  type CatalogPlan,
+  getPlanEntitlementsFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+import { normalizePlanCode, type PlanCode } from '../../../core/plans/plan-entitlements';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
 type AccountState = 'enabled' | 'pending_payment';
-type NextRoute = 'dashboard_home' | 'billing_checkout';
+type NextRoute = 'dashboard_home' | 'billing_subscription';
 type SimulationOutcome = 'success' | 'failure' | 'cancel';
+type EntitlementsSnapshot = Pick<CatalogPlan, 'maxLocales' | 'maxRubros' | 'maxMonthlyBookings' | 'aiCreditsMonthly'>;
 
 type LandingNormalizedState = {
   ownerName: string;
@@ -31,7 +36,7 @@ type SimulationResult = {
   nextRoute: NextRoute;
   retry?: {
     allowed: boolean;
-    route: 'billing_checkout';
+    route: 'billing_subscription';
     reason: 'payment_failure';
     attemptId: string;
   };
@@ -67,10 +72,16 @@ type WiringDependencies = {
 };
 
 const DASHBOARD_ENTRY_ROUTE = '/dashboard/inicio' as const;
-const BILLING_CHECKOUT_ROUTE = '/billing/test-checkout' as const;
+const BILLING_SUBSCRIPTION_ROUTE = '/billing/subscription' as const;
 const LANDING_ONBOARDING_ROUTE = '/landing/onboarding' as const;
-const PENDING_CHECKOUT_MESSAGE = 'Payment pending. Continue to checkout to activate your plan.';
-const PENDING_RETRY_MESSAGE = 'Payment pending. Retry checkout to complete payment.';
+const PENDING_SUBSCRIPTION_MESSAGE = 'Payment pending. Continue to subscription preapproval to activate your plan.';
+const PENDING_RETRY_MESSAGE = 'Payment pending. Retry subscription preapproval to complete payment.';
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
+const FALLBACK_LIMITS = getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, 'FREE');
+
+if (!FALLBACK_LIMITS) {
+  throw new Error('Reference catalog must include FREE plan entitlements.');
+}
 
 function normalizeText(value: string): string {
   return value.trim();
@@ -113,22 +124,27 @@ function normalizeSalonNames(salonNames: string[]): Array<{ name: string }> {
   return Array.from(deduplicated).map((name) => ({ name }));
 }
 
-function resolveRoute(nextRoute: NextRoute): typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_CHECKOUT_ROUTE {
-  return nextRoute === 'dashboard_home' ? DASHBOARD_ENTRY_ROUTE : BILLING_CHECKOUT_ROUTE;
+function resolveRoute(nextRoute: NextRoute): typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_SUBSCRIPTION_ROUTE {
+  return nextRoute === 'dashboard_home' ? DASHBOARD_ENTRY_ROUTE : BILLING_SUBSCRIPTION_ROUTE;
+}
+
+function resolveEntitlementsSnapshot(plan: unknown): EntitlementsSnapshot {
+  return getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, normalizePlanCode(plan)) ?? FALLBACK_LIMITS;
 }
 
 function mapSubmitResult(result: PersistResult) {
   const routeTo = resolveRoute(result.nextRoute);
-  const entitlements = getPlanEntitlements(result.selectedPlan);
+  const selectedPlan = normalizePlanCode(result.selectedPlan);
+  const entitlements = resolveEntitlementsSnapshot(selectedPlan);
 
-  if (routeTo === BILLING_CHECKOUT_ROUTE) {
+  if (routeTo === BILLING_SUBSCRIPTION_ROUTE) {
     return {
       accountId: result.accountId,
       accountState: result.accountState,
       routeTo,
-      selectedPlan: result.selectedPlan,
+      selectedPlan,
       entitlements,
-      pendingMessage: PENDING_CHECKOUT_MESSAGE
+      pendingMessage: PENDING_SUBSCRIPTION_MESSAGE
     };
   }
 
@@ -136,7 +152,7 @@ function mapSubmitResult(result: PersistResult) {
     accountId: result.accountId,
     accountState: result.accountState,
     routeTo,
-    selectedPlan: result.selectedPlan,
+    selectedPlan,
     entitlements
   };
 }
@@ -153,7 +169,7 @@ function createPersistenceFallbackState(input: {
     accountState: 'pending_payment' as const,
     routeTo: LANDING_ONBOARDING_ROUTE,
     selectedPlan: input.selectedPlan,
-    entitlements: getPlanEntitlements(input.selectedPlan),
+    entitlements: resolveEntitlementsSnapshot(input.selectedPlan),
     retryable: true,
     fallbackReason: `onboarding_persistence_timeout:${reasonText}`
   };
@@ -185,17 +201,17 @@ function mapSimulationResult(result: SimulationResult) {
       retry: {
         allowed: result.retry.allowed,
         reason: result.retry.reason,
-        routeTo: BILLING_CHECKOUT_ROUTE,
+        routeTo: BILLING_SUBSCRIPTION_ROUTE,
         attemptId: result.retry.attemptId
       },
       pendingMessage: PENDING_RETRY_MESSAGE
     };
   }
 
-  if (routeTo === BILLING_CHECKOUT_ROUTE) {
+  if (routeTo === BILLING_SUBSCRIPTION_ROUTE) {
     return {
       ...base,
-      pendingMessage: PENDING_CHECKOUT_MESSAGE
+      pendingMessage: PENDING_SUBSCRIPTION_MESSAGE
     };
   }
 
@@ -213,9 +229,9 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
     }): Promise<{
       accountId: string;
       accountState: AccountState;
-      routeTo: typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_CHECKOUT_ROUTE | typeof LANDING_ONBOARDING_ROUTE;
+      routeTo: typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_SUBSCRIPTION_ROUTE | typeof LANDING_ONBOARDING_ROUTE;
       selectedPlan: PlanCode;
-      entitlements: { maxLocales: number; maxRubros: number };
+      entitlements: EntitlementsSnapshot;
       pendingMessage?: string;
       retryable?: boolean;
       fallbackReason?: string;
@@ -226,6 +242,7 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
 
       const normalizedOwnerName = normalizeText(input.landingState.ownerName);
       const normalizedEmail = normalizeText(input.landingState.email);
+      const selectedPlan = normalizePlanCode(input.landingState.selectedPlan);
 
       validateProfileOrThrow({
         ownerName: normalizedOwnerName,
@@ -245,7 +262,7 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
               businessName: normalizeText(input.landingState.businessName)
             },
             salons: normalizeSalonNames(input.landingState.salonNames),
-            selectedPlan: input.landingState.selectedPlan
+            selectedPlan
           }
         });
 
@@ -253,7 +270,7 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
       } catch (error) {
         return createPersistenceFallbackState({
           tenantContext: input.tenantContext,
-          selectedPlan: input.landingState.selectedPlan,
+          selectedPlan,
           reason: error
         });
       }
@@ -268,11 +285,11 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
     }): Promise<{
       accountId: string;
       accountState: AccountState;
-      routeTo: typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_CHECKOUT_ROUTE;
+      routeTo: typeof DASHBOARD_ENTRY_ROUTE | typeof BILLING_SUBSCRIPTION_ROUTE;
       retry?: {
         allowed: boolean;
         reason: 'payment_failure';
-        routeTo: typeof BILLING_CHECKOUT_ROUTE;
+        routeTo: typeof BILLING_SUBSCRIPTION_ROUTE;
         attemptId: string;
       };
       pendingMessage?: string;
@@ -280,7 +297,7 @@ export function createLandingDashboardOnboardingFlowWiring(deps: WiringDependenc
       const simulationResult = await deps.fakeMoneySubscriptionSimulator.simulate({
         tenantContext: input.tenantContext,
         accountId: input.accountId,
-        selectedPlan: input.selectedPlan,
+        selectedPlan: normalizePlanCode(input.selectedPlan),
         outcome: input.outcome,
         testMode: input.testMode
       });

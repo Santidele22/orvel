@@ -575,7 +575,7 @@ describe('Path 2: New User Onboarding Flow', () => {
       if (plan === 'FREE') {
         navigateUrl = '/dashboard/inicio';
       } else {
-        navigateUrl = '/billing/test-checkout';
+        navigateUrl = '/billing/subscription';
       }
 
       expect(navigateUrl).toBe('/dashboard/inicio');
@@ -583,47 +583,47 @@ describe('Path 2: New User Onboarding Flow', () => {
   });
 
   // --------------------------------------------------------------------------
-  // TEST 11: BASIC/MEDIUM/PRO → routes to /billing/test-checkout
+  // TEST 11: BASIC/MEDIUM/PRO → routes to /billing/subscription
   // --------------------------------------------------------------------------
 
-  describe('11. BASIC/MEDIUM/PRO → routes to /billing/test-checkout', () => {
-    it('AUTH-E2E-035 - BASIC plan navigates to /billing/test-checkout', () => {
+  describe('11. BASIC/MEDIUM/PRO → routes to /billing/subscription', () => {
+    it('AUTH-E2E-035 - BASIC plan navigates to /billing/subscription', () => {
       const plan = 'BASIC';
       let navigateUrl: string;
 
       if (plan === 'FREE') {
         navigateUrl = '/dashboard/inicio';
       } else {
-        navigateUrl = '/billing/test-checkout';
+        navigateUrl = '/billing/subscription';
       }
 
-      expect(navigateUrl).toBe('/billing/test-checkout');
+      expect(navigateUrl).toBe('/billing/subscription');
     });
 
-    it('AUTH-E2E-036 - MEDIUM plan navigates to /billing/test-checkout', () => {
+    it('AUTH-E2E-036 - MEDIUM plan navigates to /billing/subscription', () => {
       const plan = 'MEDIUM';
       let navigateUrl: string;
 
       if (plan === 'FREE') {
         navigateUrl = '/dashboard/inicio';
       } else {
-        navigateUrl = '/billing/test-checkout';
+        navigateUrl = '/billing/subscription';
       }
 
-      expect(navigateUrl).toBe('/billing/test-checkout');
+      expect(navigateUrl).toBe('/billing/subscription');
     });
 
-    it('AUTH-E2E-037 - PRO plan navigates to /billing/test-checkout', () => {
+    it('AUTH-E2E-037 - PRO plan navigates to /billing/subscription', () => {
       const plan = 'PRO';
       let navigateUrl: string;
 
       if (plan === 'FREE') {
         navigateUrl = '/dashboard/inicio';
       } else {
-        navigateUrl = '/billing/test-checkout';
+        navigateUrl = '/billing/subscription';
       }
 
-      expect(navigateUrl).toBe('/billing/test-checkout');
+      expect(navigateUrl).toBe('/billing/subscription');
     });
   });
 });
@@ -751,7 +751,7 @@ describe('Cross-path Cases', () => {
  * ✅ AUTH-E2E-027-030: Only allowed types shown per plan
  * ✅ AUTH-E2E-031-033: Must select at least one type
  * ✅ AUTH-E2E-034: FREE plan → routes to /dashboard/inicio
- * ✅ AUTH-E2E-035-037: BASIC/MEDIUM/PRO → routes to /billing/test-checkout
+  * ✅ AUTH-E2E-035-037: BASIC/MEDIUM/PRO → routes to /billing/subscription
  *
  * Cross-path Cases (6 tests)
  * ✅ AUTH-E2E-038-040: Logged in user accessing /auth/login → redirects

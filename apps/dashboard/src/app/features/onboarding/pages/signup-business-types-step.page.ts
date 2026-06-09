@@ -5,7 +5,13 @@
  * This file can be imported by tests without Angular compilation.
  */
 import type { PlanCode } from '../../../core/plans/plan-entitlements';
-import { getPlanEntitlements, normalizePlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
+import {
+  getAllowedBusinessTypesForPlan,
+  getPlanEntitlementsFromCatalog,
+  resolveBusinessTypeCodeFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
 import {
@@ -32,28 +38,11 @@ export type BusinessType = {
   label: string;
 };
 
-// All business types with labels
-export const ALL_BUSINESS_TYPES: BusinessType[] = [
-  { code: 'peluqueria', label: 'Peluquer\u00eda' },
-  { code: 'unas', label: 'U\u00f1as' },
-  { code: 'barberia', label: 'Barber\u00eda' },
-  { code: 'spa', label: 'Spa' }
-];
-
-// Plan-to-business-type mapping per spec
-const PLAN_BUSINESS_TYPES: Record<PlanCode, BusinessTypeCode[]> = {
-  FREE: ['peluqueria'],
-  BASIC: ['peluqueria', 'unas'],
-  MEDIUM: ['peluqueria', 'unas', 'barberia'],
-  STARTER: ['peluqueria', 'unas'],
-  GROWTH: ['peluqueria', 'unas', 'barberia'],
-  PRO: ['peluqueria', 'unas', 'barberia', 'spa']
-};
-
 // Storage key for test injection
 const TEST_STORAGE_KEY = '__test_storage__';
 const LEGACY_CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials';
 const CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials.v1';
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 
 type OnboardingCompletionInput = {
   plan: PlanCode | null;
@@ -64,8 +53,19 @@ type OnboardingCompletionInput = {
 type OnboardingCompletionHandler = (input: OnboardingCompletionInput) => Promise<boolean>;
 
 function mapToPersistedBusinessType(type: BusinessTypeCode): OnboardingBusinessType | null {
-  const candidate = type === 'unas' ? 'uñas' : type;
-  return isAllowedOnboardingBusinessType(candidate) ? candidate : null;
+  const normalized = toBusinessTypeCode(type);
+  return normalized && isAllowedOnboardingBusinessType(normalized) ? (normalized as OnboardingBusinessType) : null;
+}
+
+function toBusinessTypeCode(code: unknown): BusinessTypeCode | null {
+  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, code);
+  return resolved ? (resolved.toLowerCase() as BusinessTypeCode) : null;
+}
+
+function allowedBusinessTypeCodesForPlan(plan: PlanCode | null): BusinessTypeCode[] {
+  return getAllowedBusinessTypesForPlan(REFERENCE_CATALOG, plan ?? 'STARTER')
+    .map((type) => toBusinessTypeCode(type.code))
+    .filter((code): code is BusinessTypeCode => code !== null);
 }
 
 function readBusinessName(storage: Pick<Storage, 'getItem'>): string {
@@ -259,9 +259,13 @@ export class SignupBusinessTypesStepPage {
    */
   get allowedTypes(): BusinessType[] {
     const plan = this.getSelectedPlan();
-    const allowedCodes = PLAN_BUSINESS_TYPES[plan ?? 'STARTER'];
     
-    return ALL_BUSINESS_TYPES.filter((type) => allowedCodes.includes(type.code));
+    return getAllowedBusinessTypesForPlan(REFERENCE_CATALOG, plan ?? 'STARTER')
+      .map((type): BusinessType | null => {
+        const code = toBusinessTypeCode(type.code);
+        return code ? { code, label: type.label } : null;
+      })
+      .filter((type): type is BusinessType => type !== null);
   }
 
   /**
@@ -269,7 +273,7 @@ export class SignupBusinessTypesStepPage {
    */
   getMaxTypes(): number {
     const plan = this.getSelectedPlan();
-    return getPlanEntitlements(plan ?? 'STARTER').maxRubros;
+    return getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, plan ?? 'STARTER')?.maxRubros ?? 1;
   }
 
   /**
@@ -285,7 +289,7 @@ export class SignupBusinessTypesStepPage {
    */
   canSelect(type: BusinessTypeCode): boolean {
     const plan = this.getSelectedPlan();
-    const allowedCodes = PLAN_BUSINESS_TYPES[plan ?? 'STARTER'];
+    const allowedCodes = allowedBusinessTypeCodesForPlan(plan);
     return allowedCodes.includes(type);
   }
 
@@ -439,7 +443,7 @@ export class SignupBusinessTypesStepPage {
       if (stored && stored.length > 0) {
         // Filter to only allowed types (in case plan changed)
         const plan = this.getSelectedPlan();
-        const allowedCodes = PLAN_BUSINESS_TYPES[plan ?? 'STARTER'];
+        const allowedCodes = allowedBusinessTypeCodesForPlan(plan);
         
         this._selectedTypes = stored.filter((code) => allowedCodes.includes(code));
       }
