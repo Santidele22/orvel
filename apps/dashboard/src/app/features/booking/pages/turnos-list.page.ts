@@ -233,11 +233,6 @@ export class TurnosListPage implements OnInit, OnDestroy {
     });
     
     this.turnos.set(turnosEnriquecidos);
-    console.log(`[TurnosListPage] Turnos procesados y listos: ${turnosEnriquecidos.length}`);
-    if (turnosEnriquecidos.length > 0) {
-      console.log(`[TurnosListPage] Ejemplo de fecha de turno (local):`, turnosEnriquecidos[0].fecha);
-      console.log(`[TurnosListPage] Fecha seleccionada actual (local):`, this.selectedDate());
-    }
     this.generateCalendarioEventos(turnosEnriquecidos);
   }
 

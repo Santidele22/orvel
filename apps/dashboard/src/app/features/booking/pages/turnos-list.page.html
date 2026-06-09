@@ -109,28 +109,6 @@
           </div>
         </div>
       </main>
-      <button type="button" class="sr-only" data-testid="turno-admin-manual-booking-open"
-        (click)="openManualBookingPanel()">manual booking</button>
-      <button type="button" class="sr-only" data-testid="turno-admin-manual-booking-submit"
-        (click)="submitAdminManualBooking()">manual booking submit</button>
-      <div class="sr-only" data-testid="turno-admin-manual-booking-success" [attr.aria-hidden]="!manualBookingSuccess()">
-        manual booking success</div>
-
-      <!-- Compatibility hooks only; primary blocked-time UX is the visible right-panel form/action. -->
-      <button type="button" class="sr-only" data-testid="turno-admin-blocked-time-open"
-        (click)="openBlockedTimePanel()">blocked time</button>
-      <button type="button" class="sr-only" data-testid="turno-admin-blocked-time-submit"
-        (click)="submitBlockedTime()">blocked time submit</button>
-      <div class="sr-only" data-testid="turno-admin-blocked-time-collision" [attr.aria-hidden]="!blockedTimeCollision()">
-        blocked time collision</div>
-      <button type="button" class="sr-only" data-testid="turno-admin-reschedule-action">legacy reschedule hook</button>
-
-      <!-- DB-FIX-004: Additional admin action data-testid hooks -->
-      <button type="button" class="sr-only" data-testid="turnos-admin-create-action"
-        (click)="openManualBookingPanel()">admin create</button>
-      <button type="button" class="sr-only" data-testid="turnos-admin-edit-action">admin edit</button>
-      <button type="button" class="sr-only" data-testid="turnos-admin-cancel-action">admin cancel</button>
-
       <aside class="col-span-12 lg:col-span-4 flex flex-col gap-zen-xl" data-layout-section="right_panel">
         <div class="or-card !p-zen-xl space-y-6">
           <h4 class="text-sm font-semibold uppercase tracking-wider text-text-secondary pb-4">
