@@ -1,16 +1,16 @@
 import type { APIRoute } from "astro";
 
 const ALLOWED_PLANS = new Set(["STARTER", "GROWTH", "PRO"]);
-const FALLBACK_PATH = "/billing/test-checkout";
+const FALLBACK_PATH = "/billing/subscription";
 
-type CheckoutResult =
+type SubscriptionResult =
   | { ok: true; initPoint: string }
   | { ok: false; status: number; code: string; message: string };
 
 const CONTRACT_VALIDATION_MESSAGES: Record<string, string> = {
   PLAN_MAPPING_REQUIRED: "Falta configurar la relación del plan seleccionado. Reintentá en unos minutos.",
   PLAN_MAPPING_INVALID: "El plan seleccionado no está correctamente configurado. Contactá soporte.",
-  PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para checkout.",
+  PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para suscripción.",
 };
 
 function normalizePlan(rawPlan: string | null): string | null {
@@ -27,7 +27,7 @@ function toFallbackUrl(requestUrl: URL, reason: string, plan: string | null): UR
   if (plan) {
     fallback.searchParams.set("plan", plan);
   }
-  fallback.searchParams.set("checkout_error", reason);
+  fallback.searchParams.set("subscription_error", reason);
   fallback.searchParams.set("retry", "1");
   return fallback;
 }
@@ -41,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function startCheckout(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, email?: string | null, businessType?: string | null, nombre?: string | null, apellido?: string | null, telefono?: string | null): Promise<CheckoutResult> {
+async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, email?: string | null, businessType?: string | null, nombre?: string | null, apellido?: string | null, telefono?: string | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -58,8 +58,8 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
     return {
       ok: false,
       status: 500,
-      code: "checkout_config_error",
-      message: "La configuración de checkout no está disponible.",
+      code: "subscription_config_error",
+      message: "La configuración de suscripción no está disponible.",
     };
   }
 
@@ -68,7 +68,7 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     apikey: supabaseAnonKey,
-    "x-client-info": "orvel-landing-server-checkout-start",
+    "x-client-info": "orvel-landing-server-subscription-start",
   };
 
   if (authorization) {
@@ -94,7 +94,7 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
     });
 
     if (!upstreamResponse.ok) {
-      let code = "checkout_failed";
+      let code = "subscription_failed";
       let message = "No pudimos iniciar el pago. Reintentá en unos segundos.";
 
       try {
@@ -125,7 +125,7 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
       return {
         ok: false,
         status: 502,
-        code: "checkout_error",
+        code: "subscription_error",
         message: "Mercado Pago no devolvió una URL de pago válida.",
       };
     }
@@ -135,8 +135,8 @@ async function startCheckout(request: Request, plan: string | null, idempotencyK
     return {
       ok: false,
       status: 503,
-      code: "checkout_retry",
-      message: "No pudimos conectar con checkout. Reintentá en unos segundos.",
+      code: "subscription_retry",
+      message: "No pudimos conectar con suscripciones. Reintentá en unos segundos.",
     };
   }
 }
@@ -151,7 +151,7 @@ export const GET: APIRoute = async ({ request, redirect }) => {
   const requestUrl = new URL(request.url);
   const plan = normalizePlan(requestUrl.searchParams.get("plan"));
   const idempotencyKey = requestUrl.searchParams.get("idempotency_key");
-  const result = await startCheckout(request, plan, idempotencyKey);
+  const result = await startSubscription(request, plan, idempotencyKey);
 
   if (result.ok) {
     return redirect(result.initPoint, 303);
@@ -175,7 +175,7 @@ export const POST: APIRoute = async ({ request }) => {
     const apellido = typeof body?.apellido === "string" ? body.apellido.trim() : null;
     const telefono = typeof body?.telefono === "string" ? body.telefono.trim() : null;
     
-    const result = await startCheckout(request, normalizePlan(rawPlan), idempotencyKey, cardToken, email, businessType, nombre, apellido, telefono);
+    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, cardToken, email, businessType, nombre, apellido, telefono);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });
@@ -184,7 +184,7 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: result.code, message: result.message }, result.status);
   } catch {
     return jsonResponse(
-      { error: "invalid_json", message: "El pedido de checkout no tiene un JSON válido." },
+      { error: "invalid_json", message: "El pedido de suscripción no tiene un JSON válido." },
       400,
     );
   }

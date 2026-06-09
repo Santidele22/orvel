@@ -197,16 +197,25 @@ END;
 $$;
 
 -- keep legacy + remediation RPC contracts
+ALTER TABLE public.plans
+  ADD COLUMN IF NOT EXISTS max_locales integer DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS max_rubros integer DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS max_monthly_bookings integer,
+  ADD COLUMN IF NOT EXISTS ai_credits_monthly integer DEFAULT 0;
+
 CREATE OR REPLACE FUNCTION public.get_business_entitlements_snapshot(p_business_id uuid, p_tenant_id uuid)
-RETURNS TABLE (business_id uuid, tenant_id uuid, subscription_status text, plan_code text, max_locales integer, max_rubros integer, ai_credits_monthly integer)
+RETURNS TABLE (business_id uuid, tenant_id uuid, subscription_status text, plan_code text, max_locales integer, max_rubros integer, max_monthly_bookings integer, ai_credits_monthly integer)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_business_owner(p_business_id)) THEN RAISE EXCEPTION 'forbidden entitlement snapshot for business %', p_business_id USING ERRCODE = '42501'; END IF;
-  RETURN QUERY SELECT bs.business_id, bs.tenant_id, bs.status, bs.plan_code,
-    CASE bs.plan_code WHEN 'PRO' THEN 10 WHEN 'MEDIUM' THEN 3 WHEN 'GROWTH' THEN 3 ELSE 1 END,
-    CASE bs.plan_code WHEN 'PRO' THEN 10 WHEN 'MEDIUM' THEN 3 WHEN 'GROWTH' THEN 5 WHEN 'BASIC' THEN 2 ELSE 1 END,
-    CASE bs.plan_code WHEN 'PRO' THEN 2000 WHEN 'MEDIUM' THEN 500 WHEN 'GROWTH' THEN 500 WHEN 'BASIC' THEN 100 ELSE 0 END
-  FROM public.business_subscriptions bs WHERE bs.business_id = p_business_id AND bs.tenant_id = p_tenant_id AND bs.status IN ('active', 'trialing') ORDER BY bs.updated_at DESC LIMIT 1;
+  RETURN QUERY SELECT bs.business_id, bs.tenant_id, bs.status, p.code,
+    COALESCE(p.max_locales, 1),
+    COALESCE(p.max_rubros, 1),
+    p.max_monthly_bookings,
+    COALESCE(p.ai_credits_monthly, 0)
+  FROM public.business_subscriptions bs
+  JOIN public.plans p ON p.code = upper(btrim(bs.plan_code))
+  WHERE bs.business_id = p_business_id AND bs.tenant_id = p_tenant_id AND bs.status IN ('active', 'trialing') ORDER BY bs.updated_at DESC LIMIT 1;
 END; $$;
 
 -- Core idempotency RPCs for Mercado Pago webhook integrity

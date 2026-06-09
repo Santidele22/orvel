@@ -160,11 +160,11 @@ import Layout from '../../layouts/Layout.astro';
           <div class="mt-8"></div>
 
           <!-- Primary CTA Button -->
-          <div id="checkoutStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center hidden">Estado: pendiente de pago.</div>
-          <div id="checkoutError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
+          <div id="subscriptionStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center hidden">Estado: pendiente de pago.</div>
+          <div id="subscriptionError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
           
           <button 
-            id="checkoutContinueBtn" 
+            id="subscriptionContinueBtn" 
             type="button"
             class="group relative w-full rounded-full bg-gradient-to-r from-primary to-primary-light py-4 px-6 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/50 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary"
           >
@@ -234,10 +234,10 @@ import Layout from '../../layouts/Layout.astro';
     if (planPrice) planPrice.textContent = plans[plan].price;
     if (planDetail) planDetail.textContent = plans[plan].detail;
 
-    // Handle checkout errors from URL
-    const checkoutError = params.get('checkout_error');
-    const errorContainer = document.getElementById('checkoutError');
-    const continueBtn = document.getElementById('checkoutContinueBtn') as HTMLButtonElement | null;
+    // Handle subscription errors from URL
+    const subscriptionError = params.get('subscription_error');
+    const errorContainer = document.getElementById('subscriptionError');
+    const continueBtn = document.getElementById('subscriptionContinueBtn') as HTMLButtonElement | null;
     const originalButtonHtml = continueBtn?.innerHTML || '';
 
     const errorMessages: Record<string, string> = {
@@ -245,10 +245,10 @@ import Layout from '../../layouts/Layout.astro';
       BUSINESS_REQUIRED: 'Primero necesitás completar la configuración de tu negocio en el dashboard.',
       email_required: 'Completá tus datos de contacto para continuar.',
       EMAIL_REQUIRED: 'Completá tus datos de contacto para continuar.',
-      checkout_failed: 'No pudimos iniciar el pago. Reintentá en unos segundos.',
-      checkout_error: 'Ocurrió un error al procesar tu solicitud.',
-      checkout_retry: 'Reintentá en unos segundos.',
-      checkout_config_error: 'El checkout no está configurado para este entorno.',
+      subscription_failed: 'No pudimos iniciar el pago. Reintentá en unos segundos.',
+      subscription_error: 'Ocurrió un error al procesar tu solicitud.',
+      subscription_retry: 'Reintentá en unos segundos.',
+      subscription_config_error: 'La suscripción no está configurada para este entorno.',
       invalid_plan: 'El plan seleccionado no está disponible.',
       PLAN_MAPPING_REQUIRED: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
       PLAN_MAPPING_INVALID: 'El plan está mal configurado en backend. Contactá soporte.',
@@ -256,10 +256,10 @@ import Layout from '../../layouts/Layout.astro';
       plan_mapping_required: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
       plan_mapping_invalid: 'El plan está mal configurado en backend. Contactá soporte.',
       plan_identifier_invalid: 'El plan enviado no cumple el contrato de suscripción.',
-      checkout_cancelled: 'Cancelaste el pago. Podés reintentar cuando quieras.'
+      subscription_cancelled: 'Cancelaste el pago. Podés reintentar cuando quieras.'
     };
 
-    const normalizeCheckoutErrorCode = (value: unknown) => {
+    const normalizeSubscriptionErrorCode = (value: unknown) => {
       if (typeof value !== 'string') return '';
       const trimmed = value.trim();
       if (!trimmed) return '';
@@ -274,7 +274,7 @@ import Layout from '../../layouts/Layout.astro';
       return trimmed;
     };
 
-    const statusContainer = document.getElementById('checkoutStatus');
+    const statusContainer = document.getElementById('subscriptionStatus');
     const stateBadge = document.getElementById('planStateBadge');
     const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry') => {
       if (!statusContainer || !stateBadge) return;
@@ -294,12 +294,12 @@ import Layout from '../../layouts/Layout.astro';
         return;
       }
       stateBadge.textContent = 'Reintento disponible';
-      statusContainer.textContent = 'Estado: hubo un problema temporal. Reintentá iniciar checkout.';
+      statusContainer.textContent = 'Estado: hubo un problema temporal. Reintentá iniciar la suscripción.';
     };
 
-    const showCheckoutError = (codeOrMessage: string) => {
+    const showSubscriptionError = (codeOrMessage: string) => {
       if (!errorContainer) return;
-      const normalizedCode = normalizeCheckoutErrorCode(codeOrMessage);
+      const normalizedCode = normalizeSubscriptionErrorCode(codeOrMessage);
       errorContainer.textContent = errorMessages[normalizedCode] || codeOrMessage;
       errorContainer.classList.remove('hidden');
     };
@@ -316,7 +316,7 @@ import Layout from '../../layouts/Layout.astro';
       }
     };
 
-    const getCheckoutAccessToken = async () => {
+    const getSubscriptionAccessToken = async () => {
       try {
         const client = createClient(
           import.meta.env.PUBLIC_SUPABASE_URL,
@@ -334,22 +334,22 @@ import Layout from '../../layouts/Layout.astro';
     };
 
     const paymentStatus = (params.get('payment_status') || '').trim().toLowerCase();
-    const checkoutState = (params.get('checkout_state') || '').trim().toLowerCase();
-    const checkoutSessionId = (params.get('checkout_session_id') || '').trim();
+    const subscriptionState = (params.get('subscription_state') || '').trim().toLowerCase();
+    const subscriptionSessionId = (params.get('subscription_session_id') || params.get('preapproval_id') || '').trim();
     if (paymentStatus === 'approved') {
-      // Redirect handled below — after normalizedCheckoutError block
-    } else if (checkoutState === 'pending') {
+      // Redirect handled below — after normalized subscription error handling
+    } else if (subscriptionState === 'pending') {
       setUiState('pending');
     } else if (paymentStatus === 'rejected' || paymentStatus === 'failed') {
       setUiState('failed');
-    } else if (paymentStatus === 'cancelled' || checkoutState === 'cancelled') {
+    } else if (paymentStatus === 'cancelled' || subscriptionState === 'cancelled') {
       setUiState('cancelled');
     }
 
-    const normalizedCheckoutError = normalizeCheckoutErrorCode(checkoutError);
-    if (normalizedCheckoutError && errorContainer && errorMessages[normalizedCheckoutError]) {
-      showCheckoutError(normalizedCheckoutError);
-      setUiState(normalizedCheckoutError === 'checkout_cancelled' ? 'cancelled' : 'retry');
+    const normalizedSubscriptionError = normalizeSubscriptionErrorCode(subscriptionError);
+    if (normalizedSubscriptionError && errorContainer && errorMessages[normalizedSubscriptionError]) {
+      showSubscriptionError(normalizedSubscriptionError);
+      setUiState(normalizedSubscriptionError === 'subscription_cancelled' ? 'cancelled' : 'retry');
        
       // Disable button on error
       if (continueBtn) {
@@ -358,7 +358,7 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
 
-    // Approved checkout — hand off to dashboard auth for session/entitlement
+    // Approved subscription — hand off to dashboard auth for session/entitlement
     // Backend/Supabase/functions/webhooks are source of truth; query params are UX only.
     if (paymentStatus === 'approved') {
       (async () => {
@@ -367,30 +367,30 @@ import Layout from '../../layouts/Layout.astro';
         const handoffUrl = buildDashboardAuthUrl({
           dashboardOrigin,
           mode: 'login',
-          source: 'checkout',
-          returnTo: '/dashboard/inicio?from=checkout'
+          source: 'subscription',
+          returnTo: '/dashboard/inicio?from=subscription'
         });
         window.location.href = handoffUrl;
       })();
     }
 
-    const checkoutAttemptKey = `orvel.checkout.attempt.${plan}`;
+    const subscriptionAttemptKey = `orvel.subscription.attempt.${plan}`;
     const buildIdempotencyKey = () => {
-      const existing = sessionStorage.getItem(checkoutAttemptKey);
+      const existing = sessionStorage.getItem(subscriptionAttemptKey);
       if (existing) return existing;
       const generated = `landing-${plan}-${crypto.randomUUID()}`;
-      sessionStorage.setItem(checkoutAttemptKey, generated);
+      sessionStorage.setItem(subscriptionAttemptKey, generated);
       return generated;
     };
 
-    const pollCheckoutStatus = async () => {
-      if (!checkoutSessionId) return;
+    const pollSubscriptionStatus = async () => {
+      if (!subscriptionSessionId) return;
       try {
-        const token = await getCheckoutAccessToken();
+        const token = await getSubscriptionAccessToken();
         const headers: Record<string, string> = {};
         if (token) headers.Authorization = `Bearer ${token}`;
 
-        const response = await fetch(`/api/checkout/status?checkout_session_id=${encodeURIComponent(checkoutSessionId)}`, {
+        const response = await fetch(`/api/subscriptions/status?subscription_session_id=${encodeURIComponent(subscriptionSessionId)}`, {
           method: 'GET',
           headers
         });
@@ -398,14 +398,14 @@ import Layout from '../../layouts/Layout.astro';
 
         const normalizedStatus = `${result?.status || result?.payment_status || ''}`.toLowerCase();
         if (normalizedStatus === 'approved' || normalizedStatus === 'active') {
-          sessionStorage.removeItem(checkoutAttemptKey);
+          sessionStorage.removeItem(subscriptionAttemptKey);
           const { buildDashboardAuthUrl } = await import('../../lib/dashboard-auth-handoff');
           const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL || 'http://localhost:4200';
           const handoffUrl = buildDashboardAuthUrl({
             dashboardOrigin,
             mode: 'login',
-            source: 'checkout',
-            returnTo: '/dashboard/inicio?from=checkout'
+            source: 'subscription',
+            returnTo: '/dashboard/inicio?from=subscription'
           });
           window.location.href = handoffUrl;
           return;
@@ -422,15 +422,15 @@ import Layout from '../../layouts/Layout.astro';
       }
     };
 
-    if (checkoutSessionId && paymentStatus !== 'approved') {
+    if (subscriptionSessionId && paymentStatus !== 'approved') {
       setUiState('pending');
-      pollCheckoutStatus();
-      window.setInterval(pollCheckoutStatus, 4000);
+      pollSubscriptionStatus();
+      window.setInterval(pollSubscriptionStatus, 4000);
     }
-    // Bind Checkout Button
-    const initCheckoutBtn = document.getElementById('checkoutContinueBtn');
-    if (initCheckoutBtn) {
-      initCheckoutBtn.addEventListener('click', async () => {
+    // Bind subscription button
+    const initSubscriptionBtn = document.getElementById('subscriptionContinueBtn');
+    if (initSubscriptionBtn) {
+      initSubscriptionBtn.addEventListener('click', async () => {
         if (errorContainer) {
           errorContainer.textContent = '';
           errorContainer.classList.add('hidden');
@@ -438,11 +438,11 @@ import Layout from '../../layouts/Layout.astro';
 
         try {
           // Disable button to prevent double submission
-          const btnText = initCheckoutBtn.querySelector('span');
+          const btnText = initSubscriptionBtn.querySelector('span');
           if (btnText) btnText.textContent = 'Procesando...';
-          initCheckoutBtn.setAttribute('disabled', 'true');
+          initSubscriptionBtn.setAttribute('disabled', 'true');
 
-          const token = await getCheckoutAccessToken();
+          const token = await getSubscriptionAccessToken();
           const headers: Record<string, string> = {
             'Content-Type': 'application/json'
           };
@@ -454,7 +454,7 @@ import Layout from '../../layouts/Layout.astro';
           const apellido = sessionStorage.getItem('orvel.signup.apellido');
           const telefono = sessionStorage.getItem('orvel.signup.telefono');
 
-          const response = await fetch('/api/checkout/start', {
+          const response = await fetch('/api/subscriptions/start', {
             method: 'POST',
             headers,
             body: JSON.stringify({ 
@@ -471,24 +471,24 @@ import Layout from '../../layouts/Layout.astro';
           const result = await response.json().catch(() => null);
 
           if (!response.ok) {
-            const codeOrMessage = normalizeCheckoutErrorCode(result?.error || result?.message) || 'checkout_failed';
-            showCheckoutError(codeOrMessage);
+            const codeOrMessage = normalizeSubscriptionErrorCode(result?.error || result?.message) || 'subscription_failed';
+            showSubscriptionError(codeOrMessage);
             
             // Re-enable button
             if (btnText) btnText.innerHTML = 'Continuar con Mercado Pago <svg class="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>';
-            initCheckoutBtn.removeAttribute('disabled');
+            initSubscriptionBtn.removeAttribute('disabled');
             return;
           }
 
           if (result?.init_point) {
             window.location.href = result.init_point;
           } else {
-            showCheckoutError('checkout_error');
+            showSubscriptionError('subscription_error');
           }
         } catch (error) {
-          console.error('Checkout error:', error);
-          showCheckoutError('checkout_retry');
-          initCheckoutBtn.removeAttribute('disabled');
+          console.error('Subscription error:', error);
+          showSubscriptionError('subscription_retry');
+          initSubscriptionBtn.removeAttribute('disabled');
         }
       });
     }

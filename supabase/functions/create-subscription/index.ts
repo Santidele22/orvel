@@ -4,10 +4,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
+import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
 import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
 import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
 import { resolveTrustedPaidPlanMapping } from "../_shared/mp-subscription-guards.ts";
+import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 import { buildAppUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -41,10 +43,6 @@ function isRateLimited(req: Request): boolean {
 // Mercado Pago API URLs
 const MP_API_BASE = "https://api.mercadopago.com";
 const MP_PREAPPROVAL_ENDPOINT = "/preapproval";
-
-function normalizePlanCode(planCode: string): string {
-  return planCode.trim().toUpperCase();
-}
 
 interface Plan {
   id: string;
@@ -126,7 +124,7 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function createOpaqueCheckoutToken(): string {
+function createOpaqueSubscriptionSessionToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -162,7 +160,7 @@ Deno.serve(async (req) => {
 
   try {
     // =============================================================================
-    // 1. VERIFY USER AUTHENTICATION (Optional for anonymous checkout)
+    // 1. VERIFY USER AUTHENTICATION (Optional for anonymous subscription)
     // =============================================================================
     const authHeader = req.headers.get("Authorization");
     let user = null;
@@ -280,7 +278,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
         preapproval_plan_id: String(resolvedRecord.preapproval_plan_id ?? ""),
       };
 
-      effectivePlanCode = normalizedTier === "started" ? "STARTER" : normalizedTier === "medium" ? "GROWTH" : "PRO";
+      effectivePlanCode = normalizedTier === "starter" ? "STARTER" : normalizedTier === "growth" ? "GROWTH" : "PRO";
     }
 
     if (!effectivePlanCode || typeof effectivePlanCode !== "string") {
@@ -290,7 +288,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
       );
     }
 
-    const canonicalPlanCode = normalizePlanCode(effectivePlanCode);
+    const canonicalPlanCode = normalizeCanonicalPlanCode(effectivePlanCode);
 
     // =============================================================================
     // 4. GET PLAN FROM DATABASE
@@ -315,8 +313,8 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
     // If catalogRow is still null, try to resolve it from mp_plan_catalog using plan details
     if (!catalogRow && plan.price > 0) {
       let inferredTier = "";
-      if (canonicalPlanCode === "STARTER") inferredTier = "started";
-      else if (canonicalPlanCode === "GROWTH") inferredTier = "medium";
+      if (canonicalPlanCode === "STARTER") inferredTier = "starter";
+      else if (canonicalPlanCode === "GROWTH") inferredTier = "growth";
       else if (canonicalPlanCode === "PRO") inferredTier = "pro";
 
       if (inferredTier) {
@@ -405,7 +403,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
 
     if (!business) {
       return new Response(
-        JSON.stringify({ error: "BUSINESS_REQUIRED", message: "Se requiere un negocio para crear checkout de suscripción" }),
+        JSON.stringify({ error: "BUSINESS_REQUIRED", message: "Se requiere un negocio para crear una suscripción" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -439,12 +437,12 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
       );
     }
 
-    const checkoutToken = createOpaqueCheckoutToken();
-    const idempotencySuffix = idempotencyKey ? await sha256Text(`idem:${business.owner_id}:${plan.code}:${idempotencyKey}`) : checkoutToken;
-    const externalReference = `checkout-session:${idempotencySuffix}`;
-    const checkoutExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
+    const idempotencySuffix = idempotencyKey ? await sha256Text(`idem:${business.owner_id}:${plan.code}:${idempotencyKey}`) : subscriptionSessionToken;
+    const externalReference = createSubscriptionSessionReference(idempotencySuffix);
+    const subscriptionSessionExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
 
-    const { data: checkoutSession, error: checkoutError } = await supabaseAdmin
+    const { data: subscriptionSession, error: subscriptionSessionError } = await supabaseAdmin
       .from("billing_checkout_sessions")
       .insert({
         tenant_id: business.owner_id,
@@ -454,27 +452,27 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
         expected_currency: plan.currency,
         provider: "mercado_pago",
         external_reference: externalReference,
-        token_hash: await sha256Text(checkoutToken),
-        expires_at: checkoutExpiresAt.toISOString(),
+        token_hash: await sha256Text(subscriptionSessionToken),
+        expires_at: subscriptionSessionExpiresAt.toISOString(),
         created_by: user?.id || business.owner_id,
       })
       .select("id, external_reference")
       .single();
 
-    if (checkoutError || !checkoutSession) {
-      if (idempotencyKey && checkoutError?.code === "23505") {
+    if (subscriptionSessionError || !subscriptionSession) {
+      if (idempotencyKey && subscriptionSessionError?.code === "23505") {
         return new Response(
           JSON.stringify({
             error: "IDEMPOTENCY_KEY_CONFLICT",
-            message: "Ya existe una sesión de checkout para esta clave de idempotencia",
+            message: "Ya existe una sesión de suscripción para esta clave de idempotencia",
             correlation_id: correlationId,
           }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
         );
       }
-      console.error("Checkout session insert error:", checkoutError?.message);
+      console.error("Subscription session insert error:", subscriptionSessionError?.message);
       return new Response(
-        JSON.stringify({ error: "CHECKOUT_SESSION_FAILED", message: "Error al crear sesión segura de checkout", correlation_id: correlationId }),
+        JSON.stringify({ error: "SUBSCRIPTION_SESSION_FAILED", message: "Error al crear sesión segura de suscripción", correlation_id: correlationId }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId } }
       );
     }
@@ -564,7 +562,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
         provider_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || null,
         status: "provider_created",
       })
-      .eq("id", checkoutSession.id);
+      .eq("id", subscriptionSession.id);
 
     // =============================================================================
     // 6. SAVE PENDING SUBSCRIPTION (Only if business exists)

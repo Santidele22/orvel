@@ -19,7 +19,7 @@ export type LandingPlanViewModel = {
   maxLocales: number;
   maxRubros: number;
   maxMonthlyBookings: number | null;
-  checkoutProvider: 'mercado_pago';
+  subscriptionProvider: 'mercado_pago';
 };
 
 type PlanEntitlementRow = {
@@ -93,7 +93,7 @@ function fromEntitlementsMap(): LandingPlanViewModel[] {
     maxLocales: PLAN_ENTITLEMENTS[code].maxLocales,
     maxRubros: PLAN_ENTITLEMENTS[code].maxRubros,
     maxMonthlyBookings: PLAN_ENTITLEMENTS[code].maxMonthlyBookings,
-    checkoutProvider: 'mercado_pago'
+    subscriptionProvider: 'mercado_pago'
   }));
 }
 
@@ -122,7 +122,7 @@ function fromPlanEntitlementsRows(rows: PlanEntitlementRow[]): LandingPlanViewMo
       maxLocales: Math.max(staticEntitlements.maxLocales, Number(row.max_locales ?? 0)),
       maxRubros: Math.max(staticEntitlements.maxRubros, Number(row.max_rubros ?? 0)),
       maxMonthlyBookings: row.max_monthly_bookings !== undefined ? row.max_monthly_bookings : staticEntitlements.maxMonthlyBookings,
-      checkoutProvider: 'mercado_pago'
+      subscriptionProvider: 'mercado_pago'
     });
   }
 

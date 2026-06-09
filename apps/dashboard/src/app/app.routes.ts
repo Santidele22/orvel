@@ -75,8 +75,8 @@ export const routes: Routes = [
       import('./features/onboarding/pages/onboarding-business-step.page').then(m => m.OnboardingBusinessStepPage)
   },
   {
-    path: 'billing/test-checkout',
-    loadComponent: () => import('./features/billing/pages/billing-checkout.component').then(m => m.BillingCheckoutComponent)
+    path: 'billing/subscription',
+    loadComponent: () => import('./features/billing/pages/billing-subscription.component').then(m => m.BillingSubscriptionComponent)
   },
   {
     path: 'dashboard',
@@ -96,6 +96,10 @@ export const routes: Routes = [
       {
         path: 'turnos',
         loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
+      },
+      {
+        path: 'turnos/new',
+        loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
       },
       {
         path: 'turnos/edit/:id',

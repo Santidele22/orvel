@@ -204,7 +204,7 @@ import Layout from '../../../layouts/Layout.astro';
       button.textContent = 'Finalizando...';
 
       const returnTo = isPaidPlan
-        ? `/billing/test-checkout?plan=${encodeURIComponent(plan)}`
+        ? `/billing/subscription?plan=${encodeURIComponent(plan)}`
         : '/dashboard/inicio';
 
       const client = createClient(
@@ -272,7 +272,7 @@ import Layout from '../../../layouts/Layout.astro';
 
           sessionStorage.removeItem('orvel.signup.plan');
           
-          // If paid plan and business creation succeeded, go to checkout
+          // If paid plan and business creation succeeded, go to subscription/preapproval
           if (isPaidPlan) {
             // Small delay to ensure business is created in DB
             setTimeout(() => {
@@ -315,7 +315,7 @@ import Layout from '../../../layouts/Layout.astro';
       sessionStorage.setItem('orvel.signup.rubros', JSON.stringify(tipoNegocioList));
 
       if (isPaidPlan) {
-        // Defer account creation to checkout
+        // Defer account creation to subscription/preapproval
         window.location.href = returnTo;
         return;
       }

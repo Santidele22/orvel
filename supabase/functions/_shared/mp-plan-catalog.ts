@@ -1,4 +1,4 @@
-export type BillingTier = 'started' | 'medium' | 'pro';
+export type BillingTier = 'starter' | 'growth' | 'pro';
 export type BillingCadence = 'monthly' | 'quarterly' | 'annual';
 
 export type MpPlanCatalogRow = {
@@ -9,10 +9,11 @@ export type MpPlanCatalogRow = {
 };
 
 const TIER_ALIASES: Record<string, BillingTier> = {
-  started: 'started',
-  starter: 'started',
-  medium: 'medium',
-  growth: 'medium',
+  basic: 'starter',
+  started: 'starter',
+  starter: 'starter',
+  medium: 'growth',
+  growth: 'growth',
   pro: 'pro',
 };
 

@@ -1,4 +1,4 @@
-.billing-checkout {
+.billing-subscription {
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -9,7 +9,7 @@
   color: var(--or-text-primary);
 }
 
-.billing-checkout__card {
+.billing-subscription__card {
   width: min(100%, 32rem);
   padding: clamp(1.5rem, 4vw, 2.5rem);
   border: 1px solid rgba(148, 163, 184, 0.18);
@@ -19,7 +19,7 @@
   box-shadow: 0 30px 60px rgba(2, 6, 23, 0.4);
 }
 
-.billing-checkout__kicker {
+.billing-subscription__kicker {
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -33,23 +33,23 @@ h1 {
   font-size: clamp(1.75rem, 4vw, 2.25rem);
 }
 
-.billing-checkout__message {
+.billing-subscription__message {
   margin: 0;
   line-height: 1.6;
   color: rgba(241, 245, 249, 0.78);
 }
 
-.billing-checkout__spinner {
+.billing-subscription__spinner {
   width: 2.25rem;
   height: 2.25rem;
   margin: 1.5rem auto 0;
   border: 3px solid rgba(148, 163, 184, 0.24);
   border-top-color: var(--or-primary);
   border-radius: 9999px;
-  animation: billing-checkout-spin 0.8s linear infinite;
+  animation: billing-subscription-spin 0.8s linear infinite;
 }
 
-.billing-checkout__support {
+.billing-subscription__support {
   display: inline-flex;
   margin-top: 1.5rem;
   padding: 0.85rem 1.15rem;
@@ -60,7 +60,7 @@ h1 {
   font-weight: 700;
 }
 
-@keyframes billing-checkout-spin {
+@keyframes billing-subscription-spin {
   to {
     transform: rotate(360deg);
   }

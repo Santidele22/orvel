@@ -9,25 +9,26 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 export const GET: APIRoute = async ({ request }) => {
   const requestUrl = new URL(request.url);
-  const checkoutSessionId = requestUrl.searchParams.get('checkout_session_id')?.trim();
+  const subscriptionSessionId = requestUrl.searchParams.get('subscription_session_id')?.trim()
+    || requestUrl.searchParams.get('preapproval_id')?.trim();
 
-  if (!checkoutSessionId) {
-    return jsonResponse({ error: 'missing_checkout_session', message: 'Falta checkout_session_id.' }, 400);
+  if (!subscriptionSessionId) {
+    return jsonResponse({ error: 'missing_subscription_session', message: 'Falta subscription_session_id o preapproval_id.' }, 400);
   }
 
   const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.SUPABASE_ANON_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return jsonResponse({ error: 'checkout_config_error', message: 'La configuración no está disponible.' }, 500);
+    return jsonResponse({ error: 'subscription_config_error', message: 'La configuración no está disponible.' }, 500);
   }
 
-  const endpoint = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/subscription-status?checkout_session_id=${encodeURIComponent(checkoutSessionId)}`;
+  const endpoint = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/subscription-status?subscription_session_id=${encodeURIComponent(subscriptionSessionId)}`;
   const authorization = request.headers.get('Authorization');
 
   const headers: Record<string, string> = {
     apikey: supabaseAnonKey,
-    'x-client-info': 'orvel-landing-server-checkout-status'
+    'x-client-info': 'orvel-landing-server-subscription-status'
   };
 
   if (authorization) headers.Authorization = authorization;

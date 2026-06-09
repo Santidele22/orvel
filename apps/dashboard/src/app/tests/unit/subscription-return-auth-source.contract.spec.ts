@@ -7,7 +7,7 @@ const LOGIN_PAGE = new URL('../../pages/auth/login.page.ts', import.meta.url);
 type DashboardAuthFlowModule = {
   normalizeDashboardAuthRequest: (url: string | URL) => {
     mode: 'login' | 'signup';
-    source?: 'checkout';
+    source?: 'subscription';
     returnTo: string;
   };
   resolveDashboardAuthSuccessRedirect: (input: { returnTo?: string | null }) => string;
@@ -23,16 +23,16 @@ async function loadDashboardAuthFlow(): Promise<DashboardAuthFlowModule> {
   }
 }
 
-describe('RED Contract: dashboard /auth checkout source normalization', () => {
-  it('accepts source=checkout only as optional context while preserving normal login mode and safe returnTo', async () => {
+describe('RED Contract: dashboard /auth subscription source normalization', () => {
+  it('accepts source=subscription only as optional context while preserving normal login mode and safe returnTo', async () => {
     const { normalizeDashboardAuthRequest } = await loadDashboardAuthFlow();
 
     expect(
-      normalizeDashboardAuthRequest('/auth?mode=login&source=checkout&returnTo=%2Fdashboard%2Finicio%3Ffrom%3Dcheckout')
+      normalizeDashboardAuthRequest('/auth?mode=login&source=subscription&returnTo=%2Fdashboard%2Finicio%3Ffrom%3Dsubscription')
     ).toEqual({
       mode: 'login',
-      source: 'checkout',
-      returnTo: '/dashboard/inicio?from=checkout'
+      source: 'subscription',
+      returnTo: '/dashboard/inicio?from=subscription'
     });
 
     expect(normalizeDashboardAuthRequest('/auth?mode=login&source=marketing&returnTo=%2Fdashboard')).toEqual({
@@ -41,7 +41,7 @@ describe('RED Contract: dashboard /auth checkout source normalization', () => {
     });
   });
 
-  it('does not let checkout/provider identifiers or oauth/token material survive returnTo normalization', async () => {
+  it('does not let subscription/provider identifiers or oauth/token material survive returnTo normalization', async () => {
     const { normalizeDashboardAuthRequest, resolveDashboardAuthSuccessRedirect } = await loadDashboardAuthFlow();
 
     for (const unsafeReturnTo of [
@@ -53,25 +53,25 @@ describe('RED Contract: dashboard /auth checkout source normalization', () => {
       '/dashboard/inicio?code=oauth-code',
       '/dashboard/inicio#refresh_token=secret'
     ]) {
-      const url = `/auth?mode=login&source=checkout&returnTo=${encodeURIComponent(unsafeReturnTo)}`;
+      const url = `/auth?mode=login&source=subscription&returnTo=${encodeURIComponent(unsafeReturnTo)}`;
 
       expect(normalizeDashboardAuthRequest(url)).toEqual({
         mode: 'login',
-        source: 'checkout',
+        source: 'subscription',
         returnTo: '/dashboard/inicio'
       });
       expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/dashboard/inicio');
     }
   });
 
-  it('requires the normal Supabase login/session path even when source=checkout is present', async () => {
+  it('requires the normal Supabase login/session path even when source=subscription is present', async () => {
     const source = await readFile(LOGIN_PAGE, 'utf8');
 
     expect(source).toContain('createSupabaseAuthClient');
     expect(source).toContain('signInWithPassword');
     expect(source).toContain('handleLoginSuccess');
 
-    expect(source).not.toMatch(/source\s*===\s*['"]checkout['"][\s\S]*(authenticated|entitlement|plan|onboardingCompleted)/i);
-    expect(source).not.toMatch(/checkout[\s\S]*(auth\.updateUser|setCurrentStep\([^)]*dashboard[^)]*\))/i);
+    expect(source).not.toMatch(/source\s*===\s*['"]subscription['"][\s\S]*(authenticated|entitlement|plan|onboardingCompleted)/i);
+    expect(source).not.toMatch(/subscription[\s\S]*(auth\.updateUser|setCurrentStep\([^)]*dashboard[^)]*\))/i);
   });
 });

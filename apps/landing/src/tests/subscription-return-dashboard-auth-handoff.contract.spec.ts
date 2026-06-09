@@ -2,13 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const HANDOFF_MODULE = new URL('../lib/dashboard-auth-handoff.ts', import.meta.url);
-const TEST_CHECKOUT_PAGE = new URL('../pages/billing/test-checkout.astro', import.meta.url);
+const SUBSCRIPTION_PAGE = new URL('../pages/billing/subscription.astro', import.meta.url);
 
 type DashboardAuthHandoffModule = {
   buildDashboardAuthUrl: (input: {
     dashboardOrigin: string;
     mode: 'login' | 'signup';
-    source?: 'checkout';
+    source?: 'subscription';
     returnTo?: string | null;
   }) => string;
 };
@@ -23,27 +23,27 @@ async function loadDashboardAuthHandoff(): Promise<DashboardAuthHandoffModule> {
   }
 }
 
-describe('RED Contract: checkout return normalization handoff from landing', () => {
-  it('builds checkout-approved dashboard /auth handoff with source=checkout and a safe returnTo', async () => {
+describe('RED Contract: subscription return normalization handoff from landing', () => {
+  it('builds subscription-approved dashboard /auth handoff with source=subscription and a safe returnTo', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoff = new URL(
       buildDashboardAuthUrl({
         dashboardOrigin: 'https://orvel.pro/dashboard',
         mode: 'login',
-        source: 'checkout',
-        returnTo: '/dashboard/inicio?from=checkout'
+        source: 'subscription',
+        returnTo: '/dashboard/inicio?from=subscription'
       })
     );
 
     expect(handoff.origin).toBe('https://orvel.pro');
     expect(handoff.pathname).toBe('/dashboard/auth');
     expect(handoff.searchParams.get('mode')).toBe('login');
-    expect(handoff.searchParams.get('source')).toBe('checkout');
-    expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio?from=checkout');
+    expect(handoff.searchParams.get('source')).toBe('subscription');
+    expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio?from=subscription');
   });
 
-  it('does not propagate checkout/provider identifiers, oauth codes, or token material into dashboard auth URL', async () => {
+  it('does not propagate subscription/provider identifiers, oauth codes, or token material into dashboard auth URL', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     for (const unsafeReturnTo of [
@@ -60,7 +60,7 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
       const handoff = buildDashboardAuthUrl({
         dashboardOrigin: 'https://orvel.pro/dashboard',
         mode: 'login',
-        source: 'checkout',
+        source: 'subscription',
         returnTo: unsafeReturnTo
       });
       const parsed = new URL(handoff);
@@ -70,11 +70,11 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
     }
   });
 
-  it('treats source=checkout as UX context only and does not trust it for auth, payment verification, or entitlement grant', async () => {
-    const source = await readFile(TEST_CHECKOUT_PAGE, 'utf8');
+  it('treats source=subscription as UX context only and does not trust it for auth, payment verification, or entitlement grant', async () => {
+    const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
 
     expect(source).toContain('buildDashboardAuthUrl');
-    expect(source).toContain("source: 'checkout'");
+    expect(source).toContain("source: 'subscription'");
     expect(source).toContain("mode: 'login'");
 
     expect(source).not.toContain('signupWithProvider');
@@ -84,8 +84,8 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
     expect(source).not.toMatch(/window\.location\.href\s*=\s*dashboardHome/);
   });
 
-  it('keeps cancel, pending, and failure checkout states on landing without auto-granting dashboard access', async () => {
-    const source = await readFile(TEST_CHECKOUT_PAGE, 'utf8');
+  it('keeps cancel, pending, and failure subscription states on landing without auto-granting dashboard access', async () => {
+    const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
 
     expect(source).toContain("setUiState('pending')");
     expect(source).toContain("setUiState('failed')");
@@ -93,7 +93,7 @@ describe('RED Contract: checkout return normalization handoff from landing', () 
 
     const statusHandlingOnly = source.slice(
       source.indexOf("const paymentStatus"),
-      source.indexOf('const normalizedCheckoutError')
+      source.indexOf('const normalizedSubscriptionError')
     );
 
     expect(statusHandlingOnly).not.toMatch(/window\.location|dashboard|auth\.updateUser|signupWithProvider/i);

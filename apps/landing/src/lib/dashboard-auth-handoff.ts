@@ -1,6 +1,6 @@
 type DashboardAuthMode = 'login' | 'signup';
 
-type CheckoutSource = 'checkout';
+type BillingSource = 'subscription';
 
 const DASHBOARD_HOME = '/';
 const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token)/i;
@@ -10,13 +10,13 @@ const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapp
 export function buildDashboardAuthUrl(input: {
   dashboardOrigin: string;
   mode: DashboardAuthMode;
-  source?: CheckoutSource;
+  source?: BillingSource;
   returnTo?: string | null;
 }): string {
   const authUrl = new URL('auth', normalizeDashboardBaseUrl(input.dashboardOrigin));
   authUrl.searchParams.set('mode', input.mode === 'signup' ? 'signup' : 'login');
-  if (input.source === 'checkout') {
-    authUrl.searchParams.set('source', 'checkout');
+  if (input.source === 'subscription') {
+    authUrl.searchParams.set('source', 'subscription');
   }
   authUrl.searchParams.set('returnTo', sanitizeDashboardReturnTo(input.returnTo));
   return authUrl.toString();

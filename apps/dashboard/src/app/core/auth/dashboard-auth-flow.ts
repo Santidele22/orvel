@@ -1,5 +1,5 @@
 export type DashboardAuthMode = 'login' | 'signup';
-export type DashboardAuthSource = 'checkout';
+export type DashboardAuthSource = 'subscription';
 
 const DASHBOARD_HOME = '/dashboard/inicio';
 const SAFE_MODE_VALUES = new Set<DashboardAuthMode>(['login', 'signup']);
@@ -19,7 +19,7 @@ export function normalizeDashboardAuthRequest(url: string | URL): {
     : 'login';
 
   const rawSource = parsedUrl.searchParams.get('source')?.trim().toLowerCase();
-  const source: DashboardAuthSource | undefined = rawSource === 'checkout' ? 'checkout' : undefined;
+  const source: DashboardAuthSource | undefined = rawSource === 'subscription' ? 'subscription' : undefined;
 
   return {
     mode,
