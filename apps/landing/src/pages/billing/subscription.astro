@@ -224,6 +224,12 @@ import Layout from '../../layouts/Layout.astro';
         : rawPlan;
     const candidatePlan = normalizedPlan as keyof typeof plans;
     const plan = plans[candidatePlan] ? candidatePlan : 'FREE';
+    const normalizeBillingPeriod = (raw: string | null) => {
+      const normalized = raw?.trim().toLowerCase();
+      return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+    };
+    const billing = normalizeBillingPeriod(params.get('billing') || sessionStorage.getItem('orvel.signup.billing'));
+    sessionStorage.setItem('orvel.signup.billing', billing);
 
     // Update plan details in UI
     const planName = document.getElementById('planSummaryName');
@@ -243,6 +249,9 @@ import Layout from '../../layouts/Layout.astro';
     const errorMessages: Record<string, string> = {
       business_required: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
       BUSINESS_REQUIRED: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
+      business_required_existing: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
+      business_required_pending_signup: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
+      pending_signup_business_required: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
       email_required: 'Completá tus datos de contacto para continuar.',
       EMAIL_REQUIRED: 'Completá tus datos de contacto para continuar.',
       subscription_failed: 'No pudimos iniciar el pago. Reintentá en unos segundos.',
@@ -448,6 +457,8 @@ import Layout from '../../layouts/Layout.astro';
           };
           if (token) headers.Authorization = `Bearer ${token}`;
 
+          const pendingSignupIntentRaw = sessionStorage.getItem('orvel.signup.pending_signup_intent');
+          const pendingSignupIntent = pendingSignupIntentRaw ? JSON.parse(pendingSignupIntentRaw) : null;
           const email = sessionStorage.getItem('orvel.signup.email');
           const businessType = sessionStorage.getItem('orvel.signup.tipoNegocio');
           const nombre = sessionStorage.getItem('orvel.signup.nombre');
@@ -459,12 +470,17 @@ import Layout from '../../layouts/Layout.astro';
             headers,
             body: JSON.stringify({ 
               plan, 
+              billing,
+              billing_period: billing,
+              cadence: billing,
               idempotencyKey: buildIdempotencyKey(),
               email,
               businessType,
               nombre,
               apellido,
-              telefono
+              telefono,
+              pending_signup_intent: pendingSignupIntent,
+              pendingSignupIntent
             })
           });
           

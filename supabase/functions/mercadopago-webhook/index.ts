@@ -2,10 +2,7 @@
 // Handles Mercado Pago webhook notifications for subscription status updates
 // Endpoint: POST /functions/v1/mercadopago-webhook
 
-import {
-  createClient,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   getBillingCorsHeaders,
   rejectDisallowedBrowserOrigin,
@@ -92,6 +89,154 @@ async function syncEntitlementsForBusiness(
   } else {
     console.log("Entitlements synced for business:", businessId);
   }
+}
+
+async function materializePendingSignup(
+  supabaseAdmin: SupabaseClient,
+  params: {
+    providerSubscriptionId: string;
+    externalReference?: string;
+    pendingSignupIntentId: string;
+    providerPlanId?: string | null;
+    currentPeriodStart?: string | null;
+    currentPeriodEnd?: string | null;
+  },
+): Promise<
+  {
+    id: string;
+    business_id: string;
+    tenant_id: string;
+    plan_code: string;
+    provider_subscription_id?: string;
+    provider_plan_id?: string;
+  } | null
+> {
+  const { data: intent } = await supabaseAdmin
+    .from("pending_signup_intents")
+    .select("*")
+    .eq("id", params.pendingSignupIntentId)
+    .eq("provider", "mercado_pago")
+    .eq("provider_subscription_id", params.providerSubscriptionId)
+    .eq("status", "materializing")
+    .maybeSingle();
+
+  if (!intent) return null;
+
+  const { data: createdUser, error: createUserError } = await supabaseAdmin.auth
+    .admin.createUser({
+      email: intent.email,
+      email_confirm: true,
+      user_metadata: {
+        first_name: intent.first_name,
+        last_name: intent.last_name,
+        phone: intent.phone,
+        onboarding_completed: true,
+        source: "paid_signup_payment_approved",
+      },
+    });
+
+  if (createUserError || !createdUser.user) {
+    await supabaseAdmin
+      .from("pending_signup_intents")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", intent.id);
+    throw createUserError || new Error("pending_signup_user_create_failed");
+  }
+
+  const slugBase = String(intent.business_name || "mi-negocio")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "mi-negocio";
+  const slug = `${slugBase}-${String(intent.id).slice(0, 8)}`;
+
+  const { data: business, error: businessError } = await supabaseAdmin
+    .from("businesses")
+    .insert({
+      name: intent.business_name || "Mi Negocio",
+      slug,
+      owner_id: createdUser.user.id,
+      timezone: "America/Argentina/Buenos_Aires",
+      is_active: true,
+    })
+    .select("id, owner_id")
+    .single();
+
+  if (businessError || !business) {
+    throw businessError || new Error("pending_signup_business_create_failed");
+  }
+
+  await supabaseAdmin.from("business_onboarding_state").upsert({
+    business_id: business.id,
+    current_step: "dashboard_ready",
+    selected_plan_code: intent.plan_code,
+    account_user_id: createdUser.user.id,
+    business_type: intent.business_type,
+    dashboard_ready_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const { data: subscription, error: subscriptionError } = await supabaseAdmin
+    .from("business_subscriptions")
+    .insert({
+      business_id: business.id,
+      tenant_id: createdUser.user.id,
+      plan_code: intent.plan_code,
+      status: "active",
+      period_start: params.currentPeriodStart || new Date().toISOString(),
+      period_end: params.currentPeriodEnd || null,
+      current_period_start: params.currentPeriodStart ||
+        new Date().toISOString(),
+      current_period_end: params.currentPeriodEnd || null,
+      provider: "mercado_pago",
+      provider_subscription_id: params.providerSubscriptionId,
+      provider_plan_id: params.providerPlanId || null,
+      mp_preapproval_id: params.providerSubscriptionId,
+      mp_preapproval_status: "active",
+      start_date: params.currentPeriodStart || new Date().toISOString(),
+    })
+    .select(
+      "id, business_id, tenant_id, plan_code, provider_subscription_id, provider_plan_id",
+    )
+    .single();
+
+  if (subscriptionError || !subscription) {
+    throw subscriptionError ||
+      new Error("pending_signup_subscription_create_failed");
+  }
+
+  await supabaseAdmin
+    .from("pending_signup_intents")
+    .update({
+      status: "materialized",
+      user_id: createdUser.user.id,
+      business_id: business.id,
+      materialized_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", intent.id)
+    .eq("status", "materializing");
+
+  const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
+    type: "magiclink",
+    email: intent.email,
+  });
+
+  const actionLink = magicLink?.properties?.action_link;
+  await supabaseAdmin.from("notification_email_outbox").insert({
+    business_id: business.id,
+    to_email: intent.email,
+    template_key: "paid_signup_magic_link",
+    payload: {
+      subject: "Activá tu cuenta de Orvel",
+      html: actionLink
+        ? `<p>Tu pago fue aprobado. Ingresá a Orvel con este enlace seguro:</p><p><a href="${actionLink}">Entrar a Orvel</a></p>`
+        : `<p>Tu pago fue aprobado. Ingresá a Orvel desde la pantalla de login para recibir tu enlace mágico.</p>`,
+    },
+  });
+
+  return subscription;
 }
 
 // Verify payment status with MP API (server-truth)
@@ -685,6 +830,110 @@ Deno.serve(async (req) => {
       }
     }
 
+    const webhookPaymentApproved = internalStatus === "active" ||
+      (eventType === "payment" &&
+        mpVerifiedStatus?.toLowerCase() === "approved");
+
+    if (!subscription && webhookPaymentApproved) {
+      const billingSessionReference = parseBillingSessionReference(
+        externalReference,
+      );
+      if (!billingSessionReference) {
+        await supabaseAdmin.rpc("mark_payment_webhook_event_state", {
+          p_provider: provider,
+          p_provider_event_id: providerEventId,
+          p_state: "failed",
+          p_failure_reason: "invalid_pending_signup_external_reference",
+        });
+        return new Response(
+          JSON.stringify({
+            error: "INVALID_EXTERNAL_REFERENCE",
+            message: "Pending signup webhook external_reference is invalid",
+          }),
+          {
+            status: 422,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      const { data: pendingValidation, error: pendingValidationError } =
+        await supabaseAdmin.rpc(
+          "validate_pending_signup_subscription_session",
+          {
+            p_external_reference: externalReference,
+            p_amount: amount,
+            p_currency: currency,
+            p_provider_subscription_id: lookupResourceId,
+          },
+        );
+
+      const pendingSignupIntentId = Array.isArray(pendingValidation)
+        ? pendingValidation[0]?.pending_signup_intent_id ||
+          pendingValidation[0]?.intent_id || pendingValidation[0]
+        : pendingValidation?.pending_signup_intent_id ||
+          pendingValidation?.intent_id || pendingValidation;
+
+      if (pendingValidationError || !pendingSignupIntentId) {
+        console.error(
+          "Pending signup session validation failed:",
+          pendingValidationError?.message,
+        );
+        await supabaseAdmin.rpc("mark_payment_webhook_event_state", {
+          p_provider: provider,
+          p_provider_event_id: providerEventId,
+          p_state: "failed",
+          p_failure_reason: "pending_signup_session_mismatch",
+        });
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_SESSION_MISMATCH",
+            message:
+              "Webhook does not match a valid pending paid signup session",
+          }),
+          {
+            status: 422,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      try {
+        subscription = await materializePendingSignup(supabaseAdmin, {
+          providerSubscriptionId: lookupResourceId,
+          externalReference,
+          pendingSignupIntentId: String(pendingSignupIntentId),
+          providerPlanId,
+          currentPeriodStart,
+          currentPeriodEnd,
+        });
+      } catch (materializeError) {
+        console.error("Pending signup materialization failed", {
+          provider_event_id: providerEventId,
+          resource_id: resourceId,
+          reason: materializeError instanceof Error
+            ? materializeError.message
+            : "unknown",
+        });
+        await supabaseAdmin.rpc("mark_payment_webhook_event_state", {
+          p_provider: provider,
+          p_provider_event_id: providerEventId,
+          p_state: "failed",
+          p_failure_reason: "pending_signup_materialization_failed",
+        });
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_MATERIALIZATION_FAILED",
+            message: "Could not materialize paid signup after approved payment",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
     // =============================================================================
     // 6. UPDATE BUSINESS SUBSCRIPTION
     // =============================================================================
@@ -847,6 +1096,8 @@ Deno.serve(async (req) => {
           mpVerifiedStatus?.toLowerCase() === "approved");
 
       if (shouldSyncEntitlements) {
+        // materializePendingSignup is executed above for approved pending_signup_intent records
+        // before entitlements are synced, so business_id/user_id exist for paid signup.
         await syncEntitlementsForBusiness(
           supabaseAdmin,
           subscription.business_id,

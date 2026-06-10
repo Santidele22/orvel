@@ -44,20 +44,27 @@ describe('RED contract: launch landing signup must not apply dashboard business 
     expect(source).not.toContain('/billing/subscription?plan=');
   });
 
-  it('manual launch signup creates/authenticates through canonical landing auth before subscription or dashboard access', async () => {
-    const source = await loadSource(COMPLETE_PAGE_PATH);
+  it('manual launch signup creates/authenticates immediately only for free plans and defers paid account creation until payment', async () => {
+    const credentialsSource = await loadSource(CREDENTIALS_PAGE_PATH);
+    const completeSource = await loadSource(COMPLETE_PAGE_PATH);
+    const credentialsSubmitStart = credentialsSource.indexOf("form.addEventListener('submit'");
+    const credentialsSubmitFlow = credentialsSource.slice(credentialsSubmitStart);
+    const manualFlowStart = completeSource.indexOf('// Manual Signup Flow');
+    const manualFlow = completeSource.slice(manualFlowStart);
 
-    const signupAdapterIndex = source.indexOf('createSupabaseSignupAdapterFromEnv');
-    const signupWithProviderIndex = source.indexOf('signupWithProvider');
-    const subscriptionRedirectIndex = source.indexOf('/billing/subscription?plan=');
-    const dashboardHandoffIndex = source.indexOf('dashboardSignupUrl');
+    const paidDeferralIndex = manualFlow.indexOf('if (isPaidPlan)');
+    const signupAdapterIndex = credentialsSubmitFlow.indexOf('createSupabaseSignupAdapterFromEnv');
+    const signupWithProviderIndex = credentialsSubmitFlow.indexOf('await signupWithProvider({');
+    const dashboardHandoffIndex = manualFlow.indexOf('window.location.href = dashboardSignupUrl');
 
-    expect(signupAdapterIndex, 'completion step must build the canonical landing signup adapter').toBeGreaterThan(-1);
-    expect(signupWithProviderIndex, 'completion step must create/authenticate the account with signupWithProvider').toBeGreaterThan(-1);
-    expect(signupWithProviderIndex).toBeGreaterThan(signupAdapterIndex);
-    expect(signupWithProviderIndex).toBeLessThan(subscriptionRedirectIndex);
-    expect(signupWithProviderIndex).toBeLessThan(dashboardHandoffIndex);
-    expect(source).not.toContain(WRONG_DASHBOARD_PRECONDITION);
+    expect(credentialsSubmitStart).toBeGreaterThan(-1);
+    expect(manualFlowStart).toBeGreaterThan(-1);
+    expect(paidDeferralIndex, 'paid plans must branch into pending payment before creating Supabase auth').toBeGreaterThan(-1);
+    expect(signupAdapterIndex, 'credentials step must build the canonical landing signup adapter for free accounts').toBeGreaterThan(-1);
+    expect(signupWithProviderIndex, 'credentials step must create/authenticate free accounts without storing passwords').toBeGreaterThan(-1);
+    expect(signupAdapterIndex).toBeLessThan(signupWithProviderIndex);
+    expect(dashboardHandoffIndex).toBeGreaterThan(-1);
+    expect(completeSource).not.toContain(WRONG_DASHBOARD_PRECONDITION);
   });
 
   it('subscription fallback does not tell a new launch signup to complete business setup in the dashboard', async () => {

@@ -143,7 +143,9 @@ const CANONICAL_PLAN_CODES = ['STARTED', 'GROWTH', 'PRO'] as const;
 const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro', 'pendiente'] as const;
 
 function normalizeSignupPlan(plan: unknown): (typeof CANONICAL_PLAN_CODES)[number] | null {
-  const normalizedPlan = normalizeOAuthSignupPlan(plan);
+  const normalizedPlan = typeof plan === 'string' && plan.trim().toUpperCase() === 'FREE'
+    ? 'STARTED'
+    : normalizeOAuthSignupPlan(plan);
   return (CANONICAL_PLAN_CODES as readonly string[]).includes(normalizedPlan ?? '')
     ? (normalizedPlan as (typeof CANONICAL_PLAN_CODES)[number])
     : null;

@@ -47,7 +47,7 @@ export const GET: APIRoute = async ({ request }) => {
       );
     }
 
-    return jsonResponse(payload || { status: 'pending' }, 200);
+    return jsonResponse(payload || { status: 'pending', materialized: false, account_materialized: false }, 200);
   } catch {
     return jsonResponse({ error: 'status_unavailable', message: 'Estado temporalmente no disponible.' }, 503);
   }

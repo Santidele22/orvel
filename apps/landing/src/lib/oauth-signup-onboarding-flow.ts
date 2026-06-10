@@ -56,12 +56,13 @@ const LOGIN_AFTER_OAUTH_ONBOARDING_ROUTE = '/login?account_created=true&provider
 const DEFAULT_OAUTH_SIGNUP_PLAN = 'STARTED';
 
 const PLAN_ALIASES: Record<string, string> = {
-  FREE: 'STARTED',
+  FREE: 'FREE',
   BASIC: 'STARTED',
   STARTER: 'STARTED',
   MEDIUM: 'GROWTH'
 };
-const CANONICAL_OAUTH_SIGNUP_PLANS = new Set(['STARTED', 'GROWTH', 'PRO']);
+const CANONICAL_OAUTH_SIGNUP_PLANS = new Set(['FREE', 'STARTED', 'GROWTH', 'PRO']);
+const PAID_OAUTH_SIGNUP_PLANS = new Set(['BASIC', 'STARTER', 'STARTED', 'MEDIUM', 'GROWTH', 'PRO']);
 
 const VALID_BUSINESS_TYPES = new Set(['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro']);
 
@@ -69,7 +70,8 @@ export type OAuthOnboardingErrorCode =
   | 'missing_provider_code'
   | 'missing_signup_context'
   | 'intent_provider_mismatch'
-  | 'missing_or_expired_intent';
+  | 'missing_or_expired_intent'
+  | 'paid_oauth_signup_blocked';
 
 export class OAuthOnboardingError extends Error {
   readonly code: OAuthOnboardingErrorCode;
@@ -94,6 +96,14 @@ export function normalizeOAuthSignupPlan(rawPlan: unknown): string | null {
 
 function canonicalPlan(rawPlan: string): string {
   return normalizeOAuthSignupPlan(rawPlan) ?? DEFAULT_OAUTH_SIGNUP_PLAN;
+}
+
+export function isPaidOAuthSignupPlan(rawPlan: unknown): boolean {
+  if (typeof rawPlan !== 'string' || rawPlan.trim().length === 0) {
+    return false;
+  }
+
+  return PAID_OAUTH_SIGNUP_PLANS.has(rawPlan.trim().toUpperCase());
 }
 
 function safeOrigin(rawOrigin: string): string {
@@ -205,6 +215,14 @@ export async function handleOAuthOnboardingCallback(input: HandleOAuthOnboarding
 
   if (!intent) {
     throw new OAuthOnboardingError('missing_or_expired_intent', 'OAuth signup intent is missing or expired.');
+  }
+
+  const urlPlan = callbackUrl.searchParams.get('plan') || input.fallbackPlan;
+  if (isPaidOAuthSignupPlan(intent.plan) || isPaidOAuthSignupPlan(urlPlan)) {
+    throw new OAuthOnboardingError(
+      'paid_oauth_signup_blocked',
+      'Google OAuth signup is not available before payment for paid plans.'
+    );
   }
 
   const plan = canonicalPlan(intent.plan);

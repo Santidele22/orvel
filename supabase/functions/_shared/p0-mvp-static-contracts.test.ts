@@ -95,6 +95,32 @@ function latestFunctionBodyMatching(
   return body;
 }
 
+Deno.test("P0 email outbox logging contract: process-email-outbox never logs recipient email or raw provider errors", async () => {
+  const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
+  const consoleStatements = source.match(/console\.(?:log|error|warn)\s*\([\s\S]*?\);/g) ?? [];
+
+  assert(
+    consoleStatements.length > 0,
+    "Guard must inspect process-email-outbox logging statements",
+  );
+
+  for (const statement of consoleStatements) {
+    assert(
+      !/to_email\b/.test(statement),
+      "process-email-outbox logs must not include notification_email_outbox.to_email",
+    );
+    assert(
+      !/,\s*(?:err|error|resultText)\b/.test(statement),
+      "process-email-outbox logs must not dump raw Error/SDK/provider payloads",
+    );
+  }
+
+  assert(
+    !/details\s*:\s*resultText/.test(source),
+    "process-email-outbox responses must not expose raw SendGrid provider error bodies",
+  );
+});
+
 Deno.test("P0 billing schema contract: every business_subscriptions column referenced by functions exists in migrations", async () => {
   const migrationsSql = await readAllSqlMigrations();
   const businessSubscriptionColumns = definedColumnsFor(

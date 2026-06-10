@@ -130,7 +130,6 @@ import Layout from '../../../layouts/Layout.astro';
 
 <script>
   import { createClient } from '@supabase/supabase-js';
-  import { createSupabaseSignupAdapterFromEnv, signupWithProvider } from '../../../lib/auth-provider';
   import { createSupabaseBrowserAuthOptions } from '../../../lib/supabase-auth-adapter';
   import { buildDashboardAuthUrl } from '../../../lib/dashboard-auth-handoff';
   import { completeOAuthBusinessTypeOnboarding } from '../../../lib/oauth-signup-onboarding-flow';
@@ -222,6 +221,21 @@ import Layout from '../../../layouts/Layout.astro';
       );
 
       if (isOAuthOnboarding) {
+        if (isPaidPlan) {
+          try {
+            await client.auth.signOut();
+          } catch {
+            // Best-effort cleanup: the important invariant is that this branch never creates paid business/account state.
+          }
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+          if (errorEl) {
+            errorEl.textContent = 'Google no está disponible antes del pago para planes pagos. Volvé al paso anterior y continuá con email.';
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+
         try {
           const { data, error } = await client.auth.getUser();
           if (error) throw error;
@@ -324,13 +338,12 @@ import Layout from '../../../layouts/Layout.astro';
       sessionStorage.setItem('orvel.signup.rubros', JSON.stringify(tipoNegocioList));
 
       const email = sessionStorage.getItem('orvel.signup.email')?.trim() || '';
-      const password = sessionStorage.getItem('orvel.signup.password') || '';
       const nombre = sessionStorage.getItem('orvel.signup.nombre')?.trim() || '';
       const apellido = sessionStorage.getItem('orvel.signup.apellido')?.trim() || '';
       const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre')?.trim() || 'Mi Negocio';
       const telefono = sessionStorage.getItem('orvel.signup.telefono')?.trim() || '';
 
-      if (!email || !password || !nombre || !apellido) {
+      if (!email || !nombre || !apellido) {
         button.disabled = false;
         button.textContent = 'FINALIZAR CONFIGURACIÓN';
         if (errorEl) {
@@ -340,44 +353,114 @@ import Layout from '../../../layouts/Layout.astro';
         return;
       }
 
-      const supabaseSignup = createSupabaseSignupAdapterFromEnv({
-        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-      });
-
-      const signupResult = await signupWithProvider({
-        attempt: {
+      if (isPaidPlan) {
+        // Paid path continues to /billing/subscription?plan= only after storing a non-sensitive pendingSignupIntent.
+        const pendingSignupIntent = {
+          email,
           nombre,
           apellido,
           negocioNombre,
-          tipoNegocio,
           telefono,
-          email,
-          password,
-          plan,
-          returnTo: isPaidPlan ? returnTo : dashboardSignupUrl
-        },
-        supabaseSignup
-      });
+          business_type: tipoNegocio,
+          selected_business_types: tipoNegocioList,
+          plan_code: plan,
+          billing_period: billing
+        };
+        sessionStorage.setItem('orvel.signup.pending_signup_intent', JSON.stringify(pendingSignupIntent));
+        window.location.href = `${returnTo}&signup_intent=pending_signup`;
+        return;
+      }
 
-      if (!signupResult.ok) {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData.user?.id || !userData.user.email) {
         button.disabled = false;
         button.textContent = 'FINALIZAR CONFIGURACIÓN';
         if (errorEl) {
-          errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.textContent = 'No encontramos una sesión activa para completar tu alta. Volvé al paso de credenciales y creá la cuenta nuevamente.';
           errorEl.classList.remove('hidden');
         }
         return;
       }
 
-      sessionStorage.removeItem('orvel.signup.password');
-      sessionStorage.removeItem('orvel.signup.plan');
-      sessionStorage.removeItem('orvel.signup.billing');
+      const { error: updateUserError } = await client.auth.updateUser({
+        data: {
+          nombre,
+          apellido,
+          negocioNombre,
+          tipoNegocio,
+          businessType: tipoNegocio,
+          selectedRubros: tipoNegocioList,
+          selectedBusinessTypes: tipoNegocioList,
+          telefono,
+          plan,
+          onboardingCompleted: true,
+          onboarding_completed: true
+        }
+      });
 
-      if (isPaidPlan) {
-        window.location.href = returnTo;
+      if (updateUserError) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        if (errorEl) {
+          errorEl.textContent = updateUserError.message || 'No pudimos completar los datos de tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
         return;
       }
+
+      const { data: existingBiz, error: existingBizError } = await client
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', userData.user.id)
+        .maybeSingle();
+
+      if (existingBizError) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        if (errorEl) {
+          errorEl.textContent = existingBizError.message || 'No pudimos validar tu negocio. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (existingBiz) {
+        const { error: updateBusinessError } = await client
+          .from('businesses')
+          .update({ name: negocioNombre })
+          .eq('id', existingBiz.id);
+
+        if (updateBusinessError) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+          if (errorEl) {
+            errorEl.textContent = updateBusinessError.message || 'No pudimos actualizar tu negocio. Reintentá en unos segundos.';
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+      } else {
+        const slug = `mi-negocio-${Date.now()}`;
+        const { error: createBusinessError } = await client.from('businesses').insert({
+          name: negocioNombre,
+          slug,
+          owner_id: userData.user.id,
+          timezone: 'America/Argentina/Buenos_Aires',
+        });
+
+        if (createBusinessError) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+          if (errorEl) {
+            errorEl.textContent = createBusinessError.message || 'No pudimos crear tu negocio. Reintentá en unos segundos.';
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+
+      sessionStorage.removeItem('orvel.signup.plan');
+      sessionStorage.removeItem('orvel.signup.billing');
 
       window.location.href = dashboardSignupUrl;
     });
