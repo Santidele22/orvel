@@ -18,6 +18,7 @@ import { Servicio } from '../../../models/servicio.model';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 
 type BlockedTimeFormState = {
   date: string;
@@ -64,6 +65,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private settingsFacade = inject(BusinessService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  protected branchContext = getBranchContextService();
   private readonly onBookingCreated = () => {
     void this.refreshTurnosFromSource();
   };
@@ -119,6 +121,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
   };
 
   protected visibleLimit = signal<number>(4);
+  protected branchSelectorMessage = computed(() => {
+    if (this.branchContext.loading()) return 'Cargando sucursales…';
+    if (this.branchContext.branches().length === 0) return 'No hay sucursales activas. Configurá una sucursal para ver turnos.';
+    if (this.branchContext.requiresExplicitSelection()) return 'Seleccioná una sucursal para ver y administrar turnos.';
+    return null;
+  });
 
   // Computed: Get working hours for the selected date
   protected currentDayHours = computed(() => {
@@ -177,6 +185,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
     
     try {
+      await this.branchContext.ensureLoaded();
+      if (this.branchContext.requiresExplicitSelection() || this.branchContext.branches().length === 0) {
+        this.loading.set(false);
+        return;
+      }
+
       await firstValueFrom(this.turnoService.getAll());
       
       await firstValueFrom(this.clienteService.getAll());
@@ -190,6 +204,20 @@ export class TurnosListPage implements OnInit, OnDestroy {
       
       this.loading.set(false);
     } catch {
+      this.loading.set(false);
+    }
+  }
+
+  protected async onBranchSelectionChange(branchId: string) {
+    if (!this.branchContext.setActiveBranch(branchId)) return;
+    this.loading.set(true);
+    try {
+      await firstValueFrom(this.clienteService.getAll());
+      await firstValueFrom(this.servicioService.getAll());
+      this.clientes.set(this.clienteService.items());
+      this.servicios.set(this.servicioService.items());
+      await this.refreshTurnosFromSource();
+    } finally {
       this.loading.set(false);
     }
   }

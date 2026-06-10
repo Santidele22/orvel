@@ -2,7 +2,7 @@
  * KBN-004: TDD RED contract tests for onboarding Step 1 - Plan Selection
  *
  * Scope:
- * 1) UI renders all 4 plan cards (FREE, BASIC, MEDIUM, PRO)
+ * 1) UI renders paid plan cards (STARTER, GROWTH, PRO)
  * 2) Single selection only - selecting one deselects others
  * 3) Required to proceed - cannot submit without selecting a plan
  * 4) Visual feedback - selected plan has distinct styling
@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+type PlanCode = 'FREE' | 'STARTER' | 'BASIC' | 'GROWTH' | 'MEDIUM' | 'PRO';
 
 type PlanEntitlements = {
   maxLocales: number;
@@ -30,12 +30,11 @@ type PlanOption = {
   maxRubros: number;
 };
 
-// Mock static plan data matching frontend plan-entitlements.ts
+// Mock static plan data matching current paid onboarding plan options.
 const MOCK_PLANS: PlanOption[] = [
-  { code: 'FREE', label: 'Free', maxLocales: 1, maxRubros: 1 },
-  { code: 'BASIC', label: 'Basic', maxLocales: 3, maxRubros: 3 },
-  { code: 'MEDIUM', label: 'Medium', maxLocales: 5, maxRubros: 5 },
-  { code: 'PRO', label: 'Pro', maxLocales: 10, maxRubros: 10 }
+  { code: 'STARTER', label: 'Starter', maxLocales: 1, maxRubros: 2 },
+  { code: 'GROWTH', label: 'Growth', maxLocales: 1, maxRubros: 5 },
+  { code: 'PRO', label: 'Pro', maxLocales: 1, maxRubros: 10 }
 ];
 
 type OnboardingStorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -137,45 +136,50 @@ function createMemoryStorage(seed?: Record<string, string>): OnboardingStorageLi
   };
 }
 
-describe('KBN-004.1 - UI renders all 4 plan options', () => {
-  it('KBN-004.1.1 @RED - component exports all 4 plans (FREE, BASIC, MEDIUM, PRO)', async () => {
+describe('KBN-004.1 - UI renders paid plan options', () => {
+  it('KBN-004.1.1 @RED - component exports paid plans (STARTER, GROWTH, PRO)', async () => {
     const { SignupPlanStepPage } = await loadPlanSelectionComponent();
     const component = new SignupPlanStepPage();
 
     expect(component.plans).toBeDefined();
-    expect(component.plans.length).toBe(4);
+    expect(component.plans.length).toBe(3);
 
     const planCodes = component.plans.map((p: PlanOption) => p.code);
-    expect(planCodes).toContain('FREE');
-    expect(planCodes).toContain('BASIC');
-    expect(planCodes).toContain('MEDIUM');
+    expect(planCodes).toContain('STARTER');
+    expect(planCodes).toContain('GROWTH');
     expect(planCodes).toContain('PRO');
   });
 
-  it('KBN-004.1.2 @RED - template renders all 4 plan cards with labels', async () => {
-    const { html } = readPlanStepSources();
+  it('KBN-004.1.2 @RED - component renders paid plan labels from catalog-backed data', async () => {
+    const { SignupPlanStepPage } = await loadPlanSelectionComponent();
+    const component = new SignupPlanStepPage();
+    const labels = component.plans.map((p: PlanOption) => p.label);
 
-    expect(html).toMatch(/Free/i);
-    expect(html).toMatch(/Basic/i);
-    expect(html).toMatch(/Medium/i);
-    expect(html).toMatch(/Pro/i);
+    expect(labels).toEqual(['Starter', 'Growth', 'Pro']);
   });
 
   it('KBN-004.1.3 @RED - plan cards display entitlement info (maxLocales, maxRubros)', async () => {
     const { SignupPlanStepPage } = await loadPlanSelectionComponent();
     const component = new SignupPlanStepPage();
 
-    // FREE plan: 1 local, 1 rubro
-    const freePlan = component.plans.find((p: PlanOption) => p.code === 'FREE');
-    expect(freePlan).toBeDefined();
-    expect(freePlan!.maxLocales).toBe(1);
-    expect(freePlan!.maxRubros).toBe(1);
+    const starterPlan = component.plans.find((p: PlanOption) => p.code === 'STARTER');
+    expect(starterPlan).toBeDefined();
+    expect(starterPlan!.maxLocales).toBe(1);
+    expect(starterPlan!.maxRubros).toBe(2);
 
-    // PRO plan: max values
+    // PRO plan: base plan keeps one included local; multi-sucursal is a separate add-on
     const proPlan = component.plans.find((p: PlanOption) => p.code === 'PRO');
     expect(proPlan).toBeDefined();
-    expect(proPlan!.maxLocales).toBeGreaterThanOrEqual(5);
+    expect(proPlan!.maxLocales).toBe(1);
     expect(proPlan!.maxRubros).toBeGreaterThanOrEqual(5);
+  });
+
+  it('KBN-004.1.4 @RED - onboarding copy does not advertise 3/10 locales included', async () => {
+    const { html } = readPlanStepSources();
+
+    expect(html).toMatch(/1[\s\S]{0,80}local incluido/i);
+    expect(html).toMatch(/Multi-sucursal|Sucursales adicionales/i);
+    expect(html).not.toMatch(/3\s*locales|10\s*locales/i);
   });
 });
 
@@ -186,22 +190,22 @@ describe('KBN-004.2 - Single selection only', () => {
 
     expect(component.selectedPlan).toBeNull();
 
-    component.selectPlan('BASIC');
-    expect(component.selectedPlan).toBe('BASIC');
+    component.selectPlan('STARTER');
+    expect(component.selectedPlan).toBe('STARTER');
   });
 
   it('KBN-004.2.2 @RED - selecting a different plan replaces previous selection', async () => {
     const { SignupPlanStepPage } = await loadPlanSelectionComponent();
     const component = new SignupPlanStepPage();
 
-    component.selectPlan('BASIC');
-    expect(component.selectedPlan).toBe('BASIC');
+    component.selectPlan('STARTER');
+    expect(component.selectedPlan).toBe('STARTER');
 
     component.selectPlan('PRO');
     expect(component.selectedPlan).toBe('PRO');
 
     // Should NOT have both - only PRO selected
-    expect(component.selectedPlan).not.toBe('BASIC');
+    expect(component.selectedPlan).not.toBe('STARTER');
   });
 
   it('KBN-004.2.3 @RED - template binds plan selection to single-select behavior', async () => {
@@ -264,8 +268,8 @@ describe('KBN-004.4 - Visual feedback for selected plan', () => {
 
     expect(typeof (component as Record<string, unknown>)['isPlanSelected']).toBe('function');
 
-    component.selectPlan('BASIC');
-    expect((component as Record<string, unknown>)['isPlanSelected']('BASIC')).toBe(true);
+    component.selectPlan('STARTER');
+    expect((component as Record<string, unknown>)['isPlanSelected']('STARTER')).toBe(true);
     expect((component as Record<string, unknown>)['isPlanSelected']('FREE')).toBe(false);
   });
 
@@ -288,7 +292,7 @@ describe('KBN-004.5 - State persistence', () => {
     expect(readPlanSelection(storage)).toBe('PRO');
   });
 
-  it('KBN-004.5.2 - persists each plan code correctly (FREE, BASIC, MEDIUM, PRO)', async () => {
+  it('KBN-004.5.2 - persists each canonical plan code correctly', async () => {
     const { persistPlanSelection, readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     for (const plan of MOCK_PLANS) {
@@ -331,7 +335,7 @@ describe('KBN-004.6 - Continue button state', () => {
     const { SignupPlanStepPage } = await loadPlanSelectionComponent();
     const component = new SignupPlanStepPage();
 
-    component.selectPlan('FREE');
+    component.selectPlan('STARTER');
     expect(component.canContinue()).toBe(true);
   });
 });
@@ -387,22 +391,22 @@ describe('KBN-004.8 - Back navigation', () => {
 });
 
 describe('KBN-004.9 - Edge cases', () => {
-  it('KBN-004.9.1 - storage handles corrupted JSON gracefully', async () => {
+  it('KBN-004.9.1 - storage handles corrupted/unknown plan codes gracefully', async () => {
     const { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } =
       await loadOnboardingPlanStorageModule();
     const corruptedStorage = createMemoryStorage({ [ONBOARDING_PLAN_STORAGE_KEY]: '{bad-json' });
 
-    expect(readPlanSelection(corruptedStorage)).toBeNull();
+    expect(readPlanSelection(corruptedStorage)).toBe('FREE');
   });
 
   it('KBN-004.9.2 @RED - selecting same plan twice is idempotent', async () => {
     const { SignupPlanStepPage } = await loadPlanSelectionComponent();
     const component = new SignupPlanStepPage();
 
-    component.selectPlan('BASIC');
-    component.selectPlan('BASIC');
+    component.selectPlan('STARTER');
+    component.selectPlan('STARTER');
 
-    expect(component.selectedPlan).toBe('BASIC');
+    expect(component.selectedPlan).toBe('STARTER');
     expect(component.canContinue()).toBe(true);
   });
 

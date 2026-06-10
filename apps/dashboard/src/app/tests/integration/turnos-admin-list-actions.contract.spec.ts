@@ -24,11 +24,11 @@ describe('Turnos list admin actions integration RED contract', () => {
   });
 
   it('keeps reschedule action available in admin flows', () => {
-    // TODO(Aurora): exponer CTA de reprogramación en listado admin con hook turno-admin-reschedule-action.
+    // TODO(Aurora): exponer CTA visible de reprogramación en listado admin con hook M4 actual.
     const source = readListSource();
 
     expect(source).toMatch(/rescheduleByAdmin\(/);
-    expect(source).toMatch(/data-testid=["']turno-admin-reschedule-action["']/i);
+    expect(source).toMatch(/data-testid=["']turnos-admin-reschedule-action["']/i);
   });
 
   it('removes Complete action everywhere in turnos admin', () => {

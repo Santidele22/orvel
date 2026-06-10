@@ -27,6 +27,34 @@
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
 
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section relative">
+    <section class="mb-zen-xl rounded-zen-card border border-white/10 bg-surface/70 p-zen-lg shadow-xl" aria-live="polite">
+      <div class="flex flex-col gap-zen-md md:flex-row md:items-end md:justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wider text-text-secondary">Sucursal activa</p>
+          <p class="mt-1 text-sm text-text-tertiary">Seleccioná una sucursal para que los turnos queden aislados por local.</p>
+        </div>
+
+        @if (branchContext.branches().length > 1) {
+        <label class="flex min-w-[240px] flex-col gap-2 text-xs font-bold uppercase tracking-wider text-text-secondary">
+          Selector de sucursal
+          <select data-testid="active-branch-selector" class="rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none"
+            [ngModel]="branchContext.activeBranchId() ?? ''" (ngModelChange)="onBranchSelectionChange($event)">
+            <option value="">Elegí una sucursal</option>
+            @for (branch of branchContext.branches(); track branch.id) {
+            <option [value]="branch.id">{{ branch.name }}</option>
+            }
+          </select>
+        </label>
+        }
+      </div>
+
+      @if (branchSelectorMessage()) {
+      <p class="mt-zen-md rounded-xl bg-warning/10 border border-warning/20 px-3 py-2 text-xs font-medium text-text-secondary" role="status">
+        {{ branchSelectorMessage() }}
+      </p>
+      }
+    </section>
+
     <!-- Background Decorative Elements -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
       <div class="absolute -top-[10%] -right-[5%] w-[400px] h-[400px] bg-primary/30 blur-[120px] rounded-full"></div>
