@@ -105,4 +105,11 @@ describe('RED contract: plan entitlements uses the core reference catalog', () =
     expect(planEntitlements.getPlanEntitlements('BASIC')).toEqual(planEntitlements.getPlanEntitlements('STARTER'));
     expect(planEntitlements.getPlanEntitlements('MEDIUM')).toEqual(planEntitlements.getPlanEntitlements('GROWTH'));
   });
+
+  it('does not include multi-branch in base Growth/Pro entitlements', async () => {
+    const planEntitlements = await loadPlanEntitlementsModule();
+
+    expect(planEntitlements.getPlanEntitlements('GROWTH').maxLocales).toBe(1);
+    expect(planEntitlements.getPlanEntitlements('PRO').maxLocales).toBe(1);
+  });
 });

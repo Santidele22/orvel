@@ -3,6 +3,15 @@ import {
 } from '../../../core/catalog/reference-catalog';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 
+const LEGACY_POST_ONBOARDING_MAX_RUBROS: Record<string, number> = {
+  BASIC: 1,
+  MEDIUM: 3
+};
+
+function normalizeLegacyPlanKey(plan: unknown): string | null {
+  return typeof plan === 'string' ? plan.trim().toUpperCase() || null : null;
+}
+
 function sanitizeStringArray(input: unknown): string[] {
   if (!Array.isArray(input)) {
     return [];
@@ -29,7 +38,11 @@ function resolveLocaleCount(currentLocales: unknown): number {
 
 export function applyPlanLimitToRubros(input: { plan: unknown; selectedRubros: unknown }): string[] {
   const referenceCatalog = getRuntimeReferenceCatalogSnapshot();
-  const maxRubros = getPlanEntitlementsFromCatalog(referenceCatalog, input.plan)?.maxRubros ?? 1;
+  const legacyPlan = normalizeLegacyPlanKey(input.plan);
+  const maxRubros =
+    (legacyPlan ? LEGACY_POST_ONBOARDING_MAX_RUBROS[legacyPlan] : undefined) ??
+    getPlanEntitlementsFromCatalog(referenceCatalog, input.plan)?.maxRubros ??
+    1;
   const selectedRubros = sanitizeStringArray(input.selectedRubros);
   return selectedRubros.slice(0, maxRubros);
 }

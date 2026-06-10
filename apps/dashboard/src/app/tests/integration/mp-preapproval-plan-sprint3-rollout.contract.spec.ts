@@ -3,13 +3,49 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
-const ROOT = path.resolve(TEST_DIR, '../../../../..');
+const ROOT = findRepoRoot(TEST_DIR);
 const CREATE_SUBSCRIPTION_FN = path.join(ROOT, 'supabase', 'functions', 'create-subscription', 'index.ts');
 const WEBHOOK_FN = path.join(ROOT, 'supabase', 'functions', 'mercadopago-webhook', 'index.ts');
 const ROLLOUT_CONTROL = path.join(ROOT, 'supabase', 'functions', '_shared', 'mp-rollout-control.ts');
 const OBSERVABILITY = path.join(ROOT, 'supabase', 'functions', '_shared', 'mp-rollout-observability.ts');
-const ROLLOUT_SCRIPT = path.join(ROOT, 'scripts', 'rollout', 'mp-preapproval-plan-rollout.sh');
-const ROLLBACK_SCRIPT = path.join(ROOT, 'scripts', 'rollout', 'mp-preapproval-plan-rollback.sh');
+const ROLLOUT_SCRIPT = findExistingFile(ROOT, [
+  ['scripts', 'rollout', 'mp-preapproval-plan-rollout.sh'],
+  ['infra', 'orvel-functions-import', 'scripts', 'rollout', 'mp-preapproval-plan-rollout.sh'],
+]);
+const ROLLBACK_SCRIPT = findExistingFile(ROOT, [
+  ['scripts', 'rollout', 'mp-preapproval-plan-rollback.sh'],
+  ['infra', 'orvel-functions-import', 'scripts', 'rollout', 'mp-preapproval-plan-rollback.sh'],
+]);
+
+function findRepoRoot(startDir: string): string {
+  let currentDir = startDir;
+
+  while (currentDir !== path.dirname(currentDir)) {
+    if (
+      fs.existsSync(path.join(currentDir, 'infra', 'context', 'supabase.md')) &&
+      fs.existsSync(path.join(currentDir, 'supabase', 'functions'))
+    ) {
+      return currentDir;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+
+  throw new Error(`Unable to resolve repository root from ${startDir}`);
+}
+
+function findExistingFile(root: string, relativeCandidates: string[][]): string {
+  const candidates = relativeCandidates.map((candidate) => path.join(root, ...candidate));
+  const existing = candidates.find((candidate) => fs.existsSync(candidate));
+
+  if (!existing) {
+    throw new Error(
+      `Missing rollout contract file. Checked: ${candidates.map((candidate) => path.relative(root, candidate)).join(', ')}`,
+    );
+  }
+
+  return existing;
+}
 
 function readRequiredFile(filePath: string): string {
   expect(fs.existsSync(filePath), `Missing file: ${path.relative(ROOT, filePath)}`).toBe(true);

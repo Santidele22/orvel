@@ -6,6 +6,7 @@ import { WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { AuthService } from '../../../services/auth.service';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { 
   ApiErrorCode, 
   ApiError, 
@@ -135,6 +136,7 @@ export class TurnoService {
   private adminAvailabilityRequestVersions = new Map<string, number>();
   private mockBlockedTimeSequence = 0;
   private authService = inject(AuthService);
+  private branchContext = getBranchContextService();
 
   // Readonly signals
   items = this.turnos.asReadonly();
@@ -579,10 +581,13 @@ export class TurnoService {
   }
 
   getActiveBranchId(): string | null {
-    return this.resolveActiveBranchId();
+    return this.branchContext.getActiveBranchId() ?? this.resolveActiveBranchId();
   }
 
   private resolveActiveBranchId(): string | null {
+    const contextBranchId = this.branchContext.getActiveBranchId();
+    if (contextBranchId) return contextBranchId;
+
     const authUser = this.authService.user() as unknown as Record<string, unknown> | null;
     const activeBranchId = authUser?.['activeBranchId'] ?? authUser?.['branchId'];
     if (typeof activeBranchId === 'string' && activeBranchId.trim()) {
@@ -1517,6 +1522,10 @@ export class TurnoService {
   private getMockProviderTurnos(): Turno[] {
     const fixtureDate = (dateKey: string) => new Date(`${dateKey}T12:00:00.000Z`);
     const fixtureTimestamp = new Date('2026-04-18T09:00:00.000Z');
+    const todayFixture = new Date();
+    todayFixture.setHours(12, 0, 0, 0);
+    const tomorrowFixture = new Date(todayFixture);
+    tomorrowFixture.setDate(tomorrowFixture.getDate() + 1);
     const fixtureDates = {
       past: fixtureDate('2026-04-19'),
       current: fixtureDate('2026-04-20'),
@@ -1630,6 +1639,30 @@ export class TurnoService {
         duracionMinutos: 30,
         estado: 'completado',
         precio: 2500,
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
+      },
+      {
+        id: 'turno-dynamic-today-001',
+        clienteId: 'cliente-dynamic-001',
+        servicioId: 'servicio-dynamic-001',
+        fecha: todayFixture,
+        hora: '10:00',
+        duracionMinutos: 45,
+        estado: 'confirmado',
+        precio: 3500,
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
+      },
+      {
+        id: 'turno-dynamic-tomorrow-001',
+        clienteId: 'cliente-dynamic-002',
+        servicioId: 'servicio-dynamic-002',
+        fecha: tomorrowFixture,
+        hora: '10:00',
+        duracionMinutos: 45,
+        estado: 'confirmado',
+        precio: 3500,
         createdAt: fixtureTimestamp,
         updatedAt: fixtureTimestamp
       }

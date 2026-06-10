@@ -261,7 +261,7 @@ describe('L-02/SB-03 RED/GREEN integration contract: landing -> persistence -> d
     expect(result).toEqual({
       accountId: 'acc-premium',
       accountState: 'pending_payment',
-      entitlements: { maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null, aiCreditsMonthly: 2000 },
+      entitlements: { maxLocales: 1, maxRubros: 10, maxMonthlyBookings: null, aiCreditsMonthly: 2000 },
       routeTo: '/billing/subscription',
       selectedPlan: 'PRO',
       pendingMessage: 'Payment pending. Continue to subscription preapproval to activate your plan.'
@@ -428,7 +428,7 @@ describe('L-02/SB-03 RED/GREEN integration contract: landing -> persistence -> d
     expect(mediumResult).toEqual({
       accountId: 'acc-consistency',
       accountState: 'pending_payment',
-      entitlements: { maxLocales: 3, maxRubros: 5, maxMonthlyBookings: null, aiCreditsMonthly: 500 },
+      entitlements: { maxLocales: 1, maxRubros: 5, maxMonthlyBookings: null, aiCreditsMonthly: 500 },
       routeTo: '/billing/subscription',
       selectedPlan: 'GROWTH',
       pendingMessage: 'Payment pending. Continue to subscription preapproval to activate your plan.'

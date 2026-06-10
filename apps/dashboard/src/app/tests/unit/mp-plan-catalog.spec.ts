@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTierCode, resolvePlanCatalogRow } from '../../../../../supabase/functions/_shared/mp-plan-catalog';
+import { buildTierCode, resolvePlanCatalogRow } from '../../../../../../supabase/functions/_shared/mp-plan-catalog.ts';
 
 describe('mp-plan-catalog helpers', () => {
   it('normalizes tier+cadence into canonical tier code', () => {
-    expect(buildTierCode('started', 'monthly')).toBe('STARTED_MONTHLY');
-    expect(buildTierCode('medium', 'quarterly')).toBe('MEDIUM_QUARTERLY');
+    expect(buildTierCode('started', 'monthly')).toBe('STARTER_MONTHLY');
+    expect(buildTierCode('medium', 'quarterly')).toBe('GROWTH_QUARTERLY');
     expect(buildTierCode('pro', 'annual')).toBe('PRO_ANNUAL');
   });
 

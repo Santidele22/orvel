@@ -124,6 +124,8 @@ type AdminStatusUpdatePayload = {
   performedBy: string
 }
 
+const ALLOWED_BOOKING_STATUSES = ['booked', 'cancelled'] as readonly string[]
+
 type SupabaseRpcError = {
   code?: string
   message: string
@@ -386,7 +388,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       const slots = ((result.data as any[]) || []).map((row) => ({
         startsAtIso: new Date(row.starts_at_iso).toISOString(),
         endsAtIso: new Date(row.ends_at_iso).toISOString(),
-        remainingCapacity: Number(row.remaining_capacity ?? row.remainingCapacity ?? 0)
+        remainingCapacity: Math.max(1, Number(row.remaining_capacity ?? row.remainingCapacity ?? 1))
       }));
 
       return {
@@ -767,6 +769,17 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
     },
 
     async updateBookingStatus(payload: AdminStatusUpdatePayload): Promise<ApiResponse<{ bookingId: string; status: string }>> {
+      if (!ALLOWED_BOOKING_STATUSES.includes(payload.status)) {
+        return {
+          status: 422,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid booking status',
+            details: { fields: ['status'] }
+          }
+        }
+      }
+
       const result = await client.rpc('update_booking_status', {
         booking_id: payload.bookingId,
         status: payload.status,

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { BillingSubscriptionPage, BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE } from '../../features/billing/pages/billing-subscription.page';
+import {
+  BillingSubscriptionPage,
+  BILLING_MULTI_BRANCH_ADD_ON_SAFE_CTA,
+  BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
+} from '../../features/billing/pages/billing-subscription.page';
 import { CreateSubscriptionError } from '../../features/billing/data-access/payments/subscriptions/create-subscription.api';
 
 describe('BillingSubscriptionPage safe payment unavailable state', () => {
@@ -39,5 +43,20 @@ describe('BillingSubscriptionPage safe payment unavailable state', () => {
 
     expect(redirectTo).not.toHaveBeenCalled();
     expect(page.state().status).toBe('unavailable');
+  });
+
+  it('exposes multi-branch as a separate ARS 20,000/month add-on with safe activation copy', () => {
+    const page = new BillingSubscriptionPage({ storage: { getItem: () => 'PRO' } });
+
+    expect(page.multiBranchAddOn()).toMatchObject({
+      code: 'MULTI_BRANCH',
+      label: 'Sucursales adicionales / Multi-sucursal',
+      priceMonthlyCents: 2_000_000,
+      billingCadence: 'monthly'
+    });
+    expect(page.formatMonthlyPrice(page.multiBranchAddOn().priceMonthlyCents)).toBe('$\u00a020.000');
+    expect(page.multiBranchAddOnCta()).toBe(BILLING_MULTI_BRANCH_ADD_ON_SAFE_CTA);
+    expect(page.multiBranchAddOnCta()).toMatch(/soporte/i);
+    expect(page.multiBranchAddOnCta()).toMatch(/No iniciamos un checkout automático/i);
   });
 });

@@ -18,6 +18,8 @@ export type PlanOption = {
   priceMonthlyCents: number;
   maxLocales: number;
   maxRubros: number;
+  includedLocalesLabel: string;
+  multiBranchAddOnLabel: string;
   subscriptionProvider: 'mercado_pago';
 };
 
@@ -58,6 +60,8 @@ export class SignupPlanStepPage {
     priceMonthlyCents: plan.priceMonthlyCents,
     maxLocales: plan.maxLocales,
     maxRubros: plan.maxRubros,
+    includedLocalesLabel: plan.includedLocalesLabel,
+    multiBranchAddOnLabel: plan.multiBranchAddOnLabel,
     subscriptionProvider: plan.subscriptionProvider
   }));
 

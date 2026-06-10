@@ -62,7 +62,7 @@ function ensureLocalStorage(): Storage {
   return storage;
 }
 
-const ALLOWED_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro'] as const;
+const ALLOWED_BUSINESS_TYPES = ['unas', 'peluqueria', 'barberia', 'spa', 'pestanas', 'cejas', 'masajes', 'otro'] as const;
 
 type BusinessType = (typeof ALLOWED_BUSINESS_TYPES)[number];
 
@@ -125,7 +125,12 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     expect(PLAN_CODE_ALIASES).toEqual({ STARTER: 'STARTER', BASIC: 'STARTER', MEDIUM: 'GROWTH' });
     expect(normalizePlanCode('FREE')).toBe('FREE');
     expect(normalizePlanCode('medium')).toBe('GROWTH');
-    expect(getPlanEntitlements('PRO')).toEqual({ maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null });
+    expect(getPlanEntitlements('PRO')).toEqual({
+      maxLocales: 1,
+      maxRubros: 10,
+      maxMonthlyBookings: null,
+      aiCreditsMonthly: 2000
+    });
   });
 
   it('creates deterministic initial settings for every allowed business type and persists capacity', async () => {

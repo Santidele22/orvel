@@ -12,6 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 
 @Component({
   selector: 'app-turno-form',
@@ -25,6 +26,7 @@ export class TurnoFormPage implements OnInit {
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
   private authService = inject(AuthService);
+  protected branchContext = getBranchContextService();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -64,6 +66,7 @@ export class TurnoFormPage implements OnInit {
   private readonly unavailableSlotMessage = 'Este horario no está disponible. Elegí otro turno.';
   protected canSave = computed(() => {
     return !this.saving()
+      && !!this.branchContext.activeBranchId()
       && !this.availabilityLoading()
       && !this.availabilityError()
       && !this.availabilityEmpty()
@@ -80,6 +83,13 @@ export class TurnoFormPage implements OnInit {
     this.loading.set(true);
     
     try {
+      await this.branchContext.ensureLoaded();
+      if (this.branchContext.requiresExplicitSelection() || this.branchContext.branches().length === 0) {
+        this.error.set(this.branchContext.error() ?? 'ACTIVE_BRANCH_REQUIRED: Seleccioná una sucursal antes de crear turnos.');
+        this.loading.set(false);
+        return;
+      }
+
       // Load clientes and servicios
       await Promise.all([
         this.clienteService.getAll().toPromise(),
@@ -144,6 +154,12 @@ export class TurnoFormPage implements OnInit {
   }
 
   protected async checkAvailability() {
+    if (!this.branchContext.activeBranchId()) {
+      this.availabilityError.set('ACTIVE_BRANCH_REQUIRED: Seleccioná una sucursal para consultar disponibilidad.');
+      this.availabilityStale.set(true);
+      return;
+    }
+
     const availabilityVersion = ++this.latestAvailabilityVersion;
     const fechaDate = new Date(this.fecha());
     const today = new Date();
@@ -234,7 +250,7 @@ export class TurnoFormPage implements OnInit {
       return;
     }
     if (!branchId) {
-      this.error.set('No encontramos la sucursal activa para crear el turno');
+      this.error.set('No encontramos una sucursal activa. Seleccioná o configurá la sucursal antes de crear el turno.');
       return;
     }
 
@@ -289,6 +305,25 @@ export class TurnoFormPage implements OnInit {
       }
       this.saving.set(false);
     }
+  }
+
+  protected async onBranchSelectionChange(branchId: string) {
+    if (!this.branchContext.setActiveBranch(branchId)) {
+      this.error.set('ACTIVE_BRANCH_REQUIRED: Seleccioná una sucursal válida.');
+      return;
+    }
+
+    this.error.set(null);
+    if (this.clientes().length === 0 || this.servicios().length === 0) {
+      await Promise.all([
+        this.clienteService.getAll().toPromise(),
+        this.servicioService.getAll().toPromise()
+      ]);
+      this.clientes.set(this.clienteService.items());
+      this.servicios.set(this.servicioService.items());
+    }
+    this.resetAvailability('La sucursal activa cambió: elegí un horario disponible.');
+    await this.checkAvailability();
   }
 
   private currentAdminActor(): string | null {

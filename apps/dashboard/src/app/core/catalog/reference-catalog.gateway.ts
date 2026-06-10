@@ -30,6 +30,7 @@ const CLOSED_RUNTIME_REFERENCE_CATALOG: DashboardReferenceCatalog = {
       aiCreditsMonthly: 0
     }
   ],
+  addOns: [],
   planAliases: [],
   businessTypes: [],
   businessTypeAliases: [],

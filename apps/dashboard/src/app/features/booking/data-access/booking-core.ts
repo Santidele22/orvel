@@ -68,22 +68,21 @@ export function computePublicAvailability(input: {
   workingWindows: Array<{ start: string; end: string }>;
   calendarEntries: CalendarEntry[];
 }): string[] {
-  const { 
-    date, 
-    serviceDurationMinutes, 
-    slotIntervalMinutes, 
-    bufferMinutes, 
-    minNoticeMinutes, 
-    nowIso, 
-    workingWindows, 
-    calendarEntries 
+  const {
+    date,
+    serviceDurationMinutes,
+    slotIntervalMinutes,
+    bufferMinutes = 0,
+    minNoticeMinutes = 0,
+    workingWindows,
+    calendarEntries
   } = input;
 
   if (serviceDurationMinutes <= 0 || slotIntervalMinutes <= 0) {
     return [];
   }
 
-  const nowMs = parseIsoToMs(nowIso);
+  const nowMs = input.nowIso ? parseIsoToMs(input.nowIso) : Number.NEGATIVE_INFINITY;
   const minAllowedStartMs = nowMs + (minNoticeMinutes * 60 * 1000);
 
   const occupiedRanges = calendarEntries

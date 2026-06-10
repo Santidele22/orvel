@@ -52,11 +52,11 @@ describe('RED contract: account plan policy uses the core reference catalog', ()
     });
     expect(policy.resolveAccountPlanPolicy({ plan: 'medium', premiumPaid: true })).toEqual({
       accountEnabled: true,
-      maxSalons: 3
+      maxSalons: 1
     });
     expect(policy.resolveAccountPlanPolicy({ plan: 'PRO', premiumPaid: true })).toEqual({
       accountEnabled: true,
-      maxSalons: 10
+      maxSalons: 1
     });
   });
 
@@ -89,8 +89,8 @@ describe('RED contract: account plan policy uses the core reference catalog', ()
     );
 
     const policy = await loadAccountPlanPolicyModule();
-    expect(policy.canCreateSalonUnderPlan({ plan: 'MEDIUM', premiumPaid: true, currentSalons: 2 })).toBe(true);
-    expect(policy.canCreateSalonUnderPlan({ plan: 'MEDIUM', premiumPaid: true, currentSalons: 3 })).toBe(false);
+    expect(policy.canCreateSalonUnderPlan({ plan: 'MEDIUM', premiumPaid: true, currentSalons: 0 })).toBe(true);
+    expect(policy.canCreateSalonUnderPlan({ plan: 'MEDIUM', premiumPaid: true, currentSalons: 1 })).toBe(false);
     expect(policy.canCreateSalonUnderPlan({ plan: 'MEDIUM', premiumPaid: false, currentSalons: 1 })).toBe(false);
   });
 });

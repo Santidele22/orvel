@@ -36,13 +36,13 @@ describe('SB-02 RED contract: account/plan lifecycle + salon limits', () => {
     expect(policy.canCreateSalonUnderPlan({ plan: 'FREE', premiumPaid: false, currentSalons: 1 })).toBe(false);
   });
 
-  it('premium paid tiers map to salon limits 3..5 (BASIC=3, MEDIUM=4, PRO=5)', async () => {
+  it('paid base tiers include exactly one salon; extra branches are a separate add-on', async () => {
     const policy = await loadAccountPlanPolicyModule();
 
     const expected: Record<Exclude<PlanCode, 'FREE'>, number> = {
-      BASIC: 3,
-      MEDIUM: 4,
-      PRO: 5
+      BASIC: 1,
+      MEDIUM: 1,
+      PRO: 1
     };
 
     (Object.keys(expected) as Array<Exclude<PlanCode, 'FREE'>>).forEach((plan) => {
@@ -65,12 +65,12 @@ describe('SB-02 RED contract: account/plan lifecycle + salon limits', () => {
     const samples: Array<{ plan: PlanCode; premiumPaid: boolean; currentSalons: number; expected: boolean }> = [
       { plan: 'FREE', premiumPaid: false, currentSalons: 0, expected: true },
       { plan: 'FREE', premiumPaid: false, currentSalons: 1, expected: false },
-      { plan: 'BASIC', premiumPaid: true, currentSalons: 2, expected: true },
-      { plan: 'BASIC', premiumPaid: true, currentSalons: 3, expected: false },
-      { plan: 'MEDIUM', premiumPaid: true, currentSalons: 3, expected: true },
-      { plan: 'MEDIUM', premiumPaid: true, currentSalons: 4, expected: false },
-      { plan: 'PRO', premiumPaid: true, currentSalons: 4, expected: true },
-      { plan: 'PRO', premiumPaid: true, currentSalons: 5, expected: false }
+      { plan: 'BASIC', premiumPaid: true, currentSalons: 0, expected: true },
+      { plan: 'BASIC', premiumPaid: true, currentSalons: 1, expected: false },
+      { plan: 'MEDIUM', premiumPaid: true, currentSalons: 0, expected: true },
+      { plan: 'MEDIUM', premiumPaid: true, currentSalons: 1, expected: false },
+      { plan: 'PRO', premiumPaid: true, currentSalons: 0, expected: true },
+      { plan: 'PRO', premiumPaid: true, currentSalons: 1, expected: false }
     ];
 
     samples.forEach((sample) => {

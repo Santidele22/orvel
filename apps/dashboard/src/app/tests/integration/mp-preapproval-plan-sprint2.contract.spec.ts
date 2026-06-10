@@ -3,11 +3,29 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
-const ROOT = path.resolve(TEST_DIR, '../../../../..');
+const ROOT = findRepoRoot(TEST_DIR);
 const WEBHOOK_FN = path.join(ROOT, 'supabase', 'functions', 'mercadopago-webhook', 'index.ts');
+const SUBSCRIPTION_GUARDS = path.join(ROOT, 'supabase', 'functions', '_shared', 'mp-subscription-guards.ts');
 const BILLING_SQL = path.join(ROOT, 'supabase', 'migrations', '20260506_consolidated_billing.sql');
-const LANDING_SUBSCRIPTION_START_API = path.join(ROOT, 'landing', 'src', 'pages', 'api', 'subscriptions', 'start.ts');
-const SUBSCRIPTION_STATUS_API = path.join(ROOT, 'landing', 'src', 'pages', 'api', 'subscriptions', 'status.ts');
+const LANDING_SUBSCRIPTION_START_API = path.join(ROOT, 'apps', 'landing', 'src', 'pages', 'api', 'subscriptions', 'start.ts');
+const SUBSCRIPTION_STATUS_API = path.join(ROOT, 'apps', 'landing', 'src', 'pages', 'api', 'subscriptions', 'status.ts');
+
+function findRepoRoot(startDir: string): string {
+  let currentDir = startDir;
+
+  while (currentDir !== path.dirname(currentDir)) {
+    if (
+      fs.existsSync(path.join(currentDir, 'infra', 'context', 'supabase.md')) &&
+      fs.existsSync(path.join(currentDir, 'supabase', 'functions'))
+    ) {
+      return currentDir;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+
+  throw new Error(`Unable to resolve repository root from ${startDir}`);
+}
 
 function readRequiredFile(filePath: string): string {
   expect(fs.existsSync(filePath), `Missing file: ${path.relative(ROOT, filePath)}`).toBe(true);
@@ -18,7 +36,7 @@ describe('Sprint2 MP preapproval_plan QA gate contracts', () => {
   it('handles duplicate/reordered webhook events with idempotency before state transition side effects', () => {
     const webhook = readRequiredFile(WEBHOOK_FN);
 
-    const existingEventRead = webhook.search(/\.from\("payment_webhook_events"\)[\s\S]*\.select\("id, processed_at, payload_hash"\)/m);
+    const existingEventRead = webhook.search(/\.from\((?:"payment_webhook_events"|PAYMENT_WEBHOOK_EVENTS_TABLE)\)[\s\S]*\.select\("id, processed_at, payload_hash"\)/m);
     const reserveEvent = webhook.search(/reserve_payment_webhook_event/);
     const duplicateProcessedDecision = webhook.search(/reservationDecision === "duplicate_processed"/);
     const payloadConflictDecision = webhook.search(/reservationDecision === "payload_conflict"/);
@@ -47,13 +65,16 @@ describe('Sprint2 MP preapproval_plan QA gate contracts', () => {
   it('enforces server-truth next_status as transition source-of-truth', () => {
     const sql = readRequiredFile(BILLING_SQL);
     const webhook = readRequiredFile(WEBHOOK_FN);
+    const subscriptionGuards = readRequiredFile(SUBSCRIPTION_GUARDS);
 
     expect(sql).toMatch(/canonical_next_status := lower\(trim\(COALESCE\(p_next_status, ''\)\)\)/);
     expect(sql).toMatch(/IF canonical_next_status = 'cancelled' THEN canonical_next_status := 'canceled'; END IF;/);
 
-    expect(webhook).toMatch(/const STATUS_MAP:[\s\S]*authorized:\s*"active"/m);
-    expect(webhook).toMatch(/const STATUS_MAP:[\s\S]*paused:\s*"paused"/m);
-    expect(webhook).toMatch(/const STATUS_MAP:[\s\S]*cancelled:\s*"canceled"/m);
+    expect(webhook).toMatch(/mapWebhookStatusToSubscriptionStatus\(/);
+    expect(subscriptionGuards).toMatch(/normalizedStatus === "approved"\) return "active"/);
+    expect(subscriptionGuards).toMatch(/normalizedStatus === "paused"\) return "paused"/);
+    expect(subscriptionGuards).toMatch(/\["cancelled", "canceled", "rejected"\]\.includes\(normalizedStatus\)\) return "canceled"/);
+    expect(subscriptionGuards).toMatch(/normalizedStatus === "authorized"[\s\S]*return "pending"/m);
     expect(webhook).toMatch(/p_next_status:\s*internalStatus/);
     expect(webhook).toMatch(/p_event_type:\s*eventAction/);
   });
