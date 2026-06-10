@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
-const PLAN_CARD_PATH = new URL('../components/molecules/SignupPlanCard.astro', import.meta.url);
+const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
@@ -59,9 +59,23 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
 
     expect(source).toContain("const isPaidPlan = plan !== 'FREE'");
     expect(source).toContain('/billing/subscription?plan=');
+    expect(source).toContain('&billing=');
     expect(source.indexOf('completeOAuthBusinessTypeOnboarding')).toBeLessThan(source.indexOf('window.location.href = returnTo'));
     expect(source).toContain("const returnTo = isPaidPlan");
     expect(source).toMatch(/dashboard\/inicio/);
+  });
+
+  it('preserves selected billing period through credentials, business type, complete and subscription handoff', async () => {
+    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const completeSource = await loadSource(COMPLETE_PAGE_PATH);
+
+    expect(credentialsSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
+    expect(credentialsSource).toContain('/auth/signup/business-type?plan=');
+    expect(credentialsSource).toContain('&billing=');
+    expect(completeSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
+    expect(completeSource).toContain("params.set('billing', billing)");
+    expect(completeSource).toContain('/billing/subscription?plan=');
+    expect(completeSource).toContain('&billing=');
   });
 
   it('renders billing subscription route with plan query fallback and safe placeholder note', async () => {

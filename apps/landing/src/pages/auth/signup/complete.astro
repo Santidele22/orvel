@@ -149,11 +149,17 @@ import Layout from '../../../layouts/Layout.astro';
       const normalized = rawPlan?.trim().toUpperCase();
       return normalized && normalized.length > 0 ? normalized : 'FREE';
     };
+    const normalizeBillingPeriod = (rawBilling: string | null) => {
+      const normalized = rawBilling?.trim().toLowerCase();
+      return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+    };
     const plan = normalizeSelectedPlan(searchParams.get('plan') || sessionStorage.getItem('orvel.signup.plan'));
+    const billing = normalizeBillingPeriod(searchParams.get('billing') || sessionStorage.getItem('orvel.signup.billing'));
     const isPaidPlan = plan !== 'FREE';
     const buildSignupStepUrl = (path: string) => {
       const params = new URLSearchParams();
       params.set('plan', plan);
+      params.set('billing', billing);
       const signupIntent = searchParams.get('signup_intent');
       const oauth = searchParams.get('oauth');
 
@@ -164,6 +170,7 @@ import Layout from '../../../layouts/Layout.astro';
     };
 
     sessionStorage.setItem('orvel.signup.plan', plan);
+    sessionStorage.setItem('orvel.signup.billing', billing);
 
     const step2Link = document.getElementById('step2Link') as HTMLAnchorElement;
     if (step2Link) {
@@ -205,7 +212,7 @@ import Layout from '../../../layouts/Layout.astro';
       button.textContent = 'Finalizando...';
 
       const returnTo = isPaidPlan
-        ? `/billing/subscription?plan=${encodeURIComponent(plan)}`
+        ? `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`
         : '/dashboard/inicio';
 
       const client = createClient(
@@ -272,6 +279,7 @@ import Layout from '../../../layouts/Layout.astro';
           });
 
           sessionStorage.removeItem('orvel.signup.plan');
+          sessionStorage.removeItem('orvel.signup.billing');
           
           // If paid plan and business creation succeeded, go to subscription/preapproval
           if (isPaidPlan) {
@@ -364,6 +372,7 @@ import Layout from '../../../layouts/Layout.astro';
 
       sessionStorage.removeItem('orvel.signup.password');
       sessionStorage.removeItem('orvel.signup.plan');
+      sessionStorage.removeItem('orvel.signup.billing');
 
       if (isPaidPlan) {
         window.location.href = returnTo;

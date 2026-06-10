@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const PLAN_CARD_PATH = new URL('../components/molecules/SignupPlanCard.astro', import.meta.url);
+const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
 const BUSINESS_TYPE_PAGE_PATH = new URL('../pages/auth/signup/business-type.astro', import.meta.url);
