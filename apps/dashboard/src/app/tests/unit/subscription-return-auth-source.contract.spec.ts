@@ -64,12 +64,15 @@ describe('RED Contract: dashboard /auth subscription source normalization', () =
     }
   });
 
-  it('requires the normal Supabase login/session path even when source=subscription is present', async () => {
+  it('delegates dashboard login to the canonical landing auth bridge even when source=subscription is present', async () => {
     const source = await readFile(LOGIN_PAGE, 'utf8');
 
-    expect(source).toContain('createSupabaseAuthClient');
-    expect(source).toContain('signInWithPassword');
-    expect(source).toContain('handleLoginSuccess');
+    expect(source).toContain("const canonicalLandingAuth = '/auth/login'");
+    expect(source).toContain('normalizeDashboardAuthRequest');
+    expect(source).toContain('buildLandingLoginRedirect');
+    expect(source).toContain('window.location.assign');
+    expect(source).not.toContain('createSupabaseAuthClient');
+    expect(source).not.toContain('signInWithPassword');
 
     expect(source).not.toMatch(/source\s*===\s*['"]subscription['"][\s\S]*(authenticated|entitlement|plan|onboardingCompleted)/i);
     expect(source).not.toMatch(/subscription[\s\S]*(auth\.updateUser|setCurrentStep\([^)]*dashboard[^)]*\))/i);

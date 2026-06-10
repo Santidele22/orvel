@@ -3,7 +3,7 @@ type DashboardAuthMode = 'login' | 'signup';
 type BillingSource = 'subscription';
 
 const DASHBOARD_HOME = '/';
-const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token)/i;
+const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token|code)/i;
 const PAYMENT_ID_PATTERN = /(preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 

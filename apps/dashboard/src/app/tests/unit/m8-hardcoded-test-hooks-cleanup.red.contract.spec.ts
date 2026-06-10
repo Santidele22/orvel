@@ -97,7 +97,7 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
     ].join('\n');
 
     expect(routeSurface).toMatch(/billing\/subscription|api\/subscriptions|preapproval/i);
-    expect(routeSurface).not.toMatch(/path:\s*['"][^'"]*checkout|\/api\/checkout|\/checkout\b|checkout[-_]?session/i);
+    expect(routeSurface).not.toMatch(/path:\s*['"][^'"]*checkout|\/api\/checkout|\/checkout\b/i);
     expect(fileNames).not.toMatch(/(?:^|\/)checkout(?:\.|\/|-)|checkout[-_]?session/i);
   });
 

@@ -174,6 +174,21 @@ function resolveRedirectOrigin(redirectTo: string): string {
   }
 }
 
+function isCanonicalLoginCallback(redirectTo: string): boolean {
+  try {
+    return new URL(redirectTo, resolveRedirectOrigin(redirectTo)).pathname === '/auth/callback';
+  } catch {
+    return false;
+  }
+}
+
+function buildOAuthOnboardingRedirect(redirectTo: string): string {
+  const origin = resolveRedirectOrigin(redirectTo);
+  const onboardingUrl = new URL('/auth/onboarding', origin);
+  onboardingUrl.searchParams.set('returnTo', redirectTo);
+  return onboardingUrl.toString();
+}
+
 function getBrowserSignupIntentStore(dependencies: SupabaseAuthDependencies): OAuthSignupIntentStore | null {
   if (dependencies.oauthSignupIntentStore) {
     return dependencies.oauthSignupIntentStore;
@@ -402,6 +417,7 @@ export function createSupabaseOAuthAdapter(
   return async (provider: 'google', input: string | { redirectTo: string; plan?: unknown; tipoNegocio?: unknown }) => {
     try {
       const redirectTo = typeof input === 'string' ? input : input.redirectTo;
+      const isLoginCallback = isCanonicalLoginCallback(redirectTo);
       const hasCompleteOnboarding =
         typeof input !== 'string' &&
         normalizeSignupPlan(input.plan) !== null &&
@@ -418,8 +434,8 @@ export function createSupabaseOAuthAdapter(
             })
           ).options
         : {
-            redirectTo,
-            queryParams: hasCompleteOnboarding
+            redirectTo: !hasCompleteOnboarding && !isLoginCallback ? buildOAuthOnboardingRedirect(redirectTo) : redirectTo,
+            queryParams: hasCompleteOnboarding || isLoginCallback
               ? undefined
               : {
                   onboarding_required: 'true'

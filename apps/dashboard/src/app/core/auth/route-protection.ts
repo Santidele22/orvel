@@ -1,4 +1,4 @@
-import { TURNERA_SESSION_KEY } from './session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from './session-contract';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
 import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
@@ -6,7 +6,9 @@ import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitleme
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
 
-const LOGIN_ROUTE = '/login';
+const LOGIN_ROUTE = '/auth/login';
+const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
+const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 
 /**
  * Gets the Supabase Auth client (cached for performance).
@@ -36,7 +38,27 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
     return '/dashboard';
   }
 
-  return value;
+  if (TOKEN_OR_PAYMENT_TEXT.test(value)) {
+    return '/dashboard';
+  }
+
+  try {
+    const parsed = new URL(value, 'https://dashboard.orvel.local');
+    if (parsed.origin !== 'https://dashboard.orvel.local') {
+      return '/dashboard';
+    }
+    for (const key of parsed.searchParams.keys()) {
+      if (PARAM_BLOCKLIST.test(key)) {
+        return '/dashboard';
+      }
+    }
+    if (TOKEN_OR_PAYMENT_TEXT.test(parsed.hash)) {
+      return '/dashboard';
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/dashboard';
+  }
 }
 
 export function buildLandingLoginRedirect(returnTo: string): string {
@@ -149,7 +171,7 @@ export async function logoutAndRedirect(): Promise<string> {
   }
 
   // Clear legacy localStorage data, but never trust it for dashboard access.
-  localStorage.removeItem(TURNERA_SESSION_KEY);
+  localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
 
   return LOGIN_ROUTE;
 }

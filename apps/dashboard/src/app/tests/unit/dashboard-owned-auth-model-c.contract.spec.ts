@@ -57,8 +57,8 @@ describe('RED Contract: Model C dashboard-owned auth route', () => {
       '/auth/callback#access_token=leaked&refresh_token=leaked'
     ]) {
       const url = `/auth?mode=magic-link&returnTo=${encodeURIComponent(unsafeReturnTo)}`;
-      expect(normalizeDashboardAuthRequest(url)).toEqual({ mode: 'login', returnTo: '/' });
-      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/');
+      expect(normalizeDashboardAuthRequest(url)).toEqual({ mode: 'login', returnTo: '/dashboard/inicio' });
+      expect(resolveDashboardAuthSuccessRedirect({ returnTo: unsafeReturnTo })).toBe('/dashboard/inicio');
     }
   });
 
@@ -68,13 +68,13 @@ describe('RED Contract: Model C dashboard-owned auth route', () => {
     expect(resolveDashboardAuthSuccessRedirect({ returnTo: '/dashboard/clientes?from=landing' })).toBe(
       '/dashboard/clientes?from=landing'
     );
-    expect(resolveDashboardAuthSuccessRedirect({ returnTo: null })).toBe('/');
+    expect(resolveDashboardAuthSuccessRedirect({ returnTo: null })).toBe('/dashboard/inicio');
 
     const redirect = resolveDashboardAuthSuccessRedirect({
       returnTo: '/dashboard/inicio?access_token=secret&refresh_token=secret'
     });
 
-    expect(redirect).toBe('/');
+    expect(redirect).toBe('/dashboard/inicio');
     expect(redirect).not.toMatch(/access_token|refresh_token/i);
   });
 });
