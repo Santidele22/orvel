@@ -1,7 +1,7 @@
 // appointment-reminders-24h Edge Function
 // Secure scheduler/manual entrypoint for enqueue_appointment_reminders_24h.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 
 const jsonHeaders = { "Content-Type": "application/json" };
 

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { requireServerSecret } from "../_shared/billing-security.ts";
 
 type LocalSubscription = {

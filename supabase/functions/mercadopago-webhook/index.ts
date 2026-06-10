@@ -5,7 +5,7 @@
 import {
   createClient,
   type SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2";
+} from "@supabase/supabase-js";
 import {
   getBillingCorsHeaders,
   rejectDisallowedBrowserOrigin,
@@ -75,7 +75,7 @@ async function sha256(message: string, secret: string): Promise<string> {
 }
 
 async function syncEntitlementsForBusiness(
-  supabaseAdmin: SupabaseClient<any, "public", any>,
+  supabaseAdmin: SupabaseClient,
   businessId: string,
   tenantId: string,
 ): Promise<void> {
