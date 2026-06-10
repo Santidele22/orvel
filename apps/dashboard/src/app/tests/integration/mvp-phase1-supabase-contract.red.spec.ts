@@ -38,6 +38,14 @@ function functionBody(sql: string, functionName: string): string {
   return matches.at(-1)?.[1] ?? '';
 }
 
+function functionBodies(sql: string, functionName: string): string[] {
+  const matches = [...sql.matchAll(
+    new RegExp(`create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${functionName}\\s*\\([\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$`, 'gi')
+  )];
+
+  return matches.map((match) => match[1] ?? '');
+}
+
 function functionSignature(sql: string, functionName: string): string {
   const matches = [...sql.matchAll(
     new RegExp(`create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${functionName}\\s*\\(([^)]*)\\)`, 'gi')
@@ -58,10 +66,13 @@ describe('MVP phase 1 Supabase source-of-truth RED contracts', () => {
       'reschedule_admin_booking',
       'reschedule_booking_by_token'
     ]) {
-      const body = functionBody(sql, functionName);
+      const body = functionBodies(sql, functionName).join('\n');
+      const expectedHelper = functionName === 'query_public_slot_availability'
+        ? /_query_booking_slot_availability\s*\(/i
+        : /_assert_no_slot_conflict\s*\(/i;
 
       expect(body, `Missing RPC function body: ${functionName}`).not.toBe('');
-      expect(body, `${functionName} must use the shared backend slot-conflict helper`).toMatch(/_assert_no_slot_conflict\s*\(/i);
+      expect(body, `${functionName} must use the shared backend availability/collision helper`).toMatch(expectedHelper);
     }
   });
 
