@@ -3,9 +3,10 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { normalizeDashboardAuthRequest } from '../../core/auth/dashboard-auth-flow';
 
+const CANONICAL_LANDING_ORIGIN = 'https://orvel.app';
 const canonicalLandingAuth = '/auth/login';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
-const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
+const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 
 function sanitizeDashboardReturnTo(raw: string | null | undefined): string {
   if (!raw) return '/dashboard/inicio';
@@ -28,14 +29,14 @@ function buildLandingLoginRedirect(returnTo: string): string {
   const landingOrigin = (() => {
     const env = globalThis as { process?: { env?: Record<string, string | undefined> } };
     const raw = env.process?.env?.['PUBLIC_LANDING_URL']?.trim();
-    if (!raw) return '';
+    if (!raw) return CANONICAL_LANDING_ORIGIN;
     try {
       const url = new URL(raw);
       url.search = '';
       url.hash = '';
       return url.origin;
     } catch {
-      return '';
+      return CANONICAL_LANDING_ORIGIN;
     }
   })();
   const safeReturnTo = sanitizeDashboardReturnTo(returnTo);

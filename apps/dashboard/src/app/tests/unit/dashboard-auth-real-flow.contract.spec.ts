@@ -72,6 +72,8 @@ describe('Contract: dashboard auth routes delegate to canonical landing auth', (
     const loginTemplate = await readFile(new URL('../../pages/auth/login.page.html', import.meta.url), 'utf8');
 
     expect(loginPage).toMatch(/canonicalLandingAuth|buildLandingLoginRedirect|window\.location\.assign/);
+    expect(loginPage).toMatch(/CANONICAL_LANDING_ORIGIN\s*=\s*['"]https:\/\/orvel\.app['"]/);
+    expect(loginPage).toMatch(/PUBLIC_LANDING_URL/);
     expect(loginPage).not.toMatch(/signInWithPassword|signUp|createSupabaseAuthClient|SUPABASE_CONFIG|getMockUser|generateToken/);
     expect(loginTemplate).not.toMatch(/<form[\s\S]*ngSubmit|name=['"]email['"]|name=['"]password['"]/);
   });
