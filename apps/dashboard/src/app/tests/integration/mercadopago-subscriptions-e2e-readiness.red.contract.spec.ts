@@ -3,10 +3,41 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
-const ROOT = path.resolve(TEST_DIR, '../../../../..');
+const ROOT = findRepoRoot(TEST_DIR);
 const CREATE_SUBSCRIPTION_FN = path.join(ROOT, 'supabase', 'functions', 'create-subscription', 'index.ts');
 const WEBHOOK_FN = path.join(ROOT, 'supabase', 'functions', 'mercadopago-webhook', 'index.ts');
-const FRONTEND_CORE = path.join(ROOT, 'src', 'app', 'core');
+const DEPLOY_WORKFLOW = findExistingFile(ROOT, [
+  ['.github', 'workflows', 'deploy.yml'],
+  ['apps', 'dashboard', '.github', 'workflows', 'deploy.yml'],
+]);
+
+function findRepoRoot(startDir: string): string {
+  let currentDir = startDir;
+
+  while (currentDir !== path.dirname(currentDir)) {
+    if (
+      fs.existsSync(path.join(currentDir, 'infra', 'context', 'supabase.md')) &&
+      fs.existsSync(path.join(currentDir, 'supabase', 'functions'))
+    ) {
+      return currentDir;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+
+  throw new Error(`Unable to resolve repository root from ${startDir}`);
+}
+
+function findExistingFile(root: string, relativeCandidates: string[][]): string {
+  const candidates = relativeCandidates.map((candidate) => path.join(root, ...candidate));
+  const existing = candidates.find((candidate) => fs.existsSync(candidate));
+
+  if (!existing) {
+    throw new Error(`Missing file. Checked: ${candidates.map((candidate) => path.relative(root, candidate)).join(', ')}`);
+  }
+
+  return existing;
+}
 
 function readRequiredFile(filePath: string): string {
   expect(fs.existsSync(filePath), `Missing file: ${path.relative(ROOT, filePath)}`).toBe(true);
@@ -36,7 +67,7 @@ describe('Mercado Pago subscriptions end-to-end readiness (RED contracts)', () =
       }
     });
 
-    it('must keep create-subscription edge payload minimal and server-derived (only plan_code from client)', () => {
+    it('must keep create-subscription edge payload server-derived (no client price/amount)', () => {
       const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
 
       expect(source).toMatch(/interface\s+SubscriptionRequest\s*\{[\s\S]*plan_code\s*:\s*string\s*;[\s\S]*\}/m);
@@ -45,48 +76,33 @@ describe('Mercado Pago subscriptions end-to-end readiness (RED contracts)', () =
       expect(source).toMatch(/JSON\.stringify\(\{[\s\S]*success:\s*true[\s\S]*init_point[\s\S]*message[\s\S]*\}\)/m);
     });
 
-    it('must send strict associated-plan payload to MP /preapproval when strict flag is enabled', () => {
+    it('must send canonical dynamic preapproval payload to MP /preapproval without client-controlled MP identifiers', () => {
       const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
+      const mpRequest = source.slice(source.indexOf('const mpPreapprovalRequest'), source.indexOf('// Create preapproval in Mercado Pago'));
 
-      expect(source).toMatch(/preapproval_plan_id\s*:/);
-      expect(source).toMatch(/card_token_id\s*:/);
-      expect(source).toMatch(/status\s*:\s*["']authorized["']/);
+      expect(mpRequest).toMatch(/payer_email\s*:/);
+      expect(mpRequest).toMatch(/back_url\s*:/);
+      expect(mpRequest).toMatch(/external_reference\s*:/);
+      expect(mpRequest).toMatch(/status\s*:\s*["']pending["']/);
+      expect(mpRequest).toMatch(/auto_recurring\s*:/);
+      expect(mpRequest).toMatch(/transaction_amount\s*:\s*Number\(plan\.price\)/);
+      expect(mpRequest).not.toMatch(/preapproval_plan_id\s*:/);
+      expect(mpRequest).not.toMatch(/card_token_id\s*:/);
       expect(source).toMatch(/fetch\([^\n]*\/preapproval/);
     });
 
-    it('must fail with controlled 4xx when strict contract misses card_token_id', () => {
+    it('must resolve paid preapproval plan catalog server-side before creating paid subscriptions', () => {
       const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
 
-      expect(source).toMatch(/CARD_TOKEN_ID_REQUIRED/);
-      expect(source).toMatch(/status:\s*400/);
-    });
-
-    it('must fail with controlled 4xx when strict contract misses preapproval_plan_id', () => {
-      const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
-
-      expect(source).toMatch(/PREAPPROVAL_PLAN_ID_REQUIRED/);
-      expect(source).toMatch(/status:\s*400/);
-    });
-
-    it('must fail with controlled 4xx and explicit codes when strict identifiers have invalid format', () => {
-      const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
-
-      expect(source).toMatch(/CARD_TOKEN_ID_INVALID_FORMAT/);
-      expect(source).toMatch(/PREAPPROVAL_PLAN_ID_INVALID_FORMAT/);
-      expect(source).toMatch(/status:\s*400/);
-    });
-
-    it('must keep transitional feature-flag behavior: strict enabled/disabled branches explicit', () => {
-      const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
-
-      expect(source).toMatch(/MP_ASSOCIATED_PLAN_STRICT_MODE|MP_SUBSCRIPTIONS_STRICT_ASSOCIATED_PLAN/);
-      expect(source).toMatch(/===\s*["']true["']|toLowerCase\(\)\s*===\s*["']true["']/);
-      expect(source).toMatch(/if\s*\(.*strict.*\)[\s\S]*preapproval_plan_id[\s\S]*else[\s\S]*auto_recurring/mi);
+      expect(source).toMatch(/\.from\(["']mp_plan_catalog["']\)/);
+      expect(source).toMatch(/resolvePlanCatalogRow\(/);
+      expect(source).toMatch(/PREAPPROVAL_PLAN_NOT_SYNCED/);
+      expect(source).toMatch(/PLAN_CATALOG_READ_FAILED/);
     });
 
     it('must surface sanitized Mercado Pago upstream error diagnostics without sensitive fields', () => {
       const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
-      const mpErrorBranch = source.slice(source.indexOf('if (!mpResponse.ok)'));
+      const mpErrorBranch = source.slice(source.indexOf('if (!mpResponse.ok)'), source.indexOf('const mpData = await mpResponse.json()'));
 
       expect(source).toMatch(/sanitizeMercadoPagoError/);
       expect(mpErrorBranch).toMatch(/upstream_error/);
@@ -151,23 +167,27 @@ describe('Mercado Pago subscriptions end-to-end readiness (RED contracts)', () =
       expect(webhook, 'Webhook must fail fast when MP_WEBHOOK_SECRET is missing').toMatch(/MP_WEBHOOK_SECRET/);
     });
 
-    it('must include core keys in required env contract for subscription flow', async () => {
+    it('must keep required secret env keys in server functions, not dashboard runtime', async () => {
       const env = await import('../../core/payments/subscriptions/mercadopago-subscription-env');
       const requiredKeys = (env as { REQUIRED_MERCADO_PAGO_SUBSCRIPTION_ENV_KEYS: readonly string[] })
         .REQUIRED_MERCADO_PAGO_SUBSCRIPTION_ENV_KEYS;
+      const createSub = readRequiredFile(CREATE_SUBSCRIPTION_FN);
+      const webhook = readRequiredFile(WEBHOOK_FN);
 
-      expect(requiredKeys).toEqual(
-        expect.arrayContaining(['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'MP_PREAPPROVAL_PLAN_ID', 'APP_BASE_URL'])
-      );
+      expect(requiredKeys).toEqual(expect.arrayContaining(['MP_PREAPPROVAL_PLAN_ID', 'APP_BASE_URL']));
+      expect(requiredKeys).not.toEqual(expect.arrayContaining(['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET']));
+      expect(createSub).toMatch(/MP_ACCESS_TOKEN/);
+      expect(webhook).toMatch(/MP_WEBHOOK_SECRET/);
     });
   });
 
   describe('Deployed workflow guardrail', () => {
     it('must include CI workflow that deploys both subscription functions', () => {
-      const workflow = readRequiredFile(path.join(ROOT, '.github', 'workflows', 'deploy.yml'));
+      const workflow = readRequiredFile(DEPLOY_WORKFLOW);
 
       expect(workflow).toMatch(/create-subscription/);
       expect(workflow).toMatch(/mercadopago-webhook/);
+      expect(workflow).not.toMatch(/vercel\s+(deploy|pull|build)|vercel\/action/i);
     });
   });
 });

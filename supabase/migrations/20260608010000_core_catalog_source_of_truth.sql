@@ -65,8 +65,8 @@ SET
 FROM (VALUES
   ('FREE', 1, 1, 15, 0),
   ('STARTER', 1, 2, NULL::integer, 100),
-  ('GROWTH', 3, 5, NULL::integer, 500),
-  ('PRO', 10, 10, NULL::integer, 2000)
+  ('GROWTH', 1, 5, NULL::integer, 500),
+  ('PRO', 1, 10, NULL::integer, 2000)
 ) AS catalog(code, max_locales, max_rubros, max_monthly_bookings, ai_credits_monthly)
 WHERE public.plans.code = catalog.code;
 
@@ -91,8 +91,8 @@ INSERT INTO public.plans (
 VALUES
   ('FREE', 'Free', 'Ideal para empezar a ordenar tus turnos. 1 local, hasta 15 turnos/mes, reservas online, agenda automática.', 0, 0, 0, 'ARS', 1, 'months', 30, true, false, 1, 1, 15, 0),
   ('STARTER', 'Starter', 'Empezá a llenar tu agenda. Automatizá tus turnos y dejá de responder mensajes. 1 local, turnos ilimitados, link de reservas, sin branding.', 12000, 30000, 99000, 'ARS', 1, 'months', 30, true, true, 1, 2, NULL, 100),
-  ('GROWTH', 'Growth', 'Reducí cancelaciones y ganá más. Menos ausencias, más ingresos reales. Hasta 3 locales, recordatorios automáticos, métricas, reportes semanales.', 22000, 55000, 179000, 'ARS', 1, 'months', 30, true, false, 3, 5, NULL, 500),
-  ('PRO', 'Pro', 'Escalá tu negocio sin límites. Pensado para negocios que ya están creciendo. Hasta 10 locales, soporte prioritario, reportes avanzados, API (opcional).', 39000, 99000, 299000, 'ARS', 1, 'months', 30, true, false, 10, 10, NULL, 2000)
+  ('GROWTH', 'Growth', 'Reducí cancelaciones y ganá más. Menos ausencias, más ingresos reales. 1 local base, recordatorios automáticos, métricas, reportes semanales.', 22000, 55000, 179000, 'ARS', 1, 'months', 30, true, false, 1, 5, NULL, 500),
+  ('PRO', 'Pro', 'Escalá tu negocio sin límites. Pensado para negocios que ya están creciendo. 1 local base, soporte prioritario, reportes avanzados, API (opcional).', 39000, 99000, 299000, 'ARS', 1, 'months', 30, true, false, 1, 10, NULL, 2000)
 ON CONFLICT (code) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
