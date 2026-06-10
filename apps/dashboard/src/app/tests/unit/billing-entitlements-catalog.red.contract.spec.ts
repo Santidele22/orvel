@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  getCatalogAddOn,
   getDefaultDashboardReferenceCatalog,
   getPlanEntitlementsFromCatalog
 } from '../../core/catalog/reference-catalog';
@@ -121,6 +122,23 @@ describe('RED contract: billing subscription entitlements align with the referen
     ).resolves.toEqual({ allowed: true, reason: 'OK' });
 
     configureEntitlementsRepository(null);
+  });
+
+  it('keeps base plan maxLocales at one and represents multi-branch as ARS 20,000/month add-on', () => {
+    const catalog = getDefaultDashboardReferenceCatalog();
+
+    expect(getPlanEntitlementsFromCatalog(catalog, 'GROWTH')?.maxLocales).toBe(1);
+    expect(getPlanEntitlementsFromCatalog(catalog, 'PRO')?.maxLocales).toBe(1);
+    expect(getCatalogAddOn(catalog, 'MULTI_BRANCH')).toMatchObject({
+      code: 'MULTI_BRANCH',
+      label: 'Sucursales adicionales / Multi-sucursal',
+      priceMonthlyCents: 2_000_000,
+      billingCadence: 'monthly'
+    });
+    expect(getCatalogAddOn(catalog, 'EXTRA_BRANCH')).toMatchObject({
+      code: 'EXTRA_BRANCH',
+      priceMonthlyCents: 2_000_000
+    });
   });
 
   it.each([null, undefined, '', '   ', 'enterprise'])('falls back fail-closed to FREE for unknown plan %s', async (planCode) => {

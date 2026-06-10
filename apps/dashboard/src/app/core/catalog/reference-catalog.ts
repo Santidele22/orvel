@@ -7,6 +7,13 @@ export type CatalogPlan = {
   aiCreditsMonthly: number;
 };
 
+export type CatalogAddOn = {
+  code: string;
+  label: string;
+  priceMonthlyCents: number;
+  billingCadence: 'monthly';
+};
+
 export type CatalogBusinessType = {
   code: string;
   label: string;
@@ -17,6 +24,7 @@ export type CatalogBusinessType = {
 
 export type DashboardReferenceCatalog = {
   plans: CatalogPlan[];
+  addOns: CatalogAddOn[];
   planAliases: Array<{ alias: string; planCode: string }>;
   businessTypes: CatalogBusinessType[];
   businessTypeAliases: Array<{ alias: string; businessTypeCode: string }>;
@@ -27,6 +35,7 @@ type RawObject = Record<string, unknown>;
 
 const EMPTY_CATALOG: DashboardReferenceCatalog = {
   plans: [],
+  addOns: [],
   planAliases: [],
   businessTypes: [],
   businessTypeAliases: [],
@@ -39,10 +48,15 @@ export const DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD = {
   plans: [
     { code: 'FREE', name: 'Free', max_locales: 1, max_rubros: 1, max_monthly_bookings: 15, ai_credits_monthly: 0 },
     { code: 'STARTER', name: 'Starter', max_locales: 1, max_rubros: 2, max_monthly_bookings: null, ai_credits_monthly: 100 },
-    { code: 'GROWTH', name: 'Growth', max_locales: 3, max_rubros: 5, max_monthly_bookings: null, ai_credits_monthly: 500 },
-    { code: 'PRO', name: 'Pro', max_locales: 10, max_rubros: 10, max_monthly_bookings: null, ai_credits_monthly: 2000 }
+    { code: 'GROWTH', name: 'Growth', max_locales: 1, max_rubros: 5, max_monthly_bookings: null, ai_credits_monthly: 500 },
+    { code: 'PRO', name: 'Pro', max_locales: 1, max_rubros: 10, max_monthly_bookings: null, ai_credits_monthly: 2000 }
+  ],
+  add_ons: [
+    { code: 'MULTI_BRANCH', label: 'Sucursales adicionales / Multi-sucursal', price_monthly_cents: 2_000_000, billing_cadence: 'monthly' },
+    { code: 'EXTRA_BRANCH', label: 'Sucursal adicional', price_monthly_cents: 2_000_000, billing_cadence: 'monthly' }
   ],
   plan_aliases: [
+    { alias: 'STARTER', plan_code: 'STARTER' },
     { alias: 'BASIC', plan_code: 'STARTER' },
     { alias: 'MEDIUM', plan_code: 'GROWTH' }
   ],
@@ -203,6 +217,26 @@ export function normalizeDashboardReferenceCatalog(input: unknown): DashboardRef
     (plan) => plan.code
   );
 
+  const addOns = normalizeUnique(
+    readArray(source, 'addOns', 'add_ons')
+      .map(asObject)
+      .map((addOn): CatalogAddOn | null => {
+        const code = normalizeCode(readString(addOn, 'code'));
+        if (!code) {
+          return null;
+        }
+
+        return {
+          code,
+          label: readString(addOn, 'label') || readString(addOn, 'name') || code,
+          priceMonthlyCents: readNumber(addOn, 'priceMonthlyCents', 'price_monthly_cents'),
+          billingCadence: 'monthly'
+        };
+      })
+      .filter((addOn): addOn is CatalogAddOn => addOn !== null),
+    (addOn) => addOn.code
+  );
+
   const planAliases = normalizeUnique(
     readArray(source, 'planAliases', 'plan_aliases')
       .map(asObject)
@@ -270,7 +304,7 @@ export function normalizeDashboardReferenceCatalog(input: unknown): DashboardRef
     (row) => `${row.planCode}:${row.businessTypeCode}`
   );
 
-  return { ...EMPTY_CATALOG, plans, planAliases, businessTypes, businessTypeAliases, planBusinessTypes };
+  return { ...EMPTY_CATALOG, plans, addOns, planAliases, businessTypes, businessTypeAliases, planBusinessTypes };
 }
 
 export function resolvePlanCodeFromCatalog(catalog: DashboardReferenceCatalog, value: unknown): string | null {
@@ -320,6 +354,15 @@ export function getPlanEntitlementsFromCatalog(
     maxMonthlyBookings: catalogPlan.maxMonthlyBookings,
     aiCreditsMonthly: catalogPlan.aiCreditsMonthly
   };
+}
+
+export function getCatalogAddOn(catalog: DashboardReferenceCatalog, addOnCode: unknown): CatalogAddOn | null {
+  const code = normalizeCode(addOnCode);
+  if (!code) {
+    return null;
+  }
+
+  return catalog.addOns.find((addOn) => addOn.code === code) ?? null;
 }
 
 export function getAllowedBusinessTypesForPlan(catalog: DashboardReferenceCatalog, plan: unknown): CatalogBusinessType[] {
