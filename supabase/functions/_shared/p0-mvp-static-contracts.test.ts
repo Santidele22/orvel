@@ -76,6 +76,25 @@ function latestFunctionBody(sql: string, functionName: string): string {
   return bodies.at(-1)!;
 }
 
+function latestFunctionBodyMatching(
+  sql: string,
+  functionName: string,
+  predicate: (body: string) => boolean,
+): string {
+  const pattern = new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+public\\.${functionName}\\s*\\([\\s\\S]*?\\)\\s*returns[\\s\\S]*?as\\s+\\$\\$([\\s\\S]*?)\\$\\$`,
+    "gi",
+  );
+
+  const bodies = Array.from(sql.matchAll(pattern), (match) => match[1]);
+  const body = bodies.filter(predicate).at(-1);
+  assert(
+    body,
+    `Expected to find public.${functionName} matching the requested contract in migrations`,
+  );
+  return body;
+}
+
 Deno.test("P0 billing schema contract: every business_subscriptions column referenced by functions exists in migrations", async () => {
   const migrationsSql = await readAllSqlMigrations();
   const businessSubscriptionColumns = definedColumnsFor(
@@ -191,9 +210,10 @@ Deno.test("P0 admin booking contract: create_admin_manual_booking validates clie
 });
 
 Deno.test("P0 public booking contract: create_public_booking validates branch_id belongs to resolved business", async () => {
-  const body = latestFunctionBody(
+  const body = latestFunctionBodyMatching(
     await readAllSqlMigrations(),
     "create_public_booking",
+    (body) => /v_branch_id/i.test(body) && /public\.branches/i.test(body),
   );
 
   assert(
