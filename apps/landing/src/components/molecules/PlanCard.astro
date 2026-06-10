@@ -69,6 +69,9 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
       </div>
     )}
     <p class="text-text-primary/60 text-[10px] mt-1 h-8 line-clamp-2">{plan.description}</p>
+    <p class="mt-3 inline-flex w-fit items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-text-secondary">
+      <i class="ri-map-pin-line text-primary"></i> Incluye 1 local
+    </p>
   </div>
   
   <ul class="mb-6 space-y-3 text-text-primary text-xs flex-grow border-t border-border/50 pt-4">
@@ -106,7 +109,7 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     )}
     {isPro && (
       <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Múltiples sucursales</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Operaciones con varias agendas</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Configuraciones avanzadas</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Onboarding personalizado</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Soporte dedicado</li>
@@ -124,6 +127,6 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     {isFree && "Que entren y usen el producto."}
     {isStarter && "Ideal para peluquerías chicas, uñas, barberías, independientes."}
     {isGrowth && "Menos cancelaciones, más ocupación, menos tiempo perdido."}
-    {isPro && "Control total para escalar sin fricción."}
+    {isPro && "Control total para escalar sin fricción. Multi-sucursal disponible como add-on."}
   </p>
 </CardContainer>

@@ -36,7 +36,7 @@ export interface PlanWithBilling extends Plan {
 
 function normalizeStaticPlanCode(code: string): string {
   const normalized = code.trim().toUpperCase();
-  if (normalized === 'BASIC' || normalized === 'STARTER') return 'STARTED';
+  if (normalized === 'BASIC' || normalized === 'STARTER') return 'STARTER';
   if (normalized === 'MEDIUM') return 'GROWTH';
   return normalized;
 }
@@ -254,7 +254,7 @@ function getStaticPlans(): Plan[] {
       id: 'static-pro',
       code: 'PRO',
       name: 'Pro',
-      description: 'Para negocios con varias agendas o sucursales.',
+      description: 'Para negocios con varias agendas y operación avanzada.',
       price: 44900,
       price_quarterly: 114495,
       price_annual: 377160,
