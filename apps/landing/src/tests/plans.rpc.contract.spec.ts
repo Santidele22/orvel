@@ -31,6 +31,21 @@ function rpcPlansFixture() {
   ];
 }
 
+function rpcMessyLaunchPlansFixture() {
+  const base = rpcPlansFixture()[0]!;
+  return [
+    { ...base, id: 'old-simple', code: 'SIMPLE', name: 'Simple', price: 9900, is_featured: false },
+    { ...base, id: 'starter-monthly', code: 'STARTER_MONTHLY', name: 'Plan Starter Mensual', price: 12, is_featured: false },
+    { ...base, id: 'growth-monthly', code: 'GROWTH_MONTHLY', name: 'Plan Growth Mensual', price: 22, is_featured: false },
+    { ...base, id: 'starter-quarterly', code: 'STARTER_QUARTERLY', name: 'Plan Starter Trimestral', price: 34, is_featured: false },
+    { ...base, id: 'old-crece', code: 'CRECE', name: 'Crece', price: 24900, is_featured: false },
+    { ...base, id: 'old-escala', code: 'ESCALA', name: 'Escala', price: 44900, is_featured: false },
+    { ...base, id: 'canonical-starter', code: 'STARTER', name: 'Starter', price: 12000, is_featured: true },
+    { ...base, id: 'canonical-growth', code: 'GROWTH', name: 'Growth', price: 22000, is_featured: false },
+    { ...base, id: 'canonical-pro', code: 'PRO', name: 'Pro', price: 39000, is_featured: false }
+  ];
+}
+
 describe('Contract: landing plans fetching is RPC-first with static fallback', () => {
   beforeEach(() => {
     createClientMock.mockReset();
@@ -56,6 +71,23 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
     expect(rpc).toHaveBeenCalledWith('get_active_plans');
     expect(from).not.toHaveBeenCalled();
     expect(plans[0]?.id).toBe('rpc-starter');
+  });
+
+  it('normalizes Supabase catalog rows to one canonical landing card per plan and filters billing variants', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: rpcMessyLaunchPlansFixture(), error: null });
+    const from = vi.fn();
+    createClientMock.mockReturnValue({ rpc, from });
+
+    const { getActivePlans, normalizeActivePlansForLanding } = await loadPlansModule();
+    const plans = await getActivePlans();
+    const normalizedDirect = normalizeActivePlansForLanding(rpcMessyLaunchPlansFixture());
+
+    expect(rpc).toHaveBeenCalledWith('get_active_plans');
+    expect(from).not.toHaveBeenCalled();
+    expect(plans.map((plan) => plan.code)).toEqual(['STARTER', 'GROWTH', 'PRO']);
+    expect(normalizedDirect.map((plan) => plan.name)).toEqual(['Starter', 'Growth', 'Pro']);
+    expect(plans.map((plan) => plan.id)).toEqual(['canonical-starter', 'canonical-growth', 'canonical-pro']);
+    expect(plans.map((plan) => `${plan.code} ${plan.name}`).join(' ')).not.toMatch(/MENSUAL|TRIMESTRAL|ANUAL|SIMPLE|CRECE|ESCALA/i);
   });
 
   it('getActivePlans falls back to static plans when RPC fails', async () => {

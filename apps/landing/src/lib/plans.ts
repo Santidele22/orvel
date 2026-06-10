@@ -36,11 +36,87 @@ export interface PlanWithBilling extends Plan {
   annual_price: number;
 }
 
+const CANONICAL_PLAN_ORDER = ['FREE', 'STARTER', 'GROWTH', 'PRO'] as const;
+const CANONICAL_PLAN_NAMES: Record<string, string> = {
+  FREE: 'Gratis',
+  STARTER: 'Starter',
+  GROWTH: 'Growth',
+  PRO: 'Pro'
+};
+
+const CANONICAL_PLAN_DESCRIPTIONS: Record<string, string> = {
+  FREE: 'Para probar Orvel sin riesgo.',
+  STARTER: 'Para profesionales y negocios chicos que quieren dejar de manejar todo por WhatsApp.',
+  GROWTH: 'Para equipos que necesitan más organización y menos ausencias.',
+  PRO: 'Para negocios con varias agendas y operación avanzada.'
+};
+
 function normalizeStaticPlanCode(code: string): string {
   const normalized = code.trim().toUpperCase();
-  if (normalized === 'BASIC' || normalized === 'STARTER') return 'STARTER';
-  if (normalized === 'MEDIUM') return 'GROWTH';
+  if (normalized === 'BASIC' || normalized === 'STARTED' || normalized === 'SIMPLE' || normalized === 'STARTER') return 'STARTER';
+  if (normalized === 'MEDIUM' || normalized === 'CRECE') return 'GROWTH';
+  if (normalized === 'ESCALA') return 'PRO';
   return normalized;
+}
+
+function normalizePlanCode(plan: Pick<Plan, 'code' | 'name'>): string | null {
+  const raw = `${plan.code ?? ''} ${plan.name ?? ''}`.trim().toUpperCase();
+  const normalized = raw.replace(/[^A-Z0-9]+/g, ' ');
+  const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
+
+  if (tokens.has('FREE') || tokens.has('GRATIS')) return 'FREE';
+  if (tokens.has('STARTER') || tokens.has('STARTED') || tokens.has('BASIC') || tokens.has('SIMPLE')) return 'STARTER';
+  if (tokens.has('GROWTH') || tokens.has('MEDIUM') || tokens.has('CRECE')) return 'GROWTH';
+  if (tokens.has('PRO') || tokens.has('ESCALA')) return 'PRO';
+
+  return null;
+}
+
+function isBillingVariant(plan: Pick<Plan, 'code' | 'name'>): boolean {
+  return /\b(MENSUAL|MONTHLY|TRIMESTRAL|QUARTERLY|ANUAL|ANNUAL)\b/i.test(`${plan.code} ${plan.name}`);
+}
+
+function canonicalPlanPriority(plan: Plan, canonicalCode: string): number {
+  let priority = 0;
+  const code = plan.code.trim().toUpperCase();
+  const name = plan.name.trim().toUpperCase();
+
+  if (code === canonicalCode) priority += 100;
+  if (name === CANONICAL_PLAN_NAMES[canonicalCode]?.toUpperCase()) priority += 50;
+  if (plan.is_featured) priority += 5;
+  if (isBillingVariant(plan)) priority -= 100;
+
+  return priority;
+}
+
+function canonicalizePlan(plan: Plan, canonicalCode: string): Plan {
+  return {
+    ...plan,
+    code: canonicalCode,
+    name: CANONICAL_PLAN_NAMES[canonicalCode] ?? plan.name,
+    description: plan.description || CANONICAL_PLAN_DESCRIPTIONS[canonicalCode] || null,
+    is_featured: canonicalCode === 'STARTER' ? true : Boolean(plan.is_featured && canonicalCode !== 'FREE')
+  };
+}
+
+export function normalizeActivePlansForLanding(plans: Plan[]): Plan[] {
+  const bestByCode = new Map<string, { plan: Plan; priority: number }>();
+
+  for (const plan of plans) {
+    if (plan.is_active === false) continue;
+    const canonicalCode = normalizePlanCode(plan);
+    if (!canonicalCode || !CANONICAL_PLAN_ORDER.includes(canonicalCode as (typeof CANONICAL_PLAN_ORDER)[number])) continue;
+
+    const priority = canonicalPlanPriority(plan, canonicalCode);
+    const current = bestByCode.get(canonicalCode);
+    if (!current || priority > current.priority) {
+      bestByCode.set(canonicalCode, { plan: canonicalizePlan(plan, canonicalCode), priority });
+    }
+  }
+
+  return CANONICAL_PLAN_ORDER
+    .map((code) => bestByCode.get(code)?.plan)
+    .filter((plan): plan is Plan => Boolean(plan));
 }
 
 /**
@@ -98,7 +174,8 @@ export async function getActivePlans(): Promise<Plan[]> {
       return getStaticPlans();
     }
 
-    return data as Plan[];
+    const normalizedPlans = normalizeActivePlansForLanding(data as Plan[]);
+    return normalizedPlans.length > 0 ? normalizedPlans : getStaticPlans();
   } catch (err) {
     console.error('Supabase connection error:', err);
     return getStaticPlans();
@@ -132,7 +209,8 @@ export async function getPlanByCode(code: string): Promise<Plan | null> {
       return staticPlans.find(p => p.code === normalizedCode) || null;
     }
 
-    return plan as Plan;
+    const canonicalCode = normalizePlanCode(plan as Plan) ?? normalizedCode;
+    return canonicalizePlan(plan as Plan, canonicalCode);
   } catch {
     // Fallback to static plans
     const staticPlans = getStaticPlans();
@@ -156,16 +234,16 @@ export function calculateBillingPrices(plan: Plan): PlanWithBilling {
   if (!plan.price_quarterly || !plan.price_annual) {
     switch (plan.code) {
       case 'STARTER':
-        quarterly_price = 30;
-        annual_price = 99;
+        quarterly_price = Math.round(plan.price * 3 * 0.85);
+        annual_price = Math.round(plan.price * 12 * 0.70);
         break;
       case 'GROWTH':
-        quarterly_price = 55;
-        annual_price = 179;
+        quarterly_price = Math.round(plan.price * 3 * 0.85);
+        annual_price = Math.round(plan.price * 12 * 0.70);
         break;
       case 'PRO':
-        quarterly_price = 99;
-        annual_price = 299;
+        quarterly_price = Math.round(plan.price * 3 * 0.85);
+        annual_price = Math.round(plan.price * 12 * 0.70);
         break;
       default:
         quarterly_price = 0;
