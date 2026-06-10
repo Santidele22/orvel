@@ -18,6 +18,8 @@ import {
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
 const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
+const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
+const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 
 function resolveDashboardBaseUrl(): URL | null {
   const candidate = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
@@ -87,11 +89,25 @@ function sanitizeReturnTo(returnTo: string | null | undefined): string {
     if (value.startsWith('//')) {
       return defaultDashboardReturnTo();
     }
-    return value;
+    try {
+      const parsed = new URL(value, 'https://dashboard.orvel.local');
+      if (parsed.origin !== 'https://dashboard.orvel.local') return defaultDashboardReturnTo();
+      for (const key of parsed.searchParams.keys()) {
+        if (PARAM_BLOCKLIST.test(key)) return defaultDashboardReturnTo();
+      }
+      if (TOKEN_OR_PAYMENT_TEXT.test(parsed.hash) || TOKEN_OR_PAYMENT_TEXT.test(value)) return defaultDashboardReturnTo();
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return defaultDashboardReturnTo();
+    }
   }
 
   try {
     const requested = new URL(value);
+    if (TOKEN_OR_PAYMENT_TEXT.test(value)) return defaultDashboardReturnTo();
+    for (const key of requested.searchParams.keys()) {
+      if (PARAM_BLOCKLIST.test(key)) return defaultDashboardReturnTo();
+    }
     const dashboardBaseUrl = resolveDashboardBaseUrl();
     if (
       dashboardBaseUrl &&

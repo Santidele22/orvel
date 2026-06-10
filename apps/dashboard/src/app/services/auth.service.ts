@@ -3,14 +3,8 @@
 // SECURE: Tokens are encrypted before storing in localStorage
 
 import { Injectable, signal } from '@angular/core';
-import { Observable, of, from, delay, tap, map } from 'rxjs';
+import { Observable, from, tap, map } from 'rxjs';
 import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../models/user.model';
-import {
-  initEncryption,
-  encryptToken,
-  decryptToken,
-  isEncryptionReady
-} from './encrypted-token-storage';
 
 import { createSupabaseAuthClient, type SupabaseAuthClient, type SupabaseSession } from '../core/auth/supabase-auth.client';
 import { SUPABASE_CONFIG } from '../core/auth/supabase-config';
@@ -23,8 +17,6 @@ export class AuthService {
   private isAuthenticated = signal<boolean>(false);
   private token = signal<string | null>(null);
 
-  // Provider: 'mock' | 'supabase'
-  private provider: 'mock' | 'supabase' = 'supabase';
   private supabase: SupabaseAuthClient;
 
   constructor() {
@@ -32,15 +24,7 @@ export class AuthService {
       supabaseUrl: SUPABASE_CONFIG.url,
       supabaseAnonKey: SUPABASE_CONFIG.anonKey
     });
-
-    // Initialize encryption on service creation
-    initEncryption().then(() => {
-      if (this.provider === 'mock') {
-        this.loadStoredSession();
-      } else {
-        this.initializeSupabaseAuth();
-      }
-    });
+    void this.initializeSupabaseAuth();
   }
 
   private async initializeSupabaseAuth() {
@@ -86,24 +70,6 @@ export class AuthService {
   authToken = this.token.asReadonly();
 
   login(credentials: LoginDTO): Observable<AuthUser> {
-    if (this.provider === 'mock') {
-      // Mock authentication
-      const mockAuth = this.getMockUser(credentials.email);
-      if (!mockAuth) {
-        return new Observable(subscriber => {
-          subscriber.error(new Error('Credenciales inválidas'));
-        });
-      }
-      return of(mockAuth).pipe(
-        delay(500),
-        tap(async authUser => {
-          this.currentUser.set(authUser.user);
-          this.isAuthenticated.set(true);
-          this.token.set(authUser.token);
-          await this.saveSession(authUser);
-        })
-      );
-    }
     return from(this.supabase.signInWithPassword({
       email: credentials.email,
       password: credentials.password
@@ -123,21 +89,6 @@ export class AuthService {
   }
 
   register(data: RegisterDTO): Observable<AuthUser> {
-    if (this.provider === 'mock') {
-      const newUser = this.createMockUser(data);
-      const token = this.generateToken();
-      const authUser: AuthUser = { user: newUser, token };
-
-      return of(authUser).pipe(
-        delay(500),
-        tap(async auth => {
-          this.currentUser.set(auth.user);
-          this.isAuthenticated.set(true);
-          this.token.set(auth.token);
-          await this.saveSession(auth);
-        })
-      );
-    }
     return from(this.supabase.signUp({
       email: data.email,
       password: data.password,
@@ -165,29 +116,18 @@ export class AuthService {
   }
 
   logout(): void {
-    if (this.provider === 'supabase') {
-      this.supabase.signOut().then(() => {
-        this.currentUser.set(null);
-        this.isAuthenticated.set(null as any); // Force cleanup
-        this.isAuthenticated.set(false);
-        this.token.set(null);
-      });
-    } else {
+    this.supabase.signOut().then(() => {
       this.currentUser.set(null);
+      this.isAuthenticated.set(null as any); // Force cleanup
       this.isAuthenticated.set(false);
       this.token.set(null);
-      localStorage.removeItem('salon_auth');
-    }
+    });
   }
 
   /**
    * Request a password reset email via Supabase Auth
    */
   async requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
-    if (this.provider === 'mock') {
-      return { success: true };
-    }
-
     try {
       const { error } = await this.supabase.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/login`
@@ -224,11 +164,6 @@ export class AuthService {
     return NEGOCIO_TEMPLATES[user.tipoNegocio];
   }
 
-  // Cambiar provider
-  setProvider(provider: 'mock' | 'supabase'): void {
-    this.provider = provider;
-  }
-
 // PRIVATE HELPERS
   private toAuthUser(session: SupabaseSession): AuthUser {
     const metadata = session.user.user_metadata || {};
@@ -249,85 +184,4 @@ export class AuthService {
     };
   }
 
-  private generateToken(): string {
-    // SECURE: Use Web Crypto API for cryptographically secure random tokens
-    return `dev_${crypto.randomUUID()}`;
-  }
-
-  private getMockUser(email: string): AuthUser | null {
-    if (this.provider === 'mock' && email.includes('@')) {
-      const mockUser: User = {
-        id: `dev-user-${crypto.randomUUID()}`,
-        email: email,
-        nombre: 'Demo',
-        apellido: 'Usuario',
-        negocioNombre: 'Mi Salon',
-        tipoNegocio: 'uñas',
-        plan: 'free',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      return { user: mockUser, token: this.generateToken() };
-    }
-    return null;
-  }
-
-  private createMockUser(data: RegisterDTO): User {
-    return {
-      id: 'user-' + Date.now(),
-      email: data.email,
-      nombre: data.nombre,
-      apellido: data.apellido,
-      negocioNombre: data.negocioNombre,
-      tipoNegocio: data.tipoNegocio,
-      plan: 'free',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-  }
-
-  private async saveSession(authUser: AuthUser): Promise<void> {
-    // Encrypt token before storing
-    const encryptedToken = await encryptToken(authUser.token);
-    const sessionData = {
-      user: authUser.user,
-      token: encryptedToken,
-      version: 'v2' // Version 2 indicates encrypted storage
-    };
-    localStorage.setItem('salon_auth', JSON.stringify(sessionData));
-  }
-
-  private async loadStoredSession(): Promise<void> {
-    const stored = localStorage.getItem('salon_auth');
-    if (stored) {
-      try {
-        const sessionData = JSON.parse(stored);
-
-        // Check if it's the new encrypted format (v2)
-        if (sessionData.version === 'v2' && isEncryptionReady()) {
-          const decryptedToken = await decryptToken(sessionData.token);
-          const authUser: AuthUser = {
-            user: sessionData.user,
-            token: decryptedToken
-          };
-          this.currentUser.set(authUser.user);
-          this.isAuthenticated.set(true);
-          this.token.set(authUser.token);
-        } else if (sessionData.token) {
-          // Legacy format (v1) - plain text token, migrate to encrypted
-          const authUser: AuthUser = {
-            user: sessionData.user,
-            token: sessionData.token
-          };
-          this.currentUser.set(authUser.user);
-          this.isAuthenticated.set(true);
-          this.token.set(authUser.token);
-          // Upgrade to encrypted storage on next login
-          this.saveSession(authUser);
-        }
-      } catch (e) {
-        this.logout();
-      }
-    }
-  }
 }

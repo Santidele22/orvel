@@ -2,7 +2,7 @@
 // Handles plan upgrades/downgrades
 // Endpoint: POST /functions/v1/change-subscription
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";

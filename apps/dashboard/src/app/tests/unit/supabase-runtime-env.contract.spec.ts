@@ -3,14 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 type DashboardRuntimeEnv = {
-  SUPABASE_URL: string;
-  SUPABASE_ANON_KEY: string;
-  SUPABASE_SERVICE_ROLE_KEY?: string;
+  PUBLIC_SUPABASE_URL: string;
+  PUBLIC_SUPABASE_ANON_KEY: string;
+  NEXT_PUBLIC_SUPABASE_URL: string;
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
 };
 
 type DashboardEnvModule = {
-  REQUIRED_DASHBOARD_ENV_KEYS: readonly ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
-  OPTIONAL_SERVER_ENV_KEYS: readonly ['SUPABASE_SERVICE_ROLE_KEY'];
+  REQUIRED_DASHBOARD_ENV_KEYS: readonly ['PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_ANON_KEY'];
   loadDashboardRuntimeEnv: (source?: Record<string, string | undefined>) => DashboardRuntimeEnv;
 };
 
@@ -23,10 +23,8 @@ type SupabaseClientFactoryModule = {
 
 const ROOT = process.cwd();
 const APP_SRC = path.join(ROOT, 'src', 'app');
-const RUNTIME_ENV_FILE = path.join(APP_SRC, 'core', 'runtime', 'dashboard-env.ts');
 
-const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'] as const;
-const OPTIONAL_SERVER_ENV = ['SUPABASE_SERVICE_ROLE_KEY'] as const;
+const REQUIRED_ENV = ['PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_ANON_KEY'] as const;
 
 function walkTsFiles(dirPath: string): string[] {
   if (!fs.existsSync(dirPath)) {
@@ -65,7 +63,7 @@ async function loadDashboardEnvModule(): Promise<DashboardEnvModule> {
     return mod as DashboardEnvModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/runtime/dashboard-env.ts exporting loadDashboardRuntimeEnv(source?) plus REQUIRED_DASHBOARD_ENV_KEYS and OPTIONAL_SERVER_ENV_KEYS'
+      'TODO(Magnus): add src/app/core/runtime/dashboard-env.ts exporting loadDashboardRuntimeEnv(source?) plus REQUIRED_DASHBOARD_ENV_KEYS'
     );
   }
 }
@@ -82,26 +80,26 @@ async function loadSupabaseClientFactoryModule(): Promise<SupabaseClientFactoryM
 }
 
 describe('Dashboard runtime env RED contracts (single source + deterministic config)', () => {
-  it('defines exact required/optional Supabase env names in one source module', async () => {
+  it('defines exact required public Supabase env names in one source module', async () => {
     const envModule = await loadDashboardEnvModule();
 
     expect(envModule.REQUIRED_DASHBOARD_ENV_KEYS).toEqual(REQUIRED_ENV);
-    expect(envModule.OPTIONAL_SERVER_ENV_KEYS).toEqual(OPTIONAL_SERVER_ENV);
+    expect('OPTIONAL_SERVER_ENV_KEYS' in envModule).toBe(false);
   });
 
   it('loads runtime env from provided source object (no hidden process reads)', async () => {
     const envModule = await loadDashboardEnvModule();
 
     const env = envModule.loadDashboardRuntimeEnv({
-      SUPABASE_URL: 'https://qa-project.supabase.co',
-      SUPABASE_ANON_KEY: 'qa-anon-key',
-      SUPABASE_SERVICE_ROLE_KEY: 'qa-service-role-key'
+      PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+      PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key'
     });
 
     expect(env).toEqual({
-      SUPABASE_URL: 'https://qa-project.supabase.co',
-      SUPABASE_ANON_KEY: 'qa-anon-key',
-      SUPABASE_SERVICE_ROLE_KEY: 'qa-service-role-key'
+      PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+      PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key'
     });
   });
 
@@ -121,25 +119,25 @@ describe('Dashboard runtime env RED contracts (single source + deterministic con
 
     expect(() =>
       envModule.loadDashboardRuntimeEnv({
-        SUPABASE_URL: undefined,
-        SUPABASE_ANON_KEY: ''
+        PUBLIC_SUPABASE_URL: undefined,
+        PUBLIC_SUPABASE_ANON_KEY: ''
       })
     ).toThrowError(
-      '[dashboard-env] Missing required env vars: SUPABASE_URL, SUPABASE_ANON_KEY. Add them to .env and restart dashboard runtime.'
+      '[dashboard-env] Missing required env vars: PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY. Add them to .env and restart dashboard runtime.'
     );
   });
 
-  it('enforces single source of truth for env key references (outside tests)', () => {
-    const tsFiles = walkTsFiles(APP_SRC).filter((filePath) => filePath !== RUNTIME_ENV_FILE);
+  it('does not copy server-only Supabase env names into dashboard/browser source', () => {
+    const tsFiles = walkTsFiles(APP_SRC);
 
     const offenders = tsFiles.filter((filePath) => {
       const content = fs.readFileSync(filePath, 'utf8');
-      return /SUPABASE_URL|SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY/.test(content);
+      return /SUPABASE_SERVICE_ROLE_KEY/.test(content);
     });
 
     expect(
       offenders,
-      `Supabase env keys must only be referenced from ${path.relative(ROOT, RUNTIME_ENV_FILE)}. Move key reads to single source module.`
+      `Dashboard/browser source must not mention server-only Supabase env names.`
     ).toEqual([]);
   });
 });
@@ -153,9 +151,10 @@ describe('Supabase client factory RED contract (created from env values)', () =>
 
     const client = factoryModule.createDashboardSupabaseClient({
       env: {
-        SUPABASE_URL: 'https://qa-project.supabase.co',
-        SUPABASE_ANON_KEY: 'qa-anon-key',
-        SUPABASE_SERVICE_ROLE_KEY: 'server-only-not-used-here'
+        PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+        PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key',
+        NEXT_PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key'
       },
       createClient: createClientSpy
     });
@@ -165,7 +164,7 @@ describe('Supabase client factory RED contract (created from env values)', () =>
     expect(client).toBe(fakeClient);
   });
 
-  it('does not require service role key for dashboard/browser runtime client', async () => {
+  it('creates the dashboard/browser runtime client from public env only', async () => {
     const factoryModule = await loadSupabaseClientFactoryModule();
 
     const createClientSpy = vi.fn(() => ({ rpc: vi.fn() }));
@@ -173,8 +172,10 @@ describe('Supabase client factory RED contract (created from env values)', () =>
     expect(() =>
       factoryModule.createDashboardSupabaseClient({
         env: {
-          SUPABASE_URL: 'https://qa-project.supabase.co',
-          SUPABASE_ANON_KEY: 'qa-anon-key'
+          PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+          PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key',
+          NEXT_PUBLIC_SUPABASE_URL: 'https://qa-project.supabase.co',
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'qa-anon-key'
         },
         createClient: createClientSpy
       })

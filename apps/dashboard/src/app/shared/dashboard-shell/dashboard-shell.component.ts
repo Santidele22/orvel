@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { TURNERA_SESSION_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
 import {
@@ -78,7 +78,7 @@ export class DashboardShellComponent implements AfterViewInit {
     const selectedBusinessTypesFallback: string[] = [];
 
     try {
-      const rawSession = localStorage.getItem(TURNERA_SESSION_KEY);
+      const rawSession = localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
       if (!rawSession) {
         return selectedBusinessTypesFallback;
       }
@@ -102,7 +102,7 @@ export class DashboardShellComponent implements AfterViewInit {
     const fallback = readOnboardingState(localStorage);
 
     try {
-      const rawSession = localStorage.getItem(TURNERA_SESSION_KEY);
+      const rawSession = localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
       if (!rawSession) {
         return fallback;
       }

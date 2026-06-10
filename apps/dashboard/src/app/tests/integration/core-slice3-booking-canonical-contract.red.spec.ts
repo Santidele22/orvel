@@ -59,6 +59,13 @@ function latestFunctionBody(sql: string, functionName: string): string {
   return matches.at(-1)?.[1] ?? '';
 }
 
+function allFunctionBodies(sql: string, functionName: string): string[] {
+  return [...sql.matchAll(new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${functionName}\\s*\\([\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$`,
+    'gi'
+  ))].map((match) => match[1] ?? '');
+}
+
 function functionExists(sql: string, functionName: string): boolean {
   return new RegExp(`create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?${functionName}\\s*\\(`, 'i').test(sql);
 }
@@ -137,18 +144,28 @@ describe('Core Slice 3 backend booking canonical contract RED tests', () => {
 
   it('centralizes availability/collision decisions in one backend helper used by create, reschedule, block, and query flows', () => {
     const sql = stripComments(readSqlCorpus());
-    const helperNameMatch = sql.match(
-      /create\s+or\s+replace\s+function\s+(?:public\.)?(_assert_no_slot_conflict|assert_booking_slot_available|ensure_booking_slot_available|check_booking_slot_available|query_canonical_slot_availability)\s*\(/i
+    const availabilityHelperMatch = sql.match(
+      /create\s+or\s+replace\s+function\s+(?:public\.)?(_query_booking_slot_availability|query_canonical_slot_availability)\s*\(/i
+    );
+    const collisionHelperMatch = sql.match(
+      /create\s+or\s+replace\s+function\s+(?:public\.)?(_assert_no_slot_conflict|assert_booking_slot_available|ensure_booking_slot_available|check_booking_slot_available)\s*\(/i
     );
 
-    expect(helperNameMatch?.[1], 'missing shared booking availability/collision helper').toBeDefined();
+    expect(availabilityHelperMatch?.[1], 'missing shared booking availability helper').toBeDefined();
+    expect(collisionHelperMatch?.[1], 'missing shared booking collision helper').toBeDefined();
 
-    const helperName = helperNameMatch?.[1] ?? '__missing_booking_collision_helper__';
+    const availabilityHelperName = availabilityHelperMatch?.[1] ?? '__missing_booking_availability_helper__';
+    const collisionHelperName = collisionHelperMatch?.[1] ?? '__missing_booking_collision_helper__';
+
     for (const functionName of COLLISION_RPCS) {
-      const body = latestFunctionBody(sql, functionName);
+      const bodies = allFunctionBodies(sql, functionName);
+      const body = bodies.join('\n');
       expect(body, `Missing RPC function body: ${functionName}`).not.toBe('');
-      expect(body, `${functionName} must call the shared backend collision/availability helper`).toMatch(
-        new RegExp(`\\b${helperName}\\s*\\(`, 'i')
+      const expectedHelperName = functionName === 'query_public_slot_availability'
+        ? availabilityHelperName
+        : collisionHelperName;
+      expect(body, `${functionName} must call the shared backend availability/collision helper`).toMatch(
+        new RegExp(`\\b${expectedHelperName}\\s*\\(`, 'i')
       );
     }
   });
@@ -170,7 +187,8 @@ describe('Core Slice 3 backend booking canonical contract RED tests', () => {
     ];
 
     for (const functionName of REQUIRED_RPCS) {
-      const body = latestFunctionBody(sql, functionName);
+      const bodies = allFunctionBodies(sql, functionName);
+      const body = bodies.join('\n');
 
       expect(functionExists(sql, functionName), `Missing required M1-M6 RPC: ${functionName}`).toBe(true);
       expect(body, `${functionName} must raise explicit string error codes instead of silent/implicit failures`).toMatch(

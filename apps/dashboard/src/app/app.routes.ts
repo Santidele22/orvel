@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { DashboardShellComponent } from './shared/dashboard-shell/dashboard-shell.component';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
 import { normalizeDashboardAuthRequest } from './core/auth/dashboard-auth-flow';
-import { LoginPage } from './pages/auth/login.page';
 import { SignupCredentialsPageComponent } from './pages/auth/signup-credentials.component';
 import {
   onboardingAccountGuard,
@@ -14,7 +13,8 @@ import {
 export const routes: Routes = [
   {
     path: 'auth',
-    component: LoginPage,
+    redirectTo: '/auth/login',
+    pathMatch: 'full',
     data: { normalizeDashboardAuthRequest }
   },
   {
@@ -24,7 +24,7 @@ export const routes: Routes = [
   },
   {
     path: 'auth/login',
-    component: LoginPage,
+    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage),
     canActivate: [onboardingLoginGuard]
   },
   {

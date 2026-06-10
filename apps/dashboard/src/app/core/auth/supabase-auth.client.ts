@@ -6,6 +6,9 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-config';
+
+export { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-config';
 
 export interface SupabaseAuthConfig {
   supabaseUrl: string;
@@ -93,6 +96,7 @@ export function createSupabaseAuthClient(
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+        storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       }
     }

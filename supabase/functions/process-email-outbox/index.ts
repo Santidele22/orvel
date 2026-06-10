@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import * as AppointmentTemplates from "../_shared/templates/appointment-templates.ts";
 import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
@@ -33,11 +33,11 @@ Deno.serve(async (req) => {
       return new Response("Missing SendGrid API Key", { status: 500 });
     }
 
-    let record = payload.record;
-    let isDirect = payload.type === "DIRECT_SEND";
+    const record = payload.record;
+    const isDirect = payload.type === "DIRECT_SEND";
 
     if ((payload.type === "INSERT" && payload.table === "notification_email_outbox") || isDirect) {
-      const { id, to_email, template_key, payload: emailData, booking_id, business_id } = record;
+      const { id, to_email, template_key, payload: emailData, booking_id } = record;
       
       let subject = emailData?.subject || "Notificación de Orvel";
       let html = emailData?.html || "";

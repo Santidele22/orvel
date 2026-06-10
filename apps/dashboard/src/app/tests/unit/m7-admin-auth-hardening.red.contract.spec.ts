@@ -105,15 +105,15 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
   });
 
   it('production Supabase auth paths do not mint mock users, empty tokens, or auto-login outside the explicit mock provider branch', () => {
-    const supabaseLoginSegment = AUTH_SERVICE_SOURCE.slice(AUTH_SERVICE_SOURCE.indexOf("if (this.provider === 'mock')"));
-
-    expect(supabaseLoginSegment).not.toMatch(/TODO:\s*Supabase Auth[\s\S]{0,120}of\(\{\s*user:\s*\{\}\s*as\s*User,\s*token:\s*['"]['"]/);
-    expect(supabaseLoginSegment).not.toMatch(/TODO:\s*Supabase Auth[\s\S]{0,120}isAuthenticated\.set\(true\)/);
-    expect(AUTH_SERVICE_SOURCE).toMatch(/if\s*\(this\.provider\s*===\s*['"]mock['"]\)[\s\S]{0,260}getMockUser/);
+    expect(AUTH_SERVICE_SOURCE).toMatch(/createSupabaseAuthClient/);
+    expect(AUTH_SERVICE_SOURCE).not.toMatch(/TODO:\s*Supabase Auth[\s\S]{0,120}of\(\{\s*user:\s*\{\}\s*as\s*User,\s*token:\s*['"]['"]/);
+    expect(AUTH_SERVICE_SOURCE).not.toMatch(/TODO:\s*Supabase Auth[\s\S]{0,120}isAuthenticated\.set\(true\)/);
+    expect(AUTH_SERVICE_SOURCE).not.toMatch(/provider:\s*['"]mock['"]|this\.provider\s*===\s*['"]mock['"]|getMockUser|generateToken/);
   });
 
-  it('auth handoff treats query params/localStorage as navigation hints only, not as trusted auth or token sources', () => {
-    expect(LOGIN_PAGE_SOURCE).toMatch(/signInWithPassword\(/);
+  it('dashboard auth handoff delegates credential entry to canonical landing auth and treats params as hints only', () => {
+    expect(LOGIN_PAGE_SOURCE).toMatch(/canonicalLandingAuth|buildLandingLoginRedirect|window\.location\.assign/);
+    expect(LOGIN_PAGE_SOURCE).not.toMatch(/signInWithPassword\(|signUp\(|createSupabaseAuthClient|SUPABASE_CONFIG/);
     expect(LOGIN_PAGE_SOURCE).not.toMatch(/localStorage\.getItem\([\s\S]{0,240}(?:access_token|refresh_token|token|session)/i);
     expect(LOGIN_HELPER_SOURCE).not.toMatch(/preserveReturnTo[\s\S]{0,240}(?:access_token|refresh_token|token|session)/i);
     expect(LOGIN_HELPER_SOURCE).not.toMatch(/getPreservedReturnTo\(\)[\s\S]{0,240}(?:auth|session|token)/i);

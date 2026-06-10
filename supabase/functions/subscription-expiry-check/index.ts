@@ -3,7 +3,7 @@
 // Endpoint: POST /functions/v1/subscription-expiry-check
 // Can be called by cron job or manually
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 
 interface ExpiryCheckResult {

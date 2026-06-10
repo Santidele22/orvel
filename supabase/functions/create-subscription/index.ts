@@ -2,13 +2,12 @@
 // Creates a Mercado Pago preapproval subscription
 // Endpoint: POST /functions/v1/create-subscription
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
 import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
 import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
-import { resolveTrustedPaidPlanMapping } from "../_shared/mp-subscription-guards.ts";
 import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 import { buildAppUrl } from "../_shared/orvel-url.ts";
 
@@ -42,7 +41,6 @@ function isRateLimited(req: Request): boolean {
 
 // Mercado Pago API URLs
 const MP_API_BASE = "https://api.mercadopago.com";
-const MP_PREAPPROVAL_ENDPOINT = "/preapproval";
 
 interface Plan {
   id: string;
@@ -61,22 +59,6 @@ interface SubscriptionRequest {
   preapproval_plan_id?: string;
   email?: string;
   card_token_id?: string;
-}
-function resolveLegacyPreapprovalPlanIdFromPlan(plan: Plan): string | null {
-  const planRecord = plan as unknown as Record<string, unknown>;
-  const planCandidates = [
-    planRecord.mercado_pago_monthly_plan_id,
-    planRecord.mercado_pago_plan_id,
-    planRecord.mercado_pago_quarterly_plan_id,
-    planRecord.mercado_pago_annual_plan_id,
-  ];
-
-  for (const candidate of planCandidates) {
-    if (typeof candidate === "string" && candidate.trim().length > 0) return candidate.trim();
-  }
-
-  const envDefault = Deno.env.get("MP_PREAPPROVAL_PLAN_ID");
-  return envDefault && envDefault.trim().length > 0 ? envDefault.trim() : null;
 }
 
 function sanitizeDiagnosticText(value: unknown): string | undefined {
@@ -231,7 +213,7 @@ Deno.serve(async (req) => {
       );
     }
 
-const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
+const { plan_code, tier, cadence } = body;
 
     let effectivePlanCode: string | null = typeof plan_code === "string" ? plan_code : null;
     let catalogRow: { id: string; tier: string; cadence: string; tier_code: string; preapproval_plan_id: string } | null = null;
@@ -478,7 +460,7 @@ const { plan_code, tier, cadence, preapproval_plan_id, card_token_id } = body;
     }
 
     // Build MP preapproval request
-    const payerEmail = user?.email || (body as any).email;
+    const payerEmail = user?.email || body.email;
     if (!payerEmail) {
       return new Response(
         JSON.stringify({ error: "EMAIL_REQUIRED", message: "Se requiere un email para procesar el pago" }),

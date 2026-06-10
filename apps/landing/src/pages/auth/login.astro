@@ -81,17 +81,104 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { buildDashboardAuthUrl } from '../../lib/dashboard-auth-handoff';
+  import {
+    createSupabaseLoginAdapterFromEnv,
+    loginWithGoogle,
+    loginWithProvider
+  } from '../../lib/auth-provider';
 
   if (typeof window !== 'undefined') {
-    const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim() || window.location.origin;
-    const dashboardAuthUrl = buildDashboardAuthUrl({
-      dashboardOrigin,
-      mode: 'login',
-      returnTo: '/dashboard/inicio'
+    const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
+    const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
+    const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
+
+    const resolveDashboardBaseUrl = (): URL | null => {
+      const raw = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+      if (!raw) return null;
+      try {
+        const url = new URL(raw);
+        if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
+        url.search = '';
+        url.hash = '';
+        return url;
+      } catch {
+        return null;
+      }
+    };
+
+    const dashboardBaseUrl = resolveDashboardBaseUrl();
+
+    const defaultReturnTo = (): string => {
+      if (!dashboardBaseUrl) return DEFAULT_DASHBOARD_PATH;
+      const relativePath = DEFAULT_DASHBOARD_PATH.startsWith(dashboardBaseUrl.pathname)
+        ? DEFAULT_DASHBOARD_PATH.slice(dashboardBaseUrl.pathname.length)
+        : DEFAULT_DASHBOARD_PATH.replace(/^\//, '');
+      return new URL(relativePath, dashboardBaseUrl).toString();
+    };
+
+    const hasBlockedParams = (params: URLSearchParams): boolean => {
+      for (const key of params.keys()) {
+        if (PARAM_BLOCKLIST.test(key)) return true;
+      }
+      return false;
+    };
+
+    const sanitizeReturnTo = (raw: string | null): string => {
+      if (!raw) return defaultReturnTo();
+      const value = raw.trim();
+      if (!value || value.startsWith('//') || /^(?:javascript|data):/i.test(value) || TOKEN_OR_PAYMENT_TEXT.test(value)) {
+        return defaultReturnTo();
+      }
+
+      try {
+        const candidate = new URL(value, window.location.origin);
+        if (hasBlockedParams(candidate.searchParams) || TOKEN_OR_PAYMENT_TEXT.test(candidate.hash)) {
+          return defaultReturnTo();
+        }
+
+        if (candidate.origin === window.location.origin && candidate.pathname.startsWith('/dashboard')) {
+          return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        }
+
+        if (
+          dashboardBaseUrl &&
+          candidate.origin === dashboardBaseUrl.origin &&
+          candidate.pathname.startsWith(dashboardBaseUrl.pathname.replace(/\/$/, ''))
+        ) {
+          return candidate.toString();
+        }
+      } catch {
+        // Fall back below.
+      }
+
+      return defaultReturnTo();
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = sanitizeReturnTo(params.get('returnTo'));
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    callbackUrl.searchParams.set('returnTo', returnTo);
+
+    const setError = (message: string) => {
+      const error = document.getElementById('loginError');
+      if (!error) return;
+      error.textContent = message;
+      error.classList.remove('hidden');
+    };
+
+    const clearError = () => {
+      const error = document.getElementById('loginError');
+      if (!error) return;
+      error.textContent = '';
+      error.classList.add('hidden');
+    };
+
+    const supabaseLogin = createSupabaseLoginAdapterFromEnv({
+      SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
+      SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
     });
 
-    document.getElementById('loginForm')?.addEventListener('submit', (event) => {
+    document.getElementById('loginForm')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget as HTMLFormElement;
       if (!form.checkValidity()) {
@@ -102,13 +189,51 @@ import Layout from '../../layouts/Layout.astro';
       const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       if (!button) return;
 
+      const formData = new FormData(form);
+      const email = String(formData.get('email') ?? '').trim();
+      const password = String(formData.get('password') ?? '');
+
+      clearError();
       button.disabled = true;
-      button.textContent = 'Abriendo dashboard...';
-      window.location.href = dashboardAuthUrl;
+      const originalText = button.textContent;
+      button.textContent = 'Ingresando...';
+
+      try {
+        const result = await loginWithProvider({
+          attempt: { email, password, returnTo },
+          supabaseLogin
+        });
+
+        if (result.ok && result.redirectTo) {
+          window.location.assign(result.redirectTo);
+          return;
+        }
+
+        setError('No pudimos iniciar sesión. Revisá tus credenciales e intentá nuevamente.');
+      } catch {
+        setError('No pudimos iniciar sesión. Revisá tus credenciales e intentá nuevamente.');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     });
 
-    document.getElementById('googleBtn')?.addEventListener('click', () => {
-      window.location.href = dashboardAuthUrl;
+    document.getElementById('googleBtn')?.addEventListener('click', async () => {
+      const button = document.getElementById('googleBtn') as HTMLButtonElement | null;
+      if (!button) return;
+
+      clearError();
+      button.disabled = true;
+      try {
+        const result = await loginWithGoogle({ redirectTo: callbackUrl.toString() });
+        if (!result.ok) {
+          setError('No pudimos iniciar sesión con Google. Intentá nuevamente.');
+          button.disabled = false;
+        }
+      } catch {
+        setError('No pudimos iniciar sesión con Google. Intentá nuevamente.');
+        button.disabled = false;
+      }
     });
   }
 </script>

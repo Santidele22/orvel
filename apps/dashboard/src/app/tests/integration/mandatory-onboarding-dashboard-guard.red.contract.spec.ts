@@ -13,7 +13,7 @@ import {
   getPlanEntitlements,
   normalizePlanCode
 } from '../../core/plans/plan-entitlements';
-import { TURNERA_SESSION_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
 
 const supabaseAuthClientMock = {
   getSession: vi.fn(),
@@ -176,7 +176,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   it('security regression: forged legacy localStorage session does not grant dashboard access without Supabase onboarding', async () => {
     const now = new Date('2026-05-05T12:00:00.000Z').getTime();
     localStorage.setItem(
-      TURNERA_SESSION_KEY,
+      LEGACY_DASHBOARD_SESSION_STORAGE_KEY,
       JSON.stringify({
         version: 'v1',
         token: 'forged-token-that-only-exists-in-local-storage',
@@ -196,7 +196,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     const result = await canAccessDashboardAsync(now);
 
     expect(result.allowed).toBe(false);
-    expect(result.redirectTo).toMatch(/^\/login\?returnTo=|^\/auth\/onboarding\?/);
+    expect(result.redirectTo).toMatch(/^\/auth\/login\?returnTo=|^\/auth\/onboarding\?/);
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 

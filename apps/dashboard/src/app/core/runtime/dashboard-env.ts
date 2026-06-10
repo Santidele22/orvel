@@ -1,11 +1,10 @@
-export const REQUIRED_DASHBOARD_ENV_KEYS = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'] as const;
-export const OPTIONAL_SERVER_ENV_KEYS = ['SUPABASE_SERVICE_ROLE_KEY'] as const;
+export const REQUIRED_DASHBOARD_ENV_KEYS = ['PUBLIC_SUPABASE_URL', 'PUBLIC_SUPABASE_ANON_KEY'] as const;
 
 type RequiredDashboardEnvKey = (typeof REQUIRED_DASHBOARD_ENV_KEYS)[number];
-type OptionalServerEnvKey = (typeof OPTIONAL_SERVER_ENV_KEYS)[number];
+type LegacyPublicSupabaseEnvKey = 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_ANON_KEY';
 
 export type DashboardRuntimeEnv = Record<RequiredDashboardEnvKey, string> &
-  Partial<Record<OptionalServerEnvKey, string>>;
+  Record<LegacyPublicSupabaseEnvKey, string>;
 
 type EnvSource = Record<string, string | undefined>;
 
@@ -19,8 +18,8 @@ function defaultEnvSource(): EnvSource {
   };
 
   return maybeProcess.process?.env ?? {
-    NEXT_PUBLIC_SUPABASE_URL: environment.supabaseUrl,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: environment.supabaseAnonKey,
+    PUBLIC_SUPABASE_URL: environment.supabaseUrl,
+    PUBLIC_SUPABASE_ANON_KEY: environment.supabaseAnonKey,
   };
 }
 
@@ -28,8 +27,19 @@ function isMissing(value: string | undefined): boolean {
   return !value || value.trim().length === 0;
 }
 
+function withLegacyPublicSupabaseAliases(source: EnvSource): EnvSource {
+  return {
+    ...source,
+    PUBLIC_SUPABASE_URL: source['PUBLIC_SUPABASE_URL'] ?? source['NEXT_PUBLIC_SUPABASE_URL'],
+    PUBLIC_SUPABASE_ANON_KEY: source['PUBLIC_SUPABASE_ANON_KEY'] ?? source['NEXT_PUBLIC_SUPABASE_ANON_KEY'],
+    NEXT_PUBLIC_SUPABASE_URL: source['NEXT_PUBLIC_SUPABASE_URL'] ?? source['PUBLIC_SUPABASE_URL'],
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: source['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? source['PUBLIC_SUPABASE_ANON_KEY']
+  };
+}
+
 export function loadDashboardRuntimeEnv(source: EnvSource = defaultEnvSource()): DashboardRuntimeEnv {
-  const missing = REQUIRED_DASHBOARD_ENV_KEYS.filter((key) => isMissing(source[key]));
+  const normalizedSource = withLegacyPublicSupabaseAliases(source);
+  const missing = REQUIRED_DASHBOARD_ENV_KEYS.filter((key) => isMissing(normalizedSource[key]));
 
   if (missing.length > 0) {
     throw new Error(
@@ -38,17 +48,12 @@ export function loadDashboardRuntimeEnv(source: EnvSource = defaultEnvSource()):
   }
 
   const runtimeEnv = {} as DashboardRuntimeEnv;
-
+  
   for (const requiredKey of REQUIRED_DASHBOARD_ENV_KEYS) {
-    runtimeEnv[requiredKey] = source[requiredKey] as string;
+    runtimeEnv[requiredKey] = normalizedSource[requiredKey] as string;
   }
-
-  for (const optionalKey of OPTIONAL_SERVER_ENV_KEYS) {
-    const optionalValue = source[optionalKey];
-    if (!isMissing(optionalValue)) {
-      runtimeEnv[optionalKey] = optionalValue;
-    }
-  }
+  runtimeEnv.NEXT_PUBLIC_SUPABASE_URL = normalizedSource['NEXT_PUBLIC_SUPABASE_URL'] as string;
+  runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY = normalizedSource['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string;
 
   return runtimeEnv;
 }

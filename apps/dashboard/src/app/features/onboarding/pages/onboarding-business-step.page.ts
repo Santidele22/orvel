@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { createMockSessionFromLogin } from '../../../core/auth/mock-login-business-types';
-import { TURNERA_SESSION_KEY } from '../../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../../core/auth/session-contract';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 import {
   RequiredRubro,
@@ -30,7 +30,7 @@ function canCreateMockOnboardingSession(): boolean {
 
 function persistDevOnboardingSession(sessionJson: string): void {
   const storage = window.localStorage;
-  storage.setItem(TURNERA_SESSION_KEY, sessionJson);
+  storage.setItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY, sessionJson);
 }
 
 @Component({
