@@ -130,6 +130,7 @@ import Layout from '../../../layouts/Layout.astro';
 
 <script>
   import { createClient } from '@supabase/supabase-js';
+  import { createSupabaseSignupAdapterFromEnv, signupWithProvider } from '../../../lib/auth-provider';
   import { createSupabaseBrowserAuthOptions } from '../../../lib/supabase-auth-adapter';
   import { buildDashboardAuthUrl } from '../../../lib/dashboard-auth-handoff';
   import { completeOAuthBusinessTypeOnboarding } from '../../../lib/oauth-signup-onboarding-flow';
@@ -314,8 +315,57 @@ import Layout from '../../../layouts/Layout.astro';
       sessionStorage.setItem('orvel.signup.tipoNegocio', tipoNegocio);
       sessionStorage.setItem('orvel.signup.rubros', JSON.stringify(tipoNegocioList));
 
+      const email = sessionStorage.getItem('orvel.signup.email')?.trim() || '';
+      const password = sessionStorage.getItem('orvel.signup.password') || '';
+      const nombre = sessionStorage.getItem('orvel.signup.nombre')?.trim() || '';
+      const apellido = sessionStorage.getItem('orvel.signup.apellido')?.trim() || '';
+      const negocioNombre = sessionStorage.getItem('orvel.signup.negocioNombre')?.trim() || 'Mi Negocio';
+      const telefono = sessionStorage.getItem('orvel.signup.telefono')?.trim() || '';
+
+      if (!email || !password || !nombre || !apellido) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        if (errorEl) {
+          errorEl.textContent = 'Faltan datos de la cuenta. Volvé al paso anterior para completar tus credenciales.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const supabaseSignup = createSupabaseSignupAdapterFromEnv({
+        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
+        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+      });
+
+      const signupResult = await signupWithProvider({
+        attempt: {
+          nombre,
+          apellido,
+          negocioNombre,
+          tipoNegocio,
+          telefono,
+          email,
+          password,
+          plan,
+          returnTo: isPaidPlan ? returnTo : dashboardSignupUrl
+        },
+        supabaseSignup
+      });
+
+      if (!signupResult.ok) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        if (errorEl) {
+          errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      sessionStorage.removeItem('orvel.signup.password');
+      sessionStorage.removeItem('orvel.signup.plan');
+
       if (isPaidPlan) {
-        // Defer account creation to subscription/preapproval
         window.location.href = returnTo;
         return;
       }
