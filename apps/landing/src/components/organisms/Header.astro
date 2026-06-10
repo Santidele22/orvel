@@ -18,7 +18,15 @@
       <a class="text-text-secondary hover:text-text-primary font-headline text-sm font-medium tracking-wide transition-colors" href="#faq">FAQs</a>
     </div>
 
-    <!-- Desktop Auth (Oculto en pre-lanzamiento) -->
+    <!-- Desktop Auth -->
+    <div class="hidden md:flex items-center space-x-4">
+      <a href="/auth/login" class="text-text-secondary hover:text-text-primary font-headline font-bold text-xs uppercase tracking-widest transition-colors">
+        Iniciar sesión
+      </a>
+      <a href="/auth/signup/plan" class="btn btn-primary px-6 py-2 text-xs tracking-widest uppercase shadow-lg shadow-primary/20">
+        Crear cuenta
+      </a>
+    </div>
 
     <!-- Menu Toggle (Mobile Only) -->
     <button id="mobileMenuBtn" aria-label="Abrir menú de navegación" aria-expanded="false" class="md:hidden text-text-primary p-2 focus:outline-none hover:text-primary transition-colors">
@@ -36,7 +44,14 @@
       <a class="mobile-link text-text-secondary hover:text-text-primary font-headline text-lg font-medium tracking-wide transition-colors" href="#resultados">Resultados</a>
       <a class="mobile-link text-text-secondary hover:text-text-primary font-headline text-lg font-medium tracking-wide transition-colors" href="#faq">FAQs</a>
       
-      <!-- Mobile Auth (Oculto en pre-lanzamiento) -->
+      <div class="pt-6 mt-2 border-t border-border/50 flex flex-col space-y-4">
+        <a href="/auth/login" class="mobile-link w-full text-center py-3 text-text-secondary hover:text-text-primary font-headline font-bold text-sm uppercase tracking-widest transition-colors">
+          Iniciar sesión
+        </a>
+        <a href="/auth/signup/plan" class="mobile-link btn btn-primary w-full text-center py-4 text-xs tracking-widest uppercase shadow-lg shadow-primary/20">
+          Crear cuenta
+        </a>
+      </div>
     </div>
   </div>
 </nav>

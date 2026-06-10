@@ -11,15 +11,15 @@ export const PLAN_ENTITLEMENTS: Record<PlanCode, PlanEntitlements> = {
     maxRubros: 1
   },
   BASIC: {
-    maxLocales: 3,
+    maxLocales: 1,
     maxRubros: 3
   },
   MEDIUM: {
-    maxLocales: 4,
+    maxLocales: 1,
     maxRubros: 4
   },
   PRO: {
-    maxLocales: 5,
+    maxLocales: 1,
     maxRubros: 5
   }
 };

@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getActivePlans, calculateBillingPrices, getPlanButtonLabel, createSubscription } from '../lib/plans';
+import { getActivePlans, calculateBillingPrices } from '../lib/plans';
 
 // Import all organisms
 import Header from '../components/organisms/Header.astro';
@@ -100,8 +100,22 @@ function updatePrices(period) {
   });
 }
 
-// El manejo de selección de plan y auth fue removido para pre-lanzamiento.
-// La interacción se limita puramente a la visualización de los precios de forma informativa.
+// Handle plan selection for active launch CTAs.
+function handlePlanSelection(planCode) {
+  const allowedPlanCodes = new Set(PLANS_DATA.map(plan => plan.code));
+  if (!allowedPlanCodes.has(planCode)) {
+    console.error('Plan not found:', planCode);
+    return;
+  }
+
+  if (planCode === 'FREE') {
+    window.location.href = '/auth/signup/plan?plan=FREE';
+    return;
+  }
+
+  const returnTo = encodeURIComponent(`/billing/subscription?plan=${planCode}`);
+  window.location.href = `/auth/login?plan=${encodeURIComponent(planCode)}&returnTo=${returnTo}`;
+}
 
 // Initialize billing toggle
 document.addEventListener('DOMContentLoaded', () => {
@@ -111,6 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.billing-option').forEach(btn => {
     btn.addEventListener('click', () => {
       updatePrices(btn.dataset.billing);
+    });
+  });
+
+  // Plan selection handlers use canonical landing auth + subscription/preapproval billing.
+  document.querySelectorAll('[data-plan]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      handlePlanSelection(btn.dataset.plan);
     });
   });
 
@@ -129,6 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
   <Audience />
   <Pricing plansWithBilling={plansWithBilling} />
   <FAQ />
-  <!-- <CTA /> -->
+  <CTA />
   <Footer />
 </Layout>

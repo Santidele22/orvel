@@ -76,10 +76,11 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
 
   it('landing OAuth callback exchanges provider code on landing, then redirects to sanitized dashboard returnTo', async () => {
     const source = await readFile(CALLBACK_PAGE, 'utf8');
+    const returnToSource = await readFile(new URL('../lib/auth-return-to.ts', import.meta.url), 'utf8');
 
     expect(source).toMatch(/auth\.exchangeCodeForSession\(code\)/);
-    expect(source).toMatch(/sanitizeReturnTo/);
-    expect(source).toMatch(/PARAM_BLOCKLIST[\s\S]*code[\s\S]*access_token|PARAM_BLOCKLIST[\s\S]*access_token[\s\S]*code/);
+    expect(source).toMatch(/sanitizeLandingAuthReturnTo/);
+    expect(returnToSource).toMatch(/PARAM_BLOCKLIST[\s\S]*code[\s\S]*access_token|PARAM_BLOCKLIST[\s\S]*access_token[\s\S]*code/);
     expect(source).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
   });
 });

@@ -18,8 +18,8 @@ import {
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
 const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
-const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
-const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
+const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session|checkout_session_id)$/i;
+const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session|checkout_session_id)/i;
 
 function resolveDashboardBaseUrl(): URL | null {
   const candidate = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
