@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { getRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
+import { getCatalogAddOn } from '../../core/catalog/reference-catalog';
 import { getPlanEntitlements } from '../../core/plans/plan-entitlements';
 
 function readSource(relativePath: string): string {
@@ -15,8 +17,9 @@ function readExistingSources(paths: string[]): string {
 }
 
 describe('Multitenant branch appointment scope RED contract', () => {
-  it('allows a PRO tenant to configure five same-category barberia branches under one business brand', () => {
+  it('keeps PRO base at one local and exposes multi-branch as a separate ARS 20,000 add-on', () => {
     const pro = getPlanEntitlements('PRO');
+    const multiBranchAddOn = getCatalogAddOn(getRuntimeReferenceCatalogSnapshot(), 'MULTI_BRANCH');
     const branches = Array.from({ length: 5 }, (_, index) => ({
       id: `branch-barberia-${index + 1}`,
       businessId: 'business-brand-orvel',
@@ -24,7 +27,12 @@ describe('Multitenant branch appointment scope RED contract', () => {
       rubro: 'barberia'
     }));
 
-    expect(pro.maxLocales).toBeGreaterThanOrEqual(5);
+    expect(pro.maxLocales).toBe(1);
+    expect(multiBranchAddOn).toMatchObject({
+      code: 'MULTI_BRANCH',
+      priceMonthlyCents: 2_000_000,
+      billingCadence: 'monthly'
+    });
     expect(new Set(branches.map((branch) => branch.businessId))).toEqual(new Set(['business-brand-orvel']));
     expect(new Set(branches.map((branch) => branch.rubro))).toEqual(new Set(['barberia']));
     expect(new Set(branches.map((branch) => branch.id)).size).toBe(5);
