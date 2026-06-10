@@ -5,6 +5,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+let hasWarnedMissingSupabaseEnv = false;
+
 // Plan data structure matching the database schema
 export interface Plan {
   id: string;
@@ -46,9 +48,20 @@ function normalizeStaticPlanCode(code: string): string {
  * Uses PUBLIC variables from .env
  */
 function createPublicClient() {
+  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    if (!hasWarnedMissingSupabaseEnv) {
+      console.warn('Public Supabase environment is missing; using static fallback plans.');
+      hasWarnedMissingSupabaseEnv = true;
+    }
+    return null;
+  }
+
   return createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -65,6 +78,10 @@ function createPublicClient() {
 export async function getActivePlans(): Promise<Plan[]> {
   try {
     const supabase = createPublicClient();
+    if (!supabase) {
+      return getStaticPlans();
+    }
+
     // RPC-first to avoid direct table dependency in landing
     const { data, error } = await supabase.rpc('get_active_plans');
 
@@ -96,6 +113,11 @@ export async function getPlanByCode(code: string): Promise<Plan | null> {
 
   try {
     const supabase = createPublicClient();
+    if (!supabase) {
+      const staticPlans = getStaticPlans();
+      return staticPlans.find(p => p.code === normalizedCode) || null;
+    }
+
     const { data, error } = await supabase.rpc('get_plan_by_code', { p_code: normalizedCode });
 
     if (error || !data) {
@@ -107,7 +129,7 @@ export async function getPlanByCode(code: string): Promise<Plan | null> {
     const plan = Array.isArray(data) ? data[0] : data;
     if (!plan) {
       const staticPlans = getStaticPlans();
-      return staticPlans.find(p => p.code === code) || null;
+      return staticPlans.find(p => p.code === normalizedCode) || null;
     }
 
     return plan as Plan;
