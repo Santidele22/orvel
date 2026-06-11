@@ -253,6 +253,34 @@ Deno.test("P0 public booking contract: create_public_booking validates branch_id
   );
 });
 
+Deno.test("P0 admin blocked-time contract: create_admin_blocked_time preserves branch tenant validation", async () => {
+  const body = latestFunctionBody(
+    await readAllSqlMigrations(),
+    "create_admin_blocked_time",
+  );
+
+  assert(
+    /from\s+public\.branches\s+br/i.test(body),
+    "create_admin_blocked_time must query public.branches when branch_id is supplied",
+  );
+  assert(
+    /br\.id\s*=\s*create_admin_blocked_time\.branch_id/i.test(body),
+    "create_admin_blocked_time must validate the supplied branch_id exists",
+  );
+  assert(
+    /BRANCH_NOT_FOUND/.test(body),
+    "create_admin_blocked_time must raise BRANCH_NOT_FOUND for missing branch_id values",
+  );
+  assert(
+    /br\.business_id\s*=\s*create_admin_blocked_time\.business_id/i.test(body),
+    "create_admin_blocked_time must reject branch_id values owned by another business/tenant",
+  );
+  assert(
+    /BRANCH_TENANT_MISMATCH/.test(body),
+    "create_admin_blocked_time must raise BRANCH_TENANT_MISMATCH for cross-tenant branch_id values",
+  );
+});
+
 Deno.test("P0 monetization contract: multi-branch is an ARS 20,000 add-on entitlement, not bundled in base plans", async () => {
   const migrationsSql = await readAllSqlMigrations();
 
@@ -286,5 +314,74 @@ Deno.test("P0 monetization contract: multi-branch is an ARS 20,000 add-on entitl
   assert(
     activeBasePlanRows.every((maxLocales) => maxLocales <= 1),
     "Base plans must not grant multiple branches; multiple branches require the ARS 20,000 add-on entitlement",
+  );
+});
+
+Deno.test("Launch signup contract: pending paid signup does not require business_type before payment", async () => {
+  const createSubscriptionSource = await readText(
+    new URL("create-subscription/index.ts", functionsDir),
+  );
+
+  assert(
+    /pending_signup_intent/i.test(createSubscriptionSource),
+    "Guard must inspect the pending paid signup branch",
+  );
+  assert(
+    !/PENDING_SIGNUP_BUSINESS_REQUIRED/.test(createSubscriptionSource),
+    "create-subscription must not reject pending paid signup when business_type is deferred to onboarding",
+  );
+  assert(
+    !/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/.test(
+      createSubscriptionSource,
+    ),
+    "Pending paid signup validation may require email, but business_type must stay optional/backwards-compatible",
+  );
+});
+
+Deno.test("Launch signup contract: MP approval materializes paid account without completing onboarding", async () => {
+  const webhookSource = await readText(
+    new URL("mercadopago-webhook/index.ts", functionsDir),
+  );
+
+  const materializeBody = /async\s+function\s+materializePendingSignup[\s\S]*?\n}\n\n\/\/ Verify payment status/.exec(
+    webhookSource,
+  )?.[0] ?? "";
+
+  assert(materializeBody, "Guard must inspect materializePendingSignup");
+  assert(
+    !/onboarding_completed\s*:\s*true|onboardingCompleted\s*:\s*true/.test(
+      materializeBody,
+    ),
+    "Paid materialization must not mark onboarding completed in auth metadata",
+  );
+  assert(
+    !/current_step\s*:\s*["']dashboard_ready["']|dashboard_ready_at\s*:/.test(
+      materializeBody,
+    ),
+    "Paid materialization must not mark business_onboarding_state as dashboard ready",
+  );
+  assert(
+    /onboarding_required\s*:\s*true|onboarding_completed\s*:\s*false|current_step\s*:\s*["']onboarding_required["']/.test(
+      materializeBody,
+    ),
+    "Paid materialization must persist an incomplete/onboarding-required state",
+  );
+});
+
+Deno.test("Launch signup contract: onboarding completion RPC creates dashboard readiness materialization", async () => {
+  const migrationsSql = await readAllSqlMigrations();
+  const body = latestFunctionBody(migrationsSql, "complete_signup_onboarding");
+
+  assert(
+    /public\.businesses/i.test(body) && /public\.business_settings/i.test(body),
+    "complete_signup_onboarding must create/upsert main business and business_settings",
+  );
+  assert(
+    /business_onboarding_state/i.test(body) && /dashboard_ready_at\s*=\s*now\(\)/i.test(body),
+    "complete_signup_onboarding must mark dashboard readiness only after onboarding completion",
+  );
+  assert(
+    /auth\.users/i.test(body) && /onboarding_completed/i.test(body) && /true/i.test(body),
+    "complete_signup_onboarding must persist dashboard-required onboarding metadata on the Supabase user",
   );
 });
