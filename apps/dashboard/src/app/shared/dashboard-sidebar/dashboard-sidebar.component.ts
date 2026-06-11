@@ -21,7 +21,7 @@ export class DashboardSidebarComponent {
   private readonly themeService = inject(ThemeService);
 
   @Input() theme: string = 'zen';
-  @Input() businessName: string = 'Atelier Zen';
+  @Input() businessName: string = 'Mi negocio Orvel';
   @Input() dashboards: any[] = [];
   @Output() themeChange = new EventEmitter<any>();
   @Output() logoutConfirm = new EventEmitter<void>();

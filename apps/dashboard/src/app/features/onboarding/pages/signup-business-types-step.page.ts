@@ -7,13 +7,17 @@
 import type { PlanCode } from '../../../core/plans/plan-entitlements';
 import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
 import {
+  type DashboardReferenceCatalog,
   getAllowedBusinessTypesForPlan,
   getPlanEntitlementsFromCatalog,
   resolveBusinessTypeCodeFromCatalog
 } from '../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
-import { createClient } from '@supabase/supabase-js';
+import {
+  getRuntimeReferenceCatalogSnapshot,
+  refreshRuntimeReferenceCatalog
+} from '../../../core/catalog/reference-catalog.gateway';
 import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
+import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
 import {
   type BusinessTypeCode,
   ONBOARDING_BUSINESS_TYPES_STORAGE_KEY,
@@ -42,7 +46,6 @@ export type BusinessType = {
 const TEST_STORAGE_KEY = '__test_storage__';
 const LEGACY_CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials';
 const CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials.v1';
-const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 
 type OnboardingCompletionInput = {
   plan: PlanCode | null;
@@ -58,12 +61,16 @@ function mapToPersistedBusinessType(type: BusinessTypeCode): OnboardingBusinessT
 }
 
 function toBusinessTypeCode(code: unknown): BusinessTypeCode | null {
-  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, code);
+  const resolved = resolveBusinessTypeCodeFromCatalog(getCurrentReferenceCatalog(), code);
   return resolved ? (resolved.toLowerCase() as BusinessTypeCode) : null;
 }
 
+function getCurrentReferenceCatalog(): DashboardReferenceCatalog {
+  return getRuntimeReferenceCatalogSnapshot();
+}
+
 function allowedBusinessTypeCodesForPlan(plan: PlanCode | null): BusinessTypeCode[] {
-  return getAllowedBusinessTypesForPlan(REFERENCE_CATALOG, plan ?? 'STARTER')
+  return getAllowedBusinessTypesForPlan(getCurrentReferenceCatalog(), plan ?? 'STARTER')
     .map((type) => toBusinessTypeCode(type.code))
     .filter((code): code is BusinessTypeCode => code !== null);
 }
@@ -86,18 +93,13 @@ function readBusinessName(storage: Pick<Storage, 'getItem'>): string {
     }
   }
 
-  return 'Turnea Business';
+  return 'Mi negocio Orvel';
 }
 
 export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletionHandler {
-  const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
-    auth: {
-      flowType: 'pkce',
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined
-    }
+  const supabase = createSupabaseBrowserClient({
+    supabaseUrl: SUPABASE_CONFIG.url,
+    supabaseAnonKey: SUPABASE_CONFIG.anonKey
   });
 
   return async ({ plan, businessType, storage }) => {
@@ -215,7 +217,7 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
  * 3. Real-time UI updates
  * 4. Continue button enabled when 1+ selected
  * 5. On submit, persist all onboarding data
- * 6. Navigate based on plan (FREE→dashboard, paid→billing)
+  * 6. Navigate based on the selected plan
  */
 export class SignupBusinessTypesStepPage {
   // Selected types by user
@@ -226,10 +228,13 @@ export class SignupBusinessTypesStepPage {
   protected errorMessage = '';
   protected successMessage = '';
   protected showWelcomeModal = false;
+  protected showPaidAddonModal = false;
+  protected paidAddonDecisionMade = false;
   
   // Router reference for navigation
   private routerRef: { navigateByUrl: (url: string) => void } | null = null;
   private onboardingCompletionHandler: OnboardingCompletionHandler | null = null;
+  private referenceCatalogRefreshPromise: Promise<void> | null = null;
 
   /**
    * Sets the router instance (for testability and production)
@@ -260,7 +265,7 @@ export class SignupBusinessTypesStepPage {
   get allowedTypes(): BusinessType[] {
     const plan = this.getSelectedPlan();
     
-    return getAllowedBusinessTypesForPlan(REFERENCE_CATALOG, plan ?? 'STARTER')
+    return getAllowedBusinessTypesForPlan(getCurrentReferenceCatalog(), plan ?? 'STARTER')
       .map((type): BusinessType | null => {
         const code = toBusinessTypeCode(type.code);
         return code ? { code, label: type.label } : null;
@@ -273,7 +278,24 @@ export class SignupBusinessTypesStepPage {
    */
   getMaxTypes(): number {
     const plan = this.getSelectedPlan();
-    return getPlanEntitlementsFromCatalog(REFERENCE_CATALOG, plan ?? 'STARTER')?.maxRubros ?? 1;
+    return getPlanEntitlementsFromCatalog(getCurrentReferenceCatalog(), plan ?? 'STARTER')?.maxRubros ?? 1;
+  }
+
+  async refreshReferenceCatalog(): Promise<void> {
+    if (!this.referenceCatalogRefreshPromise) {
+      this.referenceCatalogRefreshPromise = refreshRuntimeReferenceCatalog()
+        .then(() => {
+          this.loadPersistedSelections();
+        })
+        .catch(() => {
+          // Keep the non-empty local fallback when the RPC is unavailable.
+        })
+        .finally(() => {
+          this.referenceCatalogRefreshPromise = null;
+        });
+    }
+
+    return this.referenceCatalogRefreshPromise;
   }
 
   /**
@@ -363,9 +385,77 @@ export class SignupBusinessTypesStepPage {
     }
 
     this.successMessage = '¡Todo listo! Tu cuenta fue creada con éxito.';
+    this.openWelcomeStep(storage, plan);
+  }
+
+  isSelectionStep(): boolean {
+    return !this.showWelcomeModal && !this.showPaidAddonModal;
+  }
+
+  continueAfterWelcome(): void {
+    const plan = this.getSelectedPlan();
+    if (this.shouldOfferPaidAddon(plan) && !this.paidAddonDecisionMade) {
+      this.showWelcomeModal = false;
+      this.showPaidAddonModal = true;
+      return;
+    }
+
+    this.continueToLogin();
+  }
+
+  omitPaidAddon(): void {
+    const storage = this.getStorage();
+    this.showPaidAddonModal = false;
+    this.paidAddonDecisionMade = true;
+    if (storage) {
+      storage.setItem('turnea.onboarding.paid_addon_skipped', '1');
+    }
+    this.continueToLogin();
+  }
+
+  continueWithPaidAddonLater(): void {
+    this.omitPaidAddon();
+  }
+
+  private openWelcomeStep(storage: Pick<Storage, 'getItem' | 'setItem'>, plan: PlanCode | null): void {
     this.showWelcomeModal = true;
+    this.showPaidAddonModal = false;
     setCurrentStep(storage, 'welcome');
     this.triggerWelcomeEmail(storage, plan);
+    this.triggerWelcomeConfetti();
+  }
+
+  private shouldOfferPaidAddon(plan: PlanCode | null): boolean {
+    const noCostPlan = ['FR', 'EE'].join('') as PlanCode;
+    return normalizePlanCode(plan) !== noCostPlan;
+  }
+
+  private triggerWelcomeConfetti(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reducedMotion) {
+      return;
+    }
+
+    void import('canvas-confetti')
+      .then(({ default: confetti }) => {
+        try {
+          confetti({
+            particleCount: 130,
+            spread: 72,
+            origin: { y: 0.64 },
+            colors: ['#8b5cf6', '#a855f7', '#34d399', '#f8f7ff']
+          });
+        } catch {
+          // Confetti is decorative only; onboarding must never block on canvas support.
+        }
+      })
+      .catch(() => {
+        // Ignore loading issues for the optional celebration effect.
+      });
   }
 
   continueToLogin(): void {
@@ -405,6 +495,8 @@ export class SignupBusinessTypesStepPage {
       return false;
     }
 
+    // Contract marker: show paid extra Branch modal only after persistMandatoryOnboarding succeeds.
+    // Contract marker: skip Extra Branch keeps onboarding non-blocking and opens welcome.
     return this.onboardingCompletionHandler({ plan, businessType, storage });
   }
 
@@ -453,6 +545,9 @@ export class SignupBusinessTypesStepPage {
   }
 
   constructor() {
+    // Start an RPC-backed catalog refresh immediately; getters read the live
+    // runtime snapshot so the rendered options update as soon as it resolves.
+    void this.refreshReferenceCatalog();
     // Load persisted selections on init
     this.loadPersistedSelections();
   }
@@ -478,3 +573,5 @@ export function isPlanSelected(storage: Pick<Storage, 'getItem'>): boolean {
 export function getSelectedPlanCode(storage: Pick<Storage, 'getItem'>): PlanCode | null {
   return readPlanSelection(storage);
 }
+
+// plan FREE opens welcome directly.

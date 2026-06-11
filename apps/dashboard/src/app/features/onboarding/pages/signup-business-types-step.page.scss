@@ -1,57 +1,65 @@
 /**
  * Signup Business Types Step Styles
  *
- * Uses the Luminous Atelier design system (glassmorphic aesthetic).
- * Mobile-first, responsive design.
- * Consistent with signup-credentials.page.scss
+ * Focused launch/auth treatment: dark Orvel surface, violet primary action,
+ * responsive card layout, and accessible focus/disabled states.
  */
 
-// Variables based on Luminous Atelier design system
-$color-background: #F2F4F3;
-$color-primary: #8BA888;
-$color-primary-dark: #7a9576;
-$color-accent: #D9C5B2;
-$color-text: #1a1a1a;
-$color-text-muted: rgba(26, 26, 26, 0.5);
+$color-background: #0b0714;
+$color-surface: rgba(18, 10, 31, 0.9);
+$color-surface-raised: rgba(30, 18, 52, 0.78);
+$color-primary: #8b5cf6;
+$color-primary-light: #a855f7;
+$color-primary-dark: #6d28d9;
+$color-border: rgba(168, 85, 247, 0.24);
+$color-text: #f8f7ff;
+$color-text-muted: rgba(248, 247, 255, 0.66);
+$color-error: #fb7185;
+$color-success: #34d399;
 
 $font-heading: 'Manrope', sans-serif;
 $font-body: 'Inter', sans-serif;
 
-$radius-sm: 8px;
-$radius-md: 16px;
-$radius-lg: 24px;
-$radius-full: 9999px;
+$radius-sm: 10px;
+$radius-md: 18px;
+$radius-lg: 30px;
 
 $transition-fast: 150ms ease;
-$transition-normal: 300ms ease;
 
-// Container
 .business-types-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: $color-background;
+  background:
+    radial-gradient(circle at 20% 20%, rgba($color-primary-light, 0.22), transparent 30rem),
+    radial-gradient(circle at 80% 0%, rgba($color-primary, 0.18), transparent 26rem),
+    linear-gradient(135deg, $color-background 0%, #120a1f 52%, #05030a 100%);
+  color: $color-text;
   position: relative;
   overflow: hidden;
 }
 
-// Card
 .business-types-card {
   width: 100%;
-  max-width: 500px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
+  max-width: 620px;
+  background: $color-surface;
+  backdrop-filter: blur(22px);
   border-radius: $radius-lg;
-  padding: 2.5rem 2rem;
-  box-shadow: 0 0 40px rgba($color-primary, 0.1);
+  padding: 2.75rem 2.1rem;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.04);
   position: relative;
   z-index: 10;
-  border: 1px solid rgba($color-primary, 0.15);
+  border: 1px solid $color-border;
+
+  &.state-success,
+  &.state-addon {
+    max-width: 560px;
+    text-align: center;
+  }
 }
 
-// Header
 .business-types-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -59,58 +67,78 @@ $transition-normal: 300ms ease;
 
 .business-types-title {
   font-family: $font-heading;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.055em;
   color: $color-text;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem;
 }
 
 .business-types-subtitle {
   font-family: $font-body;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: $color-text-muted;
   margin: 0;
 }
 
-// Business Types Grid
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  font-family: $font-heading;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
 .business-types-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
   margin-bottom: 1.5rem;
 }
 
-// Business Type Card
 .business-type-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid rgba($color-primary, 0.2);
+  gap: 0.8rem;
+  min-height: 4rem;
+  padding: 1rem 1.1rem;
+  background: $color-surface-raised;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: $radius-md;
   cursor: pointer;
-  transition: all $transition-fast;
+  transition: transform $transition-fast, border-color $transition-fast, background $transition-fast, box-shadow $transition-fast;
   text-align: left;
 
   &:hover:not([disabled]) {
-    border-color: rgba($color-primary, 0.5);
-    background: rgba($color-primary, 0.05);
+    border-color: rgba($color-primary-light, 0.7);
+    background: rgba($color-primary, 0.16);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba($color-primary-light, 0.38);
+    outline-offset: 3px;
   }
 
   &[disabled] {
-    opacity: 0.4;
+    opacity: 0.42;
     cursor: not-allowed;
   }
 
   &.selected {
-    border-color: $color-primary;
-    background: rgba($color-primary, 0.1);
+    border-color: rgba($color-primary-light, 0.95);
+    background: linear-gradient(135deg, rgba($color-primary, 0.24), rgba($color-primary-light, 0.14));
+    box-shadow: 0 16px 32px rgba($color-primary-dark, 0.2);
 
     .type-checkbox {
-      background: $color-primary;
-      border-color: $color-primary;
+      background: linear-gradient(135deg, $color-primary, $color-primary-light);
+      border-color: transparent;
 
       .check-icon {
         opacity: 1;
@@ -118,130 +146,138 @@ $transition-normal: 300ms ease;
     }
 
     .type-label {
-      font-weight: 600;
-      color: $color-primary-dark;
+      color: $color-text;
+      font-weight: 800;
     }
   }
 }
 
-// Checkbox
 .type-checkbox {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba($color-primary, 0.4);
+  border: 1px solid rgba($color-primary-light, 0.55);
   border-radius: $radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: #ffffff;
   transition: all $transition-fast;
 
   .check-icon {
     width: 16px;
     height: 16px;
-    color: white;
     opacity: 0;
     transition: opacity $transition-fast;
   }
 }
 
-// Label
 .type-label {
   font-family: $font-body;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: $color-text;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: rgba($color-text, 0.88);
   transition: all $transition-fast;
 }
 
-// Selection Info
 .selection-info {
   text-align: center;
   margin-bottom: 1.5rem;
 
   .selection-count {
     font-family: $font-body;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: $color-text-muted;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.18em;
   }
 }
 
-// Error Message
-.error-message {
+.error-message,
+.success-message {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 0.85rem;
   border-radius: $radius-md;
-  color: #dc2626;
   font-family: $font-body;
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
 }
 
-// Actions
+.error-message {
+  background: rgba($color-error, 0.1);
+  border: 1px solid rgba($color-error, 0.28);
+  color: $color-error;
+}
+
+.success-message {
+  background: rgba($color-success, 0.1);
+  border: 1px solid rgba($color-success, 0.24);
+  color: $color-success;
+}
+
 .signup-actions {
   display: flex;
   gap: 1rem;
   margin-top: 1.5rem;
 }
 
-.btn-back {
-  flex: 0 0 auto;
+.btn-back,
+.btn-continue {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  background: none;
-  border: 1px solid rgba($color-primary, 0.3);
-  border-radius: $radius-md;
-  font-family: $font-body;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: $color-text-muted;
+  min-height: 3.25rem;
+  padding: 0.9rem 1.5rem;
+  border-radius: 999px;
+  font-family: $font-heading;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all $transition-fast;
+  transition: transform $transition-fast, border-color $transition-fast, box-shadow $transition-fast, opacity $transition-fast;
+
+  &:focus-visible {
+    outline: 3px solid rgba($color-primary-light, 0.38);
+    outline-offset: 3px;
+  }
+}
+
+.btn-back {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: $color-text-muted;
 
   &:hover {
-    border-color: $color-primary;
-    color: $color-primary;
+    border-color: rgba($color-primary-light, 0.72);
+    color: $color-text;
   }
 }
 
 .btn-continue {
   flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, $color-primary, $color-primary-dark);
-  color: white;
-  border: none;
-  border-radius: $radius-md;
-  font-family: $font-heading;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all $transition-fast;
+  background: linear-gradient(135deg, $color-primary, $color-primary-light);
+  color: #ffffff;
+  border: 0;
+  box-shadow: 0 18px 36px rgba($color-primary-dark, 0.3);
 
   &:hover:not([disabled]) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba($color-primary, 0.4);
+    box-shadow: 0 24px 48px rgba($color-primary-dark, 0.38);
   }
 
   &[disabled] {
-    opacity: 0.7;
+    opacity: 0.42;
     cursor: not-allowed;
+    box-shadow: none;
   }
 }
 
-// Background Decoration
 .background-decoration {
   position: absolute;
   inset: 0;
@@ -252,39 +288,108 @@ $transition-normal: 300ms ease;
 .decoration-circle {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba($color-primary, 0.1), rgba($color-accent, 0.05));
+  background: linear-gradient(135deg, rgba($color-primary-light, 0.18), rgba($color-primary, 0.06));
   filter: blur(40px);
 }
 
 .circle-1 {
-  width: 300px;
-  height: 300px;
+  width: 320px;
+  height: 320px;
   top: -100px;
-  right: -100px;
+  right: -90px;
 }
 
 .circle-2 {
-  width: 200px;
-  height: 200px;
-  bottom: -50px;
-  left: -50px;
+  width: 240px;
+  height: 240px;
+  bottom: -70px;
+  left: -60px;
 }
 
-// Responsive
-@media (max-width: 480px) {
+.welcome-modal,
+.extra-branch-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0;
+  color: $color-text;
+
+  h2 {
+    margin: 0 0 0.8rem;
+    font-family: $font-heading;
+    font-size: clamp(2rem, 7vw, 3.25rem);
+    line-height: 1.02;
+    letter-spacing: -0.055em;
+  }
+
+  p {
+    max-width: 30rem;
+    margin: 0 0 1.6rem;
+    color: $color-text-muted;
+    font-family: $font-body;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .signup-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.welcome-modal {
+  .btn-continue {
+    flex: 0 1 16rem;
+  }
+}
+
+.extra-branch-modal {
+  padding: 0.75rem 0;
+  border-radius: $radius-lg;
+  background:
+    linear-gradient(135deg, rgba($color-primary, 0.1), rgba($color-primary-light, 0.04));
+
+  h2 {
+    font-size: clamp(1.8rem, 6vw, 2.7rem);
+  }
+}
+
+.success-orb {
+  width: 5.4rem;
+  height: 5.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.8), transparent 16%),
+    linear-gradient(135deg, $color-success, $color-primary-light);
+  color: #fff;
+  font-family: $font-heading;
+  font-size: 2.8rem;
+  font-weight: 900;
+  box-shadow: 0 24px 52px rgba($color-primary-dark, 0.34), 0 0 48px rgba($color-success, 0.18);
+}
+
+@media (max-width: 560px) {
   .business-types-container {
+    align-items: flex-start;
     padding: 1rem;
   }
 
   .business-types-card {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.25rem;
   }
 
-  .business-types-title {
-    font-size: 1.5rem;
-  }
-
-  .business-types-grid {
+  .business-types-grid,
+  .signup-actions {
     grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .btn-back,
+  .btn-continue {
+    width: 100%;
   }
 }

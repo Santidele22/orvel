@@ -19,23 +19,12 @@ export type DashboardReferenceCatalogRepository = DashboardReferenceCatalogGatew
 
 let configuredGateway: DashboardReferenceCatalogGateway | null = null;
 
-const CLOSED_RUNTIME_REFERENCE_CATALOG: DashboardReferenceCatalog = {
-  plans: [
-    {
-      code: 'FREE',
-      label: 'Unavailable',
-      maxLocales: 0,
-      maxRubros: 0,
-      maxMonthlyBookings: 0,
-      aiCreditsMonthly: 0
-    }
-  ],
-  addOns: [],
-  planAliases: [],
-  businessTypes: [],
-  businessTypeAliases: [],
-  planBusinessTypes: []
-};
+// Launch/onboarding safety fallback: the runtime snapshot is replaced by the
+// Supabase RPC catalog as soon as refreshRuntimeReferenceCatalog() succeeds,
+// but the auth/onboarding route must never render an empty 0/1 catalog while
+// that remote catalog is unavailable or has not been initialized yet. The
+// fixture includes the FREE planBusinessTypes allowlist used by onboarding.
+const ONBOARDING_REFERENCE_CATALOG_FALLBACK: DashboardReferenceCatalog = DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE;
 
 function isTestRuntime(): boolean {
   const processLike = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process;
@@ -44,7 +33,7 @@ function isTestRuntime(): boolean {
 
 let runtimeReferenceCatalogSnapshot: DashboardReferenceCatalog = isTestRuntime()
   ? DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE
-  : CLOSED_RUNTIME_REFERENCE_CATALOG;
+  : ONBOARDING_REFERENCE_CATALOG_FALLBACK;
 let runtimeReferenceCatalogInitialized = false;
 
 export function createDashboardReferenceCatalogGateway(
