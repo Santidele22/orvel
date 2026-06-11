@@ -37,8 +37,16 @@ Read all six `infra/context/` files when a task crosses app, infra, deployment, 
 ## Privacy
 
 - Never commit `.funemon/`; it is local private metadata.
+- Treat `.funemon/plans/current.norg` as the private plan ledger. Keep it operational and concise when present, but never stage, commit, quote, or publish it.
 - Never commit secrets, credentials, tokens, `.env` files, local caches, generated artifacts, or machine-specific paths.
 - Do not treat ignored client-specific config, such as `.opencode/`, as canonical project guidance.
+
+## Funemon Workflow
+
+- R2-D2 orchestrates and delegates only; it does not implement code or documentation. `Tyrion` is only a compatibility alias when found in old notes.
+- Use SDD/TDD for delivery: spec/design first, QA-owned red tests before implementation, then Red-Green-Refactor.
+- Keep project-local rules/manifests separate from global client configuration. Do not create or modify per-repo OpenCode/Gemini config unless Santi explicitly asks or the config already exists as project-local state.
+- Preserve unrelated user work and report any pre-existing drift separately from task changes.
 
 ## Supabase Safety
 

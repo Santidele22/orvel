@@ -24,9 +24,19 @@ Always read the root Orvel global context skill and the relevant `infra/context/
 ## Privacy and Repository Hygiene
 
 - Never commit `.funemon/`; it is local private metadata.
+- Keep `.funemon/plans/current.norg` as a local/private operational ledger only; update it for task/stage/blocker/slice changes when present, but never stage or publish it.
 - Never commit secrets, credentials, tokens, `.env` files, local caches, or generated artifacts.
-- Do not rely on ignored or client-specific configuration, such as `.opencode/`, as canonical project guidance.
+- Treat global client configuration, including OpenCode/Gemini integration, as managed outside this repository. Do not duplicate or modify global client config here.
+- Do not rely on ignored or client-specific configuration, such as `.opencode/`, as canonical project guidance. Only use per-repo client config when it already exists and is clearly project-local.
 - Do not add absolute local paths to committed documentation or source.
+
+## Funemon Workflow
+
+- R2-D2 is the orchestrator only: it does not implement code or documentation directly, and must delegate to the proper specialist.
+- Assess coordination before delegating or parallelizing. Default to sequential work when changes are small, tightly coupled, or consistency-sensitive.
+- Follow SDD/TDD: define or read the spec/design first, ask D-O/QA for tests before implementation, then implement only against the tested contract.
+- Use Red-Green-Refactor for feature and bug work; do not add untested behavior unless Santi explicitly approves an exception.
+- Preserve existing user changes. Inspect status before editing and keep changes scoped to the requested files.
 
 ## Git Workflow
 
