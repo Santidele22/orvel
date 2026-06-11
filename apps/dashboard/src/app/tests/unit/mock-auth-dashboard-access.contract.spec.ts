@@ -86,7 +86,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const access = canAccessDashboard();
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
     });
 
     it('does not allow dashboard access from a legacy local/mock session', () => {
@@ -106,7 +106,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const access = canAccessDashboard(now);
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
     });
   });
 
@@ -123,7 +123,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
 
     it('encodes returnTo into login URL', () => {
       expect(buildLandingLoginRedirect('/dashboard/turnos?filtro=hoy')).toBe(
-        '/auth/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
+        'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
       );
     });
   });

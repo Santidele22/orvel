@@ -1,0 +1,46 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+import { buildLocalProxyAuthCanonicalUrl } from '../lib/local-auth-proxy-canonicalizer';
+
+describe('Contract: local landing auth login canonicalizes to dev proxy', () => {
+  it('redirects direct localhost:4321 /auth/login hits to localhost:3000 while preserving query params', () => {
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?debug_oauth=1&plan=pro')
+    ).toBe('http://localhost:3000/auth/login?debug_oauth=1&plan=pro');
+  });
+
+  it('redirects direct 127.0.0.1:4321 /auth/login hits to localhost:3000', () => {
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://127.0.0.1:4321/auth/login?returnTo=%2Fdashboard%2Finicio')
+    ).toBe('http://localhost:3000/auth/login?returnTo=%2Fdashboard%2Finicio');
+  });
+
+  it('normalizes stale returnTo=/inicio or returnTo=inicio during proxy canonicalization', () => {
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?returnTo=%2Finicio')
+    ).toBe('http://localhost:3000/auth/login?returnTo=%2Fdashboard%2Finicio');
+
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?returnTo=inicio&utm_source=test')
+    ).toBe('http://localhost:3000/auth/login?returnTo=%2Fdashboard%2Finicio&utm_source=test');
+  });
+
+  it('does not redirect when already on proxy or on production origins', () => {
+    expect(buildLocalProxyAuthCanonicalUrl('http://localhost:3000/auth/login?returnTo=%2Finicio')).toBeNull();
+    expect(buildLocalProxyAuthCanonicalUrl('https://orvel.example/auth/login?returnTo=%2Finicio')).toBeNull();
+  });
+
+  it('runs the canonical redirect before Supabase auth handlers are initialized', () => {
+    const loginPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/login.astro'), 'utf8');
+
+    const canonicalRedirectIndex = loginPage.indexOf('buildLocalProxyAuthCanonicalUrl(window.location.href)');
+    const supabaseAdapterIndex = loginPage.indexOf('const supabaseLogin = createSupabaseLoginAdapterFromEnv');
+
+    expect(canonicalRedirectIndex).toBeGreaterThan(-1);
+    expect(supabaseAdapterIndex).toBeGreaterThan(-1);
+    expect(canonicalRedirectIndex).toBeLessThan(supabaseAdapterIndex);
+    expect(loginPage).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
+  });
+});

@@ -29,7 +29,7 @@ describe('RED: auth unification contract', () => {
     expect(appRoutes).not.toMatch(/path:\s*'auth',[\s\S]*?component:\s*LoginPage/);
     expect(appRoutes).not.toMatch(/path:\s*'auth\/login',[\s\S]*?component:\s*LoginPage/);
     expect(appRoutes).toMatch(/path:\s*'auth'|path:\s*'auth\/login'/);
-    expect(appRoutes).toMatch(/redirectTo:\s*['"](?:https?:\/\/[^'"]+\/auth\/login|\/auth\/login)/);
+    expect(appRoutes).toMatch(/path:\s*'auth',[\s\S]*?loadComponent:\s*\(\)\s*=>\s*import\('\.\/pages\/auth\/login\.page'\)/);
   });
 
   it('requires dashboard auth entry points to delegate to canonical landing auth instead of calling Supabase credentials directly', () => {

@@ -6,6 +6,8 @@ import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitleme
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
 
+const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
+const LOCAL_LANDING_PORT = '4321';
 const LOGIN_ROUTE = '/auth/login';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
@@ -63,7 +65,36 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
 
 export function buildLandingLoginRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
-  return `${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+  return `${resolveLandingOrigin()}${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+function resolveLandingOrigin(): string {
+  const env = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  const raw = env.process?.env?.['PUBLIC_LANDING_URL']?.trim();
+  if (!raw) return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+
+  try {
+    const url = new URL(raw);
+    url.search = '';
+    url.hash = '';
+    return url.origin;
+  } catch {
+    return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+  }
+}
+
+function resolveLocalLandingOrigin(): string | null {
+  const location = (globalThis as { window?: { location?: { protocol?: string; hostname?: string } } }).window?.location;
+  const hostname = location?.hostname;
+  if (!hostname || !isLocalHostname(hostname)) {
+    return null;
+  }
+
+  return `${location?.protocol === 'https:' ? 'https:' : 'http:'}//${hostname}:${LOCAL_LANDING_PORT}`;
+}
+
+function isLocalHostname(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
 }
 
 export function buildMandatoryOnboardingRedirect(returnTo: string): string {
@@ -99,32 +130,33 @@ export function hasCompletedMandatoryOnboarding(metadata: Record<string, unknown
  * Checks if user can access dashboard using Supabase session.
  * This is the new KB-002 way.
  */
-export async function checkSupabaseSession(): Promise<{
+export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
   allowed: boolean;
   redirectTo?: string;
 }> {
+  const safeReturnTo = sanitizeReturnTo(returnTo);
   try {
     const authClient = getSupabaseAuthClient();
     const { data, error } = await authClient.getSession();
 
     if (error) {
-      return { allowed: false, redirectTo: buildLandingLoginRedirect('/dashboard') };
+      return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
     }
 
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
     if (data?.session?.access_token) {
       if (!hasCompletedMandatoryOnboarding(data.session.user.user_metadata)) {
-        return { allowed: false, redirectTo: buildMandatoryOnboardingRedirect('/dashboard') };
+        return { allowed: false, redirectTo: buildMandatoryOnboardingRedirect(safeReturnTo) };
       }
 
       return { allowed: true };
     }
 
     // No Supabase session
-    return { allowed: false, redirectTo: buildLandingLoginRedirect('/dashboard') };
+    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
   } catch {
     // On error, fail closed (deny access)
-    return { allowed: false, redirectTo: buildLandingLoginRedirect('/dashboard') };
+    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
   }
 }
 
@@ -157,9 +189,10 @@ export function canAccessDashboard(_now = Date.now()): {
  * @returns { allowed: boolean; redirectTo?: string }
  */
 export async function canAccessDashboardAsync(
-  _now = Date.now()
+  _now = Date.now(),
+  returnTo = '/dashboard'
 ): Promise<{ allowed: boolean; redirectTo?: string }> {
-  return checkSupabaseSession();
+  return checkSupabaseSession(returnTo);
 }
 
 export async function logoutAndRedirect(): Promise<string> {

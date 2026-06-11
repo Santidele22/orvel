@@ -15,8 +15,16 @@
     "check:landing": "pnpm --dir apps/landing run build",
     "supabase:dry-run": "supabase db lint --local",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
+    "dev:dashboard:proxy": "pnpm --dir apps/dashboard exec ng serve --host 127.0.0.1 --port 4200 --serve-path /dashboard",
+    "dev:landing:proxy": "pnpm --dir apps/landing exec astro dev --host 127.0.0.1 --port 4321",
+    "dev:local-proxy": "node scripts/local-dev-proxy.mjs",
+    "test:local-proxy": "node --test scripts/local-dev-proxy.test.mjs",
     "test:dashboard": "pnpm --dir apps/dashboard run test",
     "test:dashboard:bun": "bun run --cwd apps/dashboard test",
     "test:landing": "pnpm --dir apps/landing run test"
-  }
+  },
+  "workspaces": [
+    "apps/landing",
+    "apps/dashboard"
+  ]
 }

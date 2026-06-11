@@ -50,6 +50,7 @@ function sanitizeDashboardReturnTo(returnTo: string | null | undefined): string 
     const parsed = new URL(candidate, 'https://dashboard.orvel.local');
     if (parsed.origin !== 'https://dashboard.orvel.local') return DASHBOARD_HOME;
     if (parsed.pathname === '/auth' || parsed.pathname.startsWith('/auth/')) return DASHBOARD_HOME;
+    if (parsed.pathname !== '/dashboard' && !parsed.pathname.startsWith('/dashboard/')) return DASHBOARD_HOME;
     if (hasBlockedParams(parsed.searchParams) || TOKEN_TEXT_PATTERN.test(parsed.hash) || PAYMENT_ID_PATTERN.test(parsed.hash)) return DASHBOARD_HOME;
 
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;

@@ -1,4 +1,5 @@
 const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
+const DEFAULT_DASHBOARD_BASE_URL = 'http://localhost:4200';
 
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session|checkout_session_id)/i;
@@ -9,9 +10,32 @@ type SanitizeLandingAuthReturnToOptions = {
   dashboardBaseUrl?: string | null;
 };
 
-export function resolveLandingDashboardBaseUrl(raw: string | null | undefined): URL | null {
+function inferLocalLandingDashboardBaseUrl(currentOrigin: string | null | undefined): URL | null {
+  if (!currentOrigin) return null;
+
+  try {
+    const origin = new URL(currentOrigin);
+    const isLocalHost = origin.hostname === 'localhost' || origin.hostname === '127.0.0.1' || origin.hostname === '[::1]';
+    if (!isLocalHost) return null;
+
+    if (origin.port === '3000') {
+      return new URL('/dashboard/', origin);
+    }
+
+    if (origin.port !== '4321') return null;
+
+    return new URL(`${origin.protocol}//${origin.hostname === '[::1]' ? '[::1]' : origin.hostname}:4200/`);
+  } catch {
+    return null;
+  }
+}
+
+export function resolveLandingDashboardBaseUrl(
+  raw: string | null | undefined,
+  currentOrigin?: string | null
+): URL | null {
   const value = raw?.trim();
-  if (!value) return null;
+  if (!value) return inferLocalLandingDashboardBaseUrl(currentOrigin);
 
   try {
     const url = new URL(value);
@@ -24,15 +48,38 @@ export function resolveLandingDashboardBaseUrl(raw: string | null | undefined): 
   }
 }
 
-export function landingDefaultReturnTo(dashboardBaseUrl?: string | URL | null): string {
-  const base = typeof dashboardBaseUrl === 'string' ? resolveLandingDashboardBaseUrl(dashboardBaseUrl) : dashboardBaseUrl;
-  if (!base) return DEFAULT_DASHBOARD_PATH;
+export function landingDefaultReturnTo(dashboardBaseUrl?: string | URL | null, currentOrigin?: string | null): string {
+  const base = typeof dashboardBaseUrl === 'string'
+    ? resolveLandingDashboardBaseUrl(dashboardBaseUrl, currentOrigin)
+    : dashboardBaseUrl;
+  const safeBase = base ?? resolveLandingDashboardBaseUrl(DEFAULT_DASHBOARD_BASE_URL);
+  if (!safeBase) return DEFAULT_DASHBOARD_PATH;
 
-  const relativePath = DEFAULT_DASHBOARD_PATH.startsWith(base.pathname)
-    ? DEFAULT_DASHBOARD_PATH.slice(base.pathname.length)
+  const relativePath = DEFAULT_DASHBOARD_PATH.startsWith(safeBase.pathname)
+    ? DEFAULT_DASHBOARD_PATH.slice(safeBase.pathname.length)
     : DEFAULT_DASHBOARD_PATH.replace(/^\//, '');
 
-  return new URL(relativePath, base).toString();
+  return new URL(relativePath, safeBase).toString();
+}
+
+function dashboardPathReturnTo(candidate: URL, dashboardBaseUrl: URL | null): string {
+  const safeBase = dashboardBaseUrl ?? resolveLandingDashboardBaseUrl(DEFAULT_DASHBOARD_BASE_URL);
+  if (!safeBase) return DEFAULT_DASHBOARD_PATH;
+
+  const basePath = safeBase.pathname.replace(/\/$/, '');
+  let relativePath: string;
+
+  if (basePath && basePath !== '/' && candidate.pathname.startsWith(`${basePath}/`)) {
+    relativePath = candidate.pathname.slice(basePath.length + 1);
+  } else if (basePath && basePath !== '/' && candidate.pathname === basePath) {
+    relativePath = '';
+  } else if (!basePath || basePath === '/') {
+    relativePath = candidate.pathname.replace(/^\//, '');
+  } else {
+    relativePath = candidate.pathname.replace(/^\/dashboard\/?/, '');
+  }
+
+  return new URL(`${relativePath}${candidate.search}${candidate.hash}`, safeBase).toString();
 }
 
 function hasBlockedParams(params: URLSearchParams): boolean {
@@ -43,15 +90,19 @@ function hasBlockedParams(params: URLSearchParams): boolean {
 }
 
 function isAllowedInternalPath(pathname: string): boolean {
-  return pathname.startsWith('/dashboard') || pathname === '/billing/subscription' || pathname.startsWith('/billing/subscription/');
+  return pathname === '/billing/subscription' || pathname.startsWith('/billing/subscription/');
+}
+
+function isDashboardPath(pathname: string): boolean {
+  return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
 }
 
 export function sanitizeLandingAuthReturnTo(
   raw: string | null | undefined,
   options: SanitizeLandingAuthReturnToOptions
 ): string {
-  const dashboardBaseUrl = resolveLandingDashboardBaseUrl(options.dashboardBaseUrl);
-  const fallback = landingDefaultReturnTo(dashboardBaseUrl);
+  const dashboardBaseUrl = resolveLandingDashboardBaseUrl(options.dashboardBaseUrl, options.currentOrigin);
+  const fallback = landingDefaultReturnTo(dashboardBaseUrl, options.currentOrigin);
   if (!raw) return fallback;
 
   const value = raw.trim();
@@ -68,6 +119,10 @@ export function sanitizeLandingAuthReturnTo(
       BLOCKED_INTERNAL_PATH.test(candidate.pathname)
     ) {
       return fallback;
+    }
+
+    if (candidate.origin === options.currentOrigin && isDashboardPath(candidate.pathname)) {
+      return dashboardPathReturnTo(candidate, dashboardBaseUrl);
     }
 
     if (candidate.origin === options.currentOrigin && isAllowedInternalPath(candidate.pathname)) {
