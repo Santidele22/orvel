@@ -130,7 +130,10 @@ async function materializePendingSignup(
         first_name: intent.first_name,
         last_name: intent.last_name,
         phone: intent.phone,
-        onboarding_completed: true,
+        plan: intent.plan_code,
+        onboarding_required: true,
+        onboarding_completed: false,
+        onboardingCompleted: false,
         source: "paid_signup_payment_approved",
       },
     });
@@ -169,11 +172,10 @@ async function materializePendingSignup(
 
   await supabaseAdmin.from("business_onboarding_state").upsert({
     business_id: business.id,
-    current_step: "dashboard_ready",
+    current_step: "onboarding_required",
     selected_plan_code: intent.plan_code,
     account_user_id: createdUser.user.id,
     business_type: intent.business_type,
-    dashboard_ready_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
 

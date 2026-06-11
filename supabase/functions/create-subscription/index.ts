@@ -18,6 +18,10 @@ import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts
 import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
 import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 import { buildAppUrl } from "../_shared/orvel-url.ts";
+import {
+  getBearerToken,
+  shouldValidateCreateSubscriptionAuthorization,
+} from "../_shared/create-subscription-auth.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -237,7 +241,26 @@ Deno.serve(async (req) => {
 
   try {
     // =============================================================================
-    // 1. VERIFY USER AUTHENTICATION (Optional for anonymous subscription)
+    // 1. PARSE AND VALIDATE REQUEST SHAPE
+    // =============================================================================
+    let body: SubscriptionRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({
+          error: "INVALID_JSON",
+          message: "Cuerpo de solicitud inválido",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // =============================================================================
+    // 2. VERIFY USER AUTHENTICATION (Optional for anonymous pending signup)
     // =============================================================================
     const authHeader = req.headers.get("Authorization");
     let user = null;
@@ -249,8 +272,14 @@ Deno.serve(async (req) => {
       requireServerSecret("SUPABASE_SERVICE_ROLE_KEY"),
     );
 
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
+    if (
+      shouldValidateCreateSubscriptionAuthorization({
+        authHeader,
+        requestBody: body,
+        supabaseAnonKey: Deno.env.get("SUPABASE_ANON_KEY"),
+      })
+    ) {
+      const token = getBearerToken(authHeader || "");
 
       // Verify JWT and get user
       const { data: { user: authUser }, error: authError } = await supabaseAdmin
@@ -306,22 +335,6 @@ Deno.serve(async (req) => {
     // =============================================================================
     // 3. PARSE AND VALIDATE REQUEST
     // =============================================================================
-    let body: SubscriptionRequest;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(
-        JSON.stringify({
-          error: "INVALID_JSON",
-          message: "Cuerpo de solicitud inválido",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const { plan_code, tier } = body;
     const pendingSignupIntent =
       body.mode === "pending_signup_intent" || body.pending_signup_intent
@@ -596,11 +609,11 @@ Deno.serve(async (req) => {
       | null = null;
 
     if (isPendingSignupIntent) {
-      if (!pendingSignupEmail || !pendingSignupBusinessType) {
+      if (!pendingSignupEmail) {
         return new Response(
           JSON.stringify({
-            error: "PENDING_SIGNUP_BUSINESS_REQUIRED",
-            message: "Pending signup intent requires email and business_type",
+            error: "PENDING_SIGNUP_EMAIL_REQUIRED",
+            message: "Pending signup intent requires email",
           }),
           {
             status: 400,
@@ -631,7 +644,7 @@ Deno.serve(async (req) => {
             ? pendingSignupIntent.selected_business_types.map((item) =>
               sanitizeIntentText(item, 80)
             ).filter(Boolean)
-            : [pendingSignupBusinessType],
+            : pendingSignupBusinessType ? [pendingSignupBusinessType] : [],
         plan_code: plan.code,
         billing_period: requestedCadence,
         status: "created",
