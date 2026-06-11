@@ -141,6 +141,33 @@ describe('RED Contract: Google OAuth signup onboarding flow', () => {
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
+  it('OAuth onboarding callback lets explicit FREE plan override a stale paid signup intent', async () => {
+    const intentStore = createIntentStore({
+      consume: vi.fn(async () => ({
+        id: 'signup-intent-growth-google',
+        plan: 'GROWTH',
+        provider: 'google',
+        expiresAt: NOW + 5 * 60_000
+      }))
+    });
+    const exchangeCodeForSession = vi.fn(async () => ({
+      user: { id: 'user-free-google', email: 'free@orvel.app' }
+    }));
+
+    const result = await handleOAuthOnboardingCallback({
+      url: `${ORIGIN}/auth/oauth/onboarding-callback?code=oauth-code&signup_intent=signup-intent-growth-google&plan=FREE`,
+      intentStore,
+      exchangeCodeForSession,
+      fallbackPlan: 'GROWTH',
+      now: NOW
+    });
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith('oauth-code');
+    expect(result.plan).toBe('FREE');
+    expect(result.redirectTo).toContain('plan=FREE');
+    expect(result.redirectTo).not.toContain('plan=GROWTH');
+  });
+
   it('OAuth onboarding callback still allows free signup intents to exchange provider code', async () => {
     const intentStore = createIntentStore({
       consume: vi.fn(async () => ({
@@ -403,7 +430,8 @@ describe('RED Contract: Google OAuth signup onboarding flow', () => {
     expect(sendWelcomeEmail).toHaveBeenCalledWith({ email: 'santi@orvel.app', plan: 'GROWTH' });
     expect(events).toEqual(['persist', 'welcome-email']);
     expect(result.showAccountCreatedModal).toBe(true);
-    expect(result.nextRoute).toMatch(/^\/login\?/);
+    expect(result.nextRoute).toMatch(/^\/auth\/login\?/);
+    expect(result.nextRoute).not.toMatch(/^\/login(?:[?#/]|$)/);
     expect(result.nextRoute).not.toContain('email=');
     expect(result.nextRoute).not.toMatch(/^\/dashboard/);
   });

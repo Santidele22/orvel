@@ -101,11 +101,20 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     const paidPlanReturnTo = '/billing/subscription?plan=STARTER';
 
     expect(sanitizeLandingAuthReturnTo(paidPlanReturnTo, { currentOrigin: 'https://orvel.pro' })).toBe(paidPlanReturnTo);
-    expect(sanitizeLandingAuthReturnTo(`/auth/callback?returnTo=${encodeURIComponent(paidPlanReturnTo)}`, { currentOrigin: 'https://orvel.pro' })).toBe('/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=oauth-code', { currentOrigin: 'https://orvel.pro' })).toBe('/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo(`/auth/callback?returnTo=${encodeURIComponent(paidPlanReturnTo)}`, { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=oauth-code', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo(null, { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/turnos?view=week');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/turnos?view=week');
 
     expect(login).toContain('sanitizeLandingAuthReturnTo');
+    expect(login).toContain('callbackUrl.searchParams.set(\'returnTo\', returnTo)');
+    expect(login).toContain('attempt: { email, password, returnTo }');
     expect(callback).toContain('sanitizeLandingAuthReturnTo');
+    expect(callback).toContain('window.location.href = returnTo');
   });
 });

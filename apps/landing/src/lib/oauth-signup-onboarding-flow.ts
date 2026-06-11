@@ -36,23 +36,8 @@ type HandleOAuthOnboardingCallbackInput = {
   now?: number;
 };
 
-type CompleteOAuthBusinessTypeOnboardingInput = {
-  userId: string;
-  email: string;
-  plan: string;
-  businessType: string;
-  persistOnboarding: (payload: {
-    userId: string;
-    plan: string;
-    businessType: string;
-    onboardingCompleted: true;
-  }) => Promise<{ userId: string; email?: string | null }>;
-  sendWelcomeEmail?: (payload: { email: string; plan: string; idempotencyKey?: string }) => Promise<void>;
-};
-
 const SIGNUP_INTENT_TTL_MS = 5 * 60_000;
-const BUSINESS_TYPE_SELECTION_ROUTE = '/auth/signup/business-type';
-const LOGIN_AFTER_OAUTH_ONBOARDING_ROUTE = '/login?account_created=true&provider=google';
+const SIGNUP_COMPLETION_ROUTE = '/auth/signup/complete';
 const DEFAULT_OAUTH_SIGNUP_PLAN = 'STARTED';
 
 const PLAN_ALIASES: Record<string, string> = {
@@ -63,8 +48,6 @@ const PLAN_ALIASES: Record<string, string> = {
 };
 const CANONICAL_OAUTH_SIGNUP_PLANS = new Set(['FREE', 'STARTED', 'GROWTH', 'PRO']);
 const PAID_OAUTH_SIGNUP_PLANS = new Set(['BASIC', 'STARTER', 'STARTED', 'MEDIUM', 'GROWTH', 'PRO']);
-
-const VALID_BUSINESS_TYPES = new Set(['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro']);
 
 export type OAuthOnboardingErrorCode =
   | 'missing_provider_code'
@@ -113,31 +96,6 @@ function safeOrigin(rawOrigin: string): string {
   }
 
   return origin;
-}
-
-function normalizeBusinessType(rawBusinessType: string): string {
-  const businessType = rawBusinessType.trim().toLowerCase();
-  if (!VALID_BUSINESS_TYPES.has(businessType)) {
-    throw new Error('OAuth onboarding requires a valid business type before completion.');
-  }
-
-  return businessType;
-}
-
-function buildWelcomeEmailPayload(input: { userId: string; email: string; plan: string; businessType: string }) {
-  const payload = {
-    email: input.email,
-    plan: input.plan
-  };
-
-  Object.defineProperty(payload, 'idempotencyKey', {
-    value: `oauth-google-welcome:${input.userId}:${input.plan}:${input.businessType}`,
-    enumerable: false,
-    configurable: false,
-    writable: false
-  });
-
-  return payload as { email: string; plan: string; idempotencyKey: string };
 }
 
 export function createBrowserOAuthSignupIntentStore(storage: Storage): OAuthSignupIntentStore {
@@ -217,15 +175,22 @@ export async function handleOAuthOnboardingCallback(input: HandleOAuthOnboarding
     throw new OAuthOnboardingError('missing_or_expired_intent', 'OAuth signup intent is missing or expired.');
   }
 
-  const urlPlan = callbackUrl.searchParams.get('plan') || input.fallbackPlan;
-  if (isPaidOAuthSignupPlan(intent.plan) || isPaidOAuthSignupPlan(urlPlan)) {
+  const explicitUrlPlan = normalizeOAuthSignupPlan(callbackUrl.searchParams.get('plan'));
+  const fallbackPlan = normalizeOAuthSignupPlan(input.fallbackPlan);
+  const intentPlan = normalizeOAuthSignupPlan(intent.plan);
+  const plan = explicitUrlPlan ?? intentPlan ?? fallbackPlan ?? DEFAULT_OAUTH_SIGNUP_PLAN;
+  const explicitFreePlan = explicitUrlPlan === 'FREE';
+
+  if (
+    isPaidOAuthSignupPlan(plan) ||
+    (!explicitFreePlan && (isPaidOAuthSignupPlan(intent.plan) || isPaidOAuthSignupPlan(input.fallbackPlan)))
+  ) {
     throw new OAuthOnboardingError(
       'paid_oauth_signup_blocked',
       'Google OAuth signup is not available before payment for paid plans.'
     );
   }
 
-  const plan = canonicalPlan(intent.plan);
   const session = code
     ? await input.exchangeCodeForSession(code)
     : await input.getCurrentSessionUser?.();
@@ -234,7 +199,7 @@ export async function handleOAuthOnboardingCallback(input: HandleOAuthOnboarding
     throw new OAuthOnboardingError('missing_provider_code', 'OAuth onboarding callback is missing the provider code.');
   }
 
-  const redirectTo = new URL(BUSINESS_TYPE_SELECTION_ROUTE, 'https://orvel.local');
+  const redirectTo = new URL(SIGNUP_COMPLETION_ROUTE, 'https://orvel.local');
   redirectTo.searchParams.set('plan', plan);
   redirectTo.searchParams.set('signup_intent', intent.id);
   redirectTo.searchParams.set('oauth', 'google');
@@ -243,43 +208,5 @@ export async function handleOAuthOnboardingCallback(input: HandleOAuthOnboarding
     redirectTo: `${redirectTo.pathname}${redirectTo.search}`,
     user: session.user,
     plan
-  };
-}
-
-export function buildBusinessTypeCompletionRedirect(currentUrl: string) {
-  const source = new URL(currentUrl);
-  const target = new URL('/auth/signup/complete', source.origin);
-  source.searchParams.forEach((value, key) => target.searchParams.set(key, value));
-
-  return `${target.pathname}${target.search}`;
-}
-
-export async function completeOAuthBusinessTypeOnboarding(input: CompleteOAuthBusinessTypeOnboardingInput) {
-  const plan = canonicalPlan(input.plan);
-  const businessType = normalizeBusinessType(input.businessType);
-
-  const persisted = await input.persistOnboarding({
-    userId: input.userId,
-    plan,
-    businessType,
-    onboardingCompleted: true
-  });
-
-  const email = persisted.email?.trim() || input.email.trim();
-  if (input.sendWelcomeEmail && email) {
-    await input.sendWelcomeEmail(
-      buildWelcomeEmailPayload({
-        userId: persisted.userId || input.userId,
-        email,
-        plan,
-        businessType
-      })
-    );
-  }
-
-  const nextRoute = new URL(LOGIN_AFTER_OAUTH_ONBOARDING_ROUTE, 'https://orvel.local');
-  return {
-    showAccountCreatedModal: true,
-    nextRoute: `${nextRoute.pathname}${nextRoute.search}`
   };
 }

@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
 
+import { appendSupabaseAuthorizationHeader } from "../../../lib/supabaseAuthorization";
+
 const ALLOWED_PLANS = new Set(["STARTER", "GROWTH", "PRO"]);
 const FALLBACK_PATH = "/billing/subscription";
 
@@ -102,31 +104,34 @@ async function startSubscription(request: Request, plan: string | null, idempote
     "x-client-info": "orvel-landing-server-subscription-start",
   };
 
-  if (authorization) {
-    headers.Authorization = authorization;
-  }
+  appendSupabaseAuthorizationHeader(headers, authorization, supabaseAnonKey);
   if (normalizedIdempotencyKey) {
     headers["X-Idempotency-Key"] = normalizedIdempotencyKey;
   }
 
   try {
+    const effectiveEmail = email || pendingSignupIntent?.email || null;
+    const effectiveBusinessType = businessType || pendingSignupIntent?.business_type || null;
+    const effectiveNombre = nombre || pendingSignupIntent?.nombre || null;
+    const effectiveApellido = apellido || pendingSignupIntent?.apellido || null;
+    const effectiveTelefono = telefono || pendingSignupIntent?.telefono || null;
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({ 
         plan_code: plan, 
         plan_identifier: plan,
-        email,
+        email: effectiveEmail,
         cadence: normalizeBillingPeriod(billingPeriod || pendingSignupIntent?.billing_period),
         billing_period: normalizeBillingPeriod(billingPeriod || pendingSignupIntent?.billing_period),
         business_type: businessType,
-        nombre,
-        apellido,
-        telefono,
+        nombre: effectiveNombre,
+        apellido: effectiveApellido,
+        telefono: effectiveTelefono,
         mode: pendingSignupIntent ? "pending_signup_intent" : "existing_user",
         pending_signup_intent: pendingSignupIntent ? {
           ...pendingSignupIntent,
-          email,
+          email: effectiveEmail,
           business_type: businessType,
           plan_code: plan,
           billing_period: normalizeBillingPeriod(billingPeriod || pendingSignupIntent.billing_period)

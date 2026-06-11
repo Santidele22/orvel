@@ -54,23 +54,23 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     expect(source.indexOf("const plan = normalizeSelectedPlan")).toBeLessThan(source.indexOf("backBtn.href"));
   });
 
-  it('sends paid plan completions to deferred subscription after onboarding data is available', async () => {
+  it('sends paid plan completions to Mercado Pago before dashboard onboarding completion', async () => {
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(source).toContain("const isPaidPlan = plan !== 'FREE'");
     expect(source).toContain('/billing/subscription?plan=');
     expect(source).toContain('&billing=');
-    expect(source.indexOf('completeOAuthBusinessTypeOnboarding')).toBeLessThan(source.indexOf('window.location.href = returnTo'));
+    expect(source).toMatch(/pendingSignupIntent|pending_signup_intent|pending_signup/i);
     expect(source).toContain("const returnTo = isPaidPlan");
-    expect(source).toMatch(/dashboard\/inicio/);
+    expect(source).not.toMatch(/completeOAuthBusinessTypeOnboarding[\s\S]{0,800}window\.location\.href = returnTo/);
   });
 
-  it('preserves selected billing period through credentials, business type, complete and subscription handoff', async () => {
+  it('preserves selected billing period through credentials, payment, dashboard onboarding and subscription handoff', async () => {
     const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(credentialsSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
-    expect(credentialsSource).toContain('/auth/signup/business-type?plan=');
+    expect(credentialsSource).not.toContain('/auth/signup/business-type?plan=');
     expect(credentialsSource).toContain('&billing=');
     expect(completeSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
     expect(completeSource).toContain("params.set('billing', billing)");
@@ -110,7 +110,7 @@ describe('Contract: same-origin subscription start endpoint', () => {
 
     expect(source).toMatch(/export\s+const\s+POST\s*:\s*APIRoute/);
     expect(source).toContain('request.headers.get("Authorization")');
-    expect(source).toContain('headers.Authorization = authorization');
+    expect(source).toContain('appendSupabaseAuthorizationHeader(headers, authorization, supabaseAnonKey)');
     expect(source).toContain('jsonResponse({ init_point: result.initPoint })');
     expect(source).toContain('body: JSON.stringify({');
     expect(source).toContain('plan_code: plan,');
@@ -141,6 +141,8 @@ describe('Contract: subscription status polling endpoint', () => {
     expect(source).toMatch(/export\s+const\s+GET\s*:\s*APIRoute/);
     expect(source).toContain('subscription-status');
     expect(source).toContain('subscription_session_id');
+    expect(source).toContain("request.headers.get('Authorization')");
+    expect(source).toContain('appendSupabaseAuthorizationHeader(headers, authorization, supabaseAnonKey)');
   });
 });
 

@@ -367,20 +367,25 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
 
-    // Approved subscription — hand off to dashboard auth for session/entitlement
+    const buildDashboardOnboardingHandoffUrl = () => {
+      const configuredDashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+      const dashboardOrigin = configuredDashboardOrigin
+        || (window.location.hostname === 'localhost' && window.location.port === '3000'
+          ? window.location.origin
+          : 'http://localhost:4200');
+      const onboardingUrl = new URL('/auth/onboarding', dashboardOrigin);
+      onboardingUrl.searchParams.set('onboarding_required', 'true');
+      onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio');
+      onboardingUrl.searchParams.set('source', 'subscription');
+      onboardingUrl.searchParams.set('plan', plan);
+      onboardingUrl.searchParams.set('billing', billing);
+      return onboardingUrl.toString();
+    };
+
+    // Approved/materialized subscription — route to dashboard onboarding.
     // Backend/Supabase/functions/webhooks are source of truth; query params are UX only.
     if (paymentStatus === 'approved') {
-      (async () => {
-        const { buildDashboardAuthUrl } = await import('../../lib/dashboard-auth-handoff');
-        const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL || 'http://localhost:4200';
-        const handoffUrl = buildDashboardAuthUrl({
-          dashboardOrigin,
-          mode: 'login',
-          source: 'subscription',
-          returnTo: '/dashboard/inicio?from=subscription'
-        });
-        window.location.href = handoffUrl;
-      })();
+      window.location.href = buildDashboardOnboardingHandoffUrl();
     }
 
     const subscriptionAttemptKey = `orvel.subscription.attempt.${plan}`;
@@ -406,17 +411,10 @@ import Layout from '../../layouts/Layout.astro';
         const result = await response.json().catch(() => null);
 
         const normalizedStatus = `${result?.status || result?.payment_status || ''}`.toLowerCase();
-        if (normalizedStatus === 'approved' || normalizedStatus === 'active') {
+        const accountMaterialized = result?.account_materialized === true || result?.materialized === true;
+        if (normalizedStatus === 'approved' || normalizedStatus === 'active' || accountMaterialized) {
           sessionStorage.removeItem(subscriptionAttemptKey);
-          const { buildDashboardAuthUrl } = await import('../../lib/dashboard-auth-handoff');
-          const dashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL || 'http://localhost:4200';
-          const handoffUrl = buildDashboardAuthUrl({
-            dashboardOrigin,
-            mode: 'login',
-            source: 'subscription',
-            returnTo: '/dashboard/inicio?from=subscription'
-          });
-          window.location.href = handoffUrl;
+          window.location.href = buildDashboardOnboardingHandoffUrl();
           return;
         }
 
