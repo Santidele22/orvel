@@ -78,26 +78,41 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
     expect(Object.keys(validation.fieldErrors).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('updates plan hints when selecting FREE vs premium tiers', () => {
+  it('keeps plan hints at one included salon for every base tier', () => {
     const free = getPlanUxContract('FREE');
     const basic = getPlanUxContract('BASIC');
     const medium = getPlanUxContract('MEDIUM');
     const pro = getPlanUxContract('PRO');
 
-    expect(free.maxSalons).toBe(1);
-    expect(basic.maxSalons).toBeGreaterThanOrEqual(3);
-    expect(medium.maxSalons).toBeGreaterThanOrEqual(4);
-    expect(pro.maxSalons).toBeGreaterThanOrEqual(5);
-    expect(free.salonNamesHint).not.toEqual(pro.salonNamesHint);
+    for (const contract of [free, basic, medium, pro]) {
+      expect(contract.maxSalons).toBe(1);
+      expect(contract.multiSalonEnabled).toBe(false);
+      expect(contract.salonNamesHint).toMatch(/1 salón incluido|1 local incluido/i);
+      expect(contract.salonNamesHint).toMatch(/add-on|adicionales|consult/i);
+      expect(contract.salonNamesHint).not.toMatch(/premium.*multi-sucursal/i);
+    }
   });
 
-  it('exposes premium multi-salon input contract (enabled + bounded by tier limits)', () => {
-    const free = getPlanUxContract('FREE');
-    const premium = getPlanUxContract('PRO');
+  it('does not enable premium multi-salon input without an explicit add-on model', () => {
+    const premiumPlans = ['BASIC', 'MEDIUM', 'PRO'] as const;
 
-    expect(free.multiSalonEnabled).toBe(false);
-    expect(premium.multiSalonEnabled).toBe(true);
-    expect(premium.maxSalons).toBeGreaterThan(1);
+    for (const plan of premiumPlans) {
+      const contract = getPlanUxContract(plan);
+      expect(contract.multiSalonEnabled).toBe(false);
+      expect(contract.maxSalons).toBe(1);
+    }
+  });
+
+  it('rejects multiple salon names for paid base plans until add-on support is modeled', () => {
+    const validation = validateOnboardingDraft(
+      makeValidDraft({
+        selectedPlan: 'PRO',
+        salonNames: ['Salon Centro', 'Salon Norte']
+      })
+    );
+
+    expect(validation.valid).toBe(false);
+    expect(validation.fieldErrors.salonNames).toMatch(/1 salon|1 salón|maximum/i);
   });
 
   it('blocks submit until the draft is fully valid', () => {

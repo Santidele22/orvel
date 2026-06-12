@@ -19,6 +19,8 @@ export const BILLING_ALLOWED_HEADERS = [
   "content-type",
   "x-signature",
   "x-request-id",
+  "idempotency-key",
+  "x-idempotency-key",
   "x-timestamp",
   "x-cron-key",
 ].join(", ");

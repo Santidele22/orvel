@@ -88,7 +88,7 @@ export async function canAccessDashboardAsync(): Promise<{ allowed: boolean; red
 - This protects against XSS attacks where an attacker gains localStorage access.
 
 ### 8. Session Validation
-- `validateSessionSchema()` checks the TurneaSession contract:
+- `validateSessionSchema()` checks the Orvel legacy local session compatibility contract. This contract is retained only for cleanup/migration tests; dashboard authorization must come from Supabase session state:
   - Version must be `'v1'`.
   - Token must be a non-empty string.
   - `issuedAt` / `expiresAt` must be finite numbers.

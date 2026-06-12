@@ -88,11 +88,13 @@ If credentials, project ref, or environment context are missing, stop and ask Sa
 
 - Communicate with **Santi in Spanish**.
 - Communicate **agent-to-agent in English**.
-- **Tyrion orchestrates and delegates**; specialists implement their scoped work.
+- **R2-D2 orchestrates and delegates only**; specialists implement their scoped work. `Tyrion` is only a compatibility alias in older notes.
 - Use the right specialist: Magnus for backend/core, Aurora for frontend, Bruno for QA/tests, Gabriela for security, Daedalus for architecture, Almendra for documentation/agent knowledge.
 - Do not push directly to `main`.
 - Use branch/PR workflow unless Santi explicitly says otherwise.
-- Do not commit generated artifacts, private metadata, secrets, `.funemon/`, local caches, or unrelated user changes.
+- Follow SDD/TDD: spec/design first, QA-owned red tests before implementation, then Red-Green-Refactor.
+- Do not commit generated artifacts, private metadata, secrets, `.funemon/`, `.funemon/plans/current.norg`, local caches, or unrelated user changes.
+- Keep OpenCode/Gemini/global client configuration outside this repo unless Santi explicitly asks for project-local config.
 - Preserve existing uncommitted work; inspect status before editing.
 
 ## Testing Gates

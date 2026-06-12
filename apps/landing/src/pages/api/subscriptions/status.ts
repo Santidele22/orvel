@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro';
 
+import { appendSupabaseAuthorizationHeader } from '../../../lib/supabaseAuthorization';
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -31,7 +33,7 @@ export const GET: APIRoute = async ({ request }) => {
     'x-client-info': 'orvel-landing-server-subscription-status'
   };
 
-  if (authorization) headers.Authorization = authorization;
+  appendSupabaseAuthorizationHeader(headers, authorization, supabaseAnonKey);
 
   try {
     const upstream = await fetch(endpoint, { method: 'GET', headers });
@@ -47,7 +49,7 @@ export const GET: APIRoute = async ({ request }) => {
       );
     }
 
-    return jsonResponse(payload || { status: 'pending' }, 200);
+    return jsonResponse(payload || { status: 'pending', materialized: false, account_materialized: false }, 200);
   } catch {
     return jsonResponse({ error: 'status_unavailable', message: 'Estado temporalmente no disponible.' }, 503);
   }

@@ -5,12 +5,12 @@ import { join, extname } from 'node:path';
 const TEST_DEMO_USER_EMAIL = 'demo@orvel.local';
 const TEST_DEMO_USER_PASSWORD = 'demo-password';
 
-const ONBOARDING_TITLE = 'Tipo de Negocio';
-const ONBOARDING_SUBTITLE = 'Defina la categoría de su establecimiento para adaptar las herramientas de gestión.';
+const ONBOARDING_TITLE = 'Tu Rubro.';
+const ONBOARDING_SUBTITLE = 'Seleccioná las categorías de tu negocio.';
 const ONBOARDING_PLAN_LIMIT = 'Paso 3 de 3';
-const ONBOARDING_HELPER = 'THE ETHEREAL WORKSHOP';
+const ONBOARDING_HELPER = 'Personalizá tu experiencia.';
 const ONBOARDING_RULE =
-  'Personalice su espacio digital. Seleccione la esencia de su negocio para comenzar la curaduría de su atelier.';
+  'Elegí las categorías que mejor describen tu salón para adaptar las herramientas.';
 const ONBOARDING_CTA = 'FINALIZAR CONFIGURACIÓN';
 
 const REQUIRED_OPTIONS = ['Peluquería', 'Uñas', 'Barbería'] as const;
@@ -122,7 +122,7 @@ describe('Contract: onboarding landing step for business services', () => {
 
     expect(onboardingCandidates.length, 'Missing onboarding UI source to validate accessibility basics.').toBeGreaterThan(0);
 
-    const hasFieldsetLegend = /<form[\s\S]*?Tipo de Negocio/i.test(source);
+    const hasFieldsetLegend = /<form[\s\S]*?Tu Rubro\./i.test(source);
     const hasEquivalentGroup = /role\s*=\s*["']group["'][\s\S]*?(aria-label|aria-labelledby)/i.test(source) || /id\s*=\s*["']completeForm["']/i.test(source);
     expect(
       hasFieldsetLegend || hasEquivalentGroup,

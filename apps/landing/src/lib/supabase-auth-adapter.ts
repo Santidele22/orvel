@@ -45,6 +45,26 @@ export type SupabaseAdapterResult =
       error: string;
     };
 
+export type SupabaseOAuthAdapterResult =
+  | {
+      ok: true;
+      redirectTo?: string;
+    }
+  | {
+      ok: false;
+      code?: 'unavailable' | 'unknown';
+      error: string;
+      oauthDiagnostics?: SupabaseOAuthRedirectDiagnostics;
+    };
+
+export type SupabaseOAuthRedirectDiagnostics = {
+  urlOrigin: string | null;
+  urlPathname: string | null;
+  redirectTo: string | null;
+  redirectToOrigin: string | null;
+  redirectToPathname: string | null;
+};
+
 export type SupabaseAuthEnv = {
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
@@ -56,6 +76,8 @@ export type SupabaseAuthDependencies = {
 };
 
 export const ORVEL_SUPABASE_AUTH_STORAGE_KEY = 'orvel.supabase.auth';
+const MISSING_SUPABASE_CONFIG_ERROR =
+  'Autenticación no configurada: faltan PUBLIC_SUPABASE_URL o PUBLIC_SUPABASE_ANON_KEY.';
 
 type OAuthExchangeDiagnostics = {
   name: string;
@@ -143,10 +165,16 @@ const CANONICAL_PLAN_CODES = ['STARTED', 'GROWTH', 'PRO'] as const;
 const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro', 'pendiente'] as const;
 
 function normalizeSignupPlan(plan: unknown): (typeof CANONICAL_PLAN_CODES)[number] | null {
-  const normalizedPlan = normalizeOAuthSignupPlan(plan);
+  const normalizedPlan = typeof plan === 'string' && plan.trim().toUpperCase() === 'FREE'
+    ? 'STARTED'
+    : normalizeOAuthSignupPlan(plan);
   return (CANONICAL_PLAN_CODES as readonly string[]).includes(normalizedPlan ?? '')
     ? (normalizedPlan as (typeof CANONICAL_PLAN_CODES)[number])
     : null;
+}
+
+function normalizeOAuthStartPlan(plan: unknown): string | null {
+  return normalizeOAuthSignupPlan(plan);
 }
 
 function normalizeBusinessType(tipoNegocio: unknown): (typeof ALLOWED_ONBOARDING_BUSINESS_TYPES)[number] | null {
@@ -174,6 +202,14 @@ function resolveRedirectOrigin(redirectTo: string): string {
   }
 }
 
+function resolveOAuthRedirectTo(redirectTo: string): string {
+  try {
+    return new URL(redirectTo, resolveRedirectOrigin(redirectTo)).toString();
+  } catch {
+    return redirectTo;
+  }
+}
+
 function isCanonicalLoginCallback(redirectTo: string): boolean {
   try {
     return new URL(redirectTo, resolveRedirectOrigin(redirectTo)).pathname === '/auth/callback';
@@ -187,6 +223,79 @@ function buildOAuthOnboardingRedirect(redirectTo: string): string {
   const onboardingUrl = new URL('/auth/onboarding', origin);
   onboardingUrl.searchParams.set('returnTo', redirectTo);
   return onboardingUrl.toString();
+}
+
+export function parseSupabaseOAuthRedirectDiagnostics(url: string | null | undefined): SupabaseOAuthRedirectDiagnostics {
+  if (!url) {
+    return { urlOrigin: null, urlPathname: null, redirectTo: null, redirectToOrigin: null, redirectToPathname: null };
+  }
+
+  try {
+    const parsed = new URL(url);
+    const redirectTo = parsed.searchParams.get('redirect_to');
+    if (!redirectTo) {
+      return {
+        urlOrigin: parsed.origin,
+        urlPathname: parsed.pathname,
+        redirectTo: null,
+        redirectToOrigin: null,
+        redirectToPathname: null
+      };
+    }
+
+    try {
+      const parsedRedirectTo = new URL(redirectTo);
+      return {
+        urlOrigin: parsed.origin,
+        urlPathname: parsed.pathname,
+        redirectTo,
+        redirectToOrigin: parsedRedirectTo.origin,
+        redirectToPathname: parsedRedirectTo.pathname
+      };
+    } catch {
+      return {
+        urlOrigin: parsed.origin,
+        urlPathname: parsed.pathname,
+        redirectTo,
+        redirectToOrigin: null,
+        redirectToPathname: null
+      };
+    }
+  } catch {
+    return { urlOrigin: null, urlPathname: null, redirectTo: null, redirectToOrigin: null, redirectToPathname: null };
+  }
+}
+
+function validateLocalProxyOAuthRedirect(requestedRedirectTo: string, returnedUrl: string): SupabaseOAuthAdapterResult | null {
+  let requested: URL;
+  try {
+    requested = new URL(requestedRedirectTo);
+  } catch {
+    return null;
+  }
+
+  if (requested.origin !== 'http://localhost:3000' || requested.pathname !== '/auth/callback') {
+    return null;
+  }
+
+  const diagnostics = parseSupabaseOAuthRedirectDiagnostics(returnedUrl);
+  if (
+    diagnostics.redirectToOrigin === requested.origin &&
+    diagnostics.redirectToPathname === requested.pathname
+  ) {
+    return null;
+  }
+
+  if (!diagnostics.redirectToOrigin || !diagnostics.redirectToPathname) {
+    return null;
+  }
+
+  return {
+    ok: false,
+    code: 'unknown',
+    error: `Supabase OAuth devolvió redirect_to=${diagnostics.redirectToOrigin}${diagnostics.redirectToPathname} pero el proxy local necesita ${requested.origin}${requested.pathname}. Agregá http://localhost:3000/auth/callback a Supabase Auth URL allowlist y usá el proxy como Site URL local.`,
+    oauthDiagnostics: diagnostics
+  };
 }
 
 function getBrowserSignupIntentStore(dependencies: SupabaseAuthDependencies): OAuthSignupIntentStore | null {
@@ -213,7 +322,7 @@ export function createSupabaseLoginAdapter(
     return async () => ({
       ok: false,
       code: 'unavailable',
-      error: 'Supabase no está configurado en el entorno.'
+      error: MISSING_SUPABASE_CONFIG_ERROR
     });
   }
 
@@ -289,7 +398,7 @@ export function createSupabaseSignupAdapter(
     return async () => ({
       ok: false,
       code: 'unavailable',
-      error: 'Supabase no está configurado en el entorno.'
+      error: MISSING_SUPABASE_CONFIG_ERROR
     });
   }
 
@@ -408,21 +517,24 @@ export function createSupabaseOAuthAdapter(
     return async () => ({
       ok: false,
       code: 'unavailable',
-      error: 'Supabase no está configurado en el entorno.'
+      error: MISSING_SUPABASE_CONFIG_ERROR
     });
   }
 
   const client = dependencies.createClient(config.url, config.anonKey, createSupabaseBrowserAuthOptions());
 
-  return async (provider: 'google', input: string | { redirectTo: string; plan?: unknown; tipoNegocio?: unknown }) => {
+  return async (
+    provider: 'google',
+    input: string | { redirectTo: string; plan?: unknown; tipoNegocio?: unknown }
+  ): Promise<SupabaseOAuthAdapterResult> => {
     try {
-      const redirectTo = typeof input === 'string' ? input : input.redirectTo;
+      const redirectTo = resolveOAuthRedirectTo(typeof input === 'string' ? input : input.redirectTo);
       const isLoginCallback = isCanonicalLoginCallback(redirectTo);
       const hasCompleteOnboarding =
         typeof input !== 'string' &&
         normalizeSignupPlan(input.plan) !== null &&
         normalizeBusinessType(input.tipoNegocio) !== null;
-      const selectedPlan = typeof input !== 'string' ? normalizeSignupPlan(input.plan) : null;
+      const selectedPlan = typeof input !== 'string' ? normalizeOAuthStartPlan(input.plan) : null;
       const signupIntentStore = selectedPlan && !hasCompleteOnboarding ? getBrowserSignupIntentStore(dependencies) : null;
 
       const oauthOptions = signupIntentStore
@@ -442,7 +554,7 @@ export function createSupabaseOAuthAdapter(
                 }
           };
 
-      const { error } = await client.auth.signInWithOAuth({
+      const { data, error } = await client.auth.signInWithOAuth({
         provider,
         options: oauthOptions
       });
@@ -451,9 +563,15 @@ export function createSupabaseOAuthAdapter(
         return { ok: false, error: error.message };
       }
 
+      if (typeof data?.url === 'string' && data.url.trim()) {
+        const localProxyGuard = validateLocalProxyOAuthRedirect(redirectTo, data.url);
+        if (localProxyGuard) return localProxyGuard;
+        return { ok: true, redirectTo: data.url };
+      }
+
       return { ok: true };
     } catch {
-      return { ok: false, error: 'OAuth no disponible' };
+      return { ok: false, code: 'unavailable', error: 'OAuth no disponible' };
     }
   };
 }

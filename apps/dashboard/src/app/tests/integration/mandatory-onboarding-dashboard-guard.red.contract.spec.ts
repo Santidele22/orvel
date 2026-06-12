@@ -196,7 +196,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     const result = await canAccessDashboardAsync(now);
 
     expect(result.allowed).toBe(false);
-    expect(result.redirectTo).toMatch(/^\/auth\/login\?returnTo=|^\/auth\/onboarding\?/);
+    expect(result.redirectTo).toMatch(/^https:\/\/orvel\.pro\/auth\/login\?returnTo=|^\/auth\/onboarding\?/);
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 

@@ -6,14 +6,49 @@ import { SignupCredentialsPageComponent } from './pages/auth/signup-credentials.
 import {
   onboardingAccountGuard,
   onboardingBusinessTypesGuard,
-  onboardingLoginGuard,
   onboardingWelcomeGuard
 } from './features/onboarding/data-access/onboarding-flow.guard';
+
+export const dashboardShellChildren: Routes = [
+  {
+    path: '',
+    redirectTo: 'inicio',
+    pathMatch: 'full'
+  },
+  {
+    path: 'inicio',
+    loadComponent: () => import('./features/dashboard-home/pages/dashboard-home.page').then(m => m.DashboardHomeComponent)
+  },
+  {
+    path: 'turnos',
+    loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
+  },
+  {
+    path: 'turnos/new',
+    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
+  },
+  {
+    path: 'turnos/edit/:id',
+    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
+  },
+  {
+    path: 'servicios',
+    loadComponent: () => import('./features/servicios/pages/servicios.page').then(m => m.ServiciosPage)
+  },
+  {
+    path: 'clientes',
+    loadComponent: () => import('./features/clientes/pages/clientes.page').then(m => m.ClientesPage)
+  },
+  {
+    path: 'configuracion',
+    loadComponent: () => import('./features/settings/pages/configuracion.page').then(m => m.ConfiguracionPage)
+  }
+];
 
 export const routes: Routes = [
   {
     path: 'auth',
-    redirectTo: '/auth/login',
+    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage),
     pathMatch: 'full',
     data: { normalizeDashboardAuthRequest }
   },
@@ -24,8 +59,7 @@ export const routes: Routes = [
   },
   {
     path: 'auth/login',
-    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage),
-    canActivate: [onboardingLoginGuard]
+    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage)
   },
   {
     path: 'auth/signup/plan',
@@ -48,6 +82,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
     canActivate: [onboardingWelcomeGuard]
+  },
+  {
+    path: 'auth/onboarding',
+    loadComponent: () =>
+      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent)
   },
   {
     path: 'booking/manage',
@@ -83,45 +122,13 @@ export const routes: Routes = [
     component: DashboardShellComponent,
     canActivate: [dashboardAuthGuard],
     canActivateChild: [dashboardAuthChildGuard],
-    children: [
-      {
-        path: '',
-        redirectTo: 'inicio',
-        pathMatch: 'full'
-      },
-      {
-        path: 'inicio',
-        loadComponent: () => import('./features/dashboard-home/pages/dashboard-home.page').then(m => m.DashboardHomeComponent)
-      },
-      {
-        path: 'turnos',
-        loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
-      },
-      {
-        path: 'turnos/new',
-        loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-      },
-      {
-        path: 'turnos/edit/:id',
-        loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-      },
-      {
-        path: 'servicios',
-        loadComponent: () => import('./features/servicios/pages/servicios.page').then(m => m.ServiciosPage)
-      },
-      {
-        path: 'clientes',
-        loadComponent: () => import('./features/clientes/pages/clientes.page').then(m => m.ClientesPage)
-      },
-      {
-        path: 'configuracion',
-        loadComponent: () => import('./features/settings/pages/configuracion.page').then(m => m.ConfiguracionPage)
-      }
-    ]
+    children: dashboardShellChildren
   },
   {
     path: '',
-    redirectTo: 'dashboard/turnos',
-    pathMatch: 'full'
+    component: DashboardShellComponent,
+    canActivate: [dashboardAuthGuard],
+    canActivateChild: [dashboardAuthChildGuard],
+    children: dashboardShellChildren
   }
 ];

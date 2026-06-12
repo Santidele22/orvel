@@ -54,7 +54,8 @@ describe('RED Contract: Model C dashboard-owned auth route', () => {
       '//evil.example/dashboard',
       'javascript:alert(1)',
       '/auth?mode=login',
-      '/auth/callback#access_token=leaked&refresh_token=leaked'
+      '/auth/callback#access_token=leaked&refresh_token=leaked',
+      '/inicio'
     ]) {
       const url = `/auth?mode=magic-link&returnTo=${encodeURIComponent(unsafeReturnTo)}`;
       expect(normalizeDashboardAuthRequest(url)).toEqual({ mode: 'login', returnTo: '/dashboard/inicio' });

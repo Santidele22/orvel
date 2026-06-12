@@ -5,6 +5,14 @@ import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 
+function safeLogContext(record: { id?: unknown; template_key?: unknown; booking_id?: unknown } | undefined) {
+  return {
+    outbox_id: typeof record?.id === "string" ? record.id : undefined,
+    template_key: typeof record?.template_key === "string" ? record.template_key : undefined,
+    booking_id: typeof record?.booking_id === "string" ? record.booking_id : undefined,
+  };
+}
+
 // Basic HTML Template for generic fallback
 function renderFallbackEmail(title: string, message: string): string {
   return `
@@ -20,7 +28,7 @@ function renderFallbackEmail(title: string, message: string): string {
 Deno.serve(async (req) => {
   try {
     const payload = await req.json();
-    console.log("Processing notification:", payload.record?.template_key, payload.record?.to_email);
+    console.log("Processing notification", safeLogContext(payload.record));
 
     const apiKey = Deno.env.get("SENDGRID_API_KEY");
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "no-reply@orvel.test";
@@ -172,11 +180,14 @@ Deno.serve(async (req) => {
         });
 
         if (!res.ok) {
-          const resultText = await res.text();
-          console.error(`Failed to send email to ${to_email}:`, resultText);
-          return new Response(JSON.stringify({ error: "SendGrid Error", details: resultText }), { status: 502 });
+          await res.body?.cancel();
+          console.error("Failed to send email", {
+            ...safeLogContext(record),
+            provider_status: res.status,
+          });
+          return new Response(JSON.stringify({ error: "SendGrid Error" }), { status: 502 });
         } else {
-          console.log(`Email successfully sent to ${to_email}`);
+          console.log("Email successfully sent", safeLogContext(record));
           if (id && supabaseUrl && serviceKey) {
             const supabase = createClient(supabaseUrl, serviceKey);
             await supabase.from("notification_email_outbox").update({ sent_at: new Date().toISOString() }).eq("id", id);
@@ -189,8 +200,9 @@ Deno.serve(async (req) => {
     
     return new Response("No action taken", { status: 200 });
   } catch (err) {
-    console.error("Error processing email:", err);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    console.error("Error processing email", {
+      error_name: err instanceof Error ? err.name : "UnknownError",
+    });
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
   }
 });

@@ -87,7 +87,13 @@ export interface AuthStateSubscription {
 export function createSupabaseAuthClient(
   config: SupabaseAuthConfig
 ): SupabaseAuthClient {
-  const client: SupabaseClient = createClient(
+  const client = createSupabaseBrowserClient(config);
+
+  return new SupabaseAuthClientAdapter(client);
+}
+
+export function createSupabaseBrowserClient(config: SupabaseAuthConfig): SupabaseClient {
+  return createClient(
     config.supabaseUrl,
     config.supabaseAnonKey,
     {
@@ -101,8 +107,6 @@ export function createSupabaseAuthClient(
       }
     }
   );
-
-  return new SupabaseAuthClientAdapter(client);
 }
 
 /**

@@ -158,6 +158,40 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     });
   });
 
+  it('Google OAuth preserves explicit FREE signup plan instead of converting it to paid STARTED', async () => {
+    const signInWithOAuth = vi.fn(async () => ({ error: null }));
+    const oauthSignupIntentStore = {
+      create: vi.fn(async (intent) => ({
+        id: 'signup-intent-free-google',
+        plan: intent.plan,
+        provider: intent.provider,
+        expiresAt: intent.expiresAt
+      })),
+      consume: vi.fn()
+    };
+    const oauth = createSupabaseOAuthAdapter(SUPABASE_ENV, {
+      createClient: () => ({ auth: { signInWithOAuth } }) as never,
+      oauthSignupIntentStore
+    }) as unknown as (provider: 'google', input: { redirectTo: string; plan?: string; tipoNegocio?: string }) => Promise<{ ok: boolean }>;
+
+    const result = await oauth('google', {
+      redirectTo: 'https://orvel.app/auth/signup/business-type?plan=FREE',
+      plan: 'FREE'
+    });
+
+    expect(result.ok).toBe(true);
+    expect(oauthSignupIntentStore.create).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: 'FREE', provider: 'google' })
+    );
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: expect.objectContaining({
+        redirectTo: expect.stringContaining('plan=FREE'),
+        queryParams: expect.objectContaining({ onboarding_required: 'true' })
+      })
+    });
+  });
+
   it('uses the same explicit PKCE storage options for OAuth start and callback clients', async () => {
     const storage = globalThis.localStorage;
     const startOptions = createSupabaseBrowserAuthOptions(storage);

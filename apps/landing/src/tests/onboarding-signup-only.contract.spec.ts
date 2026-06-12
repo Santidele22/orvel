@@ -27,7 +27,7 @@ describe('Contract: onboarding runs only on signup path', () => {
   it('login path does not render/require rubros onboarding step', async () => {
     const source = await readFile(LOGIN_PAGE_PATH, 'utf8');
 
-    expect(source).not.toContain('Tipo de Negocio');
+    expect(source).not.toContain('Tu Rubro.');
     expect(source).not.toMatch(/name\s*=\s*["']rubro["']/i);
     expect(source).not.toMatch(/selectedRubros\.length\s*===\s*0/);
   });
@@ -39,7 +39,7 @@ describe('Contract: onboarding runs only on signup path', () => {
     ).resolves.toBeUndefined();
 
     const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
-    expect(source).toContain('Tipo de Negocio');
+    expect(source).toContain('Tu Rubro.');
     expect(source).toMatch(/type\s*=\s*["']checkbox["']/i);
     expect(source).toMatch(/seleccion[aá].*(categor[íi]a)|al menos una/i);
   });

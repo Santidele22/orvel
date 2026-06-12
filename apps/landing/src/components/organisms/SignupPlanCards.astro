@@ -1,5 +1,5 @@
 ---
-import SignupPlanCard from "../molecules/SignupPlanCard.astro";
+import PlanCard from "../molecules/PlanCard.astro";
 
 export interface Props {
   plansWithBilling: any[];
@@ -24,19 +24,6 @@ function updatePrices(period) {
       btn.classList.add('text-text-primary');
     }
   });
-
-  const plansContainer = document.getElementById('plans-container');
-  if (period !== 'monthly') {
-    if (plansContainer) {
-      plansContainer.classList.remove('md:grid-cols-4');
-      plansContainer.classList.add('md:grid-cols-3', 'max-w-4xl', 'mx-auto');
-    }
-  } else {
-    if (plansContainer) {
-      plansContainer.classList.remove('md:grid-cols-3', 'max-w-4xl', 'mx-auto');
-      plansContainer.classList.add('md:grid-cols-4');
-    }
-  }
 
   // Update all price displays and hrefs
   document.querySelectorAll('.plan-card').forEach(card => {
@@ -118,8 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 <!-- Plans -->
-<section class="grid grid-cols-1 md:grid-cols-4 gap-6 transition-all duration-300" id="plans-container">
+<section class="flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-6 transition-all duration-300" id="plans-container">
   {plansWithBilling.map((plan) => (
-    <SignupPlanCard plan={plan} />
+    <PlanCard plan={plan} isSignupPage />
   ))}
 </section>
