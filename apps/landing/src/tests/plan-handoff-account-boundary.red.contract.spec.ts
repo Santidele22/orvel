@@ -81,38 +81,31 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(source).toContain('returnTo: nextStep');
   });
 
-  it('Google/auth missing-plan path routes to plan-first account creation and never creates Supabase account directly', async () => {
+  it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {
     const planSource = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARDS_PATH)}`;
     const credentialsSource = await loadSource(CREDENTIALS_PAGE_PATH);
-    const googleHandlerStart = indexOfOrThrow(
-      credentialsSource,
-      "document.getElementById('googleSignupBtn')?.addEventListener('click'"
-    );
-    const googleHandler = credentialsSource.slice(googleHandlerStart);
 
     expect(planSource).toMatch(/missing_account/);
     expect(planSource).toMatch(/create_account/);
     expect(planSource).toContain('/auth/signup/credentials?plan=');
-    expect(googleHandler).not.toContain('signupWithProvider({');
-    expect(googleHandler).not.toContain('createSupabaseSignupAdapterFromEnv');
+    expect(credentialsSource).not.toContain('id="googleSignupBtn"');
+    expect(credentialsSource).not.toContain("id='googleSignupBtn'");
+    expect(credentialsSource).not.toMatch(/Registrarse\s+con\s+Google|Google disponible|Google estar[aá] disponible/i);
+    expect(credentialsSource).not.toContain("document.getElementById('googleSignupBtn')");
   });
 
-  it('signup credentials Google OAuth stays behind a valid explicit plan gate and carries that plan', async () => {
+  it('signup credentials never renders or invokes Supabase Google OAuth from the user-facing page', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_PAGE_PATH);
-    const googleHandlerStart = indexOfOrThrow(
-      credentialsSource,
-      "document.getElementById('googleSignupBtn')?.addEventListener('click'"
-    );
-    const googleHandler = credentialsSource.slice(googleHandlerStart);
-    const planGuardIndex = indexOfOrThrow(googleHandler, 'if (!hasValidSignupPlan)');
-    const importIndex = indexOfOrThrow(googleHandler, "await import('../../../lib/auth-provider')");
-    const oauthIndex = indexOfOrThrow(googleHandler, 'loginWithGoogle({');
 
-    expect(planGuardIndex).toBeLessThan(importIndex);
-    expect(planGuardIndex).toBeLessThan(oauthIndex);
-    expect(googleHandler).toContain("openRedirectNotice();\n        return;");
-    expect(googleHandler).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, plan)');
-    expect(googleHandler).toContain("redirectUrl.searchParams.set('plan', plan)");
-    expect(googleHandler).toContain('loginWithGoogle({ redirectTo: redirectUrl.toString(), plan })');
+    expect(
+      credentialsSource,
+      'Google signup from credentials must not call loginWithGoogle because Orvel owns email/password signup for now.'
+    ).not.toContain('loginWithGoogle');
+    expect(credentialsSource).not.toContain('createSupabaseOAuthAdapter');
+    expect(credentialsSource).not.toContain('signInWithOAuth');
+    expect(credentialsSource).not.toContain("document.getElementById('googleSignupBtn')?.addEventListener('click'");
+    expect(credentialsSource).not.toContain('id="googleSignupNotice"');
+    expect(credentialsSource).not.toMatch(/<svg[\s\S]{0,1200}Google|Google[\s\S]{0,1200}<svg/i);
+    expect(credentialsSource).not.toContain('Registrarse con Google');
   });
 });

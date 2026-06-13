@@ -124,16 +124,17 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
-  it('canonical landing login owns email/password auth while Google entrypoint remains plan-first', async () => {
+  it('canonical landing login owns email/password auth and exposes no Google OAuth entrypoint', async () => {
     const source = await readFile(LOGIN_PAGE, 'utf8');
-    const googleHandlerStart = source.indexOf("document.getElementById('googleBtn')?.addEventListener('click'");
-    const googleHandler = googleHandlerStart >= 0 ? source.slice(googleHandlerStart) : '';
 
     expect(source).toContain("from '../../lib/auth-provider'");
     expect(source).toMatch(/loginWithProvider\(/);
-    expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
-    expect(googleHandler, 'Google login CTA must not call Supabase OAuth directly because OAuth auto-provisions missing users.').not.toContain('loginWithGoogle');
-    expect(googleHandler).not.toContain('signInWithOAuth');
+    expect(source).not.toContain('id="googleBtn"');
+    expect(source).not.toContain("document.getElementById('googleBtn')");
+    expect(source).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);
+    expect(source).not.toContain('loginWithGoogle');
+    expect(source).not.toContain('createSupabaseOAuthAdapter');
+    expect(source).not.toContain('signInWithOAuth');
     expect(source).toMatch(/createSupabaseLoginAdapterFromEnv\(/);
     expect(source).toContain('name="email"');
     expect(source).toContain('name="password"');

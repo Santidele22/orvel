@@ -4,6 +4,11 @@ import { resolve } from 'node:path';
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+const elementByIdSource = (sourceText: string, id: string) => {
+  const match = sourceText.match(new RegExp(`<[^>]+id=["']${id}["'][\\s\\S]*?<\\/[a-z0-9-]+>`, 'i'));
+  return match?.[0] ?? '';
+};
+
 describe('RED: canonical landing auth UI contract', () => {
   it('makes landing /auth/login the canonical auth implementation instead of forwarding to dashboard auth', () => {
     const loginPage = source('src/pages/auth/login.astro');
@@ -15,23 +20,30 @@ describe('RED: canonical landing auth UI contract', () => {
     expect(loginPage).not.toMatch(/window\.location\.href\s*=\s*dashboardAuthUrl/);
   });
 
-  it('keeps Google entrypoint plan-first so Supabase OAuth cannot auto-provision an unplanned user', () => {
+  it('removes Google from the user-facing login page so OAuth cannot be invoked from the UI', () => {
     const loginPage = source('src/pages/auth/login.astro');
-    const authProvider = source('src/lib/auth-provider.ts');
-    const supabaseAdapter = source('src/lib/supabase-auth-adapter.ts');
-    const googleHandlerStart = loginPage.indexOf("document.getElementById('googleBtn')?.addEventListener('click'");
-    const googleHandler = googleHandlerStart >= 0 ? loginPage.slice(googleHandlerStart) : '';
 
-    expect(loginPage).toContain('id="googleBtn"');
-    // Signup/auth changes moved Google login through plan selection first; direct
-    // Supabase OAuth from /auth/login would auto-provision users before plan/onboarding context exists.
-    expect(loginPage).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
-    expect(googleHandler).not.toContain('loginWithGoogle');
-    expect(googleHandler).not.toContain('signInWithOAuth');
-    expect(authProvider).toMatch(/createSupabaseOAuthAdapter/);
-    expect(supabaseAdapter).toMatch(/auth\.signInWithOAuth\(\{\s*provider/s);
-    expect(supabaseAdapter).toContain("provider: 'google'");
+    expect(loginPage).not.toContain('id="googleBtn"');
+    expect(loginPage).not.toContain("id='googleBtn'");
+    expect(loginPage).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);
+    expect(loginPage).not.toMatch(/<svg[\s\S]{0,1200}Google|Google[\s\S]{0,1200}<svg/i);
+    expect(loginPage).not.toContain('googlePlanSelectionNotice');
+    expect(loginPage).not.toContain('loginWithGoogle');
+    expect(loginPage).not.toContain('createSupabaseOAuthAdapter');
+    expect(loginPage).not.toContain('signInWithOAuth');
+    expect(loginPage).not.toContain("document.getElementById('googleBtn')");
     expect(loginPage).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
+  });
+
+  it('does not render a Google plan-first modal or Google CTA copy in the canonical login page', () => {
+    const loginPage = source('src/pages/auth/login.astro');
+    const inlineNotice = elementByIdSource(loginPage, 'googlePlanSelectionNotice');
+
+    expect(inlineNotice).toBe('');
+    expect(loginPage).not.toContain('No tenés cuenta, ¿querés crear una?');
+    expect(loginPage).not.toContain('actionLabel="Crear cuenta"');
+    expect(loginPage).not.toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(loginPage).not.toMatch(/google/i);
   });
 
   it('offers manual email/password auth from the canonical UI through Supabase credentials APIs', () => {
@@ -44,6 +56,16 @@ describe('RED: canonical landing auth UI contract', () => {
     expect(supabaseAdapter).toMatch(/auth\.signInWithPassword\(/);
     expect(supabaseAdapter).toMatch(/auth\.signUp\(/);
     expect(loginPage).not.toMatch(/dev_|fake|mock|generateToken|localStorage\.setItem\([^)]*token/i);
+  });
+
+  it('never persists password values in browser storage from user-facing auth pages', () => {
+    const loginPage = source('src/pages/auth/login.astro');
+    const signupCredentialsPage = source('src/pages/auth/signup/credentials.astro');
+    const authPageSources = `${loginPage}\n${signupCredentialsPage}`;
+
+    expect(authPageSources).not.toMatch(/(?:sessionStorage|localStorage)\.setItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(authPageSources).not.toMatch(/(?:sessionStorage|localStorage)\.getItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(authPageSources).not.toMatch(/(?:sessionStorage|localStorage)\[[^\]]*(?:password|confirmPassword|contraseñ)/i);
   });
 
   it('sanitizes returnTo/handoff and does not treat query params as auth credentials', () => {
