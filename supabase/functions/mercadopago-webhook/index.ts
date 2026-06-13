@@ -12,6 +12,7 @@ import {
 import { recordWebhookProcessMetric } from "../_shared/mp-rollout-observability.ts";
 import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription-guards.ts";
 import { parseBillingSessionReference } from "../_shared/mp-subscription-session-reference.ts";
+import { decryptPendingSignupPiiField } from "../_shared/pending-signup-pii.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -122,14 +123,28 @@ async function materializePendingSignup(
 
   if (!intent) return null;
 
+  const decryptedEmail = await decryptPendingSignupPiiField(intent.email_encrypted);
+  const decryptedFirstName = await decryptPendingSignupPiiField(intent.first_name_encrypted);
+  const decryptedLastName = await decryptPendingSignupPiiField(intent.last_name_encrypted);
+  const decryptedPhone = await decryptPendingSignupPiiField(intent.phone_encrypted);
+  const decryptedBusinessName = await decryptPendingSignupPiiField(intent.business_name_encrypted);
+
+  if (!decryptedEmail) {
+    await supabaseAdmin
+      .from("pending_signup_intents")
+      .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", intent.id);
+    throw new Error("pending_signup_email_decrypt_failed");
+  }
+
   const { data: createdUser, error: createUserError } = await supabaseAdmin.auth
     .admin.createUser({
-      email: intent.email,
+      email: decryptedEmail,
       email_confirm: true,
       user_metadata: {
-        first_name: intent.first_name,
-        last_name: intent.last_name,
-        phone: intent.phone,
+        first_name: decryptedFirstName,
+        last_name: decryptedLastName,
+        phone: decryptedPhone,
         plan: intent.plan_code,
         onboarding_required: true,
         onboarding_completed: false,
@@ -146,7 +161,7 @@ async function materializePendingSignup(
     throw createUserError || new Error("pending_signup_user_create_failed");
   }
 
-  const slugBase = String(intent.business_name || "mi-negocio")
+  const slugBase = String(decryptedBusinessName || "mi-negocio")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -157,7 +172,7 @@ async function materializePendingSignup(
   const { data: business, error: businessError } = await supabaseAdmin
     .from("businesses")
     .insert({
-      name: intent.business_name || "Mi Negocio",
+      name: decryptedBusinessName || "Mi Negocio",
       slug,
       owner_id: createdUser.user.id,
       timezone: "America/Argentina/Buenos_Aires",
@@ -222,13 +237,13 @@ async function materializePendingSignup(
 
   const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
     type: "magiclink",
-    email: intent.email,
+    email: decryptedEmail,
   });
 
   const actionLink = magicLink?.properties?.action_link;
   await supabaseAdmin.from("notification_email_outbox").insert({
     business_id: business.id,
-    to_email: intent.email,
+    to_email: decryptedEmail,
     template_key: "paid_signup_magic_link",
     payload: {
       subject: "Activá tu cuenta de Orvel",

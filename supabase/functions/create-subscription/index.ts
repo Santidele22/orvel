@@ -22,6 +22,7 @@ import {
   getBearerToken,
   shouldValidateCreateSubscriptionAuthorization,
 } from "../_shared/create-subscription-auth.ts";
+import { verifyPendingSignupPiiField } from "../_shared/pending-signup-pii.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -73,25 +74,27 @@ interface SubscriptionRequest {
   tier?: string;
   cadence?: string;
   preapproval_plan_id?: string;
-  email?: string;
   card_token_id?: string;
   billing_period?: string;
   mode?: string;
   pending_signup_intent?: {
-    email?: string;
-    nombre?: string;
-    apellido?: string;
-    negocioNombre?: string;
-    telefono?: string;
+    email_encrypted?: string;
+    email_hmac?: string;
+    first_name_encrypted?: string;
+    first_name_hmac?: string;
+    last_name_encrypted?: string;
+    last_name_hmac?: string;
+    business_name_encrypted?: string;
+    business_name_hmac?: string;
+    phone_encrypted?: string;
+    phone_hmac?: string;
+    pii_crypto_version?: string;
     business_type?: string;
     selected_business_types?: string[];
     plan_code?: string;
     billing_period?: string;
   } | null;
   business_type?: string;
-  nombre?: string;
-  apellido?: string;
-  telefono?: string;
 }
 
 function sanitizeDiagnosticText(value: unknown): string | undefined {
@@ -161,11 +164,6 @@ function sanitizeIntentText(value: unknown, maxLength = 160): string | null {
   return trimmed ? trimmed.slice(0, maxLength) : null;
 }
 
-function normalizeIntentEmail(value: unknown): string | null {
-  const email = sanitizeIntentText(value, 254)?.toLowerCase() || null;
-  return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
-}
-
 function normalizeBillingCadence(
   value: unknown,
 ): "monthly" | "quarterly" | "annual" {
@@ -174,6 +172,18 @@ function normalizeBillingCadence(
   return normalized === "quarterly" || normalized === "annual"
     ? normalized
     : "monthly";
+}
+
+async function verifyOptionalProtectedPendingSignupField(
+  field: string,
+  encryptedValue: unknown,
+  hmacValue: unknown,
+): Promise<void> {
+  const hasEncrypted = typeof encryptedValue === "string" && encryptedValue.trim().length > 0;
+  const hasHmac = typeof hmacValue === "string" && hmacValue.trim().length > 0;
+  if (!hasEncrypted && !hasHmac) return;
+  if (!hasEncrypted || !hasHmac) throw new Error("pending_signup_pii_pair_incomplete");
+  await verifyPendingSignupPiiField(field, encryptedValue, hmacValue);
 }
 
 function planPriceForCadence(
@@ -343,9 +353,6 @@ Deno.serve(async (req) => {
     const requestedCadence = normalizeBillingCadence(
       body.cadence || body.billing_period ||
         pendingSignupIntent?.billing_period,
-    );
-    const pendingSignupEmail = normalizeIntentEmail(
-      pendingSignupIntent?.email || body.email,
     );
     const pendingSignupBusinessType = sanitizeIntentText(
       pendingSignupIntent?.business_type || body.business_type,
@@ -607,13 +614,63 @@ Deno.serve(async (req) => {
     let pendingSignupRecord:
       | { id: string; external_reference: string | null }
       | null = null;
+    let pendingSignupEmail: string | null = null;
 
     if (isPendingSignupIntent) {
-      if (!pendingSignupEmail) {
+      const pendingSignupEmailHmac = sanitizeIntentText(
+        pendingSignupIntent?.email_hmac,
+        512,
+      );
+      const pendingSignupEmailEncrypted = sanitizeIntentText(
+        pendingSignupIntent?.email_encrypted,
+        4096,
+      );
+      try {
+        pendingSignupEmail = pendingSignupEmailEncrypted
+          ? await verifyPendingSignupPiiField(
+            "email",
+            pendingSignupEmailEncrypted,
+            pendingSignupEmailHmac,
+          )
+          : null;
+        await verifyOptionalProtectedPendingSignupField(
+          "first_name",
+          pendingSignupIntent?.first_name_encrypted,
+          pendingSignupIntent?.first_name_hmac,
+        );
+        await verifyOptionalProtectedPendingSignupField(
+          "last_name",
+          pendingSignupIntent?.last_name_encrypted,
+          pendingSignupIntent?.last_name_hmac,
+        );
+        await verifyOptionalProtectedPendingSignupField(
+          "business_name",
+          pendingSignupIntent?.business_name_encrypted,
+          pendingSignupIntent?.business_name_hmac,
+        );
+        await verifyOptionalProtectedPendingSignupField(
+          "phone",
+          pendingSignupIntent?.phone_encrypted,
+          pendingSignupIntent?.phone_hmac,
+        );
+      } catch {
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_PII_INVALID",
+            message: "Pending signup protected data is invalid",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      if (!pendingSignupEmailHmac || !pendingSignupEmail) {
         return new Response(
           JSON.stringify({
             error: "PENDING_SIGNUP_EMAIL_REQUIRED",
-            message: "Pending signup intent requires email",
+            message: "Pending signup intent requires protected email",
           }),
           {
             status: 400,
@@ -624,20 +681,21 @@ Deno.serve(async (req) => {
 
       const idempotencyHash = idempotencyKey
         ? await sha256Text(
-          `pending-signup:${pendingSignupEmail}:${canonicalPlanCode}:${idempotencyKey}`,
+          `pending-signup:${pendingSignupEmailHmac}:${canonicalPlanCode}:${idempotencyKey}`,
         )
         : null;
       const intentPayload = {
-        email: pendingSignupEmail,
-        first_name: sanitizeIntentText(pendingSignupIntent?.nombre, 80),
-        last_name: sanitizeIntentText(pendingSignupIntent?.apellido, 120),
-        business_name:
-          sanitizeIntentText(pendingSignupIntent?.negocioNombre, 160) ||
-          "Mi Negocio",
-        phone: sanitizeIntentText(
-          pendingSignupIntent?.telefono || body.telefono,
-          60,
-        ),
+        email_encrypted: pendingSignupEmailEncrypted,
+        email_hmac: pendingSignupEmailHmac,
+        first_name_encrypted: sanitizeIntentText(pendingSignupIntent?.first_name_encrypted, 4096),
+        first_name_hmac: sanitizeIntentText(pendingSignupIntent?.first_name_hmac, 512),
+        last_name_encrypted: sanitizeIntentText(pendingSignupIntent?.last_name_encrypted, 4096),
+        last_name_hmac: sanitizeIntentText(pendingSignupIntent?.last_name_hmac, 512),
+        business_name_encrypted: sanitizeIntentText(pendingSignupIntent?.business_name_encrypted, 4096),
+        business_name_hmac: sanitizeIntentText(pendingSignupIntent?.business_name_hmac, 512),
+        phone_encrypted: sanitizeIntentText(pendingSignupIntent?.phone_encrypted, 4096),
+        phone_hmac: sanitizeIntentText(pendingSignupIntent?.phone_hmac, 512),
+        pii_crypto_version: sanitizeIntentText(pendingSignupIntent?.pii_crypto_version, 80) || "pending_signup_pii_v1",
         business_type: pendingSignupBusinessType,
         selected_business_types:
           Array.isArray(pendingSignupIntent?.selected_business_types)
@@ -832,7 +890,7 @@ Deno.serve(async (req) => {
     }
 
     // Build MP preapproval request
-    const payerEmail = user?.email || pendingSignupEmail || body.email;
+    const payerEmail = user?.email || pendingSignupEmail;
     if (!payerEmail) {
       return new Response(
         JSON.stringify({
