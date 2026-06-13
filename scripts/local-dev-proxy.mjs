@@ -17,6 +17,7 @@ export const TARGETS = {
 
 const DASHBOARD_PATH_PREFIXES = [
   '/dashboard',
+  '/booking',
   '/ngsw',
   '/ngsw.json'
 ];
@@ -76,6 +77,10 @@ function underDashboardServePath(path) {
 export function resolveProxyTarget(req) {
   const pathname = pathnameFromUrl(req.url);
   const cameFromDashboard = requestCameFromDashboard(req.headers);
+
+  if (pathname === '/booking' || pathname.startsWith('/booking/')) {
+    return { ...TARGETS.dashboard, rewritePath: underDashboardServePath };
+  }
 
   if (DASHBOARD_PATH_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return { ...TARGETS.dashboard, rewritePath: samePath };

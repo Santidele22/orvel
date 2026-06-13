@@ -189,6 +189,8 @@ import Layout from '../../layouts/Layout.astro';
     createSupabaseBrowserAuthOptions,
     ORVEL_SUPABASE_AUTH_STORAGE_KEY
   } from '../../lib/supabase-auth-adapter';
+  import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
+  import { buildDashboardAuthUrl } from '../../lib/dashboard-auth-handoff';
 
   if (typeof window !== 'undefined') {
     const plans = {
@@ -228,8 +230,8 @@ import Layout from '../../layouts/Layout.astro';
       const normalized = raw?.trim().toLowerCase();
       return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
     };
-    const billing = normalizeBillingPeriod(params.get('billing') || sessionStorage.getItem('orvel.signup.billing'));
-    sessionStorage.setItem('orvel.signup.billing', billing);
+    const billing = normalizeBillingPeriod(params.get('billing') || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.billing));
+    sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
     // Update plan details in UI
     const planName = document.getElementById('planSummaryName');
@@ -345,7 +347,8 @@ import Layout from '../../layouts/Layout.astro';
     const paymentStatus = (params.get('payment_status') || '').trim().toLowerCase();
     const subscriptionState = (params.get('subscription_state') || '').trim().toLowerCase();
     const subscriptionSessionId = (params.get('subscription_session_id') || params.get('preapproval_id') || '').trim();
-    if (paymentStatus === 'approved') {
+    const isApprovedReturn = paymentStatus === 'approved';
+    if (isApprovedReturn) {
       // Redirect handled below — after normalized subscription error handling
     } else if (subscriptionState === 'pending') {
       setUiState('pending');
@@ -367,28 +370,35 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
 
-    const buildDashboardOnboardingHandoffUrl = () => {
+    const resolveDashboardOrigin = () => {
       const configuredDashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-      const dashboardOrigin = configuredDashboardOrigin
+      return configuredDashboardOrigin
         || (window.location.hostname === 'localhost' && window.location.port === '3000'
           ? window.location.origin
           : 'http://localhost:4200');
-      const onboardingUrl = new URL('/auth/onboarding', dashboardOrigin);
-      onboardingUrl.searchParams.set('onboarding_required', 'true');
-      onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio');
-      onboardingUrl.searchParams.set('source', 'subscription');
-      onboardingUrl.searchParams.set('plan', plan);
-      onboardingUrl.searchParams.set('billing', billing);
-      return onboardingUrl.toString();
     };
 
-    // Approved/materialized subscription — route to dashboard onboarding.
+    const buildSubscriptionDashboardAuthHandoffUrl = () => {
+      return buildDashboardAuthUrl({
+        dashboardOrigin: resolveDashboardOrigin(),
+        mode: 'login',
+        source: 'subscription',
+        returnTo: '/dashboard/inicio?from=subscription'
+      });
+    };
+
+    // Approved/materialized subscription — route to dashboard auth handoff.
     // Backend/Supabase/functions/webhooks are source of truth; query params are UX only.
-    if (paymentStatus === 'approved') {
-      window.location.href = buildDashboardOnboardingHandoffUrl();
+    {
+      const subscriptionAttemptKey = subscriptionAttemptStorageKey(plan);
+      if (paymentStatus === 'approved') {
+        sessionStorage.removeItem(subscriptionAttemptKey);
+        const handoffUrl = buildSubscriptionDashboardAuthHandoffUrl();
+        window.location.href = handoffUrl;
+      }
     }
 
-    const subscriptionAttemptKey = `orvel.subscription.attempt.${plan}`;
+    const subscriptionAttemptKey = subscriptionAttemptStorageKey(plan);
     const buildIdempotencyKey = () => {
       const existing = sessionStorage.getItem(subscriptionAttemptKey);
       if (existing) return existing;
@@ -414,7 +424,8 @@ import Layout from '../../layouts/Layout.astro';
         const accountMaterialized = result?.account_materialized === true || result?.materialized === true;
         if (normalizedStatus === 'approved' || normalizedStatus === 'active' || accountMaterialized) {
           sessionStorage.removeItem(subscriptionAttemptKey);
-          window.location.href = buildDashboardOnboardingHandoffUrl();
+          const handoffUrl = buildSubscriptionDashboardAuthHandoffUrl();
+          window.location.href = handoffUrl;
           return;
         }
 
@@ -429,7 +440,7 @@ import Layout from '../../layouts/Layout.astro';
       }
     };
 
-    if (subscriptionSessionId && paymentStatus !== 'approved') {
+    if (subscriptionSessionId && !isApprovedReturn) {
       setUiState('pending');
       pollSubscriptionStatus();
       window.setInterval(pollSubscriptionStatus, 4000);
@@ -455,13 +466,13 @@ import Layout from '../../layouts/Layout.astro';
           };
           if (token) headers.Authorization = `Bearer ${token}`;
 
-          const pendingSignupIntentRaw = sessionStorage.getItem('orvel.signup.pending_signup_intent');
+          const pendingSignupIntentRaw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
           const pendingSignupIntent = pendingSignupIntentRaw ? JSON.parse(pendingSignupIntentRaw) : null;
-          const email = sessionStorage.getItem('orvel.signup.email');
-          const businessType = sessionStorage.getItem('orvel.signup.tipoNegocio');
-          const nombre = sessionStorage.getItem('orvel.signup.nombre');
-          const apellido = sessionStorage.getItem('orvel.signup.apellido');
-          const telefono = sessionStorage.getItem('orvel.signup.telefono');
+          const email = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.email);
+          const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
+          const nombre = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.nombre);
+          const apellido = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.apellido);
+          const telefono = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.telefono);
 
           const response = await fetch('/api/subscriptions/start', {
             method: 'POST',

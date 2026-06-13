@@ -66,11 +66,15 @@ describe('Contract: simplified launch signup flow', () => {
     expect(materializeBody).not.toMatch(/dashboard_ready_at\s*:|current_step\s*:\s*['"]dashboard_ready['"]/);
   });
 
-  it('paid subscription polling routes materialized accounts to dashboard onboarding instead of dashboard home', async () => {
+  it('paid subscription polling routes materialized accounts through dashboard auth handoff instead of dashboard home', async () => {
     const subscriptionSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(subscriptionSource).toMatch(/materialized|account_materialized/i);
-    expect(subscriptionSource).toMatch(/\/auth\/onboarding|\/onboarding/);
+    // Approved/materialized paid accounts now use the canonical dashboard /auth handoff;
+    // dashboard-side guards remain responsible for requiring configuration onboarding.
+    expect(subscriptionSource).toContain('buildDashboardAuthUrl');
+    expect(subscriptionSource).toContain("source: 'subscription'");
+    expect(subscriptionSource).toContain("returnTo: '/dashboard/inicio?from=subscription'");
     expect(subscriptionSource).not.toMatch(/materialized[\s\S]{0,1200}\/dashboard\/inicio/);
   });
 });

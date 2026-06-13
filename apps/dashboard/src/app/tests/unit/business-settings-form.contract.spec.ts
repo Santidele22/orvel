@@ -11,6 +11,15 @@ function readConfiguracionTsSource(): string {
   return existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
 }
 
+function readConfiguracionZenTemplate(): string {
+  const htmlPath = resolve(
+    process.cwd(),
+    'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html'
+  );
+
+  return existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';
+}
+
 describe('Sprint 2 RED - Business Settings form contract', () => {
   it('defines typed reactive form controls for settings fields', () => {
     // TODO(Aurora): modelar reactive form tipado para settings (mock mode)
@@ -46,5 +55,19 @@ describe('Sprint 2 RED - Business Settings form contract', () => {
     expect(source).toMatch(/Validators\.min\(0\)|<\s*0/);
     expect(source).toMatch(/(invalid|setErrors|markAllAsTouched)/i);
     expect(source).toMatch(/if\s*\(.*invalid.*\)\s*\{[\s\S]*return;/i);
+  });
+
+  it('displays FREE/free plan as Free and never as Socio Starter', () => {
+    const source = readConfiguracionTsSource();
+    const template = readConfiguracionZenTemplate();
+
+    expect(source, 'ConfiguracionPage should expose a normalized display label for settings plans.').toMatch(
+      /(?:planDisplayLabel|formatPlanLabel|normalizePlanDisplay)/
+    );
+    expect(template).toMatch(/(?:planDisplayLabel|formatPlanLabel|normalizePlanDisplay)/);
+    expect(template, 'Settings must not render the raw persisted plan value in the Socio badge.').not.toMatch(
+      /Socio\s+\{\{\s*settingsForm\.get\(['"]plan['"]\)\?\.value\s*\}\}/
+    );
+    expect(`${source}\n${template}`).toMatch(/Free/);
   });
 });

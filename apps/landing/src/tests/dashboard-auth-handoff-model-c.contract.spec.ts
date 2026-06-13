@@ -79,10 +79,13 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     }
   });
 
-  it('free signup completion builds dashboard handoff from dashboard origin, never landing origin', async () => {
+  it('free signup completion uses dashboard configuration onboarding, not the generic auth bridge', async () => {
     const source = await readFile(SIGNUP_COMPLETE_PAGE, 'utf8');
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
+    // Configuration-only onboarding made the generic /auth?mode=signup handoff obsolete
+    // for free signup completion: the authenticated user must land on the protected
+    // dashboard /auth/onboarding route with explicit onboarding metadata.
     const fallbackHandoff = new URL(
       buildDashboardAuthUrl({
         dashboardOrigin: '',
@@ -94,10 +97,14 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(fallbackHandoff.origin).toBe('http://localhost:4200');
     expect(fallbackHandoff.pathname).toBe('/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
-    expect(source).toContain('buildDashboardAuthUrl({');
-    expect(source).not.toContain('|| window.location.origin');
+    expect(source).toContain('buildDashboardOnboardingUrl');
+    expect(source).toContain("new URL('/auth/onboarding', dashboardOrigin)");
+    expect(source).toContain("onboardingUrl.searchParams.set('onboarding_required', 'true')");
+    expect(source).toContain("onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio')");
+    expect(source).toContain("onboardingUrl.searchParams.set('plan', plan)");
+    expect(source).toContain("onboardingUrl.searchParams.set('billing', billing)");
+    expect(source).not.toContain('buildDashboardAuthUrl({');
     expect(source).not.toContain("window.location.href = '/dashboard/inicio'");
-    expect(source).not.toContain('window.location.href = returnTo;');
   });
 
   it('rejects the landing root as a dashboard bridge base so handoff never becomes landing /auth', async () => {
@@ -117,15 +124,16 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
-  it('canonical landing login owns Google and email/password Supabase auth', async () => {
+  it('canonical landing login owns email/password auth while Google entrypoint remains plan-first', async () => {
     const source = await readFile(LOGIN_PAGE, 'utf8');
+    const googleHandlerStart = source.indexOf("document.getElementById('googleBtn')?.addEventListener('click'");
+    const googleHandler = googleHandlerStart >= 0 ? source.slice(googleHandlerStart) : '';
 
     expect(source).toContain("from '../../lib/auth-provider'");
     expect(source).toMatch(/loginWithProvider\(/);
-    expect(source).toMatch(/loginWithGoogle\(/);
-    expect(source).toContain("new URL('/auth/callback', window.location.origin)");
-    expect(source).toContain('loginWithGoogle({ redirectTo: callbackUrl.toString() })');
-    expect(source).not.toMatch(/loginWithGoogle\(\s*['"]\/auth['"]\s*\)/);
+    expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(googleHandler, 'Google login CTA must not call Supabase OAuth directly because OAuth auto-provisions missing users.').not.toContain('loginWithGoogle');
+    expect(googleHandler).not.toContain('signInWithOAuth');
     expect(source).toMatch(/createSupabaseLoginAdapterFromEnv\(/);
     expect(source).toContain('name="email"');
     expect(source).toContain('name="password"');

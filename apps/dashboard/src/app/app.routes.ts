@@ -2,12 +2,6 @@ import { Routes } from '@angular/router';
 import { DashboardShellComponent } from './shared/dashboard-shell/dashboard-shell.component';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
 import { normalizeDashboardAuthRequest } from './core/auth/dashboard-auth-flow';
-import { SignupCredentialsPageComponent } from './pages/auth/signup-credentials.component';
-import {
-  onboardingAccountGuard,
-  onboardingBusinessTypesGuard,
-  onboardingWelcomeGuard
-} from './features/onboarding/data-access/onboarding-flow.guard';
 
 export const dashboardShellChildren: Routes = [
   {
@@ -62,31 +56,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage)
   },
   {
-    path: 'auth/signup/plan',
-    loadComponent: () =>
-      import('./features/onboarding/pages/signup-plan-step.component').then(m => m.SignupPlanStepPageComponent)
-  },
-  {
-    path: 'auth/signup/credentials',
-    component: SignupCredentialsPageComponent,
-    canActivate: [onboardingAccountGuard]
-  },
-  {
-    path: 'auth/signup/complete',
-    loadComponent: () =>
-      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
-    canActivate: [onboardingBusinessTypesGuard]
-  },
-  {
-    path: 'auth/signup/welcome',
-    loadComponent: () =>
-      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
-    canActivate: [onboardingWelcomeGuard]
-  },
-  {
     path: 'auth/onboarding',
     loadComponent: () =>
-      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent)
+      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
+    canActivate: [dashboardAuthGuard]
   },
   {
     path: 'booking/manage',

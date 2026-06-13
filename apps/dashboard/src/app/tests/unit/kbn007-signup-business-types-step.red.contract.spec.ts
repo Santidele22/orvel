@@ -4,7 +4,7 @@
  * Product Spec:
  *  - Path: Step 3 of onboarding → after credentials entered in Step 2
  *  - Constraint: Show only business types ALLOWED by the plan selected in Step 1
- *  - Behavior: Select 1+ types → Review → Submit → Onboarding complete
+ *  - Behavior: Select exactly one service type → Review → Submit → Onboarding complete
  *
  * Plan-to-Business-Type Rules:
  *  - Business type options are catalog-owned, not defined locally in the component.
@@ -14,7 +14,7 @@
  * Scope:
  *  1) UI filters by plan - Only allowed types shown based on Step 1 plan
  *  2) Cannot select disallowed - If plan changes, invalid selections cleared
- *  3) Multiple selection - Can select 1 or more (depending on plan limits)
+ *  3) Single selection - Can select exactly one service type
  *  4) Required at least one - Must select to submit
  *  5) Visual feedback - Selected types have distinct styling
  *  6) State persistence - Selected types stored
@@ -290,7 +290,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
 
     const component = new SignupBusinessTypesStepPage();
 
-    expect(component.selectedTypes).toEqual(['unas', 'pestanas']);
+    expect(component.selectedTypes).toEqual(['unas']);
   });
 
   it('CAT-OBT-005 @RED - selection and submit persist canonical ascii codes for expanded catalog types', async () => {
@@ -478,7 +478,7 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
     expect(component.canSelect('spa')).toBe(true);
   });
 
-  it('KBN-007.2.3 @RED - toggleType respects max_rubros after one FREE selection', async () => {
+  it('KBN-007.2.3 @RED - toggleType allows exactly one service type and replaces the previous selection', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
@@ -489,12 +489,13 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
 
     component.toggleType('peluqueria');
     component.toggleType('spa');
-    expect(component.isTypeSelected('spa')).toBe(false);
-    expect(component.selectedTypes).toEqual(['peluqueria']);
+    expect(component.isTypeSelected('peluqueria')).toBe(false);
+    expect(component.isTypeSelected('spa')).toBe(true);
+    expect(component.selectedTypes).toEqual(['spa']);
   });
 });
 
-describe('KBN-007.3 - Multiple selection', () => {
+describe('KBN-007.3 - Single selection', () => {
   it('KBN-007.3.1 @RED - can select one type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
@@ -508,7 +509,7 @@ describe('KBN-007.3 - Multiple selection', () => {
     expect(component.selectedTypes).toContain('peluqueria');
   });
 
-  it('KBN-007.3.2 @RED - can select multiple types up to plan limit', async () => {
+  it('KBN-007.3.2 @RED - selecting a different service type replaces the previous selection', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -518,12 +519,12 @@ describe('KBN-007.3 - Multiple selection', () => {
     component.toggleType('peluqueria');
     component.toggleType('unas');
 
-    expect(component.isTypeSelected('peluqueria')).toBe(true);
+    expect(component.isTypeSelected('peluqueria')).toBe(false);
     expect(component.isTypeSelected('unas')).toBe(true);
-    expect(component.selectedTypes.length).toBe(2);
+    expect(component.selectedTypes).toEqual(['unas']);
   });
 
-  it('KBN-007.3.3 @RED - BASIC plan limit is 2 types', async () => {
+  it('KBN-007.3.3 @RED - BASIC plan still allows continuing with exactly one selected service type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -531,14 +532,13 @@ describe('KBN-007.3 - Multiple selection', () => {
 
     const component = new SignupBusinessTypesStepPage();
 
-    // Can select up to 2 for BASIC
     component.toggleType('peluqueria');
-    component.toggleType('unas');
 
+    expect(component.selectedTypes).toEqual(['peluqueria']);
     expect(component.canContinue()).toBe(true);
   });
 
-  it('KBN-007.3.4 @RED - MEDIUM plan allows 3 types', async () => {
+  it('KBN-007.3.4 @RED - MEDIUM plan also replaces previous selections and keeps one service type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -550,7 +550,7 @@ describe('KBN-007.3 - Multiple selection', () => {
     component.toggleType('unas');
     component.toggleType('barberia');
 
-    expect(component.selectedTypes.length).toBe(3);
+    expect(component.selectedTypes).toEqual(['barberia']);
     expect(component.canContinue()).toBe(true);
   });
 
@@ -615,12 +615,11 @@ describe('KBN-007.5 - Visual feedback for selected types', () => {
     expect(component.isTypeSelected('peluqueria')).toBe(false);
   });
 
-  it('KBN-007.5.3 @RED - template uses checkbox or multi-select pattern', async () => {
+  it('KBN-007.5.3 @RED - template uses a single-select card/radio pattern', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    // Should use a multi-select card/checkbox pattern, NOT radio buttons (single-select)
-    expect(html).toMatch(/type="checkbox"|type='checkbox'|\[checked\]|\[class\.selected\]|isTypeSelected/i);
-    expect(html).not.toMatch(/type="radio"|type='radio'/i);
+    expect(html).toMatch(/type="radio"|type='radio'|\[checked\]|\[class\.selected\]|isTypeSelected/i);
+    expect(html).not.toMatch(/type="checkbox"|type='checkbox'/i);
   });
 });
 
@@ -630,18 +629,18 @@ describe('KBN-007.6 - State persistence', () => {
       await loadOnboardingBusinessTypesStorageModule();
     const storage = createMemoryStorage();
 
-    persistBusinessTypes(storage, ['peluqueria', 'unas']);
+    persistBusinessTypes(storage, ['peluqueria']);
 
     expect(storage.getItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY)).toBeDefined();
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas']);
+    expect(readBusinessTypes(storage)).toEqual(['peluqueria']);
   });
 
-  it('KBN-007.6.2 @RED - persists multiple types correctly', async () => {
+  it('KBN-007.6.2 @RED - persists one selected service type correctly', async () => {
     const { persistBusinessTypes, readBusinessTypes } = await loadOnboardingBusinessTypesStorageModule();
     const storage = createMemoryStorage();
 
-    persistBusinessTypes(storage, ['peluqueria', 'unas', 'barberia']);
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas', 'barberia']);
+    persistBusinessTypes(storage, ['barberia']);
+    expect(readBusinessTypes(storage)).toEqual(['barberia']);
   });
 
   it('KBN-007.6.3 @RED - readBusinessTypes returns null when no data persisted', async () => {
@@ -718,7 +717,7 @@ describe('KBN-007.8 - Final submit completes onboarding', () => {
     await component.submitAsync();
 
     const { readBusinessTypes } = await loadOnboardingBusinessTypesStorageModule();
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas']);
+    expect(readBusinessTypes(storage)).toEqual(['unas']);
   });
 });
 

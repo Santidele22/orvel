@@ -183,14 +183,18 @@ describe('Contract: landing login returnTo resolves to dashboard app', () => {
     });
   });
 
-  it('navigates the Google login button explicitly when OAuth returns a redirect target', () => {
+  it('routes the Google login entrypoint to the plan-first create-account flow before Supabase OAuth can auto-provision', () => {
     const loginPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/login.astro'), 'utf8');
+    const googleHandlerStart = loginPage.indexOf("document.getElementById('googleBtn')?.addEventListener('click'");
 
-    expect(loginPage).toMatch(/const result = await loginWithGoogle\(\{ redirectTo: callbackUrl\.toString\(\) \}\)/);
-    expect(loginPage).toMatch(/if \(result\.ok && result\.redirectTo\) \{\s*window\.location\.assign\(result\.redirectTo\);\s*return;\s*\}/s);
-    expect(loginPage).toMatch(/if \(result\.ok\) \{\s*setError\([^)]*no pudimos redirigirte[^)]*\);\s*button\.disabled = false;\s*return;\s*\}/is);
-    expect(loginPage).toContain('debug_oauth');
-    expect(loginPage).toContain('OAuth debug');
+    expect(googleHandlerStart, 'Google login button handler must be present.').toBeGreaterThanOrEqual(0);
+    const googleHandler = loginPage.slice(googleHandlerStart);
+
+    expect(loginPage).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(googleHandler).toMatch(/window\.location\.(?:assign|href)\s*[=(]/);
+    expect(googleHandler).not.toContain('loginWithGoogle');
+    expect(googleHandler).not.toContain('createSupabaseOAuthAdapter');
+    expect(googleHandler).not.toContain('signInWithOAuth');
   });
 
   it('returns a visible safe configuration error when Supabase env is missing for Google OAuth', async () => {

@@ -114,10 +114,10 @@ describe('RED contract: paid manual signup defers account creation until payment
     const completePlanSetup = sliceBetween(completeSource, 'const explicitPlan = searchParams.get', 'const step2Link');
 
     expect(credentialsPlanSetup).toContain("isExplicitFreePlan");
-    expect(credentialsPlanSetup).toContain("sessionStorage.removeItem('orvel.signup.pending_signup_intent')");
+    expect(credentialsPlanSetup).toContain('sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent)');
     expect(credentialsPlanSetup).toMatch(/isExplicitFreePlan \? searchParams\.get\('billing'\)/);
     expect(completePlanSetup).toContain("isExplicitFreePlan");
-    expect(completePlanSetup).toContain("sessionStorage.removeItem('orvel.signup.pending_signup_intent')");
+    expect(completePlanSetup).toContain('sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent)');
     expect(completePlanSetup).toMatch(/isExplicitFreePlan \? searchParams\.get\('billing'\)/);
   });
 

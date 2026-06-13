@@ -51,6 +51,13 @@ export function normalizePlanCode(plan: unknown, catalog: DashboardReferenceCata
   return (resolvePlanCodeFromCatalog(catalog, plan) as CanonicalPlanCode | null) ?? DEFAULT_PLAN;
 }
 
+export function resolveValidPlanCode(
+  plan: unknown,
+  catalog: DashboardReferenceCatalog = getRuntimeReferenceCatalogSnapshot()
+): CanonicalPlanCode | null {
+  return resolvePlanCodeFromCatalog(catalog, plan) as CanonicalPlanCode | null;
+}
+
 export function getPlanEntitlements(plan: unknown, catalog: DashboardReferenceCatalog = getRuntimeReferenceCatalogSnapshot()): PlanEntitlements {
   return (
     (getPlanEntitlementsFromCatalog(catalog, plan) as PlanEntitlements | null) ??

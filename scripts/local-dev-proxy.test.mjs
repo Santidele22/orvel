@@ -26,6 +26,22 @@ test('routes dashboard app paths to Angular dashboard', () => {
   }
 });
 
+test('routes public booking slug paths to Angular dashboard while preserving the public browser URL', () => {
+  const path = '/booking/mi-negocio-orvel';
+  const target = resolveProxyTarget({ url: path, headers: {} });
+
+  assert.equal(target.name, 'dashboard');
+  assert.equal(target.rewritePath(path), '/dashboard/booking/mi-negocio-orvel');
+});
+
+test('routes public booking manage token paths to Angular dashboard and preserves query params internally', () => {
+  const path = '/booking/manage?token=public-cancel-or-reschedule-token';
+  const target = resolveProxyTarget({ url: path, headers: {} });
+
+  assert.equal(target.name, 'dashboard');
+  assert.equal(target.rewritePath(path), '/dashboard/booking/manage?token=public-cancel-or-reschedule-token');
+});
+
 test('preserves dashboard prefixed Angular index and browser bundle paths', () => {
   for (const path of ['/dashboard', '/dashboard/inicio', '/dashboard/main.js', '/dashboard/chunk-ABC123.js']) {
     const target = resolveProxyTarget({ url: path, headers: {} });
@@ -53,6 +69,16 @@ test('dashboard development build uses dashboard base href for proxied assets', 
   const developmentConfig = angularJson.projects['salon-de-belleza'].architect.build.configurations.development;
 
   assert.equal(developmentConfig.baseHref, '/dashboard/');
+});
+
+test('Vercel output build rewrites booking SPA routes to the dashboard index', () => {
+  const buildScript = readFileSync(new URL('./build-vercel.mjs', import.meta.url), 'utf8');
+
+  assert.match(
+    buildScript,
+    /src:\s*['"]\/booking\(\?:\/\.\*\)\?['"],\s*dest:\s*['"]\/dashboard\/index\.html['"]/,
+    'build-vercel.mjs must add a Vercel route { src: \'/booking(?:/.*)?\', dest: \'/dashboard/index.html\' } so booking SPA deep links do not fall through to Astro'
+  );
 });
 
 test('routes shared dev assets by dashboard referer only when needed', () => {

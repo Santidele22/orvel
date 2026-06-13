@@ -5,11 +5,10 @@
  * This file can be imported by tests without Angular compilation.
  */
 import type { PlanCode } from '../../../core/plans/plan-entitlements';
-import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, resolveValidPlanCode } from '../../../core/plans/plan-entitlements';
 import {
   type DashboardReferenceCatalog,
   getAllowedBusinessTypesForPlan,
-  getPlanEntitlementsFromCatalog,
   resolveBusinessTypeCodeFromCatalog
 } from '../../../core/catalog/reference-catalog';
 import {
@@ -24,7 +23,7 @@ import {
   persistBusinessTypes,
   readBusinessTypes
 } from '../data-access/onboarding-business-types-storage';
-import { readPlanSelection } from '../data-access/onboarding-plan-storage';
+import { persistPlanSelection, readPlanSelection } from '../data-access/onboarding-plan-storage';
 import {
   buildInitialBusinessSettingsForOnboarding,
   isAllowedOnboardingBusinessType,
@@ -32,7 +31,7 @@ import {
 } from '../data-access/business-type-defaults';
 import {
   ONBOARDING_DASHBOARD_CUE_KEY,
-  markWelcomeEmailTriggeredOnce,
+  markOnboardingCompletionConfirmed,
   setCurrentStep
 } from '../data-access/onboarding-flow-state';
 
@@ -213,11 +212,11 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
  *
  * Flow:
  * 1. Filter available types by plan (Step 1 selection)
- * 2. User selects 1+ business types
+ * 2. User selects exactly one business type
  * 3. Real-time UI updates
- * 4. Continue button enabled when 1+ selected
+ * 4. Continue button enabled when one type is selected
  * 5. On submit, persist all onboarding data
-  * 6. Navigate based on the selected plan
+   * 6. Navigate based on the selected plan
  */
 export class SignupBusinessTypesStepPage {
   // Selected types by user
@@ -253,9 +252,26 @@ export class SignupBusinessTypesStepPage {
   getSelectedPlan(): PlanCode | null {
     const storage = this.getStorage();
     if (!storage) {
-      return 'STARTER'; // Default to canonical starter plan if no storage available
+      return null;
     }
-    return readPlanSelection(storage) ?? 'STARTER';
+
+    const planFromUrl = this.readPlanFromCurrentUrl();
+    if (planFromUrl) {
+      persistPlanSelection(storage, planFromUrl);
+      return planFromUrl;
+    }
+
+    return readPlanSelection(storage);
+  }
+
+  private readPlanFromCurrentUrl(): PlanCode | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const search = window.location?.search ?? '';
+    const rawPlan = new URLSearchParams(search).get('plan');
+    return rawPlan ? resolveValidPlanCode(rawPlan) : null;
   }
 
   /**
@@ -277,8 +293,7 @@ export class SignupBusinessTypesStepPage {
    * Gets the maximum number of types allowed for current plan
    */
   getMaxTypes(): number {
-    const plan = this.getSelectedPlan();
-    return getPlanEntitlementsFromCatalog(getCurrentReferenceCatalog(), plan ?? 'STARTER')?.maxRubros ?? 1;
+    return 1;
   }
 
   async refreshReferenceCatalog(): Promise<void> {
@@ -338,12 +353,8 @@ export class SignupBusinessTypesStepPage {
       // Already selected, remove it
       this._selectedTypes.splice(index, 1);
     } else {
-      // Check if we've reached the max limit
-      if (this._selectedTypes.length >= this.getMaxTypes()) {
-        return; // Cannot select more types
-      }
-      // Add to selection
-      this._selectedTypes.push(type);
+      // The dashboard onboarding collects exactly one primary service type.
+      this._selectedTypes = [type];
     }
   }
 
@@ -374,18 +385,33 @@ export class SignupBusinessTypesStepPage {
       return;
     }
 
+    const plan = this.getSelectedPlan();
+    if (!plan) {
+      this.errorMessage = 'Elegí un plan válido para continuar con la configuración.';
+      return;
+    }
+
+    this.isLoading = true;
+
     // Persist business types as a draft only. Completion/navigation requires
     // Supabase updateUser metadata and business_settings upsert to succeed.
     persistBusinessTypes(storage, [...this._selectedTypes]);
 
-    const plan = this.getSelectedPlan();
     const persisted = await this.persistMandatoryOnboarding(storage, plan);
     if (!persisted) {
+      this.isLoading = false;
       return;
     }
 
-    this.successMessage = '¡Todo listo! Tu cuenta fue creada con éxito.';
-    this.openWelcomeStep(storage, plan);
+    this.successMessage = '¡Todo listo! Tu configuración fue guardada con éxito.';
+    markOnboardingCompletionConfirmed(storage);
+    // show paid Branch modal before the true welcome success state.
+    if (this.shouldOfferPaidAddon(plan)) {
+      this.openPaidAddonStep();
+      return;
+    }
+
+    this.openWelcomeStep(storage);
   }
 
   isSelectionStep(): boolean {
@@ -393,14 +419,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   continueAfterWelcome(): void {
-    const plan = this.getSelectedPlan();
-    if (this.shouldOfferPaidAddon(plan) && !this.paidAddonDecisionMade) {
-      this.showWelcomeModal = false;
-      this.showPaidAddonModal = true;
-      return;
-    }
-
-    this.continueToLogin();
+    this.continueToDashboard();
   }
 
   omitPaidAddon(): void {
@@ -410,18 +429,26 @@ export class SignupBusinessTypesStepPage {
     if (storage) {
       storage.setItem('turnea.onboarding.paid_addon_skipped', '1');
     }
-    this.continueToLogin();
+    this.openWelcomeStep(storage);
   }
 
   continueWithPaidAddonLater(): void {
     this.omitPaidAddon();
   }
 
-  private openWelcomeStep(storage: Pick<Storage, 'getItem' | 'setItem'>, plan: PlanCode | null): void {
+  private openPaidAddonStep(): void {
+    this.showWelcomeModal = false;
+    this.showPaidAddonModal = true;
+    this.isLoading = false;
+  }
+
+  private openWelcomeStep(storage: Pick<Storage, 'setItem'> | null): void {
     this.showWelcomeModal = true;
     this.showPaidAddonModal = false;
-    setCurrentStep(storage, 'welcome');
-    this.triggerWelcomeEmail(storage, plan);
+    this.isLoading = false;
+    if (storage) {
+      setCurrentStep(storage, 'welcome');
+    }
     this.triggerWelcomeConfetti();
   }
 
@@ -458,31 +485,14 @@ export class SignupBusinessTypesStepPage {
       });
   }
 
-  continueToLogin(): void {
+  continueToDashboard(): void {
     const storage = this.getStorage();
     if (storage) {
-      setCurrentStep(storage, 'login');
+      setCurrentStep(storage, 'dashboard');
       storage.setItem(ONBOARDING_DASHBOARD_CUE_KEY, '1');
     }
     if (this.routerRef) {
-      this.routerRef.navigateByUrl('/auth/login');
-    }
-  }
-
-  private triggerWelcomeEmail(storage: Pick<Storage, 'getItem' | 'setItem'>, plan: PlanCode | null): void {
-    if (!markWelcomeEmailTriggeredOnce(storage)) {
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('onboarding:welcome-email-trigger', {
-          detail: {
-            source: 'frontend-contract-point',
-            plan: normalizePlanCode(plan)
-          }
-        })
-      );
+      this.routerRef.navigateByUrl('/dashboard/inicio');
     }
   }
 
@@ -501,12 +511,11 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Handles back navigation to credentials step
+   * Handles safe navigation away from configuration onboarding.
    */
   goBack(): void {
     if (this.routerRef) {
-      // Navigate to credentials step (signup-credentials)
-      this.routerRef.navigateByUrl('/auth/signup/credentials');
+      this.routerRef.navigateByUrl('/dashboard/inicio');
     }
   }
 
@@ -537,7 +546,7 @@ export class SignupBusinessTypesStepPage {
         const plan = this.getSelectedPlan();
         const allowedCodes = allowedBusinessTypeCodesForPlan(plan);
         
-        this._selectedTypes = stored.filter((code) => allowedCodes.includes(code));
+        this._selectedTypes = stored.filter((code) => allowedCodes.includes(code)).slice(0, 1);
       }
     } catch {
       // Invalid stored data, ignore

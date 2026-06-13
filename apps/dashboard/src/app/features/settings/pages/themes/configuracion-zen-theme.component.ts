@@ -29,6 +29,7 @@ export class ConfiguracionZenThemeComponent {
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   copyBookingUrl(): void { this.ctx.copyBookingUrl(); }
+  planDisplayLabel(): string { return this.ctx.planDisplayLabel(); }
 
   onSubmit(): void { this.ctx.onSubmit(); }
   onSelectedBusinessChange(value: string): void { this.ctx.onSelectedBusinessChange(value); }

@@ -1,6 +1,10 @@
 const LOCAL_LANDING_DEV_PORT = '4321';
 const LOCAL_PROXY_ORIGIN = 'http://localhost:3000';
 const STALE_INICIO_RETURN_TO = new Set(['/inicio', 'inicio']);
+const LOCAL_AUTH_PROXY_CANONICAL_PATHS = new Set([
+  '/auth/login',
+  '/auth/signup/plan'
+]);
 
 function isLocalLandingDevOrigin(url: URL): boolean {
   return (
@@ -29,7 +33,7 @@ export function buildLocalProxyAuthCanonicalUrl(href: string, proxyOrigin = LOCA
   }
 
   if (!isLocalLandingDevOrigin(currentUrl)) return null;
-  if (currentUrl.pathname !== '/auth/login') return null;
+  if (!LOCAL_AUTH_PROXY_CANONICAL_PATHS.has(currentUrl.pathname)) return null;
 
   const canonicalUrl = new URL(currentUrl.pathname, proxyUrl.origin);
   canonicalUrl.search = currentUrl.search;

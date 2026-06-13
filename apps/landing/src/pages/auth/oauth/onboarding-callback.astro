@@ -23,6 +23,7 @@ import Layout from '../../../layouts/Layout.astro';
     handleOAuthOnboardingCallback,
     OAuthOnboardingError
   } from '../../../lib/oauth-signup-onboarding-flow';
+  import { SIGNUP_STORAGE_KEYS } from '../../../lib/browser-storage-keys';
 
   if (typeof window !== 'undefined') {
     const status = document.getElementById('oauthCallbackStatus');
@@ -32,7 +33,7 @@ import Layout from '../../../layouts/Layout.astro';
       ?.split('=')[1];
     const fallbackPlan =
       new URLSearchParams(window.location.search).get('plan') ||
-      sessionStorage.getItem('orvel.signup.plan') ||
+      sessionStorage.getItem(SIGNUP_STORAGE_KEYS.plan) ||
       (cookiePlan ? decodeURIComponent(cookiePlan) : '');
 
     const fail = (error: unknown) => {
@@ -86,7 +87,7 @@ import Layout from '../../../layouts/Layout.astro';
         }
       });
 
-      sessionStorage.setItem('orvel.signup.plan', result.plan);
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, result.plan);
       const secureCookie = window.location.protocol === 'https:' ? '; Secure' : '';
       document.cookie = `orvel.oauth.signup.plan=${encodeURIComponent(result.plan)}; Max-Age=0; Path=/; SameSite=Lax${secureCookie}`;
       window.location.href = result.redirectTo;

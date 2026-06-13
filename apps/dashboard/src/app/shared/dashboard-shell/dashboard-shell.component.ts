@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
@@ -14,6 +14,7 @@ import { DashboardTopbarComponent } from '../dashboard-topbar/dashboard-topbar.c
 import { ThemeService } from '../../core/theming/theme.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
+import { logoutAndRedirect } from '../../core/auth/route-protection';
 
 @Component({
   selector: 'app-dashboard-shell',
@@ -24,6 +25,7 @@ import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-struct
 })
 export class DashboardShellComponent implements AfterViewInit {
   private readonly host = inject(ElementRef<HTMLElement>);
+  protected readonly router = inject(Router);
   protected readonly themeService = inject(ThemeService);
   protected readonly dashboardService = inject(DashboardService);
   protected readonly structure = DASHBOARD_STRUCTURAL_TOKENS;
@@ -52,6 +54,14 @@ export class DashboardShellComponent implements AfterViewInit {
 
   protected readonly activeTemplate = this.themeService.activeTemplate;
   protected readonly activeThemeClass = this.themeService.activeThemeClass;
+  protected readonly isSidebarCollapsed = signal(false);
+  protected readonly sidebarWidth = computed(() =>
+    this.isSidebarCollapsed() ? 84 : this.activeTemplate().sidebarWidth
+  );
+
+  constructor() {
+    this.handleLogout = this.handleLogout.bind(this);
+  }
 
   ngAfterViewInit(): void {
     this.themeService.setTheme(this.activeTheme());
@@ -62,6 +72,15 @@ export class DashboardShellComponent implements AfterViewInit {
     this.themeService.setTheme(theme);
     this.activeTheme.set(theme);
     applyDashboardTheme(this.host.nativeElement, theme);
+  }
+
+  protected toggleSidebarCollapsed(): void {
+    this.isSidebarCollapsed.update(collapsed => !collapsed);
+  }
+
+  protected async handleLogout(): Promise<void> {
+    const redirectTo = await logoutAndRedirect();
+    await this.router.navigateByUrl(redirectTo);
   }
 
   protected trackDashboard(index: number, dashboard: DashboardFromSessionConfig['dashboards'][number]): string {

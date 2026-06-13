@@ -6,7 +6,7 @@
  */
 import type { PlanCode } from '../../core/plans/plan-entitlements';
 import { readPlanSelection } from '../../features/onboarding/data-access/onboarding-plan-storage';
-import { ONBOARDING_ACCOUNT_METHOD_KEY, setCurrentStep } from '../../features/onboarding/data-access/onboarding-flow-state';
+import { setCurrentStep } from '../../features/onboarding/data-access/onboarding-flow-state';
 
 // Re-export PlanCode for convenience
 export { PlanCode };
@@ -14,6 +14,7 @@ export { PlanCode };
 // Storage keys
 export const ONBOARDING_CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials.v1';
 export const ONBOARDING_PLAN_STORAGE_KEY = 'turnea.onboarding.v1';
+const LEGACY_SIGNUP_ACCOUNT_METHOD_KEY = 'turnea.signup.account-method.v1';
 
 // Validation result type
 export interface ValidationResult {
@@ -346,7 +347,7 @@ export class SignupCredentialsPage {
     if (this.accountMethod === 'google') {
       const storage = this.getStorage();
       if (storage) {
-        storage.setItem(ONBOARDING_ACCOUNT_METHOD_KEY, 'google');
+        storage.setItem(LEGACY_SIGNUP_ACCOUNT_METHOD_KEY, 'google');
         setCurrentStep(storage, 'business-types');
       }
       if (this.routerRef) {
@@ -375,7 +376,7 @@ export class SignupCredentialsPage {
         phone: this.phone.trim()
       };
       storage.setItem(ONBOARDING_CREDENTIALS_STORAGE_KEY, JSON.stringify(credentialsData));
-      storage.setItem(ONBOARDING_ACCOUNT_METHOD_KEY, 'manual');
+      storage.setItem(LEGACY_SIGNUP_ACCOUNT_METHOD_KEY, 'manual');
       setCurrentStep(storage, 'business-types');
     }
 

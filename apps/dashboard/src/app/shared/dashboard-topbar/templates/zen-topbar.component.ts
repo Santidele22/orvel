@@ -103,24 +103,9 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
                  </div>
                </div>
 
-               <div class="px-4 py-3 flex items-center justify-between group/toggle cursor-pointer hover:bg-primary/10 rounded-2xl transition-all" (click)="themeService.toggleDarkMode()">
-                   <div class="flex items-center gap-3">
-                     <div class="w-8 h-8 rounded-xl bg-bg-primary shadow-lg flex items-center justify-center">
-                        <i [class]="themeService.isDarkMode() ? 'ri-moon-clear-fill text-primary' : 'ri-sun-fill text-warning'" class="text-base"></i>
-                     </div>
-                     <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary group-hover/toggle:text-primary">Modo Oscuro</span>
-                   </div>
-                   <!-- Toggle UI -->
-                   <div class="w-10 h-6 rounded-full p-1 transition-all duration-300" [class]="themeService.isDarkMode() ? 'bg-primary' : 'bg-slate-700'">
-                      <div class="w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300" [style.transform]="themeService.isDarkMode() ? 'translateX(100%)' : 'translateX(0)'"></div>
-                   </div>
-               </div>
-
-               <div class="h-px bg-white/5 my-2"></div>
-
-                <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
-                  <i class="ri-user-smile-fill text-lg opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all"></i>
-                  <span>Mi Perfil</span>
+                 <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
+                   <i class="ri-user-smile-fill text-lg opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all"></i>
+                   <span>Mi Perfil</span>
                 </button>
 
                 <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
@@ -130,10 +115,10 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
 
                 <div class="h-px bg-white/5 my-2"></div>
 
-                <button (click)="onLogout()" class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-error opacity-80 hover:bg-error/10 transition-all group">
-                  <i class="ri-logout-circle-r-fill text-lg group-hover:scale-110 transition-all"></i>
-                  <span>Finalizar</span>
-                </button>
+                 <button data-testid="dashboard-topbar-logout-action" (click)="onLogout()" class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-error opacity-80 hover:bg-error/10 transition-all group">
+                   <i class="ri-logout-circle-r-fill text-lg group-hover:scale-110 transition-all"></i>
+                   <span>Cerrar sesión</span>
+                 </button>
              </div>
 
             <!-- Backdrop to close -->
@@ -159,7 +144,7 @@ export class ZenTopbarComponent {
     return this.businessFacade.settings()?.businessName || this.authService.user()?.negocioNombre || 'Mi Negocio';
   });
 
-  @Input() onLogout: () => void = () => { this.authService.logout(); };
+  @Input() onLogout: () => void | Promise<void> = () => { this.authService.logout(); };
 
   constructor() {
     void this.refreshAdminNotifications();

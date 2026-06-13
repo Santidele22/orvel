@@ -117,6 +117,19 @@ export class ConfiguracionPage {
   protected readonly Math = Math;
   readonly viewModel = this;
 
+  planDisplayLabel(): string {
+    return this.normalizePlanDisplay(this.settingsForm.controls.plan.value);
+  }
+
+  private normalizePlanDisplay(plan: unknown): string {
+    const normalized = String(plan ?? '').trim().toUpperCase();
+    if (normalized === 'FREE') {
+      return 'Free';
+    }
+
+    return normalized ? normalized.charAt(0) + normalized.slice(1).toLowerCase() : 'Free';
+  }
+
   readonly loading = signal(true);
   readonly formMessage = signal('');
   readonly fieldErrors = signal<Record<string, string>>({});

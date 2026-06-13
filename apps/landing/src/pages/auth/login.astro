@@ -84,12 +84,10 @@ import Layout from '../../layouts/Layout.astro';
 <script>
   import {
     createSupabaseLoginAdapterFromEnv,
-    loginWithGoogle,
     loginWithProvider
   } from '../../lib/auth-provider';
   import { sanitizeLandingAuthReturnTo } from '../../lib/auth-return-to';
   import { buildLocalProxyAuthCanonicalUrl } from '../../lib/local-auth-proxy-canonicalizer';
-  import { parseSupabaseOAuthRedirectDiagnostics } from '../../lib/supabase-auth-adapter';
 
   if (typeof window !== 'undefined') {
     const canonicalRedirectTo = buildLocalProxyAuthCanonicalUrl(window.location.href);
@@ -101,9 +99,6 @@ import Layout from '../../layouts/Layout.astro';
         currentOrigin: window.location.origin,
         dashboardBaseUrl: import.meta.env.PUBLIC_DASHBOARD_URL
       });
-      const callbackUrl = new URL('/auth/callback', window.location.origin);
-      callbackUrl.searchParams.set('returnTo', returnTo);
-
       const debugStorageKey = 'debug_' + 'oauth';
       const isOAuthDebugEnabled = params.get('debug_oauth') === '1' || window.localStorage.getItem(debugStorageKey) === '1';
 
@@ -113,7 +108,6 @@ import Layout from '../../layouts/Layout.astro';
         if (!debug) return;
         debug.textContent = `OAuth debug\n${JSON.stringify({
           windowOrigin: window.location.origin,
-          callbackUrl: callbackUrl.toString(),
           sanitizedReturnTo: returnTo,
           ...extra
         }, null, 2)}`;
@@ -187,31 +181,11 @@ import Layout from '../../layouts/Layout.astro';
 
         clearError();
         button.disabled = true;
-        try {
-          const result = await loginWithGoogle({ redirectTo: callbackUrl.toString() });
-          renderOAuthDebug(result.ok && result.redirectTo
-            ? { supabaseOAuth: parseSupabaseOAuthRedirectDiagnostics(result.redirectTo) }
-            : { oauthResult: { ok: result.ok, error: result.ok ? undefined : result.error }, supabaseOAuth: result.ok ? undefined : result.oauthDiagnostics }
-          );
-          if (result.ok && result.redirectTo) {
-            window.location.assign(result.redirectTo);
-            return;
-          }
+        const planFirstUrl = new URL('/auth/signup/plan?reason=missing_plan&intent=create_account', window.location.origin);
+        planFirstUrl.searchParams.set('returnTo', returnTo);
 
-          if (result.ok) {
-            setError('No pudimos redirigirte a Google. Intentá nuevamente en unos segundos.');
-            button.disabled = false;
-            return;
-          }
-
-          if (!result.ok) {
-            setError(result.error || 'No pudimos iniciar sesión con Google. Intentá nuevamente.');
-            button.disabled = false;
-          }
-        } catch (error) {
-          setError(error instanceof Error ? error.message : 'No pudimos iniciar sesión con Google. Intentá nuevamente.');
-          button.disabled = false;
-        }
+        renderOAuthDebug({ planFirstRedirect: planFirstUrl.toString() });
+        window.location.assign(planFirstUrl.toString());
       });
     }
   }

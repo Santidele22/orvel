@@ -34,9 +34,13 @@ async function patchVercelOutputConfig() {
   const rawConfig = await readFile(outputConfigPath, 'utf8');
   const config = JSON.parse(rawConfig);
   const dashboardRewrite = { src: '/dashboard(?:/.*)?', dest: '/dashboard/index.html' };
+  const bookingRewrite = { src: '/booking(?:/.*)?', dest: '/dashboard/index.html' };
+  const dashboardSpaRewrites = [dashboardRewrite, bookingRewrite];
   const existingRoutes = Array.isArray(config.routes) ? config.routes : [];
   const withoutDashboardRewrite = existingRoutes.filter(
-    (route) => !(route?.src === dashboardRewrite.src && route?.dest === dashboardRewrite.dest)
+    (route) => !dashboardSpaRewrites.some(
+      (rewrite) => route?.src === rewrite.src && route?.dest === rewrite.dest
+    )
   );
   const filesystemIndex = withoutDashboardRewrite.findIndex((route) => route?.handle === 'filesystem');
 
@@ -44,10 +48,10 @@ async function patchVercelOutputConfig() {
     filesystemIndex >= 0
       ? [
           ...withoutDashboardRewrite.slice(0, filesystemIndex + 1),
-          dashboardRewrite,
+          ...dashboardSpaRewrites,
           ...withoutDashboardRewrite.slice(filesystemIndex + 1)
         ]
-      : [{ handle: 'filesystem' }, dashboardRewrite, ...withoutDashboardRewrite];
+      : [{ handle: 'filesystem' }, ...dashboardSpaRewrites, ...withoutDashboardRewrite];
 
   await writeFile(outputConfigPath, `${JSON.stringify(config, null, 2)}\n`);
 }

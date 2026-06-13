@@ -17,6 +17,16 @@ describe('Contract: local landing auth login canonicalizes to dev proxy', () => 
     ).toBe('http://localhost:3000/auth/login?returnTo=%2Fdashboard%2Finicio');
   });
 
+  it('keeps /auth/signup/plan create-account notices proxy-aware instead of bouncing back to bare 4321', () => {
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/signup/plan?reason=missing_plan&intent=create_account')
+    ).toBe('http://localhost:3000/auth/signup/plan?reason=missing_plan&intent=create_account');
+
+    expect(
+      buildLocalProxyAuthCanonicalUrl('http://127.0.0.1:4321/auth/signup/plan?reason=invalid_plan&intent=create_account#plans-container')
+    ).toBe('http://localhost:3000/auth/signup/plan?reason=invalid_plan&intent=create_account#plans-container');
+  });
+
   it('normalizes stale returnTo=/inicio or returnTo=inicio during proxy canonicalization', () => {
     expect(
       buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?returnTo=%2Finicio')
@@ -42,5 +52,14 @@ describe('Contract: local landing auth login canonicalizes to dev proxy', () => 
     expect(supabaseAdapterIndex).toBeGreaterThan(-1);
     expect(canonicalRedirectIndex).toBeLessThan(supabaseAdapterIndex);
     expect(loginPage).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
+  });
+
+  it('runs the canonical redirect on the plan-selection page before plan-card click handlers initialize', () => {
+    const planPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/signup/plan.astro'), 'utf8');
+    const planCards = readFileSync(resolve(process.cwd(), 'src/components/organisms/SignupPlanCards.astro'), 'utf8');
+
+    expect(planPage).toContain("buildLocalProxyAuthCanonicalUrl(window.location.href)");
+    expect(planPage).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
+    expect(planCards).toContain('isCreateAccountRedirectNoticeIntent');
   });
 });

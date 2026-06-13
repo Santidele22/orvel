@@ -65,7 +65,7 @@
           class="btn-back"
           (click)="goBack()"
         >
-          Volver
+          Ir al dashboard
         </button>
         <button
           type="button"
@@ -73,30 +73,30 @@
           [disabled]="!canContinue()"
           (click)="submit()"
         >
-          Completar registro
+          {{ isLoading ? 'Guardando configuración' : 'Guardar configuración' }}
         </button>
       </div>
-    }
-
-    @if (showWelcomeModal) {
-      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-        <span class="success-orb" aria-hidden="true">✓</span>
-        <span class="eyebrow">Cuenta creada</span>
-        <h2 id="welcome-title">¡Bienvenida/o a Orvel!</h2>
-        <p>Tu onboarding quedó completo y tus servicios ya quedaron guardados. Revisá tu email para el mensaje de bienvenida.</p>
-        <button type="button" class="btn-continue" (click)="continueAfterWelcome()">Continuar</button>
-      </section>
     }
 
     @if (showPaidAddonModal) {
       <section class="extra-branch-modal" role="dialog" aria-modal="true" aria-labelledby="extra-branch-title">
         <span class="eyebrow">Opcional para planes pagos</span>
         <h2 id="extra-branch-title">¿Querés sumar otra sucursal?</h2>
-        <p>Tu registro principal ya está listo. Podés preparar un local adicional ahora o saltar este paso y entrar a Orvel.</p>
+        <p>Tu configuración principal ya está lista. Podés preparar un local adicional ahora o saltar este paso y entrar a Orvel.</p>
         <div class="signup-actions">
           <button type="button" class="btn-back" (click)="omitPaidAddon()">Omitir sucursal</button>
           <button type="button" class="btn-continue" (click)="continueWithPaidAddonLater()">Entrar a Orvel</button>
         </div>
+      </section>
+    }
+
+    @if (showWelcomeModal) {
+      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <span class="success-orb" aria-hidden="true">✓</span>
+        <span class="eyebrow">Configuración guardada</span>
+        <h2 id="welcome-title">¡Bienvenida/o a Orvel!</h2>
+        <p>Tu onboarding quedó completo y tus servicios ya quedaron guardados.</p>
+        <button type="button" data-testid="onboarding-welcome-primary-action" class="btn-continue btn-welcome-primary" (click)="continueAfterWelcome()">Entrar a Orvel</button>
       </section>
     }
   </div>

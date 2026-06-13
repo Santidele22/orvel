@@ -15,13 +15,19 @@ describe('RED: canonical landing auth UI contract', () => {
     expect(loginPage).not.toMatch(/window\.location\.href\s*=\s*dashboardAuthUrl/);
   });
 
-  it('offers Google OAuth from the canonical UI through Supabase, not a dashboard redirect or local session mock', () => {
+  it('keeps Google entrypoint plan-first so Supabase OAuth cannot auto-provision an unplanned user', () => {
     const loginPage = source('src/pages/auth/login.astro');
     const authProvider = source('src/lib/auth-provider.ts');
     const supabaseAdapter = source('src/lib/supabase-auth-adapter.ts');
+    const googleHandlerStart = loginPage.indexOf("document.getElementById('googleBtn')?.addEventListener('click'");
+    const googleHandler = googleHandlerStart >= 0 ? loginPage.slice(googleHandlerStart) : '';
 
     expect(loginPage).toContain('id="googleBtn"');
-    expect(loginPage).toMatch(/loginWithGoogle\(/);
+    // Signup/auth changes moved Google login through plan selection first; direct
+    // Supabase OAuth from /auth/login would auto-provision users before plan/onboarding context exists.
+    expect(loginPage).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(googleHandler).not.toContain('loginWithGoogle');
+    expect(googleHandler).not.toContain('signInWithOAuth');
     expect(authProvider).toMatch(/createSupabaseOAuthAdapter/);
     expect(supabaseAdapter).toMatch(/auth\.signInWithOAuth\(\{\s*provider/s);
     expect(supabaseAdapter).toContain("provider: 'google'");
