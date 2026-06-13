@@ -118,6 +118,14 @@ function getRuntimeModeValue(rawModeOrRuntime: RawRuntimeModeInput): string | nu
 }
 
 function mapSupabaseFailureToLoginResult(failure: Extract<SupabaseAdapterResult, { ok: false }>): LoginResult {
+  if (failure.code === 'signup_existing') {
+    return {
+      ok: false,
+      error: 'Ya existe una cuenta con ese email. Iniciá sesión para continuar y retomar el onboarding.',
+      redirectTo: failure.redirectTo
+    };
+  }
+
   if (failure.code === 'invalid_credentials') {
     return {
       ok: false,
@@ -136,6 +144,13 @@ function mapSupabaseFailureToLoginResult(failure: Extract<SupabaseAdapterResult,
     ok: false,
     error: failure.error || 'No pudimos iniciar sesión por el momento.'
   };
+}
+
+function buildSignupExistingLoginRedirect(returnTo: string | null | undefined): string {
+  const loginUrl = new URL('/auth/login', typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:4321');
+  loginUrl.searchParams.set('returnTo', sanitizeReturnTo(returnTo));
+  loginUrl.searchParams.set('resume', 'onboarding');
+  return `${loginUrl.pathname}${loginUrl.search}`;
 }
 
 async function persistSupabaseSession(
@@ -231,7 +246,15 @@ export async function signupWithProvider(input: SignupWithProviderInput): Promis
     };
   }
 
-  return mapSupabaseFailureToLoginResult(result as Extract<SupabaseAdapterResult, { ok: false }>);
+  const failure = result as Extract<SupabaseAdapterResult, { ok: false }>;
+  if (failure.code === 'signup_existing') {
+    return mapSupabaseFailureToLoginResult({
+      ...failure,
+      redirectTo: failure.redirectTo ?? buildSignupExistingLoginRedirect(input.attempt.returnTo)
+    });
+  }
+
+  return mapSupabaseFailureToLoginResult(failure);
 }
 
 export function createSupabaseSignupAdapterFromEnv(

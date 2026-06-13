@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  signupWithProvider,
+  type LoginResult
+} from '../lib/auth-provider';
+import {
   ORVEL_SUPABASE_AUTH_STORAGE_KEY,
   createSupabaseBrowserAuthOptions,
   createSupabaseOAuthAdapter,
@@ -70,7 +74,34 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it('manual signup persists canonical plan and each allowed business type in Supabase metadata', async () => {
+  it('FREE manual signup persists explicit FREE plan and incomplete onboarding metadata for dashboard handoff', async () => {
+    const signUp = vi.fn(async () => ({
+      data: { session: { access_token: 'token' }, user: { id: 'free-user', email: 'santi@orvel.app' } },
+      error: null
+    }));
+
+    const signup = createSupabaseSignupAdapter(SUPABASE_ENV, {
+      createClient: () => ({ auth: { signUp } }) as never
+    });
+
+    const result = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'pendiente' }));
+
+    expect(result.ok).toBe(true);
+    expect(signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          data: expect.objectContaining({
+            plan: 'FREE',
+            tipoNegocio: 'pendiente',
+            onboardingCompleted: false,
+            onboarding_completed: false
+          })
+        })
+      })
+    );
+  });
+
+  it('manual paid signup persists canonical plan and each completed business type in Supabase metadata', async () => {
     for (const tipoNegocio of ALLOWED_BUSINESS_TYPES) {
       const signUp = vi.fn(async () => ({
         data: { session: { access_token: 'token' }, user: { id: `user-${tipoNegocio}`, email: 'santi@orvel.app' } },
@@ -81,7 +112,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
         createClient: () => ({ auth: { signUp } }) as never
       });
 
-      const result = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio }));
+      const result = await signup(makeSignupAttempt({ plan: 'STARTER', tipoNegocio }));
 
       expect(result.ok).toBe(true);
       expect(signUp).toHaveBeenCalledWith(
@@ -96,6 +127,31 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
         })
       );
     }
+  });
+
+  it('duplicate email during FREE signup offers login and resume-onboarding instead of a blocking already-registered error', async () => {
+    const duplicateSignup = vi.fn(async () => ({
+      ok: false,
+      code: 'signup_existing',
+      error: 'User already registered'
+    })) as unknown as (attempt: SignupAttempt) => Promise<never>;
+
+    const result = (await signupWithProvider({
+      attempt: makeSignupAttempt({
+        plan: 'FREE',
+        tipoNegocio: 'pendiente',
+        returnTo: 'http://localhost:4200/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard%2Finicio&plan=FREE'
+      }),
+      supabaseSignup: duplicateSignup
+    })) as LoginResult;
+
+    expect(result.ok).toBe(false);
+    expect(duplicateSignup).toHaveBeenCalledOnce();
+    expect(result.error).not.toMatch(/user already registered|usuario ya registrado|ya se encuentra registrado/i);
+    expect(result.error).toMatch(/inici[aá]\s+sesi[oó]n|login/i);
+    expect(result.error).toMatch(/continuar|retomar|onboarding/i);
+    expect(result.redirectTo).toMatch(/\/auth\/login/);
+    expect(result.redirectTo).toMatch(/returnTo=.*auth%2Fonboarding|resume.*onboarding/i);
   });
 
   it('Google OAuth redirects to persisted onboarding when plan and business type are not completed', async () => {

@@ -41,8 +41,9 @@ export type SupabaseAdapterResult =
     }
   | {
       ok: false;
-      code: 'invalid_credentials' | 'unavailable' | 'unknown' | 'onboarding_required';
+      code: 'invalid_credentials' | 'unavailable' | 'unknown' | 'onboarding_required' | 'signup_existing';
       error: string;
+      redirectTo?: string;
     };
 
 export type SupabaseOAuthAdapterResult =
@@ -161,16 +162,30 @@ function isInvalidCredentialsError(message: string): boolean {
   return /invalid\s+login\s+credentials|invalid_credentials|credenciales/i.test(message);
 }
 
-const CANONICAL_PLAN_CODES = ['STARTED', 'GROWTH', 'PRO'] as const;
+const CANONICAL_PLAN_CODES = ['FREE', 'STARTED', 'GROWTH', 'PRO'] as const;
 const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro', 'pendiente'] as const;
 
 function normalizeSignupPlan(plan: unknown): (typeof CANONICAL_PLAN_CODES)[number] | null {
-  const normalizedPlan = typeof plan === 'string' && plan.trim().toUpperCase() === 'FREE'
-    ? 'STARTED'
-    : normalizeOAuthSignupPlan(plan);
+  const normalizedPlan = normalizeOAuthSignupPlan(plan);
   return (CANONICAL_PLAN_CODES as readonly string[]).includes(normalizedPlan ?? '')
     ? (normalizedPlan as (typeof CANONICAL_PLAN_CODES)[number])
     : null;
+}
+
+function isFreeSignupPlan(plan: (typeof CANONICAL_PLAN_CODES)[number]): boolean {
+  return plan === 'FREE';
+}
+
+function isDuplicateSignupErrorMessage(message: string): boolean {
+  return /user\s+already\s+registered|already\s+registered|email\s+already\s+registered|already\s+exists/i.test(message);
+}
+
+function buildRecoverableSignupExistingResult(): Extract<SupabaseAdapterResult, { ok: false }> {
+  return {
+    ok: false,
+    code: 'signup_existing',
+    error: 'Ya existe una cuenta con ese email. Iniciá sesión para continuar y retomar el onboarding.'
+  };
 }
 
 function normalizeOAuthStartPlan(plan: unknown): string | null {
@@ -424,6 +439,8 @@ export function createSupabaseSignupAdapter(
         };
       }
 
+      const onboardingCompleted = !isFreeSignupPlan(planCode);
+
       const { data, error } = await client.auth.signUp({
         email: attempt.email ?? '',
         password: attempt.password ?? '',
@@ -435,8 +452,8 @@ export function createSupabaseSignupAdapter(
             tipoNegocio: businessType,
             telefono: attempt.telefono,
             plan: planCode,
-            onboardingCompleted: true,
-            onboarding_completed: true
+            onboardingCompleted,
+            onboarding_completed: onboardingCompleted
           }
         }
       });
@@ -446,6 +463,10 @@ export function createSupabaseSignupAdapter(
         
         if (message.includes('rate limit')) {
           message = 'Se superó el límite de intentos o envío de correos. Por favor, intentá nuevamente más tarde.';
+        }
+
+        if (isDuplicateSignupErrorMessage(message)) {
+          return buildRecoverableSignupExistingResult();
         }
 
         return {
@@ -461,11 +482,7 @@ export function createSupabaseSignupAdapter(
       if (!session?.access_token) {
         // If user already exists, Supabase returns user but no session and empty identities
         if (user && user.identities && user.identities.length === 0) {
-          return {
-            ok: false,
-            code: 'unknown',
-            error: 'El email ya se encuentra registrado. Por favor, iniciá sesión.'
-          };
+          return buildRecoverableSignupExistingResult();
         }
         // If email confirmation is enabled, session is null
         return {
