@@ -61,6 +61,79 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(beforeAccountCreation).toMatch(/missing_plan/);
     expect(beforeAccountCreation).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
   });
+
+  it('credentials-first submit protects a pending intent before sending the user to plan selection', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
+    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm())');
+
+    expect(missingPlanBranch).toMatch(/fetch\(['"]\/api\/signup\/pending-intent\/protect['"]|createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id/);
+    expect(missingPlanBranch).toMatch(/await\s+(?:fetch|createProtectedPendingSignupIntent)|\.then\(/);
+    expect(missingPlanBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
+    expect(missingPlanBranch).toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(missingPlanBranch).toMatch(/protected_pending_signup_intent|intent_id|email_encrypted/);
+    expect(missingPlanBranch).toMatch(/missing_plan/);
+    expect(missingPlanBranch).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\([^)]*(?:name|nombre|apellido|negocioNombre|telefono|phone|email)[^)]*(?:\.value|JSON\.stringify\([^)]*(?:email|phone|telefono|negocioNombre))/i);
+    expect(missingPlanBranch).not.toMatch(/password|confirmPassword/);
+    expect(missingPlanBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|loginWithGoogle/);
+  });
+
+  it('credentials-first redirect branch validates required non-sensitive fields but never validates or persists password', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
+    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm())');
+
+    expect(missingPlanBranch).toMatch(/validatePendingCredentialsFirst|validateNonSensitiveCredentials|validateForm\([^)]*credentialsFirst/);
+    for (const field of ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email']) {
+      expect(missingPlanBranch).toMatch(new RegExp(field));
+    }
+    expect(missingPlanBranch).not.toMatch(/['"]name['"]|input\[name=["']name["']\]/);
+    expect(missingPlanBranch).not.toMatch(/password|confirmPassword|contraseñ/i);
+  });
+
+  it('credentials form captures first and last name as separate required fields instead of a full-name field', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const formMarkup = sliceBetween(source, '<form id="credentialsForm"', '</form>');
+
+    expect(formMarkup).toMatch(/name=["']nombre["']/);
+    expect(formMarkup).toMatch(/name=["']apellido["']/);
+    expect(formMarkup).toMatch(/id=["']nombre["']/);
+    expect(formMarkup).toMatch(/id=["']apellido["']/);
+    expect(formMarkup).toMatch(/name=["']nombre["'][^>]*required|required[^>]*name=["']nombre["']/);
+    expect(formMarkup).toMatch(/name=["']apellido["'][^>]*required|required[^>]*name=["']apellido["']/);
+    expect(formMarkup).toMatch(/Nombre/i);
+    expect(formMarkup).toMatch(/Apellido/i);
+
+    expect(formMarkup).not.toMatch(/name=["']name["']/);
+    expect(formMarkup).not.toMatch(/id=["']name["']/);
+    expect(formMarkup).not.toMatch(/Nombre\s+Completo|Nombre y Apellido/i);
+  });
+
+  it('credentials validation treats first and last name as independent required fields', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const validatorsSection = sliceBetween(source, 'const validators = {', 'const validateField');
+
+    expect(validatorsSection).toMatch(/nombre\s*:/);
+    expect(validatorsSection).toMatch(/apellido\s*:/);
+    expect(validatorsSection).toMatch(/(?:El\s+)?nombre\s+es\s+requerido|required/i);
+    expect(validatorsSection).toMatch(/(?:El\s+)?apellido\s+es\s+requerido|required/i);
+    expect(validatorsSection).not.toMatch(/name\s*:/);
+    expect(validatorsSection).not.toMatch(/includes\(['"]\s['"]\)|split\(['"]\s['"]\)/);
+  });
+
+  it('credentials submit sends explicit first_name and last_name from separate inputs to the protected intent endpoint', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
+
+    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
+    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
+    expect(submitFlow).toMatch(/first_name\s*:\s*nombre/);
+    expect(submitFlow).toMatch(/last_name\s*:\s*apellido/);
+    expect(submitFlow).not.toMatch(/input\[name=["']name["']\]/);
+    expect(submitFlow).not.toMatch(/\.split\(['"]\s['"]\)|nameParts|slice\(1\)\.join/);
+  });
 });
 
 describe('RED contract: plan-selection redirect notice is reusable and not missing-account-only', () => {
@@ -78,5 +151,27 @@ describe('RED contract: plan-selection redirect notice is reusable and not missi
     expect(source).toMatch(/setTimeout\([\s\S]{0,400}(?:5000|5\s*\*\s*1000)/);
     expect(source).toMatch(/continue|continuar/i);
     expect(source).not.toMatch(/function\s+showMissingAccountNotice|id="missing-account-create-account-notice"/);
+  });
+
+  it('plan selection can resume a pending credentials-first flow from a protected intent without plaintext PII in sessionStorage', async () => {
+    const source = await loadSource(SIGNUP_PLAN_CARDS_PATH);
+
+    expect(source).toMatch(/pendingCredentialsFirst|credentials_first|SIGNUP_STORAGE_KEYS\.pendingSignupIntent|intent_id/);
+    expect(source).toMatch(/hasPendingCredentialsFirst|isPendingCredentialsFirst|resumePendingCredentialsFirst/);
+    expect(source).toContain('/auth/signup/credentials?plan=');
+    expect(source).toMatch(/resume=(?:credentials_first|pending_credentials)|credentials_first=true|pending_credentials=true/);
+    expect(source).not.toMatch(/sessionStorage\.getItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(source).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|loginWithGoogle/);
+  });
+
+  it('credentials page does not restore plaintext PII from browser storage after the user selects a plan', async () => {
+    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const prefillSection = sliceBetween(source, '// Pre-fill email from modal if available', '// --- Validation Engine ---');
+
+    expect(source).toMatch(/SIGNUP_STORAGE_KEYS\.pendingSignupIntent|protected_pending_signup_intent|intent_id/);
+    expect(prefillSection).not.toMatch(/sessionStorage\.getItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(prefillSection).not.toMatch(/\.value\s*=\s*sessionStorage\.getItem/);
+    expect(prefillSection).not.toMatch(/password|confirmPassword|contraseñ/i);
   });
 });

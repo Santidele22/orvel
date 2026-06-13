@@ -26,7 +26,7 @@ describe('RED contract: paid manual signup defers account creation until payment
   it('paid manual signup creates only a pending intent and never calls signupWithProvider before MercadoPago payment', async () => {
     const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", "document.getElementById('googleSignupBtn')");
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
     const paidBranch = sliceBetween(submitFlow, 'const pendingSignupIntent =');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
 
@@ -43,7 +43,7 @@ describe('RED contract: paid manual signup defers account creation until payment
   it('free manual signup still creates the Supabase user immediately and hands off to dashboard onboarding', async () => {
     const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", "document.getElementById('googleSignupBtn')");
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
 
     expect(freeBranch).toContain('createSupabaseSignupAdapterFromEnv');
@@ -53,6 +53,19 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(freeBranch).toContain('window.location.href = nextStep');
     expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
+  });
+
+  it('free manual signup sends separately captured first and last name to Supabase signup metadata', async () => {
+    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
+
+    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
+    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
+    expect(freeBranch).toMatch(/nombre\s*,/);
+    expect(freeBranch).toMatch(/apellido\s*,/);
+    expect(freeBranch).not.toMatch(/input\[name=["']name["']\]/);
+    expect(freeBranch).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });
 
   it('manual signup never stores or reads password values from browser storage', async () => {
@@ -97,14 +110,34 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(startApiSource).not.toMatch(/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/);
   });
 
-  it('paid Google signup is blocked before Supabase OAuth starts', async () => {
+  it('paid manual signup protects separately captured first and last name before subscription start', async () => {
     const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
-    const googleHandler = sliceBetween(credentialsSource, "document.getElementById('googleSignupBtn')", "const { loginWithGoogle }");
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
+    const paidProtectionFlow = sliceBetween(submitFlow, 'protectedSignup = await createProtectedPendingSignupIntent', 'const pendingSignupIntent =');
+    const paidBranch = sliceBetween(submitFlow, 'const pendingSignupIntent =');
 
-    expect(googleHandler).toMatch(/isPaidPlan/);
-    expect(googleHandler).toMatch(/Google no está disponible antes del pago|planes pagos/i);
-    expect(googleHandler).toMatch(/return;/);
-    expect(googleHandler).not.toContain('loginWithGoogle');
+    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
+    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
+    expect(paidProtectionFlow).toMatch(/first_name\s*:\s*nombre/);
+    expect(paidProtectionFlow).toMatch(/last_name\s*:\s*apellido/);
+    expect(paidBranch).toContain('first_name_encrypted');
+    expect(paidBranch).toContain('last_name_encrypted');
+    expect(paidProtectionFlow).not.toMatch(/input\[name=["']name["']\]/);
+    expect(paidProtectionFlow).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
+  });
+
+  it('signup credentials removes Google UI entirely before Supabase OAuth can start', async () => {
+    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+
+    expect(credentialsSource).not.toContain('id="googleSignupBtn"');
+    expect(credentialsSource).not.toContain("id='googleSignupBtn'");
+    expect(credentialsSource).not.toContain('id="googleSignupNotice"');
+    expect(credentialsSource).not.toMatch(/Registrarse\s+con\s+Google|Google disponible|Google estar[aá] disponible/i);
+    expect(credentialsSource).not.toMatch(/<svg[\s\S]{0,1200}Google|Google[\s\S]{0,1200}<svg/i);
+    expect(credentialsSource).not.toContain("document.getElementById('googleSignupBtn')?.addEventListener('click'");
+    expect(credentialsSource).not.toContain('loginWithGoogle');
+    expect(credentialsSource).not.toContain('createSupabaseOAuthAdapter');
+    expect(credentialsSource).not.toContain('signInWithOAuth');
   });
 
   it('explicit FREE signup selection clears stale paid pending-signup state before OAuth starts', async () => {

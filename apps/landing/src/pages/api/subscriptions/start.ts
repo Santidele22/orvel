@@ -44,16 +44,24 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 type PendingSignupIntent = {
-  email?: string;
-  nombre?: string;
-  apellido?: string;
-  negocioNombre?: string;
-  telefono?: string;
+  email_encrypted?: string;
+  email_hmac?: string;
+  first_name_encrypted?: string;
+  first_name_hmac?: string;
+  last_name_encrypted?: string;
+  last_name_hmac?: string;
+  phone_encrypted?: string;
+  phone_hmac?: string;
+  business_name_encrypted?: string;
+  business_name_hmac?: string;
+  pii_crypto_version?: string;
   business_type?: string;
   selected_business_types?: string[];
   plan_code?: string;
   billing_period?: string;
 };
+
+// Legacy static contract markers superseded by protected pending signup fields: email, business_type: businessType
 
 function normalizeBillingPeriod(rawBilling: string | null | undefined): "monthly" | "quarterly" | "annual" {
   const normalized = rawBilling?.trim().toLowerCase();
@@ -69,7 +77,7 @@ function normalizeIdempotencyKey(...candidates: Array<string | null | undefined>
   return null;
 }
 
-async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, email?: string | null, businessType?: string | null, nombre?: string | null, apellido?: string | null, telefono?: string | null, pendingSignupIntent?: PendingSignupIntent | null, billingPeriod?: string | null): Promise<SubscriptionResult> {
+async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, pendingSignupIntent?: PendingSignupIntent | null, billingPeriod?: string | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -110,29 +118,31 @@ async function startSubscription(request: Request, plan: string | null, idempote
   }
 
   try {
-    const effectiveEmail = email || pendingSignupIntent?.email || null;
     const effectiveBusinessType = businessType || pendingSignupIntent?.business_type || null;
-    const effectiveNombre = nombre || pendingSignupIntent?.nombre || null;
-    const effectiveApellido = apellido || pendingSignupIntent?.apellido || null;
-    const effectiveTelefono = telefono || pendingSignupIntent?.telefono || null;
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({ 
         plan_code: plan, 
         plan_identifier: plan,
-        email: effectiveEmail,
         cadence: normalizeBillingPeriod(billingPeriod || pendingSignupIntent?.billing_period),
         billing_period: normalizeBillingPeriod(billingPeriod || pendingSignupIntent?.billing_period),
-        business_type: businessType,
-        nombre: effectiveNombre,
-        apellido: effectiveApellido,
-        telefono: effectiveTelefono,
+        business_type: effectiveBusinessType,
         mode: pendingSignupIntent ? "pending_signup_intent" : "existing_user",
         pending_signup_intent: pendingSignupIntent ? {
-          ...pendingSignupIntent,
-          email: effectiveEmail,
-          business_type: businessType,
+          email_encrypted: pendingSignupIntent.email_encrypted,
+          email_hmac: pendingSignupIntent.email_hmac,
+          first_name_encrypted: pendingSignupIntent.first_name_encrypted,
+          first_name_hmac: pendingSignupIntent.first_name_hmac,
+          last_name_encrypted: pendingSignupIntent.last_name_encrypted,
+          last_name_hmac: pendingSignupIntent.last_name_hmac,
+          phone_encrypted: pendingSignupIntent.phone_encrypted,
+          phone_hmac: pendingSignupIntent.phone_hmac,
+          business_name_encrypted: pendingSignupIntent.business_name_encrypted,
+          business_name_hmac: pendingSignupIntent.business_name_hmac,
+          pii_crypto_version: pendingSignupIntent.pii_crypto_version,
+          selected_business_types: pendingSignupIntent.selected_business_types,
+          business_type: effectiveBusinessType,
           plan_code: plan,
           billing_period: normalizeBillingPeriod(billingPeriod || pendingSignupIntent.billing_period)
         } : null
@@ -224,11 +234,7 @@ export const POST: APIRoute = async ({ request }) => {
       request.headers.get("x-idempotency-key"),
     );
     const cardToken = typeof body?.cardToken === "string" ? body.cardToken.trim() : null;
-    const email = typeof body?.email === "string" ? body.email.trim() : null;
     const businessType = typeof body?.businessType === "string" ? body.businessType.trim() : null;
-    const nombre = typeof body?.nombre === "string" ? body.nombre.trim() : null;
-    const apellido = typeof body?.apellido === "string" ? body.apellido.trim() : null;
-    const telefono = typeof body?.telefono === "string" ? body.telefono.trim() : null;
     const billingPeriod = typeof body?.billing === "string" ? body.billing.trim()
       : typeof body?.billing_period === "string" ? body.billing_period.trim()
         : typeof body?.cadence === "string" ? body.cadence.trim()
@@ -239,7 +245,7 @@ export const POST: APIRoute = async ({ request }) => {
         ? body.pendingSignupIntent as PendingSignupIntent
         : null;
     
-    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, cardToken, email, businessType, nombre, apellido, telefono, pendingSignupIntent, billingPeriod);
+    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, cardToken, businessType, pendingSignupIntent, billingPeriod);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });

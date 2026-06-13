@@ -63,30 +63,33 @@ import Layout from '../../../layouts/Layout.astro';
       return onboardingUrl.toString();
     };
 
-    const email = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.email)?.trim() || '';
-    const nombre = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.nombre)?.trim() || '';
-    const apellido = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.apellido)?.trim() || '';
-    const negocioNombre = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.negocioNombre)?.trim() || 'Mi Negocio';
-    const telefono = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.telefono)?.trim() || '';
-
     const returnTo = isPaidPlan
       ? `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`
       : buildDashboardOnboardingUrl();
 
-    if (isPaidPlan && email) {
-      const pendingSignupIntent = {
-        email,
-        nombre,
-        apellido,
-        negocioNombre,
-        telefono,
+    const readProtectedPendingSignupIntent = () => {
+      try {
+        const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.intent_id === 'string' && parsed.intent_id.trim()) return parsed;
+        if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+      } catch {
+        // Ignore invalid resume markers.
+      }
+      return null;
+    };
+
+    const protectedPendingSignupIntent = readProtectedPendingSignupIntent();
+    if (isPaidPlan && protectedPendingSignupIntent) {
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
+        ...protectedPendingSignupIntent,
         plan_code: plan,
         billing_period: billing
-      };
-      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(pendingSignupIntent));
+      }));
       window.location.href = `${returnTo}&signup_intent=pending_signup`;
     } else if (!isPaidPlan) {
-      window.location.href = returnTo;
+      window.location.href = `/auth/signup/credentials?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&resume=credentials_first`;
     }
   }
 </script>

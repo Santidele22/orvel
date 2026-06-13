@@ -11,6 +11,7 @@ const { plansWithBilling } = Astro.props;
 <script define:vars={{ plansData: plansWithBilling }}>
 import { createClient } from '@supabase/supabase-js';
 import { createSupabaseBrowserAuthOptions } from '../../lib/supabase-auth-adapter';
+import { SIGNUP_STORAGE_KEYS } from '../../lib/browser-storage-keys';
 
 // Store plans data for client-side use
 const PLANS_DATA = plansData;
@@ -23,6 +24,36 @@ const AUTHENTICATED_PAID_SUBSCRIPTION_URLS = {
 const CREATE_ACCOUNT_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=missing_plan&intent=create_account';
 const INVALID_PLAN_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=invalid_plan&intent=create_account';
 let authenticatedSessionPromise = null;
+
+function hasPendingCredentialsFirst() {
+  return Boolean(readProtectedPendingSignupIntent());
+}
+
+function createPendingCredentialsFirstSignupIntent(planCode, period) {
+  const pendingCredentialsFirst = readProtectedPendingSignupIntent();
+  if (!pendingCredentialsFirst) return;
+
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, planCode);
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, period);
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
+    ...pendingCredentialsFirst,
+    plan_code: planCode,
+    billing_period: period
+  }));
+}
+
+function readProtectedPendingSignupIntent() {
+  try {
+    const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.intent_id === 'string' && parsed.intent_id.trim()) return parsed;
+    if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+  } catch {
+    // Invalid pending intent markers are ignored and replaced by a fresh credentials flow.
+  }
+  return null;
+}
 
 function getCreateAccountRedirectNoticeReason() {
   const params = new URLSearchParams(window.location.search);
@@ -66,7 +97,18 @@ async function hasAuthenticatedSession() {
   return authenticatedSessionPromise;
 }
 
-async function resolveSignupPlanHref(planCode, period) {
+async function resolveSignupPlanHref(planCode, period, options = { commitPendingCredentialsFirst: false }) {
+  if (hasPendingCredentialsFirst()) {
+    if (options.commitPendingCredentialsFirst) {
+      createPendingCredentialsFirstSignupIntent(planCode, period);
+    }
+    if (planCode !== 'FREE') {
+      return `/billing/subscription?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&signup_intent=pending_signup`;
+    }
+
+    return `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&resume=credentials_first`;
+  }
+
   if (isCreateAccountRedirectNoticeIntent()) {
     return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
   }
@@ -240,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault();
       setPlanCardBusy(card, true);
       try {
-        const href = await resolveSignupPlanHref(planCode, getSelectedBillingPeriod());
+        const href = await resolveSignupPlanHref(planCode, getSelectedBillingPeriod(), { commitPendingCredentialsFirst: true });
         window.location.href = href;
       } finally {
         setPlanCardBusy(card, false);
