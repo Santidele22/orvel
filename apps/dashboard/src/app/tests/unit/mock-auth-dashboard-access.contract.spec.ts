@@ -129,7 +129,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
   });
 
   describe('logout', () => {
-    it('clears legacy session and redirects to canonical landing login path', async () => {
+    it('clears legacy session and redirects to canonical external landing login path', async () => {
       localStorage.setItem(
         LEGACY_DASHBOARD_SESSION_STORAGE_KEY,
         JSON.stringify({
@@ -145,7 +145,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const redirectTo = await logoutAndRedirect();
 
       expect(localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY)).toBeNull();
-      expect(redirectTo).toBe('/auth/login');
+      expect(redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
     });
   });
 });

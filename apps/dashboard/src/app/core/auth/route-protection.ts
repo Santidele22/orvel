@@ -226,5 +226,5 @@ export async function logoutAndRedirect(): Promise<string> {
   // Clear legacy localStorage data, but never trust it for dashboard access.
   localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
 
-  return LOGIN_ROUTE;
+  return buildLandingLoginRedirect('/dashboard');
 }

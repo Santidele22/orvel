@@ -23,24 +23,21 @@ describe('RED: auth unification contract', () => {
     expect(dashboard).toContain('canActivateChild: [dashboardAuthChildGuard]');
   });
 
-  it('does not mount an independent dashboard auth/login component for /auth or /auth/login', () => {
+  it('does not mount independent dashboard auth/login routes or lazy imports', () => {
     const appRoutes = source('src/app/app.routes.ts');
 
-    expect(appRoutes).not.toMatch(/path:\s*'auth',[\s\S]*?component:\s*LoginPage/);
-    expect(appRoutes).not.toMatch(/path:\s*'auth\/login',[\s\S]*?component:\s*LoginPage/);
-    expect(appRoutes).toMatch(/path:\s*'auth'|path:\s*'auth\/login'/);
-    expect(appRoutes).toMatch(/path:\s*'auth',[\s\S]*?loadComponent:\s*\(\)\s*=>\s*import\('\.\/pages\/auth\/login\.page'\)/);
+    expect(appRoutes).not.toMatch(/path:\s*['"]auth(?:\/login)?['"]/);
+    expect(appRoutes).not.toMatch(/path:\s*['"]login['"]/);
+    expect(appRoutes).not.toMatch(/['"]\.\/pages\/auth/);
+    expect(appRoutes).not.toMatch(/LoginPage|SignupCredentialsPage(?:Component)?/);
   });
 
-  it('requires dashboard auth entry points to delegate to canonical landing auth instead of calling Supabase credentials directly', () => {
-    const loginPage = source('src/app/pages/auth/login.page.ts');
-    const loginTemplate = source('src/app/pages/auth/login.page.html');
+  it('keeps credential auth owned by landing while dashboard guards only build external redirects', () => {
+    const routeProtection = source('src/app/core/auth/route-protection.ts');
 
-    expect(loginPage).not.toContain('createSupabaseAuthClient');
-    expect(loginPage).not.toContain('SUPABASE_CONFIG');
-    expect(loginPage).not.toMatch(/signInWithPassword|signUp|generateToken|getMockUser/);
-    expect(loginPage).toMatch(/buildLandingLoginRedirect|canonicalLandingAuth|window\.location\.assign/);
-    expect(loginTemplate).not.toMatch(/<form[^>]+\(ngSubmit\)=['"]onSubmit\(\)['"]/);
+    expect(routeProtection).toMatch(/buildLandingLoginRedirect/);
+    expect(routeProtection).toMatch(/CANONICAL_LANDING_ORIGIN\s*=\s*['"]https:\/\/orvel\.pro['"]/);
+    expect(routeProtection).not.toMatch(/signInWithPassword|signUp|generateToken|getMockUser/);
   });
 
   it('redirects unauthenticated protected dashboard access to canonical landing /auth/login with sanitized returnTo', () => {

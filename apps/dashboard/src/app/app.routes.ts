@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { DashboardShellComponent } from './shared/dashboard-shell/dashboard-shell.component';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
-import { normalizeDashboardAuthRequest } from './core/auth/dashboard-auth-flow';
 
 export const dashboardShellChildren: Routes = [
   {
@@ -40,21 +39,6 @@ export const dashboardShellChildren: Routes = [
 ];
 
 export const routes: Routes = [
-  {
-    path: 'auth',
-    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage),
-    pathMatch: 'full',
-    data: { normalizeDashboardAuthRequest }
-  },
-  {
-    path: 'login',
-    redirectTo: 'auth/login',
-    pathMatch: 'full'
-  },
-  {
-    path: 'auth/login',
-    loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage)
-  },
   {
     path: 'auth/onboarding',
     loadComponent: () =>
