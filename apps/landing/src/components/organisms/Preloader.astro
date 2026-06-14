@@ -62,31 +62,6 @@
 </div>
 
 <script>
-  // Script para ocultar el skeleton una vez que el sitio está completamente cargado.
-  // Usamos window.addEventListener('load') para asegurar que fuentes e imágenes estén listas.
-  const hideSkeleton = () => {
-    const loader = document.getElementById('orvel-skeleton-loader');
-    if (loader) {
-      // Prevenimos scroll mientras carga
-      document.body.style.overflow = 'hidden';
-      
-      // Ocultar suavemente
-      setTimeout(() => {
-        loader.style.opacity = '0';
-        document.body.style.overflow = ''; // Restaurar scroll
-        
-        // Remover del DOM
-        setTimeout(() => {
-          loader.remove();
-        }, 700);
-      }, 300); // Pequeño delay intencional para que se vea el skeleton si el internet es muy rápido
-    }
-  };
-
-  // Escuchar el evento de carga del navegador
-  if (document.readyState === 'complete') {
-    hideSkeleton();
-  } else {
-    window.addEventListener('load', hideSkeleton);
-  }
+  import { initPreloader } from '../../lib/preloader-controller';
+  initPreloader();
 </script>

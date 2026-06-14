@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
@@ -17,11 +19,20 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 }
 
 describe('RED contract: signup credentials require an explicit valid plan before account creation', () => {
+  it('credentials page delegates behavior to the signup credentials page controller without inline implementation', async () => {
+    const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
+    const inlineScript = sliceBetween(pageSource, '<script>', '</script>');
+
+    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-credentials-page-controller'");
+    expect(inlineScript).toMatch(/initSignupCredentialsPage\(import\.meta\.env\)/);
+    expect(inlineScript).not.toMatch(/new URLSearchParams|form\.addEventListener|validateSignupCredentials|signupWithProvider|createSupabaseSignupAdapterFromEnv/);
+  });
+
   it('credentials flow treats missing or invalid plan as missing_plan before building signup state', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
     const planSetup = sliceBetween(source, 'const searchParams = new URLSearchParams', 'const passwordFields');
 
-    expect(planSetup).toMatch(/VALID_SIGNUP_PLANS|VALID_PLAN_CODES|ALLOWED_SIGNUP_PLANS|allowedSignupPlans/);
+    expect(source).toMatch(/VALID_SIGNUP_PLANS|VALID_PLAN_CODES|ALLOWED_SIGNUP_PLANS|allowedSignupPlans/);
     expect(planSetup).toMatch(/hasValidSignupPlan|isValidSelectedPlan|selectedPlanIsValid/);
     expect(planSetup).toMatch(/missing_plan/);
     expect(planSetup).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
@@ -29,9 +40,10 @@ describe('RED contract: signup credentials require an explicit valid plan before
   });
 
   it('redirects with a fixed overlay informative notice instead of continuing when the plan is absent or invalid', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const beforeSubmit = sliceBetween(source, 'const searchParams = new URLSearchParams', "form.addEventListener('submit'");
-    const noticeMarkup = sliceBetween(source, 'id="create-account-redirect-notice"', '</div>\n\n      </div>');
+    const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
+    const controllerSource = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const beforeSubmit = sliceBetween(controllerSource, 'const searchParams = new URLSearchParams', "form.addEventListener('submit'");
+    const noticeMarkup = sliceBetween(pageSource, 'id="create-account-redirect-notice"', '</div>\n\n      </div>');
 
     expect(beforeSubmit).toMatch(/Primero eleg[ií] un plan/i);
     expect(beforeSubmit).toMatch(/showRedirectNotice|openRedirectNotice|redirectNotice/);
@@ -48,12 +60,14 @@ describe('RED contract: signup credentials require an explicit valid plan before
   });
 
   it('does not reach Supabase signup or OAuth creation calls until the selected plan is valid', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const firstAccountCreationIndex = Math.min(
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const accountCreationIndexes = [
       source.indexOf('const supabaseSignup = createSupabaseSignupAdapterFromEnv'),
       source.indexOf('await signupWithProvider'),
-      source.indexOf("await import('../../../lib/auth-provider')")
-    );
+      source.indexOf("await import('./auth-provider')")
+    ].filter((index) => index >= 0);
+    expect(accountCreationIndexes.length).toBeGreaterThan(0);
+    const firstAccountCreationIndex = Math.min(...accountCreationIndexes);
     expect(firstAccountCreationIndex).toBeGreaterThan(0);
 
     const beforeAccountCreation = source.slice(0, firstAccountCreationIndex);
@@ -63,17 +77,17 @@ describe('RED contract: signup credentials require an explicit valid plan before
   });
 
   it('credentials-first submit protects a pending intent before sending the user to plan selection', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm())');
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
+    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm()');
 
     expect(missingPlanBranch).toMatch(/fetch\(['"]\/api\/signup\/pending-intent\/protect['"]|createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id/);
     expect(missingPlanBranch).toMatch(/await\s+(?:fetch|createProtectedPendingSignupIntent)|\.then\(/);
     expect(missingPlanBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
     expect(missingPlanBranch).toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
-    expect(missingPlanBranch).toMatch(/protected_pending_signup_intent|intent_id|email_encrypted/);
+    expect(source).toMatch(/protected_pending_signup_intent|intent_id|email_encrypted/);
     expect(missingPlanBranch).toMatch(/missing_plan/);
-    expect(missingPlanBranch).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
     expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
     expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\([^)]*(?:name|nombre|apellido|negocioNombre|telefono|phone|email)[^)]*(?:\.value|JSON\.stringify\([^)]*(?:email|phone|telefono|negocioNombre))/i);
     expect(missingPlanBranch).not.toMatch(/password|confirmPassword/);
@@ -81,13 +95,13 @@ describe('RED contract: signup credentials require an explicit valid plan before
   });
 
   it('credentials-first redirect branch validates required non-sensitive fields but never validates or persists password', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm())');
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
+    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm()');
 
     expect(missingPlanBranch).toMatch(/validatePendingCredentialsFirst|validateNonSensitiveCredentials|validateForm\([^)]*credentialsFirst/);
-    for (const field of ['nombre', 'apellido', 'negocioNombre', 'telefono', 'email']) {
-      expect(missingPlanBranch).toMatch(new RegExp(field));
+    for (const field of ['nombre', 'apellido', 'negocioNombre', 'telefonoCaracteristica', 'telefonoNumero', 'email']) {
+      expect(source).toMatch(new RegExp(field));
     }
     expect(missingPlanBranch).not.toMatch(/['"]name['"]|input\[name=["']name["']\]/);
     expect(missingPlanBranch).not.toMatch(/password|confirmPassword|contraseñ/i);
@@ -112,25 +126,28 @@ describe('RED contract: signup credentials require an explicit valid plan before
   });
 
   it('credentials validation treats first and last name as independent required fields', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const validationSource = await loadSource(SIGNUP_CREDENTIALS_VALIDATION_PATH);
     const validatorsSection = sliceBetween(source, 'const validators = {', 'const validateField');
 
     expect(validatorsSection).toMatch(/nombre\s*:/);
     expect(validatorsSection).toMatch(/apellido\s*:/);
-    expect(validatorsSection).toMatch(/(?:El\s+)?nombre\s+es\s+requerido|required/i);
-    expect(validatorsSection).toMatch(/(?:El\s+)?apellido\s+es\s+requerido|required/i);
+    expect(validatorsSection).toMatch(/getFieldError\(['"]nombre['"]/);
+    expect(validatorsSection).toMatch(/getFieldError\(['"]apellido['"]/);
+    expect(validationSource).toMatch(/addFieldError\(ctx,\s*['"]nombre['"],\s*['"]El nombre es requerido['"]\)/);
+    expect(validationSource).toMatch(/addFieldError\(ctx,\s*['"]apellido['"],\s*['"]El apellido es requerido['"]\)/);
     expect(validatorsSection).not.toMatch(/name\s*:/);
     expect(validatorsSection).not.toMatch(/includes\(['"]\s['"]\)|split\(['"]\s['"]\)/);
   });
 
   it('credentials submit sends explicit first_name and last_name from separate inputs to the protected intent endpoint', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n\n  }\n</script>');
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
 
-    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
-    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
-    expect(submitFlow).toMatch(/first_name\s*:\s*nombre/);
-    expect(submitFlow).toMatch(/last_name\s*:\s*apellido/);
+    expect(source).toMatch(/input\[name=["']nombre["']\]/);
+    expect(source).toMatch(/input\[name=["']apellido["']\]/);
+    expect(submitFlow).toMatch(/first_name\s*:\s*values\.nombre/);
+    expect(submitFlow).toMatch(/last_name\s*:\s*values\.apellido/);
     expect(submitFlow).not.toMatch(/input\[name=["']name["']\]/);
     expect(submitFlow).not.toMatch(/\.split\(['"]\s['"]\)|nameParts|slice\(1\)\.join/);
   });
@@ -166,12 +183,12 @@ describe('RED contract: plan-selection redirect notice is reusable and not missi
   });
 
   it('credentials page does not restore plaintext PII from browser storage after the user selects a plan', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const prefillSection = sliceBetween(source, '// Pre-fill email from modal if available', '// --- Validation Engine ---');
+    const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
+    const controllerBeforeValidators = sliceBetween(source, 'const searchParams = new URLSearchParams', 'const validators = {');
 
     expect(source).toMatch(/SIGNUP_STORAGE_KEYS\.pendingSignupIntent|protected_pending_signup_intent|intent_id/);
-    expect(prefillSection).not.toMatch(/sessionStorage\.getItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
-    expect(prefillSection).not.toMatch(/\.value\s*=\s*sessionStorage\.getItem/);
-    expect(prefillSection).not.toMatch(/password|confirmPassword|contraseñ/i);
+    expect(controllerBeforeValidators).not.toMatch(/sessionStorage\.getItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(controllerBeforeValidators).not.toMatch(/\.value\s*=\s*sessionStorage\.getItem/);
+    expect(controllerBeforeValidators).not.toMatch(/sessionStorage\.getItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
   });
 });

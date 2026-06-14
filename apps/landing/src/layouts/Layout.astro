@@ -5,9 +5,10 @@ import Preloader from "../components/organisms/Preloader.astro";
 
 interface Props {
     title: string;
+    showPreloader?: boolean;
 }
 
-const { title } = Astro.props;
+const { title, showPreloader = true } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -46,35 +47,12 @@ const { title } = Astro.props;
         <title>{title}</title>
     </head>
     <body class="bg-bg-primary text-text-primary antialiased">
-        <Preloader />
+        {showPreloader && <Preloader />}
         <slot />
 
         <script>
-            // Scroll Reveal Logic
-            const observerOptions = {
-                root: null,
-                rootMargin: '0px',
-                threshold: 0.1
-            };
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('active');
-                    }
-                });
-            }, observerOptions);
-
-            const setupObserver = () => {
-                const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
-                revealElements.forEach(el => observer.observe(el));
-            };
-
-            // Initialize on load
-            setupObserver();
-
-            // Re-initialize on Astro page transitions
-            document.addEventListener('astro:page-load', setupObserver);
+            import { initScrollReveal } from '../lib/scroll-reveal';
+            initScrollReveal();
         </script>
     </body>
 </html>

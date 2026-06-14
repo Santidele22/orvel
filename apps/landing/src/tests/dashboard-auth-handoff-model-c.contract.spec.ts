@@ -5,6 +5,7 @@ const LOGIN_PAGE = new URL('../pages/auth/login.astro', import.meta.url);
 const AUTH_COMPAT_PAGE = new URL('../pages/auth.astro', import.meta.url);
 const CALLBACK_PAGE = new URL('../pages/auth/callback.astro', import.meta.url);
 const SIGNUP_COMPLETE_PAGE = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const LOGIN_CONTROLLER = new URL('../lib/login-page-controller.ts', import.meta.url);
 const HANDOFF_MODULE = new URL('../lib/dashboard-auth-handoff.ts', import.meta.url);
 
 type DashboardAuthHandoffModule = {
@@ -37,7 +38,7 @@ async function loadSupabaseAuthAdapter(): Promise<SupabaseAuthAdapterModule> {
 }
 
 describe('Contract: canonical landing auth and dashboard handoff', () => {
-  it('landing builds dashboard /auth bridge URLs only as sanitized post-auth handoff hints', async () => {
+  it('landing builds landing-owned login URLs only as sanitized post-auth handoff hints', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoffUrl = new URL(
@@ -49,7 +50,8 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     );
 
     expect(handoffUrl.origin).toBe('https://orvel.pro');
-    expect(handoffUrl.pathname).toBe('/dashboard/auth');
+    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).not.toBe('/dashboard/auth');
     expect(handoffUrl.searchParams.get('mode')).toBe('login');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/turnos?view=week');
   });
@@ -79,11 +81,11 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     }
   });
 
-  it('free signup completion uses dashboard configuration onboarding, not the generic auth bridge', async () => {
+  it('free signup completion uses dashboard configuration onboarding, not dashboard-owned auth', async () => {
     const source = await readFile(SIGNUP_COMPLETE_PAGE, 'utf8');
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
-    // Configuration-only onboarding made the generic /auth?mode=signup handoff obsolete
+    // Configuration-only onboarding made the generic auth handoff obsolete
     // for free signup completion: the authenticated user must land on the protected
     // dashboard /auth/onboarding route with explicit onboarding metadata.
     const fallbackHandoff = new URL(
@@ -95,7 +97,8 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     );
 
     expect(fallbackHandoff.origin).toBe('http://localhost:4200');
-    expect(fallbackHandoff.pathname).toBe('/auth');
+    expect(fallbackHandoff.pathname).toBe('/auth/signup/plan');
+    expect(fallbackHandoff.pathname).not.toBe('/dashboard/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
     expect(source).toContain('buildDashboardOnboardingUrl');
     expect(source).toContain("new URL('/auth/onboarding', dashboardOrigin)");
@@ -107,7 +110,7 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(source).not.toContain("window.location.href = '/dashboard/inicio'");
   });
 
-  it('rejects the landing root as a dashboard bridge base so handoff never becomes landing /auth', async () => {
+  it('keeps the landing root as the auth base and rejects dashboard-owned /dashboard/auth', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoffUrl = new URL(
@@ -118,20 +121,23 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
       })
     );
 
-    expect(handoffUrl.href).not.toBe('https://orvel.pro/auth?mode=login&returnTo=%2Fdashboard%2Finicio');
-    expect(handoffUrl.origin).toBe('http://localhost:4200');
-    expect(handoffUrl.pathname).toBe('/auth');
+    expect(handoffUrl.href).not.toBe('https://orvel.pro/dashboard/auth?mode=login&returnTo=%2Fdashboard%2Finicio');
+    expect(handoffUrl.origin).toBe('https://orvel.pro');
+    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).not.toBe('/dashboard/auth');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
   it('canonical landing login owns email/password auth and exposes no Google OAuth entrypoint', async () => {
-    const source = await readFile(LOGIN_PAGE, 'utf8');
+    const pageSource = await readFile(LOGIN_PAGE, 'utf8');
+    const controllerSource = await readFile(LOGIN_CONTROLLER, 'utf8');
+    const source = `${pageSource}\n${controllerSource}`;
 
-    expect(source).toContain("from '../../lib/auth-provider'");
+    expect(source).toMatch(/from ['"](?:\.\/auth-provider|\.\.\/\.\.\/lib\/auth-provider)['"]/);
     expect(source).toMatch(/loginWithProvider\(/);
-    expect(source).not.toContain('id="googleBtn"');
-    expect(source).not.toContain("document.getElementById('googleBtn')");
-    expect(source).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);
+    expect(pageSource).not.toContain('id="googleBtn"');
+    expect(pageSource).not.toContain("document.getElementById('googleBtn')");
+    expect(pageSource).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);
     expect(source).not.toContain('loginWithGoogle');
     expect(source).not.toContain('createSupabaseOAuthAdapter');
     expect(source).not.toContain('signInWithOAuth');

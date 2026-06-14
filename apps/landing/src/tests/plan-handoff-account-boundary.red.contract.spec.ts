@@ -5,6 +5,7 @@ const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.ur
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -43,7 +44,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
   });
 
   it('credentials page treats missing or invalid plan as a hard boundary before Supabase signup', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const planResolution = source.match(/const\s+plan\s*=\s*[^;]+;/)?.[0] ?? '';
 
     expect(planResolution, 'Missing plan must not silently default to FREE because that creates accounts without an explicit plan selection.').not.toContain("|| 'FREE'");
@@ -64,9 +65,9 @@ describe('Feature B contract: plan handoff before account creation', () => {
   });
 
   it('Supabase signup is only reachable for a valid explicit plan and valid required fields', async () => {
-    const source = await loadSource(CREDENTIALS_PAGE_PATH);
+    const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
 
-    const validateFormIndex = indexOfOrThrow(source, 'if (!validateForm())');
+    const validateFormIndex = indexOfOrThrow(source, 'if (!validateForm()');
     const planGuardIndex = Math.max(
       source.indexOf('VALID_SIGNUP_PLANS'),
       source.indexOf('isValidSignupPlan'),
@@ -78,7 +79,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
     expect(planGuardIndex).toBeLessThan(signupIndex);
     expect(source).toContain('plan,');
-    expect(source).toContain('returnTo: nextStep');
+    expect(source).toMatch(/returnTo:\s*(?:nextStep|onboardingUrl\.toString\(\))/);
   });
 
   it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {

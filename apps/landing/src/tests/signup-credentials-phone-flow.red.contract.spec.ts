@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const CREDENTIALS_PAGE = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_VALIDATION = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
 
 async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -29,8 +31,9 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
 
   it('keeps Continue disabled until every required credentials field is complete and valid', async () => {
     const credentialsSource = await source(CREDENTIALS_PAGE);
+    const controllerSource = await source(CREDENTIALS_CONTROLLER);
     const formMarkup = sliceBetween(credentialsSource, '<form id="credentialsForm"', '</form>');
-    const validationScript = sliceBetween(credentialsSource, '// --- Validation Engine ---', "form.addEventListener('submit'");
+    const validationScript = sliceBetween(controllerSource, 'const validators = {', "form.addEventListener('submit'");
 
     expect(formMarkup).toMatch(/<button[^>]+type=["']submit["'][^>]+disabled/i);
     expect(validationScript).toMatch(/updateContinueButtonState|refreshContinueButtonState|setContinueButtonState/i);
@@ -40,40 +43,41 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
   });
 
   it('validates both Argentina phone pieces and returns before signup/import when the form is invalid', async () => {
-    const credentialsSource = await source(CREDENTIALS_PAGE);
-    const validatorsBlock = sliceBetween(credentialsSource, 'const validators = {', '\n    };');
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n    });');
-    const invalidGuard = sliceBetween(submitFlow, 'if (!validateForm())', 'const nombre =');
+    const controllerSource = await source(CREDENTIALS_CONTROLLER);
+    const validationSource = await source(CREDENTIALS_VALIDATION);
+    const validatorsBlock = sliceBetween(controllerSource, 'const validators = {', '\n  };');
+    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });\n}');
+    const invalidGuard = sliceBetween(submitFlow, 'if (!validateForm()', 'button.disabled = true');
 
     expect(validatorsBlock).toMatch(/telefonoCaracteristica\s*:/);
     expect(validatorsBlock).toMatch(/telefonoNumero\s*:/);
-    expect(validatorsBlock).toMatch(/caracter[ií]stica|c[oó]digo de [aá]rea/i);
-    expect(validatorsBlock).toMatch(/n[uú]mero local/i);
+    expect(validationSource).toMatch(/caracter[ií]stica|c[oó]digo de [aá]rea/i);
+    expect(validationSource).toMatch(/n[uú]mero local/i);
     expect(invalidGuard).toContain('return;');
     expect(invalidGuard).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|import\(/);
   });
 
   it('normalizes split Argentina phone before FREE signup and never sends raw split fields to Supabase', async () => {
-    const credentialsSource = await source(CREDENTIALS_PAGE);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n    });');
-    const freeSignupBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'let protectedSignup;');
+    const controllerSource = await source(CREDENTIALS_CONTROLLER);
+    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });\n}');
+    const freeSignupBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {\n      const protectedSignup');
 
-    expect(submitFlow).toMatch(/normalizeArgentinaPhone|buildArgentinaPhone|normalizedPhone/i);
-    expect(submitFlow).toMatch(/telefonoCaracteristica/);
-    expect(submitFlow).toMatch(/telefonoNumero/);
-    expect(freeSignupBranch).toMatch(/telefono\s*:\s*(?:normalizedPhone|normalizeArgentinaPhone\(|buildArgentinaPhone\()/);
+    expect(controllerSource).toMatch(/normalizeArgentinaPhone|buildArgentinaPhone|normalizedPhone/i);
+    expect(controllerSource).toMatch(/telefonoCaracteristica/);
+    expect(controllerSource).toMatch(/telefonoNumero/);
+    expect(freeSignupBranch).toMatch(/telefono\s*:\s*values\.normalizedPhone/);
     expect(freeSignupBranch).not.toMatch(/telefono\s*:\s*telefono(?:Caracteristica|Numero)?\b/);
   });
 
   it('FREE signup visibly redirects or surfaces errors and cannot leave a silent same-screen failure', async () => {
-    const credentialsSource = await source(CREDENTIALS_PAGE);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n    });');
-    const freeSignupBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'let protectedSignup;');
+    const controllerSource = await source(CREDENTIALS_CONTROLLER);
+    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });\n}');
+    const freeSignupBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {\n      const protectedSignup');
 
     expect(freeSignupBranch).toMatch(/try\s*{/);
-    expect(freeSignupBranch).toMatch(/catch\s*\(/);
+    expect(freeSignupBranch).toMatch(/catch\s*(?:\(|\{)/);
     expect(freeSignupBranch).toMatch(/button\.disabled\s*=\s*false/);
     expect(freeSignupBranch).toMatch(/signupError|errorEl/);
-    expect(freeSignupBranch).toMatch(/window\.location\.href\s*=\s*signupResult\.redirectTo\s*\?\?\s*nextStep|window\.location\.href\s*=\s*signupResult\.redirectTo\s*\|\|\s*nextStep/);
+    expect(freeSignupBranch).toMatch(/window\.location\.href\s*=\s*signupResult\.redirectTo|window\.location\.href\s*=\s*onboardingUrl\.toString\(\)/);
   });
 });

@@ -5,6 +5,7 @@ const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.ur
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -67,7 +68,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
   });
 
   it('preserves selected billing period through credentials, payment, dashboard onboarding and subscription handoff', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const credentialsSource = `${await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url))}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(credentialsSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');

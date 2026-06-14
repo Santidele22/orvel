@@ -24,7 +24,7 @@ async function loadDashboardAuthHandoff(): Promise<DashboardAuthHandoffModule> {
 }
 
 describe('RED Contract: subscription return normalization handoff from landing', () => {
-  it('builds subscription-approved dashboard /auth handoff with source=subscription and a safe returnTo', async () => {
+  it('builds subscription-approved landing auth handoff without depending on dashboard /auth pages', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoff = new URL(
@@ -37,10 +37,29 @@ describe('RED Contract: subscription return normalization handoff from landing',
     );
 
     expect(handoff.origin).toBe('https://orvel.pro');
-    expect(handoff.pathname).toBe('/dashboard/auth');
+    expect(handoff.pathname).toBe('/auth/login');
+    expect(handoff.pathname).not.toBe('/dashboard/auth');
     expect(handoff.searchParams.get('mode')).toBe('login');
     expect(handoff.searchParams.get('source')).toBe('subscription');
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio?from=subscription');
+  });
+
+  it('maps signup handoff to landing signup plan instead of dashboard-owned signup pages', async () => {
+    const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
+
+    const handoff = new URL(
+      buildDashboardAuthUrl({
+        dashboardOrigin: 'https://orvel.pro/dashboard',
+        mode: 'signup',
+        source: 'subscription',
+        returnTo: '/dashboard/inicio'
+      })
+    );
+
+    expect(handoff.origin).toBe('https://orvel.pro');
+    expect(handoff.pathname).toBe('/auth/signup/plan');
+    expect(handoff.pathname).not.toMatch(/^\/dashboard\/auth/);
+    expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
   it('does not propagate subscription/provider identifiers, oauth codes, or token material into dashboard auth URL', async () => {
