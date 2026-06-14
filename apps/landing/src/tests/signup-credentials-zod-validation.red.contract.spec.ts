@@ -82,7 +82,7 @@ describe('RED contract: framework-agnostic Zod signup credentials validation', (
     expect(paidResult.success).toBe(true);
   });
 
-  it('validates Argentina area code, local number, mobile prefix, and total national number length', async () => {
+  it('validates Argentina area code, local number, mobile prefix, and local-number boundaries', async () => {
     const { validateSignupCredentials, mapSignupCredentialErrorsForAstro } = await loadValidationModule();
 
     const unknownAreaCode = validateSignupCredentials(
@@ -93,8 +93,20 @@ describe('RED contract: framework-agnostic Zod signup credentials validation', (
       { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '11', telefonoNumero: '1523456789' },
       { requirePassword: true }
     );
-    const invalidTotalLength = validateSignupCredentials(
-      { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '341', telefonoNumero: '12345678' },
+    const tooShortLocalNumber = validateSignupCredentials(
+      { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '294', telefonoNumero: '66716' },
+      { requirePassword: true }
+    );
+    const tooLongLocalNumber = validateSignupCredentials(
+      { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '294', telefonoNumero: '46671612' },
+      { requirePassword: true }
+    );
+    const nonNumericLocalNumber = validateSignupCredentials(
+      { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '294', telefonoNumero: '66A7161' },
+      { requirePassword: true }
+    );
+    const symbolicAreaCode = validateSignupCredentials(
+      { ...VALID_FREE_CREDENTIALS, telefonoCaracteristica: '(294)' },
       { requirePassword: true }
     );
 
@@ -104,19 +116,59 @@ describe('RED contract: framework-agnostic Zod signup credentials validation', (
     expect(mapSignupCredentialErrorsForAstro(mobilePrefixInLocalNumber)).toMatchObject({
       telefonoNumero: 'Ingresá el número local sin 15'
     });
-    expect(mapSignupCredentialErrorsForAstro(invalidTotalLength)).toMatchObject({
-      telefonoNumero: 'La característica y el número local deben sumar 10 dígitos'
+    expect(mapSignupCredentialErrorsForAstro(tooShortLocalNumber)).toMatchObject({
+      telefonoNumero: 'El número local debe tener 6 o 7 dígitos'
+    });
+    expect(mapSignupCredentialErrorsForAstro(tooLongLocalNumber)).toMatchObject({
+      telefonoNumero: 'El número local debe tener 6 o 7 dígitos'
+    });
+    expect(mapSignupCredentialErrorsForAstro(nonNumericLocalNumber)).toMatchObject({
+      telefonoNumero: 'El número local debe contener solo dígitos'
+    });
+    expect(mapSignupCredentialErrorsForAstro(symbolicAreaCode)).toMatchObject({
+      telefonoCaracteristica: 'La característica debe contener solo dígitos'
     });
   });
 
-  it('normalizes formatted Argentina phone input to +54 plus area code and local number digits', async () => {
+  it('accepts realistic Argentina area code 294 local numbers with 6 or 7 digits without inventing or removing digits', async () => {
+    const { validateSignupCredentials } = await loadValidationModule();
+
+    const sixDigitLocalNumber = validateSignupCredentials(
+      {
+        ...VALID_FREE_CREDENTIALS,
+        telefonoCaracteristica: '294',
+        telefonoNumero: '667161'
+      },
+      { requirePassword: true }
+    );
+    const sevenDigitLocalNumber = validateSignupCredentials(
+      {
+        ...VALID_FREE_CREDENTIALS,
+        telefonoCaracteristica: '294',
+        telefonoNumero: '4667161'
+      },
+      { requirePassword: true }
+    );
+
+    expect(sixDigitLocalNumber.success).toBe(true);
+    expect(sevenDigitLocalNumber.success).toBe(true);
+
+    if (sixDigitLocalNumber.success) {
+      expect(sixDigitLocalNumber.data.normalizedPhone).toBe('+54294667161');
+    }
+    if (sevenDigitLocalNumber.success) {
+      expect(sevenDigitLocalNumber.data.normalizedPhone).toBe('+542944667161');
+    }
+  });
+
+  it('normalizes raw Argentina phone digits to +54 plus area code and local number without inventing or removing digits', async () => {
     const { validateSignupCredentials } = await loadValidationModule();
 
     const result = validateSignupCredentials(
       {
         ...VALID_FREE_CREDENTIALS,
-        telefonoCaracteristica: '(341)',
-        telefonoNumero: '555-1234'
+        telefonoCaracteristica: '341',
+        telefonoNumero: '5551234'
       },
       { requirePassword: true }
     );

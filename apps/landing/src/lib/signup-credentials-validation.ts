@@ -40,11 +40,23 @@ export type SignupCredentialsValidationResult =
 
 const argentinaAreaCodes = new Set<string>(ARGENTINA_AREA_CODES);
 
-export const onlyDigits = (value: string): string => value.replace(/\D/g, '');
+const hasOnlyDigits = (value: string): boolean => /^\d+$/.test(value);
+
+const getLocalNumberLengthError = (areaCode: string, localNumber: string): string | undefined => {
+  if (areaCode === '294' && !/^\d{6,7}$/.test(localNumber)) {
+    return 'El número local debe tener 6 o 7 dígitos';
+  }
+
+  if (!/^\d{6,8}$/.test(localNumber)) {
+    return 'El número local debe tener entre 6 y 8 dígitos';
+  }
+
+  return undefined;
+};
 
 export const normalizeArgentinaPhone = (telefonoCaracteristica: string, telefonoNumero: string): string => {
-  const areaCode = onlyDigits(telefonoCaracteristica);
-  const localNumber = onlyDigits(telefonoNumero);
+  const areaCode = telefonoCaracteristica.trim();
+  const localNumber = telefonoNumero.trim();
   return `+54${areaCode}${localNumber}`;
 };
 
@@ -81,8 +93,8 @@ const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsVali
     nombre: values.nombre.trim(),
     apellido: values.apellido.trim(),
     negocioNombre: values.negocioNombre.trim(),
-    telefonoCaracteristica: onlyDigits(values.telefonoCaracteristica),
-    telefonoNumero: onlyDigits(values.telefonoNumero),
+    telefonoCaracteristica: values.telefonoCaracteristica.trim(),
+    telefonoNumero: values.telefonoNumero.trim(),
     email: values.email.trim(),
     password: values.password,
     confirm: values.confirm
@@ -98,6 +110,8 @@ const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsVali
 
     if (!values.telefonoCaracteristica) {
       addFieldError(ctx, 'telefonoCaracteristica', 'La característica o código de área es requerida');
+    } else if (!hasOnlyDigits(values.telefonoCaracteristica)) {
+      addFieldError(ctx, 'telefonoCaracteristica', 'La característica debe contener solo dígitos');
     } else if (!/^\d{2,4}$/.test(values.telefonoCaracteristica)) {
       addFieldError(ctx, 'telefonoCaracteristica', 'La característica debe tener entre 2 y 4 dígitos');
     } else if (!argentinaAreaCodes.has(values.telefonoCaracteristica)) {
@@ -106,12 +120,13 @@ const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsVali
 
     if (!values.telefonoNumero) {
       addFieldError(ctx, 'telefonoNumero', 'El número local es requerido');
+    } else if (!hasOnlyDigits(values.telefonoNumero)) {
+      addFieldError(ctx, 'telefonoNumero', 'El número local debe contener solo dígitos');
     } else if (values.telefonoNumero.startsWith('15')) {
       addFieldError(ctx, 'telefonoNumero', 'Ingresá el número local sin 15');
-    } else if (!/^\d{6,8}$/.test(values.telefonoNumero)) {
-      addFieldError(ctx, 'telefonoNumero', 'El número local debe tener entre 6 y 8 dígitos');
-    } else if (values.telefonoCaracteristica && values.telefonoCaracteristica.length + values.telefonoNumero.length !== 10) {
-      addFieldError(ctx, 'telefonoNumero', 'La característica y el número local deben sumar 10 dígitos');
+    } else {
+      const lengthError = getLocalNumberLengthError(values.telefonoCaracteristica, values.telefonoNumero);
+      if (lengthError) addFieldError(ctx, 'telefonoNumero', lengthError);
     }
 
     if (!values.email) addFieldError(ctx, 'email', 'El email es requerido');
