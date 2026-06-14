@@ -273,7 +273,14 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
         });
         if (signupResult.redirectTo) window.location.href = signupResult.redirectTo;
         else if (signupResult.ok) window.location.href = onboardingUrl.toString();
-        else throw new Error(signupResult.error || 'signup_failed');
+        else {
+          button.disabled = false;
+          button.textContent = 'Continuar';
+          if (errorEl) {
+            errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+            errorEl.classList.remove('hidden');
+          }
+        }
       } catch {
         button.disabled = false;
         button.textContent = 'Continuar';
