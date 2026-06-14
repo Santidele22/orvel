@@ -4,7 +4,6 @@ import {
   type SupabaseAdapterResult,
   type SupabaseAuthDependencies,
   type SupabaseAuthEnv,
-  createSupabaseOAuthAdapter,
   createSupabaseSignupAdapter,
   type SignupAttempt
 } from './supabase-auth-adapter';
@@ -204,14 +203,6 @@ export async function loginWithProvider(input: LoginWithProviderInput): Promise<
   }
 
   return mapSupabaseFailureToLoginResult(result);
-}
-
-export async function loginWithGoogle(input: string | { redirectTo: string; plan?: string }) {
-  const oauthAdapter = createSupabaseOAuthAdapter({
-    SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-    SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-  });
-  return await oauthAdapter('google', input);
 }
 
 export function createSupabaseLoginAdapterFromEnv(

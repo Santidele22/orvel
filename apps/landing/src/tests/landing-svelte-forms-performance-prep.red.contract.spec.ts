@@ -42,9 +42,7 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
       source('src/pages/auth/login.astro'),
       source('src/pages/auth/signup/plan.astro'),
       source('src/pages/auth/signup/credentials.astro'),
-      source('src/pages/auth/signup/complete.astro'),
-      source('src/pages/auth/callback.astro'),
-      source('src/pages/auth/oauth/onboarding-callback.astro')
+      source('src/pages/auth/signup/complete.astro')
     ];
 
     expect(layout).toMatch(/showPreloader\??\s*:\s*boolean/);

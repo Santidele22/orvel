@@ -59,7 +59,7 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(beforeSubmit).not.toMatch(/window\.location\.(?:href|assign)\s*=\s*['"][^'"]*\/auth\/signup\/plan['"]/);
   });
 
-  it('does not reach Supabase signup or OAuth creation calls until the selected plan is valid', async () => {
+  it('does not reach Supabase signup or external account creation calls until the selected plan is valid', async () => {
     const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
     const accountCreationIndexes = [
       source.indexOf('const supabaseSignup = createSupabaseSignupAdapterFromEnv'),

@@ -33,7 +33,7 @@ describe('dashboard auth onboarding contract', () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
-          access_token: 'oauth-token',
+          access_token: 'supabase-access-token',
           user: {
             id: 'user-1',
             email: 'santi@orvel.pro',
@@ -60,10 +60,10 @@ describe('dashboard auth onboarding contract', () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
-          access_token: 'oauth-token',
+          access_token: 'supabase-access-token',
           user: {
-            id: 'user-google-missing-plan',
-            email: 'google@orvel.pro',
+            id: 'session-user-missing-plan',
+            email: 'session-user@orvel.pro',
             user_metadata: {
               onboardingCompleted: false,
               businessType: 'peluqueria'
@@ -93,9 +93,9 @@ describe('dashboard auth onboarding contract', () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
-          access_token: 'oauth-token',
+          access_token: 'supabase-access-token',
           user: {
-            id: 'user-google-invalid-plan',
+            id: 'session-user-invalid-plan',
             email: 'invalid-plan@orvel.pro',
             user_metadata: {
               plan: 'NOT_A_PLAN',

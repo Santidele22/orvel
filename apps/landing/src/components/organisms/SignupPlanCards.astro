@@ -196,7 +196,7 @@ function updatePrices(period) {
     const plan = PLANS_DATA.find(p => p.code === planCode);
     if (!plan) return;
 
-    // Update href to include billing period, then upgrade authenticated Google handoff when a session exists.
+    // Update href to include billing period, then upgrade authenticated session handoff when a session exists.
     card.href = `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
     resolveSignupPlanHref(planCode, period).then((href) => {
       card.href = href;

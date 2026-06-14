@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 const LOGIN_PAGE = new URL('../pages/auth/login.astro', import.meta.url);
 const AUTH_COMPAT_PAGE = new URL('../pages/auth.astro', import.meta.url);
-const CALLBACK_PAGE = new URL('../pages/auth/callback.astro', import.meta.url);
 const SIGNUP_COMPLETE_PAGE = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const LOGIN_CONTROLLER = new URL('../lib/login-page-controller.ts', import.meta.url);
 const HANDOFF_MODULE = new URL('../lib/dashboard-auth-handoff.ts', import.meta.url);
@@ -16,25 +15,8 @@ type DashboardAuthHandoffModule = {
   }) => string;
 };
 
-type SupabaseAuthAdapterModule = {
-  createSupabaseOAuthAdapter: (
-    env: { SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string },
-    dependencies: {
-      createClient: (url: string, anonKey: string, options?: unknown) => {
-        auth: {
-          signInWithOAuth: (input: unknown) => Promise<{ error: null }>;
-        };
-      };
-    }
-  ) => (provider: 'google', input: string | { redirectTo: string }) => Promise<{ ok: boolean }>;
-};
-
 async function loadDashboardAuthHandoff(): Promise<DashboardAuthHandoffModule> {
   return (await import(HANDOFF_MODULE.href)) as DashboardAuthHandoffModule;
-}
-
-async function loadSupabaseAuthAdapter(): Promise<SupabaseAuthAdapterModule> {
-  return (await import('../lib/supabase-auth-adapter.ts')) as SupabaseAuthAdapterModule;
 }
 
 describe('Contract: canonical landing auth and dashboard handoff', () => {
@@ -64,10 +46,10 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
       '//evil.example/dashboard',
       'javascript:alert(1)',
       '/auth/login?returnTo=/dashboard',
-      '/dashboard/inicio?code=oauth-code',
+      '/dashboard/inicio?code=auth-code',
       '/dashboard/inicio?access_token=secret',
       '/dashboard/inicio#refresh_token=secret',
-      '/dashboard/inicio#code=oauth-code'
+      '/dashboard/inicio#code=auth-code'
     ]) {
       const handoff = buildDashboardAuthUrl({
         dashboardOrigin: 'https://orvel.pro/dashboard',
@@ -149,51 +131,10 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(source).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
   });
 
-  it('landing OAuth callback exchanges provider code on landing, then redirects to sanitized dashboard returnTo', async () => {
-    const source = await readFile(CALLBACK_PAGE, 'utf8');
+  it('removes obsolete callback behavior while keeping token stripping in returnTo sanitization', async () => {
     const returnToSource = await readFile(new URL('../lib/auth-return-to.ts', import.meta.url), 'utf8');
 
-    expect(source).toMatch(/auth\.exchangeCodeForSession\(code\)/);
-    expect(source).toMatch(/sanitizeLandingAuthReturnTo/);
     expect(returnToSource).toMatch(/PARAM_BLOCKLIST[\s\S]*code[\s\S]*access_token|PARAM_BLOCKLIST[\s\S]*access_token[\s\S]*code/);
-    expect(source).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
-  });
-
-  it('landing OAuth adapter resolves relative localhost callbacks against the local landing origin, not production', async () => {
-    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-    const captured: unknown[] = [];
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: { location: { origin: 'http://localhost:4321' } }
-    });
-
-    try {
-      const { createSupabaseOAuthAdapter } = await loadSupabaseAuthAdapter();
-      const oauth = createSupabaseOAuthAdapter(
-        { SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'anon' },
-        {
-          createClient: () => ({
-            auth: {
-              signInWithOAuth: async (input: unknown) => {
-                captured.push(input);
-                return { error: null };
-              }
-            }
-          })
-        }
-      );
-
-      await oauth('google', { redirectTo: '/auth/callback?returnTo=%2Fdashboard%2Finicio' });
-
-      expect(JSON.stringify(captured)).toContain('http://localhost:4321/auth/callback');
-      expect(JSON.stringify(captured)).not.toContain('https://orvel.pro/auth/callback');
-    } finally {
-      if (originalWindow) {
-        Object.defineProperty(globalThis, 'window', originalWindow);
-      } else {
-        Reflect.deleteProperty(globalThis, 'window');
-      }
-    }
   });
 
   it('landing bare /auth exists as a compatibility redirect to /auth/login preserving query params', async () => {

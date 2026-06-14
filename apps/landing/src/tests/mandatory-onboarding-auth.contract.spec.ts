@@ -7,9 +7,7 @@ import {
 import {
   ORVEL_SUPABASE_AUTH_STORAGE_KEY,
   createSupabaseBrowserAuthOptions,
-  createSupabaseOAuthAdapter,
   createSupabaseSignupAdapter,
-  getOAuthExchangeDiagnostics,
   type SignupAttempt
 } from '../lib/supabase-auth-adapter';
 
@@ -154,101 +152,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.redirectTo).toMatch(/returnTo=.*auth%2Fonboarding|resume.*onboarding/i);
   });
 
-  it('Google OAuth redirects to persisted onboarding when plan and business type are not completed', async () => {
-    const signInWithOAuth = vi.fn(async () => ({ error: null }));
-    const oauth = createSupabaseOAuthAdapter(SUPABASE_ENV, {
-      createClient: () => ({ auth: { signInWithOAuth } }) as never
-    }) as unknown as (provider: 'google', input: { redirectTo: string; plan?: string; tipoNegocio?: string }) => Promise<{ ok: boolean }>;
-
-    const result = await oauth('google', { redirectTo: 'https://orvel.app/dashboard' });
-
-    expect(result.ok).toBe(true);
-    expect(signInWithOAuth).toHaveBeenCalledWith({
-      provider: 'google',
-      options: expect.objectContaining({
-        redirectTo: expect.stringMatching(/\/auth\/onboarding|\/onboarding/),
-        queryParams: expect.objectContaining({
-          onboarding_required: 'true'
-        })
-      })
-    });
-  });
-
-  it('Google OAuth starts signup intent with STARTER fallback plan from static pricing when public.plans is missing', async () => {
-    const signInWithOAuth = vi.fn(async () => ({ error: null }));
-    const createClient = vi.fn(() => ({ auth: { signInWithOAuth } }) as never);
-    const oauthSignupIntentStore = {
-      create: vi.fn(async (intent) => ({
-        id: 'signup-intent-started-google',
-        plan: intent.plan,
-        provider: intent.provider,
-        expiresAt: intent.expiresAt
-      })),
-      consume: vi.fn()
-    };
-    const oauth = createSupabaseOAuthAdapter(SUPABASE_ENV, {
-      createClient,
-      oauthSignupIntentStore
-    }) as unknown as (provider: 'google', input: { redirectTo: string; plan?: string; tipoNegocio?: string }) => Promise<{ ok: boolean }>;
-
-    const result = await oauth('google', {
-      redirectTo: 'https://orvel.app/auth/signup/business-type?plan=STARTER',
-      plan: 'STARTER'
-    });
-
-    expect(result.ok).toBe(true);
-    expect(createClient).toHaveBeenCalledWith(
-      SUPABASE_ENV.SUPABASE_URL,
-      SUPABASE_ENV.SUPABASE_ANON_KEY,
-      expect.objectContaining({ auth: expect.objectContaining({ flowType: 'pkce' }) })
-    );
-    expect(oauthSignupIntentStore.create).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'STARTED', provider: 'google' })
-    );
-    expect(signInWithOAuth).toHaveBeenCalledWith({
-      provider: 'google',
-      options: expect.objectContaining({
-        redirectTo: expect.stringContaining('plan=STARTED'),
-        queryParams: expect.objectContaining({ onboarding_required: 'true' })
-      })
-    });
-  });
-
-  it('Google OAuth preserves explicit FREE signup plan instead of converting it to paid STARTED', async () => {
-    const signInWithOAuth = vi.fn(async () => ({ error: null }));
-    const oauthSignupIntentStore = {
-      create: vi.fn(async (intent) => ({
-        id: 'signup-intent-free-google',
-        plan: intent.plan,
-        provider: intent.provider,
-        expiresAt: intent.expiresAt
-      })),
-      consume: vi.fn()
-    };
-    const oauth = createSupabaseOAuthAdapter(SUPABASE_ENV, {
-      createClient: () => ({ auth: { signInWithOAuth } }) as never,
-      oauthSignupIntentStore
-    }) as unknown as (provider: 'google', input: { redirectTo: string; plan?: string; tipoNegocio?: string }) => Promise<{ ok: boolean }>;
-
-    const result = await oauth('google', {
-      redirectTo: 'https://orvel.app/auth/signup/business-type?plan=FREE',
-      plan: 'FREE'
-    });
-
-    expect(result.ok).toBe(true);
-    expect(oauthSignupIntentStore.create).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'FREE', provider: 'google' })
-    );
-    expect(signInWithOAuth).toHaveBeenCalledWith({
-      provider: 'google',
-      options: expect.objectContaining({
-        redirectTo: expect.stringContaining('plan=FREE'),
-        queryParams: expect.objectContaining({ onboarding_required: 'true' })
-      })
-    });
-  });
-
-  it('uses the same explicit PKCE storage options for OAuth start and callback clients', async () => {
+  it('keeps explicit Supabase browser auth storage options for email/password sessions', async () => {
     const storage = globalThis.localStorage;
     const startOptions = createSupabaseBrowserAuthOptions(storage);
     const callbackOptions = createSupabaseBrowserAuthOptions(storage);
@@ -265,21 +169,4 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     );
   });
 
-  it('keeps OAuth exchange failure diagnostics safe and actionable', () => {
-    const diagnostics = getOAuthExchangeDiagnostics({
-      name: 'AuthApiError',
-      code: 'bad_code_verifier',
-      status: 400,
-      message: 'contains-sensitive-provider-details',
-      access_token: 'must-not-log'
-    });
-
-    expect(diagnostics).toEqual({
-      name: 'AuthApiError',
-      code: 'bad_code_verifier',
-      status: 400
-    });
-    expect(JSON.stringify(diagnostics)).not.toContain('contains-sensitive-provider-details');
-    expect(JSON.stringify(diagnostics)).not.toContain('must-not-log');
-  });
 });

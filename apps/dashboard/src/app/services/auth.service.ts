@@ -32,7 +32,7 @@ export class AuthService {
     const { data: { session } } = await this.supabase.getSession();
     this.updateStateFromSession(session);
 
-    // 2. Listen for OAuth redirects and token refreshes
+    // 2. Listen for Supabase auth state changes and token refreshes
     this.supabase.onAuthStateChange((event, newSession) => {
       this.updateStateFromSession(newSession);
     });

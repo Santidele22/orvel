@@ -23,20 +23,6 @@ export function initLoginPage(env: {
     currentOrigin: window.location.origin,
     dashboardBaseUrl: env.PUBLIC_DASHBOARD_URL
   });
-  const debugStorageKey = 'debug_' + 'oauth';
-  const isOAuthDebugEnabled = params.get('debug_oauth') === '1' || window.localStorage.getItem(debugStorageKey) === '1';
-
-  const renderOAuthDebug = (extra: Record<string, unknown> = {}) => {
-    if (!isOAuthDebugEnabled) return;
-    const debug = document.getElementById('oauthDebug');
-    if (!debug) return;
-    debug.textContent = `OAuth debug\n${JSON.stringify({
-      windowOrigin: window.location.origin,
-      sanitizedReturnTo: returnTo,
-      ...extra
-    }, null, 2)}`;
-    debug.classList.remove('hidden');
-  };
 
   const setError = (message: string) => {
     const error = document.getElementById('loginError');
@@ -51,8 +37,6 @@ export function initLoginPage(env: {
     error.textContent = '';
     error.classList.add('hidden');
   };
-
-  renderOAuthDebug();
 
   const supabaseLogin = createSupabaseLoginAdapterFromEnv({
     SUPABASE_URL: env.PUBLIC_SUPABASE_URL,

@@ -97,7 +97,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
   });
 });
 
-describe('Contract: authenticated Google handoff from landing plan selection', () => {
+describe('Contract: authenticated session handoff from landing plan selection', () => {
   it('missing-account handoff displays a five-second create-account notice before plan credentials continue', async () => {
     const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
 
@@ -111,7 +111,7 @@ describe('Contract: authenticated Google handoff from landing plan selection', (
     expect(source).not.toMatch(/missing_account[\s\S]{0,800}\/auth\/onboarding/);
   });
 
-  it('FREE selection for an authenticated Google user sends explicit plan to dashboard onboarding', async () => {
+  it('FREE selection for an authenticated user sends explicit plan to dashboard onboarding', async () => {
     const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
 
     expect(source).toMatch(/getSession\(|onAuthStateChange|authenticated|session/i);

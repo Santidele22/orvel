@@ -7,7 +7,6 @@ const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', 
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
-const OAUTH_ONBOARDING_FLOW_PATH = new URL('../lib/oauth-signup-onboarding-flow.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_FN_PATH = new URL('../../../../supabase/functions/create-subscription/index.ts', import.meta.url);
 const MP_WEBHOOK_FN_PATH = new URL('../../../../supabase/functions/mercadopago-webhook/index.ts', import.meta.url);
 
@@ -35,14 +34,6 @@ describe('Contract: simplified launch signup flow', () => {
     expect(landingSignupSources).not.toContain('/auth/signup/business-type');
     expect(landingSignupSources).not.toMatch(/name=["'](?:rubro|business_type|service_type|tipoNegocio)["']/i);
     expect(landingSignupSources).not.toMatch(/Seleccion[aá].*(categor[ií]as|rubro|servicio|tipo de negocio)/i);
-  });
-
-  it('Google OAuth signup completion no longer routes through the legacy landing business-type step', async () => {
-    const oauthSource = await loadSource(OAUTH_ONBOARDING_FLOW_PATH);
-
-    expect(oauthSource).not.toContain('/auth/signup/business-type');
-    expect(oauthSource).not.toMatch(/BusinessTypeCompletion|completeOAuthBusinessType|business type selection/i);
-    expect(oauthSource).toContain('/auth/signup/complete');
   });
 
   it('paid pending signup payload treats business_type as optional legacy data and only requires email before payment', async () => {

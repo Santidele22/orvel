@@ -62,7 +62,7 @@ describe('RED Contract: subscription return normalization handoff from landing',
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
-  it('does not propagate subscription/provider identifiers, oauth codes, or token material into dashboard auth URL', async () => {
+  it('does not propagate subscription/provider identifiers, auth codes, or token material into dashboard auth URL', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     for (const unsafeReturnTo of [
@@ -71,7 +71,7 @@ describe('RED Contract: subscription return normalization handoff from landing',
       '/dashboard/inicio?access_token=secret',
       '/dashboard/inicio?refresh_token=secret',
       '/dashboard/inicio?token=secret',
-      '/dashboard/inicio?code=oauth-code',
+      '/dashboard/inicio?code=auth-code',
       '/dashboard/inicio#access_token=secret',
       'https://evil.example/dashboard?preapproval_id=leak',
       '//evil.example/dashboard?token=leak'

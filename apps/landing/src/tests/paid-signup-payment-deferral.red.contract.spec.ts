@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -24,16 +26,16 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 
 describe('RED contract: paid manual signup defers account creation until payment confirmation', () => {
   it('paid manual signup creates only a pending intent and never calls signupWithProvider before MercadoPago payment', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const paidBranch = sliceBetween(submitFlow, 'const pendingSignupIntent =');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
+    const paidBranch = sliceBetween(submitFlow, 'try {\n      const protectedSignup');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
     expect(freeBranch).toContain('await signupWithProvider({');
     expect(paidBranch).not.toContain('signupWithProvider');
     expect(paidBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
-    expect(paidBranch).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
+    expect(submitFlow).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
     expect(paidBranch).toContain('/billing/subscription?plan=');
     expect(completeSource).not.toContain('await signupWithProvider({');
     expect(completeSource).not.toContain('createSupabaseSignupAdapterFromEnv');
@@ -41,27 +43,28 @@ describe('RED contract: paid manual signup defers account creation until payment
   });
 
   it('free manual signup still creates the Supabase user immediately and hands off to dashboard onboarding', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
     expect(freeBranch).toContain('createSupabaseSignupAdapterFromEnv');
     expect(freeBranch).toContain('await signupWithProvider({');
     expect(freeBranch).toContain("tipoNegocio: 'pendiente'");
-    expect(freeBranch).toContain('buildDashboardOnboardingUrl()');
-    expect(freeBranch).toContain('window.location.href = nextStep');
+    expect(freeBranch).toContain("new URL('/auth/onboarding'");
+    expect(freeBranch).toContain('window.location.href = onboardingUrl.toString()');
     expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
   });
 
   it('free manual signup sends separately captured first and last name to Supabase signup metadata', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', 'const pendingSignupIntent =');
+    const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
+    const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
-    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
-    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
+    expect(pageSource).toContain('name="nombre"');
+    expect(pageSource).toContain('name="apellido"');
     expect(freeBranch).toMatch(/nombre\s*,/);
     expect(freeBranch).toMatch(/apellido\s*,/);
     expect(freeBranch).not.toMatch(/input\[name=["']name["']\]/);
@@ -69,7 +72,7 @@ describe('RED contract: paid manual signup defers account creation until payment
   });
 
   it('manual signup never stores or reads password values from browser storage', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const credentialsSource = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const signupSources = `${credentialsSource}\n${completeSource}`;
     const legacyPasswordKey = ['orvel.signup', 'password'].join('.');
@@ -111,23 +114,25 @@ describe('RED contract: paid manual signup defers account creation until payment
   });
 
   it('paid manual signup protects separately captured first and last name before subscription start', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const paidProtectionFlow = sliceBetween(submitFlow, 'protectedSignup = await createProtectedPendingSignupIntent', 'const pendingSignupIntent =');
-    const paidBranch = sliceBetween(submitFlow, 'const pendingSignupIntent =');
+    const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
+    const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
+    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
+    const paidProtectionFlow = sliceBetween(submitFlow, 'const protectedSignup = await createProtectedPendingSignupIntent', 'sessionStorage.setItem');
+    const paidBranch = sliceBetween(submitFlow, 'sessionStorage.setItem');
 
-    expect(submitFlow).toMatch(/input\[name=["']nombre["']\]/);
-    expect(submitFlow).toMatch(/input\[name=["']apellido["']\]/);
-    expect(paidProtectionFlow).toMatch(/first_name\s*:\s*nombre/);
-    expect(paidProtectionFlow).toMatch(/last_name\s*:\s*apellido/);
-    expect(paidBranch).toContain('first_name_encrypted');
-    expect(paidBranch).toContain('last_name_encrypted');
+    expect(pageSource).toContain('name="nombre"');
+    expect(pageSource).toContain('name="apellido"');
+    expect(paidProtectionFlow).toMatch(/first_name\s*:\s*values\.nombre/);
+    expect(paidProtectionFlow).toMatch(/last_name\s*:\s*values\.apellido/);
+    expect(paidBranch).toContain('...protectedSignup');
+    expect(paidBranch).toContain('plan_code: plan');
+    expect(paidBranch).toContain('billing_period: billing');
     expect(paidProtectionFlow).not.toMatch(/input\[name=["']name["']\]/);
     expect(paidProtectionFlow).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });
 
-  it('signup credentials removes Google UI entirely before Supabase OAuth can start', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+  it('signup credentials removes Google UI entirely before external auth can start', async () => {
+    const credentialsSource = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
 
     expect(credentialsSource).not.toContain('id="googleSignupBtn"');
     expect(credentialsSource).not.toContain("id='googleSignupBtn'");
@@ -140,8 +145,8 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(credentialsSource).not.toContain('signInWithOAuth');
   });
 
-  it('explicit FREE signup selection clears stale paid pending-signup state before OAuth starts', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+  it('explicit FREE signup selection clears stale paid pending-signup state before account creation starts', async () => {
+    const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const credentialsPlanSetup = sliceBetween(credentialsSource, 'const explicitPlan = searchParams.get', 'const passwordFields');
     const completePlanSetup = sliceBetween(completeSource, 'const explicitPlan = searchParams.get', 'const step2Link');
@@ -154,25 +159,13 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(completePlanSetup).toMatch(/isExplicitFreePlan \? searchParams\.get\('billing'\)/);
   });
 
-  it('simplified completion page has no legacy paid OAuth materialization branch before MP payment', async () => {
+  it('simplified completion page has no legacy paid external-auth materialization branch before MP payment', async () => {
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(source).not.toContain('isOAuthOnboarding');
     expect(source).not.toContain('completeOAuthBusinessTypeOnboarding');
     expect(source).not.toContain("from('businesses')");
     expect(source).not.toMatch(/auth\.admin\.createUser|signupWithProvider|updateUser\(/);
-  });
-
-  it('OAuth onboarding callback hard-blocks paid intents before Supabase session exchange', async () => {
-    const callbackSource = await loadSource(new URL('../pages/auth/oauth/onboarding-callback.astro', import.meta.url));
-    const oauthFlowSource = await loadSource(new URL('../lib/oauth-signup-onboarding-flow.ts', import.meta.url));
-    const beforeExchange = sliceBetween(oauthFlowSource, 'const intent = signupIntentId', 'const session = code');
-
-    expect(oauthFlowSource).toContain('paid_oauth_signup_blocked');
-    expect(beforeExchange).toMatch(/isPaidOAuthSignupPlan|paid/i);
-    expect(beforeExchange).toContain('throw new OAuthOnboardingError');
-    expect(callbackSource).toMatch(/paid_oauth_signup_blocked|oauth_error_code/);
-    expect(callbackSource).toContain('/auth/signup/credentials');
   });
 
   it('landing passes selected billing cadence through subscription start to backend', async () => {

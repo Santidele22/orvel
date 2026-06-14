@@ -8,7 +8,6 @@ const PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.met
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
 const LOGIN_PATH = new URL('../pages/auth/login.astro', import.meta.url);
-const CALLBACK_PATH = new URL('../pages/auth/callback.astro', import.meta.url);
 const AUTH_RETURN_TO_PATH = new URL('../lib/auth-return-to.ts', import.meta.url);
 
 type AuthReturnToModule = {
@@ -93,16 +92,14 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(pricing).toMatch(/\/auth\/login\?returnTo=\/billing\/subscription/);
   });
 
-  it('preserves paid plan subscription returnTo through login and OAuth callback sanitization', async () => {
+  it('preserves paid plan subscription returnTo through email/password login sanitization', async () => {
     const login = await source(LOGIN_PATH);
-    const callback = await source(CALLBACK_PATH);
     const { sanitizeLandingAuthReturnTo } = await loadAuthReturnTo();
 
     const paidPlanReturnTo = '/billing/subscription?plan=STARTER';
 
     expect(sanitizeLandingAuthReturnTo(paidPlanReturnTo, { currentOrigin: 'https://orvel.pro' })).toBe(paidPlanReturnTo);
-    expect(sanitizeLandingAuthReturnTo(`/auth/callback?returnTo=${encodeURIComponent(paidPlanReturnTo)}`, { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=oauth-code', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=auth-code', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo(null, { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
@@ -112,9 +109,6 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/turnos?view=week');
 
     expect(login).toContain('sanitizeLandingAuthReturnTo');
-    expect(login).toContain('callbackUrl.searchParams.set(\'returnTo\', returnTo)');
     expect(login).toContain('attempt: { email, password, returnTo }');
-    expect(callback).toContain('sanitizeLandingAuthReturnTo');
-    expect(callback).toContain('window.location.href = returnTo');
   });
 });

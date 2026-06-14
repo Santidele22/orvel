@@ -33,7 +33,7 @@ describe('KB-002 Contract: Supabase session guards after auth unification', () =
     expect(appRoutes).toMatch(/path:\s*['"]booking\/:slug['"][\s\S]*PublicBookingPage/);
   });
 
-  it('canonical credentials and OAuth auth live on landing, not a dashboard route/page', () => {
+  it('canonical auth initiation lives on landing, not a dashboard route/page', () => {
     const appRoutes = source('src/app/app.routes.ts');
 
     expect(appRoutes).not.toMatch(/path:\s*['"]auth(?:\/login)?['"]/);

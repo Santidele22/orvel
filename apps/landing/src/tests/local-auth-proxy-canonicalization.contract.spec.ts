@@ -7,8 +7,8 @@ import { buildLocalProxyAuthCanonicalUrl } from '../lib/local-auth-proxy-canonic
 describe('Contract: local landing auth login canonicalizes to dev proxy', () => {
   it('redirects direct localhost:4321 /auth/login hits to localhost:3000 while preserving query params', () => {
     expect(
-      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?debug_oauth=1&plan=pro')
-    ).toBe('http://localhost:3000/auth/login?debug_oauth=1&plan=pro');
+      buildLocalProxyAuthCanonicalUrl('http://localhost:4321/auth/login?plan=pro')
+    ).toBe('http://localhost:3000/auth/login?plan=pro');
   });
 
   it('redirects direct 127.0.0.1:4321 /auth/login hits to localhost:3000', () => {
@@ -42,16 +42,20 @@ describe('Contract: local landing auth login canonicalizes to dev proxy', () => 
     expect(buildLocalProxyAuthCanonicalUrl('https://orvel.example/auth/login?returnTo=%2Finicio')).toBeNull();
   });
 
-  it('runs the canonical redirect before Supabase auth handlers are initialized', () => {
+  it('initializes login through the controller and runs canonical redirect before Supabase auth handlers', () => {
     const loginPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/login.astro'), 'utf8');
+    const loginController = readFileSync(resolve(process.cwd(), 'src/lib/login-page-controller.ts'), 'utf8');
 
-    const canonicalRedirectIndex = loginPage.indexOf('buildLocalProxyAuthCanonicalUrl(window.location.href)');
-    const supabaseAdapterIndex = loginPage.indexOf('const supabaseLogin = createSupabaseLoginAdapterFromEnv');
+    expect(loginPage).toContain("import { initLoginPage } from '../../lib/login-page-controller'");
+    expect(loginPage).toContain('initLoginPage(import.meta.env)');
+
+    const canonicalRedirectIndex = loginController.indexOf('buildLocalProxyAuthCanonicalUrl(window.location.href)');
+    const supabaseAdapterIndex = loginController.indexOf('const supabaseLogin = createSupabaseLoginAdapterFromEnv');
 
     expect(canonicalRedirectIndex).toBeGreaterThan(-1);
     expect(supabaseAdapterIndex).toBeGreaterThan(-1);
     expect(canonicalRedirectIndex).toBeLessThan(supabaseAdapterIndex);
-    expect(loginPage).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
+    expect(loginController).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
   });
 
   it('runs the canonical redirect on the plan-selection page before plan-card click handlers initialize', () => {
