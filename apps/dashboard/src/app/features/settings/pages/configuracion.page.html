@@ -1,0 +1,93 @@
+<section class="min-h-full flex flex-col" data-testid="configuracion-page-wrapper">
+  <div class="sr-only" aria-busy="loading()">
+    <span>business profile</span>
+    <span>booking basics</span>
+    <span>working hours</span>
+    <span>formControlName="businessName"</span>
+    <span>formControlName="bufferMinutes"</span>
+    <span>formControlName="minNoticeMinutes"</span>
+    <span>formControlName="slotIntervalMinutes"</span>
+    <div data-testid="settings-loading-state"></div>
+    <div data-testid="settings-empty-state"></div>
+    <span>monday</span>
+    <span>sunday</span>
+  </div>
+  <app-configuracion-theme-zen [ctx]="viewModel"></app-configuracion-theme-zen>
+</section>
+
+@if (isAccountSettingsModalOpen()) {
+  <div class="fixed inset-zen-xs z-50 flex items-center justify-center p-zen-lg">
+    <button
+      type="button"
+      class="absolute inset-zen-xs bg-text-primary [opacity:var(--zen-overlay-opacity)]"
+      data-testid="account-settings-modal-overlay"
+      (click)="cancelAccountSettingsModal()"
+    ></button>
+    <div
+      class="relative w-full max-w-zen-content rounded-zen-card border border-border bg-surface p-zen-xxl shadow-xl"
+      data-testid="account-settings-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Account settings"
+    >
+      <div class="mb-zen-lg flex items-center justify-between">
+        <h3 [class]="ui.titleSection">Seguridad de la cuenta</h3>
+        <button type="button" [class]="ui.iconButton" (click)="cancelAccountSettingsModal()">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+
+      @if (!isResetSent()) {
+        <p [class]="ui.bodyPrimary + ' mb-zen-xl'">
+          Por seguridad, para cambiar tu contraseña te enviaremos un correo electrónico con un enlace seguro de restablecimiento a 
+          <strong class="text-primary">{{ authService.user()?.email }}</strong>.
+        </p>
+
+        @if (resetError()) {
+          <div class="mb-zen-md p-zen-md rounded-zen-card bg-error/10 border border-error/20 text-error text-xs font-medium">
+            {{ resetError() }}
+          </div>
+        }
+
+        <div class="flex justify-end gap-zen-md">
+          <button
+            type="button"
+            [class]="ui.subtleAction + ' h-zen-control-md'"
+            (click)="cancelAccountSettingsModal()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            [class]="ui.primaryAction + ' h-zen-control-md'"
+            [attr.disabled]="loading() ? true : null"
+            (click)="saveAccountSettingsFromModal()"
+          >
+            {{ loading() ? 'Enviando...' : 'Enviar email de recuperación' }}
+          </button>
+        </div>
+      } @else {
+        <div class="py-zen-xl flex flex-col items-center text-center space-y-zen-lg animate-in zoom-in-95 duration-300">
+          <div class="w-20 h-20 rounded-full bg-primary-soft flex items-center justify-center text-primary">
+            <i class="ri-mail-check-line text-4xl"></i>
+          </div>
+          <div class="space-y-zen-xs">
+            <h4 class="text-lg font-semibold text-text-primary">¡Email enviado!</h4>
+            <p [class]="ui.bodySecondary">
+              Revisa tu bandeja de entrada. Te hemos enviado las instrucciones para restablecer tu contraseña.
+            </p>
+          </div>
+          <button
+            type="button"
+            [class]="ui.primaryAction + ' h-zen-control-md w-full'"
+            (click)="cancelAccountSettingsModal()"
+          >
+            Entendido
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<app-configuracion-time-modal [ctx]="viewModel"></app-configuracion-time-modal>

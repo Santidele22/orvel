@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Turnea | Digital Atelier</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#263428",
+                    "on-secondary-fixed-variant": "#3c4a3d",
+                    "on-tertiary-fixed": "#271810",
+                    "surface-container-high": "#2a2a2a",
+                    "on-error-container": "#ffdad6",
+                    "secondary": "#bacbba",
+                    "inverse-on-surface": "#313030",
+                    "inverse-primary": "#a83732",
+                    "tertiary-container": "#180b05",
+                    "on-primary-fixed": "#410003",
+                    "secondary-fixed-dim": "#bacbba",
+                    "tertiary-fixed-dim": "#dcc1b4",
+                    "tertiary": "#dcc1b4",
+                    "secondary-fixed": "#d6e7d5",
+                    "surface-bright": "#3a3939",
+                    "surface-container-lowest": "#0e0e0e",
+                    "surface": "#131313",
+                    "on-secondary-container": "#acbdac",
+                    "on-secondary-fixed": "#111f14",
+                    "primary-fixed": "#ffdad6",
+                    "primary-fixed-dim": "#ffb3ac",
+                    "on-surface-variant": "#c4c7c7",
+                    "tertiary-fixed": "#f9ddcf",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-container": "#201f1f",
+                    "on-tertiary": "#3e2d24",
+                    "background": "#131313",
+                    "on-surface": "#e5e2e1",
+                    "on-error": "#690005",
+                    "on-primary": "#67040a",
+                    "surface-dim": "#131313",
+                    "on-primary-fixed-variant": "#871f1d",
+                    "on-background": "#e5e2e1",
+                    "error": "#ffb4ab",
+                    "on-primary-container": "#ce534b",
+                    "on-tertiary-container": "#8d776b",
+                    "primary-container": "#270001",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#564339",
+                    "surface-tint": "#ffb3ac",
+                    "surface-container-highest": "#353534",
+                    "secondary-container": "#3e4d3f",
+                    "outline-variant": "#444748",
+                    "outline": "#8e9192",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-variant": "#353534",
+                    "primary": "#ffb3ac"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(53, 53, 52, 0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+        }
+        .silver-cta {
+            background: linear-gradient(135deg, #E5E2E1 0%, #8E9192 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body antialiased selection:bg-primary selection:text-on-primary overflow-hidden">
+<!-- TopAppBar Anchor -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-12 py-8 w-full max-w-screen-2xl mx-auto bg-transparent">
+<div class="text-2xl font-manrope font-bold tracking-tighter text-neutral-100">Turnea</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-label-md font-inter uppercase tracking-widest text-neutral-400 font-medium hover:text-neutral-100 transition-colors duration-300" href="#">Inquiry</a>
+<a class="text-label-md font-inter uppercase tracking-widest text-neutral-400 font-medium hover:text-neutral-100 transition-colors duration-300" href="#">Support</a>
+<a class="text-label-md font-inter uppercase tracking-widest text-neutral-400 font-medium hover:text-neutral-100 transition-colors duration-300" href="#">Legal</a>
+</div>
+</nav>
+<main class="flex min-h-screen w-full">
+<!-- Left Side: Interactive Canvas -->
+<section class="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 xl:px-32 relative z-10 bg-surface-container-lowest">
+<div class="max-w-md w-full mx-auto lg:mx-0">
+<header class="mb-12">
+<h1 class="text-5xl md:text-6xl font-headline font-extrabold tracking-tighter text-on-surface mb-4 leading-[1.1]">
+                        Bienvenido a tu taller
+                    </h1>
+<p class="text-on-surface-variant text-lg font-body font-light tracking-wide">
+                        Gestioná tus turnos con intención.
+                    </p>
+</header>
+<div class="glass-panel p-10 rounded-xl space-y-8 relative overflow-hidden">
+<!-- Login Form -->
+<div class="space-y-6">
+<div class="group">
+<label class="block text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-2 ml-1">Identificación</label>
+<input class="w-full bg-surface-container-high border-none text-on-surface placeholder:text-outline p-4 rounded-sm focus:ring-0 focus:bg-surface-variant transition-all duration-300" placeholder="email@atelier.com" type="email"/>
+</div>
+<div class="group">
+<label class="block text-[10px] uppercase tracking-[0.2em] text-on-surface-variant mb-2 ml-1">Clave de acceso</label>
+<input class="w-full bg-surface-container-high border-none text-on-surface placeholder:text-outline p-4 rounded-sm focus:ring-0 focus:bg-surface-variant transition-all duration-300" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full silver-cta text-surface-container-lowest font-headline font-bold py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl shadow-surface-container-lowest/20">
+                            Ingresar
+                        </button>
+</div>
+<div class="pt-6 text-center lg:text-left">
+<a class="text-[10px] uppercase tracking-[0.2em] text-outline hover:text-on-surface transition-colors duration-300" href="#">
+                            ¿Todavía no tenés cuenta? <span class="text-on-surface font-semibold underline underline-offset-4 decoration-outline-variant">Creá tu atelier</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Side: Atmospheric Imagery -->
+<section class="hidden lg:block lg:w-1/2 relative overflow-hidden bg-surface-container-low">
+<div class="absolute inset-0 z-10 bg-gradient-to-r from-surface-container-lowest via-transparent to-transparent opacity-60"></div>
+<img alt="Digital Atelier Workspace" class="absolute inset-0 w-full h-full object-cover grayscale-[20%] brightness-[0.7] contrast-[1.1]" data-alt="cinematic wide shot of a luxury vintage barber shop with dark wood, leather chairs, and warm dim atmospheric lighting with soft smoke" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUyIMnSw_Ac5yyqZAmO9nRIbc_ib0R_pWZAd_N0vOdQeuLV1XxsrWzWc7VChYvGEbLEjk6faGStP08jcDYlABIGJT5QZgyYOdEsGvrCB0mRwqC0-aBjvBLLP54m_w95VQCFepC4zsxMsudhA7KE_M6ngAuhEONNXWrj2TEViUGLUzhmspa9ntj6wFIPIpTt-Ic2xrrLFZUU0zO0bW0Schrvz9FB7wi86lws2FLvpdBujxosVjyXvZk6UzL6FHOHtj4Q5hIjXpT0g"/>
+<!-- Floating Decorative Element -->
+<div class="absolute bottom-24 left-12 z-20 glass-panel p-6 rounded-lg max-w-xs border border-outline-variant/10">
+<span class="material-symbols-outlined text-secondary mb-3" style="font-variation-settings: 'FILL' 1;">precision_manufacturing</span>
+<p class="text-[10px] uppercase tracking-[0.2em] text-on-surface mb-1">Estatus del Taller</p>
+<p class="text-xs text-on-surface-variant font-light leading-relaxed">
+                    Artesanía digital para profesionales que valoran la precisión y el tiempo.
+                </p>
+</div>
+</section>
+</main>
+<!-- Footer Anchor -->
+<footer class="fixed bottom-0 w-full z-40 flex justify-start items-center gap-8 px-12 py-6 w-full bg-transparent">
+<div class="font-inter text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+            © 2024 Turnea Digital Atelier. All rights reserved.
+        </div>
+<div class="flex gap-6">
+<a class="font-inter text-[10px] uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-200 transition-opacity" href="#">Terms of Service</a>
+<a class="font-inter text-[10px] uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-200 transition-opacity" href="#">Privacy Policy</a>
+<a class="font-inter text-[10px] uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-200 transition-opacity" href="#">Cookie Settings</a>
+</div>
+</footer>
+</body></html>

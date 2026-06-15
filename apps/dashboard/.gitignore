@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+target/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build and generated artifacts
+dist/
+tmp/
+out-tsc/
+coverage/
+.angular/
+.vercel/
+videos/
+supabase/.temp/
+
+# Environment
+.env
+.env.*
+.env.local
+!.env.example
+
+# Funemon local metadata
+.funemon/
+.funemon/workspace.json
+.funemon/local.json
+.funemon/cache/
+.funemon/sessions/

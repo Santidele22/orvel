@@ -1,0 +1,96 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.turno-form-container {
+  @apply max-w-zen-content mx-auto p-zen-section bg-surface rounded-zen-card shadow-lg border border-border;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.form-header {
+  @apply flex items-center gap-zen-xl mb-zen-section;
+
+  h1 {
+    @apply text-text-primary font-black uppercase tracking-zen-tight;
+    font-size: var(--zen-font-heading);
+  }
+}
+
+.back-link {
+  @apply flex items-center justify-center w-zen-control-lg h-zen-control-lg text-text-primary bg-surface-muted rounded-zen-md transition-all;
+
+  &:hover {
+    @apply bg-border;
+  }
+}
+
+.turno-form { @apply grid gap-zen-xxl; }
+.form-group { @apply flex flex-col gap-zen-md; }
+
+.form-group label {
+  @apply text-xs font-bold uppercase tracking-zen-wide text-text-secondary;
+}
+
+.form-row {
+  @apply grid grid-cols-1 gap-zen-xl;
+}
+
+.form-control {
+  @apply p-zen-lg px-zen-xl border border-border rounded-zen-md text-text-primary bg-bg transition-all;
+  font-family: var(--body-font);
+}
+
+.form-control:focus {
+  @apply outline-none border-primary bg-surface;
+  box-shadow: 0 0 0 var(--zen-space-xs) color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.form-control::placeholder { @apply text-text-tertiary; }
+.form-control:disabled { @apply opacity-50 cursor-not-allowed; }
+
+textarea.form-control {
+  @apply resize-vertical;
+  min-height: calc(var(--zen-size-control-lg) * 3);
+}
+
+.error-message {
+  @apply p-zen-lg px-zen-xl bg-accent-soft rounded-zen-md text-accent text-sm font-semibold flex items-center gap-zen-md;
+}
+
+.availability-info,
+.form-actions {
+  @apply flex items-center gap-zen-md;
+}
+
+.availability-info {
+  @apply p-zen-xl bg-primary-soft rounded-zen-md text-primary text-sm font-semibold;
+}
+
+.form-actions { @apply justify-end mt-zen-lg; }
+
+.btn-primary,
+.btn-secondary {
+  @apply p-zen-lg px-zen-xxl rounded-zen-full text-base font-bold transition-all;
+}
+
+.btn-primary {
+  @apply bg-primary text-white border-none cursor-pointer;
+  box-shadow: var(--primary-glow);
+}
+
+.btn-primary:disabled { @apply opacity-50 cursor-not-allowed; }
+
+.btn-secondary {
+  @apply bg-surface-muted text-text-primary no-underline;
+}
+
+.spinner-sm {
+  @apply w-zen-icon-md h-zen-icon-md border-2 border-surface/40 rounded-zen-full animate-spin inline-block align-middle mr-zen-sm;
+  border-top-color: var(--color-surface);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

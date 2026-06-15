@@ -1,0 +1,433 @@
+/**
+ * Signup Plan Step Page Styles
+ *
+ * Orvel premium landing aesthetic.
+ * Mobile-first, responsive design.
+ */
+
+$color-primary: var(--or-primary);
+$color-primary-hover: var(--or-primary-hover);
+$color-primary-soft: rgba(124, 58, 237, 0.16);
+$color-background: #0f172a;
+$color-background-accent: #111c33;
+$color-surface: rgba(30, 41, 59, 0.84);
+$color-surface-strong: rgba(15, 23, 42, 0.92);
+$color-border: rgba(148, 163, 184, 0.18);
+$color-border-selected: rgba(167, 139, 250, 0.68);
+$color-text: var(--or-text-primary);
+$color-text-muted: var(--or-text-secondary);
+$color-text-soft: rgba(241, 245, 249, 0.72);
+$color-accent: rgba(59, 130, 246, 0.16);
+
+$radius-md: var(--or-radius-md);
+$radius-lg: var(--or-radius-lg);
+$radius-full: 9999px;
+
+$transition-fast: var(--or-duration) var(--or-easing);
+
+.plan-selection-container {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2rem);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.28), transparent 34%),
+    radial-gradient(circle at left bottom, rgba(59, 130, 246, 0.18), transparent 28%),
+    linear-gradient(180deg, #0b1220 0%, $color-background 100%);
+  color: $color-text;
+}
+
+.plan-selection-container::before,
+.plan-selection-container::after {
+  content: '';
+  position: absolute;
+  inset: auto;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.plan-selection-container::before {
+  width: 18rem;
+  height: 18rem;
+  top: -4rem;
+  right: -4rem;
+  background: rgba(124, 58, 237, 0.16);
+}
+
+.plan-selection-container::after {
+  width: 14rem;
+  height: 14rem;
+  bottom: -3rem;
+  left: -2rem;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.plan-selection-card {
+  width: min(100%, 48rem);
+  position: relative;
+  z-index: 1;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border-radius: $radius-lg;
+  border: 1px solid $color-border;
+  background: $color-surface;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.4);
+}
+
+.plan-selection-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  color: $color-primary;
+  filter: drop-shadow(0 0 12px rgba(124, 58, 237, 0.35));
+}
+
+.logo-text {
+  font-family: var(--or-font-family);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: $color-text;
+}
+
+.plan-selection-kicker {
+  margin: 0 0 0.4rem;
+  font-family: var(--or-font-family);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $color-text-muted;
+}
+
+.plan-selection-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--or-font-family);
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: $color-text;
+}
+
+.plan-selection-subtitle {
+  margin: 0;
+  font-family: var(--or-font-family);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: $color-text-soft;
+}
+
+.plan-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 1.15rem;
+  border-radius: $radius-md;
+  border: 1px solid $color-border;
+  background: $color-surface-strong;
+  cursor: pointer;
+  transition:
+    transform $transition-fast,
+    border-color $transition-fast,
+    box-shadow $transition-fast,
+    background $transition-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(167, 139, 250, 0.38);
+    box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.24);
+  }
+
+  &.selected {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96));
+    border-color: $color-border-selected;
+    box-shadow: 0 22px 40px rgba(124, 58, 237, 0.18);
+
+    .plan-check-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.plan-name {
+  font-family: var(--or-font-family);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $color-text;
+}
+
+.plan-check-icon {
+  flex-shrink: 0;
+  font-size: 1.15rem;
+  color: $color-primary;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity $transition-fast, transform $transition-fast;
+}
+
+.plan-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.plan-price {
+  font-family: var(--or-font-family);
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: $color-text;
+}
+
+.plan-price-period {
+  font-family: var(--or-font-family);
+  font-size: 0.8rem;
+  color: $color-text-muted;
+}
+
+.plan-provider {
+  margin: 0 0 1rem;
+  font-family: var(--or-font-family);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $color-text-muted;
+}
+
+.plan-features {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: auto;
+}
+
+.plan-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: $radius-md;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.feature-icon {
+  font-size: 1rem;
+  color: $color-primary;
+}
+
+.feature-value {
+  font-family: var(--or-font-family);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.feature-label {
+  font-family: var(--or-font-family);
+  font-size: 0.78rem;
+  color: $color-text-muted;
+}
+
+.plan-radio {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+}
+
+.radio-label,
+.radio-custom {
+  display: none;
+}
+
+.plan-actions {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.btn-back,
+.btn-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: $radius-full;
+  font-family: var(--or-font-family);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform $transition-fast,
+    border-color $transition-fast,
+    box-shadow $transition-fast,
+    background $transition-fast,
+    color $transition-fast;
+}
+
+.btn-back {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: $color-text-soft;
+  background: rgba(15, 23, 42, 0.58);
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: rgba(167, 139, 250, 0.34);
+    color: $color-text;
+    background: rgba(30, 41, 59, 0.88);
+  }
+
+  i {
+    font-size: 1rem;
+  }
+}
+
+.btn-continue {
+  flex: 1.35;
+  border: none;
+  color: #ffffff;
+  background: linear-gradient(135deg, $color-primary, $color-primary-hover);
+  box-shadow: 0 18px 34px rgba(124, 58, 237, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 22px 40px rgba(124, 58, 237, 0.38);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  i {
+    font-size: 1rem;
+  }
+}
+
+.background-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.decoration-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+}
+
+.circle-1 {
+  width: 19rem;
+  height: 19rem;
+  top: -6rem;
+  right: -6rem;
+  background: rgba(124, 58, 237, 0.16);
+}
+
+.circle-2 {
+  width: 13rem;
+  height: 13rem;
+  bottom: -3rem;
+  left: -2rem;
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.circle-3 {
+  width: 10rem;
+  height: 10rem;
+  top: 48%;
+  left: 54%;
+  transform: translate(-50%, -50%);
+  background: rgba(16, 185, 129, 0.09);
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .plan-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-actions {
+    flex-direction: column;
+  }
+
+  .btn-back,
+  .btn-continue {
+    width: 100%;
+    flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .plan-selection-card {
+    padding: 1.25rem;
+  }
+
+  .plan-card {
+    padding: 1rem;
+  }
+
+  .plan-price {
+    font-size: 1.35rem;
+  }
+}

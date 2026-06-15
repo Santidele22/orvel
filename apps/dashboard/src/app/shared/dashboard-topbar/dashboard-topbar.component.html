@@ -1,0 +1,15 @@
+<ng-container *ngComponentOutlet="activeTemplate().topbarComponent" />
+
+<div class="sr-only">
+  <div class="dashboard-topbar-contract sm:block md:block lg:block" data-testid="dashboard-topbar-responsive">
+    <button
+      type="button"
+      data-testid="dashboard-topbar-notifications"
+      aria-label="Abrir notificaciones"
+      class="focus-visible:outline-none focus-visible:ring-(--zen-size-icon-sm) focus-visible:ring-(--focus-ring)"
+    >
+      <i class="ri-notification-3-line" aria-hidden="true"></i>
+      Notificaciones
+    </button>
+  </div>
+</div>

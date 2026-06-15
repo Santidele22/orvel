@@ -1,0 +1,26 @@
+<main style="min-height: 100vh; display: grid; place-items: center; padding: 2rem;">
+  <section style="width: min(100%, 36rem); display: grid; gap: 1rem;">
+    <header style="display: grid; gap: 0.5rem;">
+      <h1>¿Qué servicios ofrece tu negocio?</h1>
+      <p>Seleccioná todos los que apliquen.</p>
+    </header>
+
+    <fieldset style="border: 0; padding: 0; margin: 0; display: grid; gap: 0.5rem;">
+      <label *ngFor="let rubro of rubroOptions" style="display: flex; align-items: center; gap: 0.5rem;">
+        <input
+          type="checkbox"
+          [checked]="isRubroSelected(rubro.slug)"
+          (change)="onToggleRubro(rubro.slug)"
+        />
+        <span>{{ rubro.label }}</span>
+      </label>
+    </fieldset>
+
+    <p>Podés editar todo después.</p>
+    <p>La plantilla solo precarga una configuración inicial. No cambia el funcionamiento de tu cuenta.</p>
+
+    <button type="button" [disabled]="!canContinue()" (click)="continue()">Continuar</button>
+
+    <a routerLink="/dashboard/turnos">Ir al dashboard</a>
+  </section>
+</main>

@@ -1,0 +1,75 @@
+<main class="h-screen overflow-y-auto no-scrollbar bg-[#0F172A] font-['Inter'] selection:bg-purple-500/30 selection:text-white pb-40 overflow-x-hidden">
+  
+  <!-- Decorative background elements -->
+  <div class="fixed top-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+  <div class="fixed bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-xl mx-auto px-6 py-12 md:py-20">
+    <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-8 md:p-12 shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
+      <header class="mb-10 space-y-2">
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-purple-500/60">Gestionar Reserva</p>
+        <h1 class="text-3xl font-black text-white tracking-tight">Cambios de autoservicio</h1>
+      </header>
+
+      @if (loading()) {
+        <div class="flex items-center gap-3 py-6">
+          <div class="w-5 h-5 border-2 border-white/10 border-t-purple-500 rounded-full animate-spin"></div>
+          <p class="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Validando link...</p>
+        </div>
+      }
+
+      @if (invalidToken()) {
+        <div data-testid="manage-token-invalid-state" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-bold text-red-400 flex items-center gap-3" role="alert">
+          <i class="ri-error-warning-line text-lg"></i>
+          Link de reserva inválido o malformado.
+        </div>
+      }
+
+      @if (expiredToken()) {
+        <div data-testid="manage-token-expired-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-6 py-4 text-sm font-bold text-amber-400 flex items-center gap-3" role="alert">
+          <i class="ri-time-line text-lg"></i>
+          Este link de reserva ha expirado.
+        </div>
+      }
+
+      @if (policyWindowClosed()) {
+        <div data-testid="manage-policy-window-state" class="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-bold text-slate-400 flex items-center gap-3" role="status">
+          <i class="ri-information-line text-lg"></i>
+          Esta reserva ya no puede ser modificada online.
+        </div>
+      }
+
+      @if (canCancelOrReschedule()) {
+        <div class="space-y-6">
+          <p class="text-sm font-medium text-slate-400 leading-relaxed">
+            La reserva <span class="text-white font-bold">{{ bookingId() }}</span> es elegible para cambios o cancelación.
+          </p>
+          <div class="flex flex-wrap gap-4 pt-6 border-t border-white/5">
+            <button
+              data-testid="manage-cancel-action"
+              type="button"
+              class="px-6 py-3 rounded-xl border border-red-500/30 bg-red-500/5 text-xs font-black uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+              (click)="handleCancel()"
+            >
+              Cancelar reserva
+            </button>
+            <button
+              data-testid="manage-reschedule-action"
+              type="button"
+              class="px-6 py-3 rounded-xl bg-[#7C3AED] text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[#6D28D9] shadow-lg shadow-purple-900/40 active:scale-95"
+              (click)="handleReschedule()"
+            >
+              Reprogramar cita
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+
+    <footer class="mt-12 text-center">
+      <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">
+        Powered by <span class="text-purple-500/50">Orvel</span>
+      </p>
+    </footer>
+  </div>
+</main>

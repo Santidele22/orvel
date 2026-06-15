@@ -1,0 +1,26 @@
+---
+// Atom: Text
+interface Props {
+  size?: 'sm' | 'base' | 'lg';
+  class?: string;
+}
+
+const {
+  size = 'base',
+  class: className = ''
+} = Astro.props;
+
+const baseClasses = 'font-body text-text-primary';
+
+const sizeClasses = {
+  sm: 'text-sm',
+  base: 'text-base',
+  lg: 'text-lg leading-relaxed'
+};
+
+const classes = `${baseClasses} ${sizeClasses[size]}`;
+---
+
+<p class:list={[classes, className]}>
+  <slot />
+</p>

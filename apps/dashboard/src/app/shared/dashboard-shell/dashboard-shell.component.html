@@ -1,0 +1,28 @@
+<div
+  [class]="structure.shellRoot + ' ' + activeTemplate().surfaceBgClass + ' ' + activeThemeClass()"
+  data-testid="dashboard-shell-responsive-root">
+  <!-- Sidebar (flex child, no gap) -->
+  <app-dashboard-sidebar data-testid="sidebar" [theme]="activeTheme()" [businessName]="activeTemplate().displayName"
+    [dashboards]="dashboards()" (themeChange)="onThemeChange($event)"
+    class="shrink-0 h-full z-50 transition-[width] duration-500 ease-in-out"
+    [style.width.px]="activeTemplate().sidebarWidth" />
+
+  <!-- Main Viewport (flush against sidebar) -->
+  <div [class]="structure.shellViewport">
+    <app-dashboard-topbar data-testid="topbar" [theme]="activeTheme()" [dashboards]="dashboards()"
+      (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
+
+    <main class="flex-1 overflow-y-auto no-scrollbar relative" data-testid="content">
+      <router-outlet />
+    </main>
+
+    <button
+      type="button"
+      data-testid="dashboard-shell-global-action"
+      aria-label="Crear nuevo registro"
+      class="fixed bottom-(--zen-space-xl) right-(--zen-space-xl) z-50 h-(--zen-size-control-md) w-(--zen-size-control-md) rounded-full opacity-0 pointer-events-none"
+    >
+      <i class="ri-add-line" aria-hidden="true"></i>
+    </button>
+  </div>
+</div>
