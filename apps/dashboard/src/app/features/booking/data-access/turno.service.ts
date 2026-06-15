@@ -385,12 +385,11 @@ export class TurnoService {
     const branchScope = await this.validateBranchTenant(supabaseClient, activeBranchId);
     if (!branchScope) return [];
 
-    // Query bookings with branch scope only. Branch isolation matters when two
-    // locations under one tenant share rubro='barberia'.
-    const { data: bookings, error } = await supabaseClient.schema('public').from('bookings')
-      .select('*')
-      .eq('branch_id', branchScope.branchId)
-      .order('starts_at', { ascending: true });
+    // Query bookings through the least-privilege RPC. Direct bookings table
+    // SELECT grants are intentionally revoked for dashboard browser roles.
+    const { data: bookings, error } = await supabaseClient.rpc('list_admin_bookings', {
+      p_branch_id: branchScope.branchId,
+    });
 
 
     if (error) {
@@ -658,13 +657,10 @@ export class TurnoService {
     const branchScope = await this.validateBranchTenant(supabaseClient, this.resolveActiveBranchId() ?? undefined);
     if (!branchScope) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const { data: booking, error } = await supabaseClient
-      .from('bookings')
-      .select('id')
-      .eq('id', bookingId)
-      .eq('business_id', branchScope.businessId)
-      .eq('branch_id', branchScope.branchId)
-      .maybeSingle();
+    const { data: booking, error } = await supabaseClient.rpc('assert_admin_booking_in_branch', {
+      p_booking_id: bookingId,
+      p_branch_id: branchScope.branchId,
+    });
 
     if (error || !booking) {
       throw new Error('TURNO_NOT_FOUND');
