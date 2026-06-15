@@ -10,6 +10,7 @@ const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
 const LOGIN_ROUTE = '/auth/login';
 const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
+const SIGNUP_ONBOARDING_ROUTE = '/auth/signup/onboarding';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 
@@ -110,7 +111,17 @@ function isLocalHostname(hostname: string): boolean {
 
 export function buildMandatoryOnboardingRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
-  return `/auth/onboarding?onboarding_required=true&returnTo=${encodeURIComponent(safeReturnTo)}`;
+  const sourceUrl = new URL(safeReturnTo, 'https://dashboard.orvel.local');
+  const dashboardReturnTo = sourceUrl.pathname === '/auth/onboarding' ? '/dashboard/inicio' : safeReturnTo;
+  const params = new URLSearchParams({
+    onboarding_required: 'true',
+    returnTo: dashboardReturnTo
+  });
+  const plan = sourceUrl.searchParams.get('plan');
+  const billing = sourceUrl.searchParams.get('billing');
+  if (plan) params.set('plan', plan);
+  if (billing) params.set('billing', billing);
+  return `${resolveLandingOrigin()}${SIGNUP_ONBOARDING_ROUTE}?${params.toString()}`;
 }
 
 function hasCanonicalOrLegacyPlan(plan: unknown): boolean {

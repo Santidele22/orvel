@@ -42,7 +42,7 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(completeSource).not.toContain('await client.auth.updateUser({');
   });
 
-  it('free manual signup still creates the Supabase user immediately and hands off to dashboard onboarding', async () => {
+  it('free manual signup still creates the Supabase user immediately and hands off to landing-owned onboarding', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
@@ -51,9 +51,10 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(freeBranch).toContain('createSupabaseSignupAdapterFromEnv');
     expect(freeBranch).toContain('await signupWithProvider({');
     expect(freeBranch).toContain("tipoNegocio: 'pendiente'");
-    expect(freeBranch).toContain("new URL('/auth/onboarding'");
+    expect(freeBranch).toContain("new URL('/auth/signup/onboarding'");
     expect(freeBranch).toContain('window.location.href = onboardingUrl.toString()');
-    expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/onboarding');
+    expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/signup/onboarding');
+    expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
   });
 
@@ -86,7 +87,7 @@ describe('RED contract: paid manual signup defers account creation until payment
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(source).toContain('/auth/signup/credentials');
-    expect(source).toContain('buildDashboardOnboardingUrl');
+    expect(source).toContain('/auth/signup/onboarding');
     expect(source).not.toContain('getUser()');
     expect(source).not.toContain('updateUser({');
     expect(source).not.toMatch(/(?:sessionStorage|localStorage)\.getItem\([^)]*password/i);

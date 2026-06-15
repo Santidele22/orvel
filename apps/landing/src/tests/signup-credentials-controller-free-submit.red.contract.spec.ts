@@ -106,7 +106,7 @@ describe('RED contract: FREE signup credentials controller submission', () => {
         email: 'ana@example.com',
         password: 'password-segura-123',
         plan: 'FREE',
-        returnTo: 'http://localhost:4200/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard%2Finicio&plan=FREE&billing=monthly'
+        returnTo: 'http://localhost:3000/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly'
       })
     }));
 

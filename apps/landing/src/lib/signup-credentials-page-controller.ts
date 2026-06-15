@@ -245,11 +245,12 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
     if (!isPaidPlan) {
-      const configuredDashboardOrigin = env.PUBLIC_DASHBOARD_URL?.trim();
-      const dashboardOrigin = configuredDashboardOrigin || (window.location.hostname === 'localhost' && window.location.port === '3000' ? window.location.origin : 'http://localhost:4200');
-      const onboardingUrl = new URL('/auth/onboarding', dashboardOrigin);
+      const landingOwnedOnboardingUrl = new URL('/auth/signup/onboarding', window.location.origin);
+      const accountCreatedModalLoginUrl = new URL('/auth/login', window.location.origin);
+      const onboardingUrl = landingOwnedOnboardingUrl;
       onboardingUrl.searchParams.set('onboarding_required', 'true');
-      onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio');
+      onboardingUrl.searchParams.set('account_created_modal', 'welcome_login');
+      onboardingUrl.searchParams.set('loginUrl', accountCreatedModalLoginUrl.pathname);
       onboardingUrl.searchParams.set('plan', plan);
       onboardingUrl.searchParams.set('billing', billing);
       try {

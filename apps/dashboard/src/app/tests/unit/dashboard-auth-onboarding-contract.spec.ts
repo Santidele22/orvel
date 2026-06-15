@@ -29,7 +29,7 @@ describe('dashboard auth onboarding contract', () => {
     });
   });
 
-  it('dashboardAuthGuard honors access.redirectTo for authenticated users missing onboarding', async () => {
+  it('dashboardAuthGuard redirects authenticated users missing onboarding to landing-owned onboarding', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
@@ -51,9 +51,14 @@ describe('dashboard auth onboarding contract', () => {
     const result = await dashboardAuthGuard({} as never, { url: '/dashboard/turnos' } as never);
 
     expect(result).toBe(false);
-    expect(window.location.assign).toHaveBeenCalledWith(
-      '/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard%2Fturnos'
-    );
+    const redirectUrl = vi.mocked(window.location.assign).mock.calls[0]?.[0] as string;
+    const parsedRedirect = new URL(redirectUrl);
+
+    expect(parsedRedirect.origin).toBe('https://orvel.pro');
+    expect(parsedRedirect.pathname).toBe('/auth/signup/onboarding');
+    expect(parsedRedirect.searchParams.get('onboarding_required')).toBe('true');
+    expect(parsedRedirect.searchParams.get('returnTo')).toBe('/dashboard/turnos');
+    expect(redirectUrl).not.toMatch(/^\/auth\/onboarding\b/);
   });
 
   it('dashboardAuthGuard sends authenticated incomplete users without a selected plan to landing account creation with missing-account reason', async () => {
@@ -135,13 +140,14 @@ describe('dashboard auth onboarding contract', () => {
     );
   });
 
-  it('registers /auth/onboarding as the real incomplete-onboarding completion route', async () => {
+  it('keeps /auth/onboarding as a dashboard compatibility redirect, not the real onboarding UI route', async () => {
     const routesSource = await readFile(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 
     const onboardingRoute = routesSource.match(/path:\s*['"]auth\/onboarding['"][\s\S]*?(?=\n\s*\},\n\s*\{|\n\s*\}\n\];)/)?.[0];
 
     expect(onboardingRoute).toBeDefined();
-    expect(onboardingRoute).toContain('signup-business-types-step.component');
-    expect(onboardingRoute).not.toContain('redirectTo');
+    expect(onboardingRoute).toContain('redirectTo');
+    expect(onboardingRoute).not.toContain('signup-business-types-step.component');
+    expect(onboardingRoute).not.toContain('features/onboarding/pages');
   });
 });

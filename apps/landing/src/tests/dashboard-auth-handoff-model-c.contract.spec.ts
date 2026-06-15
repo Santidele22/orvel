@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const LOGIN_PAGE = new URL('../pages/auth/login.astro', import.meta.url);
 const AUTH_COMPAT_PAGE = new URL('../pages/auth.astro', import.meta.url);
 const SIGNUP_COMPLETE_PAGE = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const SIGNUP_ONBOARDING_PAGE = new URL('../pages/auth/signup/onboarding.astro', import.meta.url);
 const LOGIN_CONTROLLER = new URL('../lib/login-page-controller.ts', import.meta.url);
 const HANDOFF_MODULE = new URL('../lib/dashboard-auth-handoff.ts', import.meta.url);
 
@@ -63,13 +64,11 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     }
   });
 
-  it('free signup completion uses dashboard configuration onboarding, not dashboard-owned auth', async () => {
-    const source = await readFile(SIGNUP_COMPLETE_PAGE, 'utf8');
+  it('free signup completion uses landing-owned onboarding, not dashboard-owned auth', async () => {
+    const source = `${await readFile(SIGNUP_COMPLETE_PAGE, 'utf8')}\n${await readFile(SIGNUP_ONBOARDING_PAGE, 'utf8')}`;
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
-    // Configuration-only onboarding made the generic auth handoff obsolete
-    // for free signup completion: the authenticated user must land on the protected
-    // dashboard /auth/onboarding route with explicit onboarding metadata.
+    // Landing owns signup onboarding before redirecting back to login/dashboard auth.
     const fallbackHandoff = new URL(
       buildDashboardAuthUrl({
         dashboardOrigin: '',
@@ -82,12 +81,10 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(fallbackHandoff.pathname).toBe('/auth/signup/plan');
     expect(fallbackHandoff.pathname).not.toBe('/dashboard/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
-    expect(source).toContain('buildDashboardOnboardingUrl');
-    expect(source).toContain("new URL('/auth/onboarding', dashboardOrigin)");
-    expect(source).toContain("onboardingUrl.searchParams.set('onboarding_required', 'true')");
-    expect(source).toContain("onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio')");
-    expect(source).toContain("onboardingUrl.searchParams.set('plan', plan)");
-    expect(source).toContain("onboardingUrl.searchParams.set('billing', billing)");
+    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).not.toContain("new URL('/auth/onboarding', dashboardOrigin)");
+    expect(source).toContain('plan=${encodeURIComponent(plan)}');
+    expect(source).toContain('billing=${encodeURIComponent(billing)}');
     expect(source).not.toContain('buildDashboardAuthUrl({');
     expect(source).not.toContain("window.location.href = '/dashboard/inicio'");
   });

@@ -16,7 +16,7 @@ describe('Feature B contract: dashboard guard plan classification', () => {
     supabaseAuthClientMock.signOut.mockReset();
   });
 
-  it('does not misclassify a valid selected plan as missing while onboarding is incomplete', async () => {
+  it('does not misclassify a valid selected plan as missing while landing-owned onboarding is incomplete', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
@@ -38,12 +38,17 @@ describe('Feature B contract: dashboard guard plan classification', () => {
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);
-    expect(access.redirectTo).toBe('/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard%2Finicio');
+    const redirectUrl = new URL(access.redirectTo ?? '');
+    expect(redirectUrl.origin).toBe('https://orvel.pro');
+    expect(redirectUrl.pathname).toBe('/auth/signup/onboarding');
+    expect(redirectUrl.searchParams.get('onboarding_required')).toBe('true');
+    expect(redirectUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
     expect(access.redirectTo).not.toContain('/auth/signup/plan');
+    expect(access.redirectTo).not.toMatch(/^\/auth\/onboarding\b/);
     expect(access.redirectTo).not.toContain('missing_account');
   });
 
-  it('sends authenticated incomplete FREE users with selected plan to dashboard onboarding, not landing plan selection', async () => {
+  it('sends authenticated incomplete FREE users with selected plan to landing onboarding, not landing plan selection', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({
       data: {
         session: {
@@ -67,8 +72,13 @@ describe('Feature B contract: dashboard guard plan classification', () => {
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);
-    expect(access.redirectTo).toBe('/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard%2Finicio');
+    const redirectUrl = new URL(access.redirectTo ?? '');
+    expect(redirectUrl.origin).toBe('https://orvel.pro');
+    expect(redirectUrl.pathname).toBe('/auth/signup/onboarding');
+    expect(redirectUrl.searchParams.get('onboarding_required')).toBe('true');
+    expect(redirectUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
     expect(access.redirectTo).not.toContain('/auth/signup/plan');
+    expect(access.redirectTo).not.toMatch(/^\/auth\/onboarding\b/);
     expect(access.redirectTo).not.toContain('missing_account');
   });
 

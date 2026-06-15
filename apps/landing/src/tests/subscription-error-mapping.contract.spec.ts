@@ -37,7 +37,9 @@ describe('Contract: subscription status and UI guardrails', () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(source).toContain('pollSubscriptionStatus');
-    expect(source).toContain('window.setInterval(pollSubscriptionStatus, 4000)');
+    expect(source).toContain('pollingIntervalId = window.setInterval(pollSubscriptionStatus, 4000)');
+    expect(source).toContain('MAX_POLLING_ATTEMPTS');
+    expect(source).toContain('stopSubscriptionPolling');
     expect(source).toContain("setUiState('pending')");
   });
 
@@ -54,6 +56,8 @@ describe('Contract: subscription status and UI guardrails', () => {
     expect(source).toContain("setUiState('failed')");
     expect(source).toContain("setUiState('cancelled')");
     expect(source).toContain("setUiState('retry')");
+    expect(source).toContain('TERMINAL_NON_SUCCESS_STATES');
+    expect(source).toContain('setSubscriptionButtonDisabled(false)');
     expect(source).toContain('showSubscriptionError');
   });
 });

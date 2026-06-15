@@ -8,7 +8,7 @@ import Layout from '../../../layouts/Layout.astro';
       <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Alta simplificada</p>
       <h1 class="mb-4 font-headline text-3xl font-black tracking-tighter">Te llevamos al siguiente paso</h1>
       <p class="text-sm leading-6 text-text-secondary">
-        La configuración del negocio se completa dentro del dashboard. Si no avanzás automáticamente, usá el botón.
+        La configuración inicial continúa en Orvel antes de entrar al dashboard. Si no avanzás automáticamente, usá el botón.
       </p>
       <a id="continueLink" href="/auth/signup/credentials" class="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">
         Continuar
@@ -46,26 +46,9 @@ import Layout from '../../../layouts/Layout.astro';
     const credentialsUrl = `/auth/signup/credentials?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`;
     if (step2Link) step2Link.href = credentialsUrl;
     if (backBtn) backBtn.href = credentialsUrl;
-    const params = new URLSearchParams();
-    params.set('billing', billing);
-
-    const buildDashboardOnboardingUrl = () => {
-      const configuredDashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-      const dashboardOrigin = configuredDashboardOrigin
-        || (window.location.hostname === 'localhost' && window.location.port === '3000'
-          ? window.location.origin
-          : 'http://localhost:4200');
-      const onboardingUrl = new URL('/auth/onboarding', dashboardOrigin);
-      onboardingUrl.searchParams.set('onboarding_required', 'true');
-      onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio');
-      onboardingUrl.searchParams.set('plan', plan);
-      onboardingUrl.searchParams.set('billing', billing);
-      return onboardingUrl.toString();
-    };
-
     const returnTo = isPaidPlan
       ? `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`
-      : buildDashboardOnboardingUrl();
+      : `/auth/signup/onboarding?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_created_modal=welcome_login`;
 
     const readProtectedPendingSignupIntent = () => {
       try {
