@@ -5,6 +5,7 @@ import { Turno, CreateTurnoDTO, UpdateTurnoDTO, TurnoEstado } from '../models/tu
 import { WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { ACTIVE_BRANCH_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { 
@@ -595,7 +596,7 @@ export class TurnoService {
     }
 
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('activeBranchId') ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
+      const stored = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY) ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
       return stored?.trim() || null;
     }
 
@@ -1174,7 +1175,7 @@ export class TurnoService {
 
   delete(id: string): Observable<boolean> {
     this.turnos.update(t => t.filter(turno => turno.id !== id));
-    return of(true);
+    return of(true).pipe(tap(() => this.invalidateAdminAvailabilityForLoadAvailability()));
   }
 
   // Filtrar turnos por fecha

@@ -7,7 +7,6 @@ const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', 
 const BUSINESS_TYPE_PAGE_PATH = new URL('../pages/auth/signup/business-type.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
-const OAUTH_ONBOARDING_FLOW_PATH = new URL('../lib/oauth-signup-onboarding-flow.ts', import.meta.url);
 
 const WRONG_DASHBOARD_PRECONDITION =
   'Primero necesitás completar la configuración de tu negocio en el dashboard.';
@@ -35,7 +34,7 @@ describe('RED contract: launch landing signup must not apply dashboard business 
   });
 
   it('business-type bridge preserves launch signup context until the onboarding completion step', async () => {
-    const source = `${await loadSource(BUSINESS_TYPE_PAGE_PATH)}\n${await loadSource(OAUTH_ONBOARDING_FLOW_PATH)}`;
+    const source = await loadSource(BUSINESS_TYPE_PAGE_PATH);
 
     expect(source).toContain('buildBusinessTypeCompletionRedirect');
     expect(source).toContain('/auth/signup/complete');

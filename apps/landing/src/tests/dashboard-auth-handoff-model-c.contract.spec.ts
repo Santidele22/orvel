@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 const LOGIN_PAGE = new URL('../pages/auth/login.astro', import.meta.url);
 const AUTH_COMPAT_PAGE = new URL('../pages/auth.astro', import.meta.url);
-const CALLBACK_PAGE = new URL('../pages/auth/callback.astro', import.meta.url);
 const SIGNUP_COMPLETE_PAGE = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const LOGIN_CONTROLLER = new URL('../lib/login-page-controller.ts', import.meta.url);
 const HANDOFF_MODULE = new URL('../lib/dashboard-auth-handoff.ts', import.meta.url);
 
 type DashboardAuthHandoffModule = {
@@ -15,29 +15,12 @@ type DashboardAuthHandoffModule = {
   }) => string;
 };
 
-type SupabaseAuthAdapterModule = {
-  createSupabaseOAuthAdapter: (
-    env: { SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string },
-    dependencies: {
-      createClient: (url: string, anonKey: string, options?: unknown) => {
-        auth: {
-          signInWithOAuth: (input: unknown) => Promise<{ error: null }>;
-        };
-      };
-    }
-  ) => (provider: 'google', input: string | { redirectTo: string }) => Promise<{ ok: boolean }>;
-};
-
 async function loadDashboardAuthHandoff(): Promise<DashboardAuthHandoffModule> {
   return (await import(HANDOFF_MODULE.href)) as DashboardAuthHandoffModule;
 }
 
-async function loadSupabaseAuthAdapter(): Promise<SupabaseAuthAdapterModule> {
-  return (await import('../lib/supabase-auth-adapter.ts')) as SupabaseAuthAdapterModule;
-}
-
 describe('Contract: canonical landing auth and dashboard handoff', () => {
-  it('landing builds dashboard /auth bridge URLs only as sanitized post-auth handoff hints', async () => {
+  it('landing builds landing-owned login URLs only as sanitized post-auth handoff hints', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoffUrl = new URL(
@@ -49,7 +32,8 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     );
 
     expect(handoffUrl.origin).toBe('https://orvel.pro');
-    expect(handoffUrl.pathname).toBe('/dashboard/auth');
+    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).not.toBe('/dashboard/auth');
     expect(handoffUrl.searchParams.get('mode')).toBe('login');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/turnos?view=week');
   });
@@ -62,10 +46,10 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
       '//evil.example/dashboard',
       'javascript:alert(1)',
       '/auth/login?returnTo=/dashboard',
-      '/dashboard/inicio?code=oauth-code',
+      '/dashboard/inicio?code=auth-code',
       '/dashboard/inicio?access_token=secret',
       '/dashboard/inicio#refresh_token=secret',
-      '/dashboard/inicio#code=oauth-code'
+      '/dashboard/inicio#code=auth-code'
     ]) {
       const handoff = buildDashboardAuthUrl({
         dashboardOrigin: 'https://orvel.pro/dashboard',
@@ -79,10 +63,13 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     }
   });
 
-  it('free signup completion builds dashboard handoff from dashboard origin, never landing origin', async () => {
+  it('free signup completion uses dashboard configuration onboarding, not dashboard-owned auth', async () => {
     const source = await readFile(SIGNUP_COMPLETE_PAGE, 'utf8');
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
+    // Configuration-only onboarding made the generic auth handoff obsolete
+    // for free signup completion: the authenticated user must land on the protected
+    // dashboard /auth/onboarding route with explicit onboarding metadata.
     const fallbackHandoff = new URL(
       buildDashboardAuthUrl({
         dashboardOrigin: '',
@@ -92,15 +79,20 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     );
 
     expect(fallbackHandoff.origin).toBe('http://localhost:4200');
-    expect(fallbackHandoff.pathname).toBe('/auth');
+    expect(fallbackHandoff.pathname).toBe('/auth/signup/plan');
+    expect(fallbackHandoff.pathname).not.toBe('/dashboard/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
-    expect(source).toContain('buildDashboardAuthUrl({');
-    expect(source).not.toContain('|| window.location.origin');
+    expect(source).toContain('buildDashboardOnboardingUrl');
+    expect(source).toContain("new URL('/auth/onboarding', dashboardOrigin)");
+    expect(source).toContain("onboardingUrl.searchParams.set('onboarding_required', 'true')");
+    expect(source).toContain("onboardingUrl.searchParams.set('returnTo', '/dashboard/inicio')");
+    expect(source).toContain("onboardingUrl.searchParams.set('plan', plan)");
+    expect(source).toContain("onboardingUrl.searchParams.set('billing', billing)");
+    expect(source).not.toContain('buildDashboardAuthUrl({');
     expect(source).not.toContain("window.location.href = '/dashboard/inicio'");
-    expect(source).not.toContain('window.location.href = returnTo;');
   });
 
-  it('rejects the landing root as a dashboard bridge base so handoff never becomes landing /auth', async () => {
+  it('keeps the landing root as the auth base and rejects dashboard-owned /dashboard/auth', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoffUrl = new URL(
@@ -111,21 +103,26 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
       })
     );
 
-    expect(handoffUrl.href).not.toBe('https://orvel.pro/auth?mode=login&returnTo=%2Fdashboard%2Finicio');
-    expect(handoffUrl.origin).toBe('http://localhost:4200');
-    expect(handoffUrl.pathname).toBe('/auth');
+    expect(handoffUrl.href).not.toBe('https://orvel.pro/dashboard/auth?mode=login&returnTo=%2Fdashboard%2Finicio');
+    expect(handoffUrl.origin).toBe('https://orvel.pro');
+    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).not.toBe('/dashboard/auth');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
-  it('canonical landing login owns Google and email/password Supabase auth', async () => {
-    const source = await readFile(LOGIN_PAGE, 'utf8');
+  it('canonical landing login owns email/password auth and exposes no Google OAuth entrypoint', async () => {
+    const pageSource = await readFile(LOGIN_PAGE, 'utf8');
+    const controllerSource = await readFile(LOGIN_CONTROLLER, 'utf8');
+    const source = `${pageSource}\n${controllerSource}`;
 
-    expect(source).toContain("from '../../lib/auth-provider'");
+    expect(source).toMatch(/from ['"](?:\.\/auth-provider|\.\.\/\.\.\/lib\/auth-provider)['"]/);
     expect(source).toMatch(/loginWithProvider\(/);
-    expect(source).toMatch(/loginWithGoogle\(/);
-    expect(source).toContain("new URL('/auth/callback', window.location.origin)");
-    expect(source).toContain('loginWithGoogle({ redirectTo: callbackUrl.toString() })');
-    expect(source).not.toMatch(/loginWithGoogle\(\s*['"]\/auth['"]\s*\)/);
+    expect(pageSource).not.toContain('id="googleBtn"');
+    expect(pageSource).not.toContain("document.getElementById('googleBtn')");
+    expect(pageSource).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);
+    expect(source).not.toContain('loginWithGoogle');
+    expect(source).not.toContain('createSupabaseOAuthAdapter');
+    expect(source).not.toContain('signInWithOAuth');
     expect(source).toMatch(/createSupabaseLoginAdapterFromEnv\(/);
     expect(source).toContain('name="email"');
     expect(source).toContain('name="password"');
@@ -134,51 +131,10 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(source).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
   });
 
-  it('landing OAuth callback exchanges provider code on landing, then redirects to sanitized dashboard returnTo', async () => {
-    const source = await readFile(CALLBACK_PAGE, 'utf8');
+  it('removes obsolete callback behavior while keeping token stripping in returnTo sanitization', async () => {
     const returnToSource = await readFile(new URL('../lib/auth-return-to.ts', import.meta.url), 'utf8');
 
-    expect(source).toMatch(/auth\.exchangeCodeForSession\(code\)/);
-    expect(source).toMatch(/sanitizeLandingAuthReturnTo/);
     expect(returnToSource).toMatch(/PARAM_BLOCKLIST[\s\S]*code[\s\S]*access_token|PARAM_BLOCKLIST[\s\S]*access_token[\s\S]*code/);
-    expect(source).not.toMatch(/localStorage\.setItem\([^)]*(token|session|auth)/i);
-  });
-
-  it('landing OAuth adapter resolves relative localhost callbacks against the local landing origin, not production', async () => {
-    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-    const captured: unknown[] = [];
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: { location: { origin: 'http://localhost:4321' } }
-    });
-
-    try {
-      const { createSupabaseOAuthAdapter } = await loadSupabaseAuthAdapter();
-      const oauth = createSupabaseOAuthAdapter(
-        { SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'anon' },
-        {
-          createClient: () => ({
-            auth: {
-              signInWithOAuth: async (input: unknown) => {
-                captured.push(input);
-                return { error: null };
-              }
-            }
-          })
-        }
-      );
-
-      await oauth('google', { redirectTo: '/auth/callback?returnTo=%2Fdashboard%2Finicio' });
-
-      expect(JSON.stringify(captured)).toContain('http://localhost:4321/auth/callback');
-      expect(JSON.stringify(captured)).not.toContain('https://orvel.pro/auth/callback');
-    } finally {
-      if (originalWindow) {
-        Object.defineProperty(globalThis, 'window', originalWindow);
-      } else {
-        Reflect.deleteProperty(globalThis, 'window');
-      }
-    }
   });
 
   it('landing bare /auth exists as a compatibility redirect to /auth/login preserving query params', async () => {

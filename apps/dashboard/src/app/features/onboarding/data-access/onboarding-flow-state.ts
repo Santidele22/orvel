@@ -1,9 +1,8 @@
 export type OnboardingStep = 'plan' | 'account' | 'business-types' | 'welcome' | 'login' | 'dashboard';
 
 export const ONBOARDING_STEP_KEY = 'turnea.onboarding.step.v1';
-export const ONBOARDING_ACCOUNT_METHOD_KEY = 'turnea.onboarding.account-method.v1';
-export const ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY = 'turnea.onboarding.welcome-email-triggered.v1';
 export const ONBOARDING_DASHBOARD_CUE_KEY = 'turnea.onboarding.dashboard-cue.v1';
+export const ONBOARDING_COMPLETION_CONFIRMED_KEY = 'turnea.onboarding.completion-confirmed.v1';
 
 const STEP_ORDER: Record<OnboardingStep, number> = {
   plan: 1,
@@ -20,25 +19,23 @@ export function canAccessStep(storage: Pick<Storage, 'getItem'>, step: Onboardin
     return false;
   }
 
-  const accountMethod = storage.getItem(ONBOARDING_ACCOUNT_METHOD_KEY);
-  const hasValidAccountMethod = accountMethod === 'manual' || accountMethod === 'google';
-  const welcomeTriggered = storage.getItem(ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY) === '1';
+  const completionConfirmed = storage.getItem(ONBOARDING_COMPLETION_CONFIRMED_KEY) === '1';
   const dashboardCue = storage.getItem(ONBOARDING_DASHBOARD_CUE_KEY) === '1';
 
   if (step === 'business-types') {
-    return hasValidAccountMethod;
+    return true;
   }
 
   if (step === 'welcome') {
-    return welcomeTriggered;
+    return completionConfirmed;
   }
 
   if (step === 'login') {
-    return hasValidAccountMethod && welcomeTriggered && dashboardCue;
+    return false;
   }
 
   if (step === 'dashboard') {
-    return hasValidAccountMethod && welcomeTriggered && dashboardCue;
+    return completionConfirmed && dashboardCue;
   }
 
   return true;
@@ -56,12 +53,6 @@ export function getCurrentStep(storage: Pick<Storage, 'getItem'>): OnboardingSte
   return 'plan';
 }
 
-export function markWelcomeEmailTriggeredOnce(storage: Pick<Storage, 'getItem' | 'setItem'>): boolean {
-  const alreadyTriggered = storage.getItem(ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY) === '1';
-  if (alreadyTriggered) {
-    return false;
-  }
-
-  storage.setItem(ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY, '1');
-  return true;
+export function markOnboardingCompletionConfirmed(storage: Pick<Storage, 'setItem'>): void {
+  storage.setItem(ONBOARDING_COMPLETION_CONFIRMED_KEY, '1');
 }

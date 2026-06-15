@@ -200,15 +200,15 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 
-  it('Google OAuth login reaches dashboard only after Supabase has persisted complete onboarding metadata', async () => {
+  it('Supabase session reaches dashboard only after persisted complete onboarding metadata', async () => {
     const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {
         session: {
-          access_token: 'oauth-token-incomplete',
+          access_token: 'supabase-token-incomplete',
           user: {
-            id: 'google-user-1',
+            id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
               plan: 'GROWTH',
@@ -229,9 +229,9 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {
         session: {
-          access_token: 'oauth-token-complete',
+          access_token: 'supabase-token-complete',
           user: {
-            id: 'google-user-1',
+            id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
               plan: 'GROWTH',
@@ -247,7 +247,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
   });
 
-  it('security regression: OAuth onboarding cannot complete from localStorage business type selection alone', async () => {
+  it('security regression: Supabase onboarding cannot complete from localStorage business type selection alone', async () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-business-types-step.page.ts'),
       'utf-8'

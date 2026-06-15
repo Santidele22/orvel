@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Orvel - Iniciar Sesión">
+<Layout title="Orvel - Iniciar Sesión" showPreloader={false}>
   <main class="flex min-h-screen w-full bg-bg-primary">
     <!-- Left Side: Imagery -->
     <section class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-bg-secondary flex-col justify-end p-12 lg:p-24">
@@ -48,27 +48,11 @@ import Layout from '../../layouts/Layout.astro';
           </div>
 
           <p id="loginError" class="hidden text-xs text-error font-medium" aria-live="polite"></p>
-          <pre id="oauthDebug" class="hidden whitespace-pre-wrap rounded-lg border border-border bg-bg-secondary p-3 text-[10px] text-text-secondary" aria-live="polite"></pre>
 
           <button type="submit" class="w-full btn btn-primary py-4 rounded-full uppercase tracking-widest text-xs shadow-xl shadow-primary/20">
             Entrar al Dashboard
           </button>
 
-          <div class="relative flex items-center py-4">
-            <div class="flex-grow border-t border-border"></div>
-            <span class="flex-shrink-0 mx-4 text-[10px] font-headline uppercase tracking-[0.2em] text-text-secondary">O</span>
-            <div class="flex-grow border-t border-border"></div>
-          </div>
-
-          <button type="button" id="googleBtn" class="flex items-center justify-center gap-3 w-full btn btn-secondary py-4 rounded-full uppercase tracking-widest text-xs">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Continuar con Google
-          </button>
         </form>
 
         <footer class="mt-12 text-center lg:text-left">
@@ -82,137 +66,6 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import {
-    createSupabaseLoginAdapterFromEnv,
-    loginWithGoogle,
-    loginWithProvider
-  } from '../../lib/auth-provider';
-  import { sanitizeLandingAuthReturnTo } from '../../lib/auth-return-to';
-  import { buildLocalProxyAuthCanonicalUrl } from '../../lib/local-auth-proxy-canonicalizer';
-  import { parseSupabaseOAuthRedirectDiagnostics } from '../../lib/supabase-auth-adapter';
-
-  if (typeof window !== 'undefined') {
-    const canonicalRedirectTo = buildLocalProxyAuthCanonicalUrl(window.location.href);
-    if (canonicalRedirectTo) {
-      window.location.replace(canonicalRedirectTo);
-    } else {
-      const params = new URLSearchParams(window.location.search);
-      const returnTo = sanitizeLandingAuthReturnTo(params.get('returnTo'), {
-        currentOrigin: window.location.origin,
-        dashboardBaseUrl: import.meta.env.PUBLIC_DASHBOARD_URL
-      });
-      const callbackUrl = new URL('/auth/callback', window.location.origin);
-      callbackUrl.searchParams.set('returnTo', returnTo);
-
-      const debugStorageKey = 'debug_' + 'oauth';
-      const isOAuthDebugEnabled = params.get('debug_oauth') === '1' || window.localStorage.getItem(debugStorageKey) === '1';
-
-      const renderOAuthDebug = (extra: Record<string, unknown> = {}) => {
-        if (!isOAuthDebugEnabled) return;
-        const debug = document.getElementById('oauthDebug');
-        if (!debug) return;
-        debug.textContent = `OAuth debug\n${JSON.stringify({
-          windowOrigin: window.location.origin,
-          callbackUrl: callbackUrl.toString(),
-          sanitizedReturnTo: returnTo,
-          ...extra
-        }, null, 2)}`;
-        debug.classList.remove('hidden');
-      };
-
-      renderOAuthDebug();
-
-      const setError = (message: string) => {
-        const error = document.getElementById('loginError');
-        if (!error) return;
-        error.textContent = message;
-        error.classList.remove('hidden');
-      };
-
-      const clearError = () => {
-        const error = document.getElementById('loginError');
-        if (!error) return;
-        error.textContent = '';
-        error.classList.add('hidden');
-      };
-
-      const supabaseLogin = createSupabaseLoginAdapterFromEnv({
-        SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-        SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-      });
-
-      document.getElementById('loginForm')?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const form = event.currentTarget as HTMLFormElement;
-        if (!form.checkValidity()) {
-          form.reportValidity();
-          return;
-        }
-
-        const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-        if (!button) return;
-
-        const formData = new FormData(form);
-        const email = String(formData.get('email') ?? '').trim();
-        const password = String(formData.get('password') ?? '');
-
-        clearError();
-        button.disabled = true;
-        const originalText = button.textContent;
-        button.textContent = 'Ingresando...';
-
-        try {
-          const result = await loginWithProvider({
-            attempt: { email, password, returnTo },
-            supabaseLogin
-          });
-
-          if (result.ok && result.redirectTo) {
-            window.location.assign(result.redirectTo);
-            return;
-          }
-
-          setError(result.error || 'No pudimos iniciar sesión. Revisá tus credenciales e intentá nuevamente.');
-        } catch (error) {
-          setError(error instanceof Error ? error.message : 'No pudimos iniciar sesión. Revisá tus credenciales e intentá nuevamente.');
-        } finally {
-          button.disabled = false;
-          button.textContent = originalText;
-        }
-      });
-
-      document.getElementById('googleBtn')?.addEventListener('click', async () => {
-        const button = document.getElementById('googleBtn') as HTMLButtonElement | null;
-        if (!button) return;
-
-        clearError();
-        button.disabled = true;
-        try {
-          const result = await loginWithGoogle({ redirectTo: callbackUrl.toString() });
-          renderOAuthDebug(result.ok && result.redirectTo
-            ? { supabaseOAuth: parseSupabaseOAuthRedirectDiagnostics(result.redirectTo) }
-            : { oauthResult: { ok: result.ok, error: result.ok ? undefined : result.error }, supabaseOAuth: result.ok ? undefined : result.oauthDiagnostics }
-          );
-          if (result.ok && result.redirectTo) {
-            window.location.assign(result.redirectTo);
-            return;
-          }
-
-          if (result.ok) {
-            setError('No pudimos redirigirte a Google. Intentá nuevamente en unos segundos.');
-            button.disabled = false;
-            return;
-          }
-
-          if (!result.ok) {
-            setError(result.error || 'No pudimos iniciar sesión con Google. Intentá nuevamente.');
-            button.disabled = false;
-          }
-        } catch (error) {
-          setError(error instanceof Error ? error.message : 'No pudimos iniciar sesión con Google. Intentá nuevamente.');
-          button.disabled = false;
-        }
-      });
-    }
-  }
+  import { initLoginPage } from '../../lib/login-page-controller';
+  initLoginPage(import.meta.env);
 </script>

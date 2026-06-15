@@ -9,8 +9,6 @@ import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.
 const ROUTES_SOURCE = readFileSync(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 const ROUTE_PROTECTION_SOURCE = readFileSync(new URL('../../core/auth/route-protection.ts', import.meta.url), 'utf8');
 const AUTH_SERVICE_SOURCE = readFileSync(new URL('../../services/auth.service.ts', import.meta.url), 'utf8');
-const LOGIN_HELPER_SOURCE = readFileSync(new URL('../../pages/auth/login.router-helper.ts', import.meta.url), 'utf8');
-const LOGIN_PAGE_SOURCE = readFileSync(new URL('../../pages/auth/login.page.ts', import.meta.url), 'utf8');
 const TURNO_SERVICE_SOURCE = readFileSync(new URL('../../features/booking/data-access/turno.service.ts', import.meta.url), 'utf8');
 const TURNOS_LIST_SOURCE = readFileSync(new URL('../../features/booking/pages/turnos-list.page.ts', import.meta.url), 'utf8');
 const TURNO_FORM_SOURCE = readFileSync(new URL('../../features/booking/pages/turno-form.page.ts', import.meta.url), 'utf8');
@@ -111,12 +109,12 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
     expect(AUTH_SERVICE_SOURCE).not.toMatch(/provider:\s*['"]mock['"]|this\.provider\s*===\s*['"]mock['"]|getMockUser|generateToken/);
   });
 
-  it('dashboard auth handoff delegates credential entry to canonical landing auth and treats params as hints only', () => {
-    expect(LOGIN_PAGE_SOURCE).toMatch(/canonicalLandingAuth|buildLandingLoginRedirect|window\.location\.assign/);
-    expect(LOGIN_PAGE_SOURCE).not.toMatch(/signInWithPassword\(|signUp\(|createSupabaseAuthClient|SUPABASE_CONFIG/);
-    expect(LOGIN_PAGE_SOURCE).not.toMatch(/localStorage\.getItem\([\s\S]{0,240}(?:access_token|refresh_token|token|session)/i);
-    expect(LOGIN_HELPER_SOURCE).not.toMatch(/preserveReturnTo[\s\S]{0,240}(?:access_token|refresh_token|token|session)/i);
-    expect(LOGIN_HELPER_SOURCE).not.toMatch(/getPreservedReturnTo\(\)[\s\S]{0,240}(?:auth|session|token)/i);
+  it('dashboard does not own credential auth routes or pages', () => {
+    expect(ROUTES_SOURCE).not.toMatch(/path:\s*['"]auth(?:\/login)?['"]/);
+    expect(ROUTES_SOURCE).not.toMatch(/path:\s*['"]login['"]/);
+    expect(ROUTES_SOURCE).not.toMatch(/['"]\.\/pages\/auth/);
+    expect(ROUTE_PROTECTION_SOURCE).toMatch(/buildLandingLoginRedirect/);
+    expect(ROUTE_PROTECTION_SOURCE).not.toMatch(/signInWithPassword\(|signUp\(|SUPABASE_CONFIG[\s\S]{0,120}sign/i);
   });
 
   it('admin mutation code does not fallback to local/in-memory success when Supabase auth or tenant context is unavailable', () => {
@@ -163,7 +161,7 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
   });
 
   it('sensitive admin route/action logging does not pass raw errors or token-bearing strings to console/UI', () => {
-    const sensitiveRuntimeSource = [TURNO_SERVICE_SOURCE, TURNOS_LIST_SOURCE, TURNO_FORM_SOURCE, LOGIN_PAGE_SOURCE].join('\n');
+    const sensitiveRuntimeSource = [TURNO_SERVICE_SOURCE, TURNOS_LIST_SOURCE, TURNO_FORM_SOURCE].join('\n');
 
     expect(sensitiveRuntimeSource).not.toMatch(/console\.(?:log|warn|error)\([^)]*(?:error|err|session|token|auth|booking)[^)]*\)/i);
     expect(sensitiveRuntimeSource).not.toMatch(/formError\s*=\s*(?:error|err)\.message/i);

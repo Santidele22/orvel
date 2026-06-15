@@ -1,14 +1,13 @@
 import { signal } from '@angular/core';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { ACTIVE_BRANCH_STORAGE_KEY } from '../storage/browser-storage-keys';
 
 export type DashboardBranch = {
   id: string;
   name: string;
   businessId: string;
 };
-
-const ACTIVE_BRANCH_STORAGE_KEY = 'activeBranchId';
 
 export class BranchContextService {
   private supabaseClient?: SupabaseClient;

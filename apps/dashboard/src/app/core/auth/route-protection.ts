@@ -9,6 +9,7 @@ let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
 const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
 const LOGIN_ROUTE = '/auth/login';
+const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 
@@ -68,6 +69,16 @@ export function buildLandingLoginRedirect(returnTo: string): string {
   return `${resolveLandingOrigin()}${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
 }
 
+export function buildLandingPlanSelectionRedirect(returnTo: string): string {
+  const safeReturnTo = sanitizeReturnTo(returnTo);
+  const params = new URLSearchParams({
+    reason: 'missing_account',
+    intent: 'create_account',
+    returnTo: safeReturnTo
+  });
+  return `${resolveLandingOrigin()}${PLAN_SELECTION_ROUTE}?${params.toString()}`;
+}
+
 function resolveLandingOrigin(): string {
   const env = globalThis as { process?: { env?: Record<string, string | undefined> } };
   const raw = env.process?.env?.['PUBLIC_LANDING_URL']?.trim();
@@ -114,6 +125,10 @@ function hasCanonicalOrLegacyPlan(plan: unknown): boolean {
   );
 }
 
+function hasSelectedPlan(metadata: Record<string, unknown> | undefined): boolean {
+  return hasCanonicalOrLegacyPlan(metadata?.['plan']);
+}
+
 export function hasCompletedMandatoryOnboarding(metadata: Record<string, unknown> | undefined): boolean {
   if (!metadata) {
     return false;
@@ -145,7 +160,12 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
 
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
     if (data?.session?.access_token) {
-      if (!hasCompletedMandatoryOnboarding(data.session.user.user_metadata)) {
+      const metadata = data.session.user.user_metadata;
+      if (!hasCompletedMandatoryOnboarding(metadata)) {
+        if (!hasSelectedPlan(metadata)) {
+          return { allowed: false, redirectTo: buildLandingPlanSelectionRedirect(safeReturnTo) };
+        }
+
         return { allowed: false, redirectTo: buildMandatoryOnboardingRedirect(safeReturnTo) };
       }
 
@@ -206,5 +226,5 @@ export async function logoutAndRedirect(): Promise<string> {
   // Clear legacy localStorage data, but never trust it for dashboard access.
   localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
 
-  return LOGIN_ROUTE;
+  return buildLandingLoginRedirect('/dashboard');
 }

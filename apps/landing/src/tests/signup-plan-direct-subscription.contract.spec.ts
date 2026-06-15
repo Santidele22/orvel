@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
+const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -66,13 +68,13 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
   });
 
   it('preserves selected billing period through credentials, payment, dashboard onboarding and subscription handoff', async () => {
-    const credentialsSource = await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url));
+    const credentialsSource = `${await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url))}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
-    expect(credentialsSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
+    expect(credentialsSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');
     expect(credentialsSource).not.toContain('/auth/signup/business-type?plan=');
     expect(credentialsSource).toContain('&billing=');
-    expect(completeSource).toContain("sessionStorage.setItem('orvel.signup.billing', billing)");
+    expect(completeSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');
     expect(completeSource).toContain("params.set('billing', billing)");
     expect(completeSource).toContain('/billing/subscription?plan=');
     expect(completeSource).toContain('&billing=');
@@ -92,6 +94,41 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     expect(source).toContain('getSession()');
     expect(source).not.toContain('Pago exitoso');
     expect(source).not.toContain('window.location.href = `/api/subscriptions/start?plan=');
+  });
+});
+
+describe('Contract: authenticated session handoff from landing plan selection', () => {
+  it('missing-account handoff displays a five-second create-account notice before plan credentials continue', async () => {
+    const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
+
+    expect(source).toMatch(/URLSearchParams\(window\.location\.search\)|Astro\.url\.searchParams/);
+    expect(source).toMatch(/reason['"]?\)?\s*(?:===|==)\s*['"]missing_account['"]|missing_account/);
+    expect(source).toMatch(/intent['"]?\)?\s*(?:===|==)\s*['"]create_account['"]|create_account/);
+    expect(source).toMatch(/no\s+(?:encontramos|se\s+encontr[oó])\s+(?:una\s+)?cuenta\s+(?:de\s+)?Orvel/i);
+    expect(source).toMatch(/crear\s+(?:una\s+)?cuenta|creaci[oó]n\s+de\s+cuenta/i);
+    expect(source).toMatch(/setTimeout\([\s\S]{0,300}(?:5000|5\s*\*\s*1000)/);
+    expect(source).toContain('/auth/signup/credentials?plan=');
+    expect(source).not.toMatch(/missing_account[\s\S]{0,800}\/auth\/onboarding/);
+  });
+
+  it('FREE selection for an authenticated user sends explicit plan to dashboard onboarding', async () => {
+    const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
+
+    expect(source).toMatch(/getSession\(|onAuthStateChange|authenticated|session/i);
+    expect(source).toContain('/auth/onboarding?plan=FREE');
+    expect(source).toContain('returnTo=/dashboard/inicio');
+    expect(source).not.toContain('/auth/onboarding?plan=STARTER');
+  });
+
+  it('authenticated paid plan selections go to subscription/preapproval, not dashboard onboarding or credentials', async () => {
+    const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
+
+    for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
+      expect(source).toContain(`/billing/subscription?plan=${plan}`);
+      expect(source).not.toContain(`/auth/onboarding?plan=${plan}`);
+      expect(source).not.toContain(`/auth/signup/credentials?plan=${plan}`);
+    }
+    expect(source).toMatch(/preapproval|subscription/i);
   });
 });
 

@@ -8,7 +8,18 @@ let plans = await getActivePlans();
 const plansWithBilling = plans.map(p => calculateBillingPrices(p));
 ---
 
-<Layout title="Orvel - Seleccioná tu plan">
+<script>
+  import { buildLocalProxyAuthCanonicalUrl } from '../../../lib/local-auth-proxy-canonicalizer';
+
+  if (typeof window !== 'undefined') {
+    const canonicalRedirectTo = buildLocalProxyAuthCanonicalUrl(window.location.href);
+    if (canonicalRedirectTo) {
+      window.location.replace(canonicalRedirectTo);
+    }
+  }
+</script>
+
+<Layout title="Orvel - Seleccioná tu plan" showPreloader={false}>
   <main
     class="min-h-screen bg-bg-primary text-text-primary px-6 py-8 lg:py-16 font-body"
   >

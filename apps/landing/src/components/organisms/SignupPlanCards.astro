@@ -9,8 +9,173 @@ const { plansWithBilling } = Astro.props;
 ---
 
 <script define:vars={{ plansData: plansWithBilling }}>
+import { createClient } from '@supabase/supabase-js';
+import { createSupabaseBrowserAuthOptions } from '../../lib/supabase-auth-adapter';
+import { SIGNUP_STORAGE_KEYS } from '../../lib/browser-storage-keys';
+
 // Store plans data for client-side use
 const PLANS_DATA = plansData;
+const AUTHENTICATED_FREE_ONBOARDING_URL = '/auth/onboarding?plan=FREE&returnTo=/dashboard/inicio';
+const AUTHENTICATED_PAID_SUBSCRIPTION_URLS = {
+  STARTER: '/billing/subscription?plan=STARTER',
+  GROWTH: '/billing/subscription?plan=GROWTH',
+  PRO: '/billing/subscription?plan=PRO'
+};
+const CREATE_ACCOUNT_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=missing_plan&intent=create_account';
+const INVALID_PLAN_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=invalid_plan&intent=create_account';
+let authenticatedSessionPromise = null;
+
+function hasPendingCredentialsFirst() {
+  return Boolean(readProtectedPendingSignupIntent());
+}
+
+function createPendingCredentialsFirstSignupIntent(planCode, period) {
+  const pendingCredentialsFirst = readProtectedPendingSignupIntent();
+  if (!pendingCredentialsFirst) return;
+
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, planCode);
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, period);
+  sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
+    ...pendingCredentialsFirst,
+    plan_code: planCode,
+    billing_period: period
+  }));
+}
+
+function readProtectedPendingSignupIntent() {
+  try {
+    const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.intent_id === 'string' && parsed.intent_id.trim()) return parsed;
+    if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+  } catch {
+    // Invalid pending intent markers are ignored and replaced by a fresh credentials flow.
+  }
+  return null;
+}
+
+function getCreateAccountRedirectNoticeReason() {
+  const params = new URLSearchParams(window.location.search);
+  const reason = params.get('reason');
+  if (params.get('intent') !== 'create_account') return null;
+  return reason === 'missing_account' || reason === 'missing_plan' || reason === 'invalid_plan' ? reason : null;
+}
+
+function isCreateAccountRedirectNoticeIntent() {
+  return Boolean(getCreateAccountRedirectNoticeReason());
+}
+
+function getDashboardOrigin() {
+  const configured = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
+  if (configured) {
+    try {
+      return new URL(configured).origin;
+    } catch {
+      // Fall through to same-origin handoff.
+    }
+  }
+
+  return window.location.origin;
+}
+
+async function hasAuthenticatedSession() {
+  if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) {
+    return false;
+  }
+
+  authenticatedSessionPromise ??= createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    createSupabaseBrowserAuthOptions(localStorage)
+  )
+    .auth
+    .getSession()
+    .then(({ data }) => Boolean(data.session?.access_token))
+    .catch(() => false);
+
+  return authenticatedSessionPromise;
+}
+
+async function resolveSignupPlanHref(planCode, period, options = { commitPendingCredentialsFirst: false }) {
+  if (hasPendingCredentialsFirst()) {
+    if (options.commitPendingCredentialsFirst) {
+      createPendingCredentialsFirstSignupIntent(planCode, period);
+    }
+    if (planCode !== 'FREE') {
+      return `/billing/subscription?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&signup_intent=pending_signup`;
+    }
+
+    return `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&resume=credentials_first`;
+  }
+
+  if (isCreateAccountRedirectNoticeIntent()) {
+    return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
+  }
+
+  if (await hasAuthenticatedSession()) {
+    if (planCode === 'FREE') {
+      return `${getDashboardOrigin()}${AUTHENTICATED_FREE_ONBOARDING_URL}`;
+    }
+
+    if (AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]) {
+      return `${AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]}&billing=${period}&returnTo=/dashboard/inicio`;
+    }
+  }
+
+  return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
+}
+
+function getSelectedBillingPeriod() {
+  return document.querySelector('.billing-option.bg-primary')?.dataset.billing ?? 'monthly';
+}
+
+function setPlanCardBusy(card, isBusy) {
+  card.setAttribute('aria-busy', String(isBusy));
+  card.classList.toggle('pointer-events-none', isBusy);
+}
+
+function setRedirectNoticeActive(isActive) {
+  document.body.classList.toggle('overflow-hidden', isActive);
+  document.querySelectorAll('.plan-card').forEach(card => {
+    card.setAttribute('aria-disabled', String(isActive));
+    card.classList.toggle('pointer-events-none', isActive);
+    card.classList.toggle('opacity-60', isActive);
+  });
+}
+
+function hideRedirectNotice() {
+  const notice = document.getElementById('create-account-redirect-notice');
+  if (!notice) return;
+
+  notice.classList.add('hidden');
+  notice.setAttribute('aria-hidden', 'true');
+  setRedirectNoticeActive(false);
+}
+
+function showRedirectNotice() {
+  const notice = document.getElementById('create-account-redirect-notice');
+  if (!notice) return;
+  const reason = getCreateAccountRedirectNoticeReason();
+  const title = document.getElementById('create-account-redirect-notice-title');
+  const description = document.getElementById('create-account-redirect-notice-description');
+
+  notice.dataset.noticeType = reason ?? 'missing_plan';
+  notice.dataset.noticeContext = 'create_account';
+  notice.dataset.redirectNotice = reason === 'invalid_plan' ? INVALID_PLAN_REDIRECT_NOTICE_URL : CREATE_ACCOUNT_REDIRECT_NOTICE_URL;
+  if (reason === 'missing_plan' || reason === 'invalid_plan') {
+    if (title) title.textContent = 'Primero elegí un plan';
+    if (description) {
+      description.textContent = reason === 'invalid_plan'
+        ? 'El plan seleccionado no está disponible. Elegí un plan válido para continuar con la creación de tu cuenta.'
+        : 'Para continuar con la creación de tu cuenta, necesitás seleccionar un plan. Te vamos a redirigir automáticamente en unos segundos.';
+    }
+  }
+
+  notice.classList.remove('hidden');
+  notice.setAttribute('aria-hidden', 'false');
+  setRedirectNoticeActive(true);
+}
 
 // Update prices based on billing period
 function updatePrices(period) {
@@ -31,8 +196,11 @@ function updatePrices(period) {
     const plan = PLANS_DATA.find(p => p.code === planCode);
     if (!plan) return;
 
-    // Update href to include billing period
+    // Update href to include billing period, then upgrade authenticated session handoff when a session exists.
     card.href = `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
+    resolveSignupPlanHref(planCode, period).then((href) => {
+      card.href = href;
+    });
 
     // Hide FREE plan if not monthly
     if (planCode === 'FREE') {
@@ -86,14 +254,97 @@ function updatePrices(period) {
 document.addEventListener('DOMContentLoaded', () => {
   updatePrices('monthly');
 
+  if (isCreateAccountRedirectNoticeIntent()) {
+    showRedirectNotice();
+    document.getElementById('create-account-redirect-notice-title')?.focus();
+    setTimeout(hideRedirectNotice, 5000);
+
+    document.getElementById('create-account-redirect-continue-now')?.addEventListener('click', hideRedirectNotice);
+  }
+
   // Billing toggle handlers
   document.querySelectorAll('.billing-option').forEach(btn => {
     btn.addEventListener('click', () => {
       updatePrices(btn.dataset.billing);
     });
   });
+
+  document.querySelectorAll('.plan-card').forEach(card => {
+    card.addEventListener('click', async (event) => {
+      if (isCreateAccountRedirectNoticeIntent() && !document.getElementById('create-account-redirect-notice')?.classList.contains('hidden')) {
+        event.preventDefault();
+        return;
+      }
+
+      const planCode = card.dataset.planCode;
+      if (!planCode) return;
+
+      event.preventDefault();
+      setPlanCardBusy(card, true);
+      try {
+        const href = await resolveSignupPlanHref(planCode, getSelectedBillingPeriod(), { commitPendingCredentialsFirst: true });
+        window.location.href = href;
+      } finally {
+        setPlanCardBusy(card, false);
+      }
+    });
+  });
 });
 </script>
+
+<div
+  id="create-account-redirect-notice"
+  data-notice-type="missing_account"
+  data-notice-context="create_account"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm [&:not(.hidden)]:flex"
+  role="status"
+  aria-live="polite"
+  aria-hidden="true"
+  aria-labelledby="create-account-redirect-notice-title"
+  aria-describedby="create-account-redirect-notice-description"
+>
+  <div class="w-full max-w-[420px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-xl">
+    <div class="space-y-4 p-6 sm:p-8">
+      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+        <i class="ri-user-add-line text-2xl" aria-hidden="true"></i>
+      </div>
+      <div class="space-y-2">
+        <h2 id="create-account-redirect-notice-title" tabindex="-1" class="text-xl font-headline font-black text-blue-900 outline-none">
+          Ya casi estamos
+        </h2>
+        <p id="create-account-redirect-notice-description" class="text-sm leading-6 text-blue-800">
+          No encontramos una cuenta de Orvel para este acceso. Vamos a continuar con la creación de cuenta para que puedas elegir un plan y completar tus datos.
+        </p>
+        <p class="text-xs font-bold uppercase tracking-widest text-blue-700">
+          Continuamos en unos segundos…
+        </p>
+      </div>
+      <button
+        id="create-account-redirect-continue-now"
+        type="button"
+        class="text-sm font-bold text-blue-700 underline-offset-4 hover:text-blue-900 hover:underline"
+      >
+        Continuar ahora
+      </button>
+    </div>
+    <div class="h-1 w-full bg-blue-100">
+      <div class="h-full w-full origin-left bg-blue-600 motion-safe:animate-[redirect-notice-progress_5s_linear_forwards]"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes redirect-notice-progress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #create-account-redirect-notice [class*="redirect-notice-progress"] {
+      animation: none;
+    }
+  }
+</style>
 
 <!-- Billing Toggle -->
 <div class="flex justify-center mb-6 mt-8 w-full overflow-x-auto pb-2 scrollbar-hide">
