@@ -8,6 +8,9 @@ export default defineConfig({
   output: 'server',
   adapter: vercel(),
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    ssr: {
+      noExternal: ['@supabase/supabase-js']
+    }
   }
 });
