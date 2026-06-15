@@ -26,9 +26,28 @@
         </div>
       </div>
     </div>
-    <div class="relative group">
-      <div class="absolute -inset-6 bg-primary-light/10 blur-[60px] rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      <img loading="lazy" decoding="async" alt="Agenda Details" class="rounded-xl shadow-2xl relative z-10 border border-border transform rotate-1 group-hover:rotate-0 transition-transform duration-500" src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=1200"/>
+    <div class="relative group" aria-label="Vista destacada de agenda Orvel">
+      <div class="absolute -inset-6 bg-primary-light/10 blur-[60px] rounded-[3rem] opacity-60 group-hover:opacity-100 transition-opacity"></div>
+      <div class="relative z-10 overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-white/10 via-primary/10 to-bg-primary p-3 shadow-2xl transform rotate-1 group-hover:rotate-0 transition-transform duration-500">
+        <div class="mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-bg-primary/80 px-4 py-3 backdrop-blur">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-primary-light">Agenda Orvel</p>
+            <p class="text-sm font-headline font-bold text-text-primary">Tu día claro de un vistazo</p>
+          </div>
+          <div class="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary-light">Controlado</div>
+        </div>
+        <img
+          loading="lazy"
+          decoding="async"
+          alt="Vista de agenda Orvel con turnos confirmados y resumen del día"
+          class="w-full rounded-2xl border border-white/10 object-cover shadow-xl"
+          src="/banner2.png"
+        />
+      </div>
+      <div class="absolute -bottom-5 left-6 z-20 hidden rounded-2xl border border-primary/20 bg-bg-primary/90 px-4 py-3 shadow-xl backdrop-blur sm:block">
+        <p class="text-xs font-bold text-text-primary">Próximo turno confirmado</p>
+        <p class="mt-1 text-[11px] text-text-primary/75">Menos dudas, más foco en tu salón</p>
+      </div>
     </div>
   </div>
 </section>

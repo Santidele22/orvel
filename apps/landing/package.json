@@ -16,6 +16,7 @@
   "dependencies": {
     "@astrojs/svelte": "^8.1.2",
     "@astrojs/vercel": "^10.0.6",
+    "@fontsource-variable/onest": "^5.2.11",
     "@supabase/supabase-js": "^2.104.0",
     "@tailwindcss/vite": "^4.2.2",
     "astro": "^6.1.8",

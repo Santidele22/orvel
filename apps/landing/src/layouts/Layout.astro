@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import "remixicon/fonts/remixicon.css";
+import "@fontsource-variable/onest";
 import Preloader from "../components/organisms/Preloader.astro";
 
 interface Props {
@@ -36,13 +37,6 @@ const { title, showPreloader = true } = Astro.props;
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio." />
         <meta name="twitter:image" content="/logo.png" />
-
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-            rel="stylesheet"
-        />
 
         <title>{title}</title>
     </head>

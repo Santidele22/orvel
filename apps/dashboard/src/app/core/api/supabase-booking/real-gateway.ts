@@ -18,18 +18,45 @@ type BookingNotificationRow = {
   starts_at: string;
   customer?: { full_name?: string | null; email?: string | null } | null;
   service?: { name?: string | null } | null;
+  business?: { support_email?: string | null } | null;
 };
 
-async function loadBookingNotificationRow(supabase: SupabaseClient, bookingId: string): Promise<BookingNotificationRow | null> {
-  if (!bookingId) return null;
+type BookingNotificationContextRpcRow = {
+  booking_id?: string;
+  id?: string;
+  business_id?: string;
+  starts_at?: string;
+  customer?: { full_name?: string | null; email?: string | null } | null;
+  service?: { name?: string | null } | null;
+  business?: { support_email?: string | null } | null;
+};
 
-  const { data } = await supabase
-    .from('bookings')
-    .select('id, business_id, starts_at, customer:customers(full_name, email), service:services(name)')
-    .eq('id', bookingId)
-    .maybeSingle();
+async function loadBookingNotificationRow(
+  supabase: SupabaseClient,
+  bookingId: string,
+  manageToken?: string | null
+): Promise<BookingNotificationRow | null> {
+  if (!bookingId || !manageToken?.trim()) return null;
 
-  return (data as BookingNotificationRow | null) ?? null;
+  const { data, error } = await supabase.rpc('get_booking_notification_context', {
+    p_booking_id: bookingId,
+    p_manage_token: manageToken,
+  });
+
+  if (error || !data) return null;
+
+  const row = data as BookingNotificationContextRpcRow;
+  const id = row.id ?? row.booking_id;
+  if (!id || !row.business_id || !row.starts_at) return null;
+
+  return {
+    id,
+    business_id: row.business_id,
+    starts_at: row.starts_at,
+    customer: row.customer ?? null,
+    service: row.service ?? null,
+    business: row.business ?? null,
+  };
 }
 
 function notificationPayload(row: BookingNotificationRow): Record<string, unknown> {
@@ -39,6 +66,14 @@ function notificationPayload(row: BookingNotificationRow): Record<string, unknow
     customer_name: row.customer?.full_name ?? null,
     service_name: row.service?.name ?? null,
   };
+}
+
+async function runPostBookingSideEffect(operation: string, effect: () => Promise<void>): Promise<void> {
+  try {
+    await effect();
+  } catch (err) {
+    console.warn(`[API] ${operation} side effect failed after booking RPC success:`, err);
+  }
 }
 
 // Real Supabase-powered gateway implementation
@@ -208,52 +243,55 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
       const bookingId = (data as { booking_id: string }).booking_id;
       const manageToken = (data as { manage_token?: string; manageToken?: string }).manage_token ?? (data as { manageToken?: string }).manageToken;
-      const booking = await loadBookingNotificationRow(supabase, bookingId);
 
-      if (booking) {
-        if (payload.client.email) {
-          await supabase.from('notification_email_outbox').insert({
-            business_id: booking.business_id,
-            booking_id: bookingId,
-            to_email: payload.client.email,
-            template_key: 'appointment_confirmation',
-            payload: notificationPayload(booking),
-          });
-        }
+      await runPostBookingSideEffect('createPublicBooking notification/context', async () => {
+        const booking = await loadBookingNotificationRow(supabase, bookingId, manageToken);
 
-        const { data: bizData } = await supabase
-          .from('business_settings')
-          .select('support_email, business_id')
-          .eq('business_id', booking.business_id)
-          .maybeSingle();
+        if (booking) {
+          if (payload.client.email) {
+            await supabase.from('notification_email_outbox').insert({
+              business_id: booking.business_id,
+              booking_id: bookingId,
+              to_email: payload.client.email,
+              template_key: 'appointment_confirmation',
+              payload: notificationPayload(booking),
+            });
+          }
 
-        let businessEmail = bizData?.support_email;
-        if (!businessEmail) {
-           const { data: b } = await supabase.from('businesses').select('owner_id').eq('id', booking.business_id).maybeSingle();
-           if (b?.owner_id) {
+          const { data: bizData } = await supabase
+            .from('business_settings')
+            .select('support_email, business_id')
+            .eq('business_id', booking.business_id)
+            .maybeSingle();
+
+          let businessEmail = booking.business?.support_email ?? bizData?.support_email;
+          if (!businessEmail) {
+            const { data: b } = await supabase.from('businesses').select('owner_id').eq('id', booking.business_id).maybeSingle();
+            if (b?.owner_id) {
               const { data: u } = await supabase.from('users').select('email').eq('id', b.owner_id).maybeSingle();
               if (u) businessEmail = u.email;
-           }
-        }
+            }
+          }
 
-        if (businessEmail) {
-          await supabase.from('notification_email_outbox').insert({
-            business_id: booking.business_id,
-            booking_id: bookingId,
-            to_email: businessEmail,
-            template_key: 'appointment_created_business',
-            payload: notificationPayload(booking),
+          if (businessEmail) {
+            await supabase.from('notification_email_outbox').insert({
+              business_id: booking.business_id,
+              booking_id: bookingId,
+              to_email: businessEmail,
+              template_key: 'appointment_created_business',
+              payload: notificationPayload(booking),
+            });
+          }
+
+          await supabase.rpc('create_dashboard_notification_for_appointment_created', {
+            p_business_id: booking.business_id,
+            p_appointment_id: bookingId,
+            p_customer_name: payload.client.fullName,
+            p_service_name: booking.service?.name ?? null,
+            p_starts_at: booking.starts_at,
           });
         }
-
-        await supabase.rpc('create_dashboard_notification_for_appointment_created', {
-          p_business_id: booking.business_id,
-          p_appointment_id: bookingId,
-          p_customer_name: payload.client.fullName,
-          p_service_name: booking.service?.name ?? null,
-          p_starts_at: booking.starts_at,
-        });
-      }
+      });
 
       const responseData: { bookingId: string; status: 'confirmed'; source: 'client-self-service'; manageToken?: string } = {
         bookingId,
@@ -370,28 +408,31 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       }
 
       const bookingId = (data as { booking_id?: string })?.booking_id ?? '';
-      const booking = await loadBookingNotificationRow(supabase, bookingId);
-      const customer = booking?.customer;
 
-      if (booking) {
-        if (customer?.email) {
-          await supabase.from('notification_email_outbox').insert({
-            business_id: booking.business_id,
-            booking_id: bookingId,
-            to_email: customer.email,
-            template_key: 'booking_cancelled',
-            payload: notificationPayload(booking),
+      await runPostBookingSideEffect('cancelBookingByToken notification/context', async () => {
+        const booking = await loadBookingNotificationRow(supabase, bookingId, token);
+        const customer = booking?.customer;
+
+        if (booking) {
+          if (customer?.email) {
+            await supabase.from('notification_email_outbox').insert({
+              business_id: booking.business_id,
+              booking_id: bookingId,
+              to_email: customer.email,
+              template_key: 'booking_cancelled',
+              payload: notificationPayload(booking),
+            });
+          }
+
+          await supabase.rpc('create_dashboard_notification_for_appointment_cancelled', {
+            p_business_id: booking.business_id,
+            p_appointment_id: bookingId,
+            p_customer_name: customer?.full_name ?? null,
+            p_service_name: booking.service?.name ?? null,
+            p_starts_at: booking.starts_at,
           });
         }
-
-        await supabase.rpc('create_dashboard_notification_for_appointment_cancelled', {
-          p_business_id: booking.business_id,
-          p_appointment_id: bookingId,
-          p_customer_name: customer?.full_name ?? null,
-          p_service_name: booking.service?.name ?? null,
-          p_starts_at: booking.starts_at,
-        });
-      }
+      });
 
       return {
         status: 200,
@@ -434,28 +475,31 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       }
 
       const bookingId = (data as { booking_id?: string })?.booking_id ?? '';
-      const booking = await loadBookingNotificationRow(supabase, bookingId);
-      const customer = booking?.customer;
 
-      if (booking) {
-        if (customer?.email) {
-          await supabase.from('notification_email_outbox').insert({
-            business_id: booking.business_id,
-            booking_id: bookingId,
-            to_email: customer.email,
-            template_key: 'booking_rescheduled',
-            payload: notificationPayload(booking),
+      await runPostBookingSideEffect('rescheduleBookingByToken notification/context', async () => {
+        const booking = await loadBookingNotificationRow(supabase, bookingId, token);
+        const customer = booking?.customer;
+
+        if (booking) {
+          if (customer?.email) {
+            await supabase.from('notification_email_outbox').insert({
+              business_id: booking.business_id,
+              booking_id: bookingId,
+              to_email: customer.email,
+              template_key: 'booking_rescheduled',
+              payload: notificationPayload(booking),
+            });
+          }
+
+          await supabase.rpc('create_dashboard_notification_for_appointment_rescheduled', {
+            p_business_id: booking.business_id,
+            p_appointment_id: bookingId,
+            p_customer_name: customer?.full_name ?? null,
+            p_service_name: booking.service?.name ?? null,
+            p_starts_at: booking.starts_at,
           });
         }
-
-        await supabase.rpc('create_dashboard_notification_for_appointment_rescheduled', {
-          p_business_id: booking.business_id,
-          p_appointment_id: bookingId,
-          p_customer_name: customer?.full_name ?? null,
-          p_service_name: booking.service?.name ?? null,
-          p_starts_at: booking.starts_at,
-        });
-      }
+      });
 
       return {
         status: 200,

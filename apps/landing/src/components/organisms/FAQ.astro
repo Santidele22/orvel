@@ -49,14 +49,14 @@ const faqs = [
     <div class="space-y-4">
       {faqs.map((faq, index) => (
         <div class="faq-item bg-bg-secondary rounded-2xl border border-border overflow-hidden reveal" style={`transition-delay: ${index * 50}ms`}>
-          <button class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-white/[0.02]">
+          <button type="button" class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-white/[0.02]" aria-expanded="false" aria-controls={`faq-content-${index}`}>
             <span class="font-headline font-semibold text-text-primary pr-8">{faq.question}</span>
             <div class="faq-icon-container relative w-6 h-6 shrink-0 rounded-full border border-border flex items-center justify-center bg-bg-primary">
-              <i class="ri-add-line text-text-secondary absolute"></i>
-              <i class="ri-subtract-line text-primary opacity-0 absolute"></i>
+              <i class="ri-arrow-down-s-line text-text-secondary absolute" aria-hidden="true"></i>
+              <i class="ri-arrow-up-s-line text-primary opacity-0 absolute" aria-hidden="true"></i>
             </div>
           </button>
-          <div class="faq-content">
+          <div class="faq-content" id={`faq-content-${index}`}>
             <p class="px-6 pb-5 text-text-secondary text-sm leading-relaxed border-t border-border/50 pt-4 mt-2 mx-6">
               {faq.answer}
             </p>
@@ -81,11 +81,11 @@ const faqs = [
     background-color: rgba(var(--color-primary), 0.1);
   }
 
-  .faq-item.faq-open .faq-icon-container .ri-add-line {
+  .faq-item.faq-open .faq-icon-container .ri-arrow-down-s-line {
     opacity: 0;
   }
 
-  .faq-item.faq-open .faq-icon-container .ri-subtract-line {
+  .faq-item.faq-open .faq-icon-container .ri-arrow-up-s-line {
     opacity: 1;
   }
 </style>
@@ -104,14 +104,17 @@ const faqs = [
         faqItems.forEach(otherItem => {
           if (otherItem !== item && otherItem.classList.contains('faq-open')) {
             otherItem.classList.remove('faq-open');
+            otherItem.querySelector('.faq-button')?.setAttribute('aria-expanded', 'false');
           }
         });
 
         // Toggle current FAQ
         if (isOpen) {
           item.classList.remove('faq-open');
+          button.setAttribute('aria-expanded', 'false');
         } else {
           item.classList.add('faq-open');
+          button.setAttribute('aria-expanded', 'true');
         }
       });
     });

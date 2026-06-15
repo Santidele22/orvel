@@ -139,10 +139,20 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
 
   it('maps public create RPC manage_token to manageToken and preserves canonical confirmed status', async () => {
     const rpc = vi.fn(async (fn: string) => {
-      expect(fn).toBe('create_public_booking');
+      if (fn === 'create_public_booking') {
+        return {
+          data: { booking_id: 'booking-public-1', manage_token: 'raw-token-once' },
+          error: null
+        };
+      }
+
+      if (fn === 'get_booking_notification_context') {
+        return { data: null, error: null };
+      }
+
       return {
-        data: { booking_id: 'booking-public-1', manage_token: 'raw-token-once' },
-        error: null
+        data: null,
+        error: { message: `Unexpected RPC ${fn}` }
       };
     });
     const from = vi.fn(() => maybeSingleChain(null));
@@ -164,6 +174,76 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
         source: 'client-self-service'
       }
     });
+
+    expect(rpc).toHaveBeenNthCalledWith(1, 'create_public_booking', expect.any(Object));
+    expect(rpc).toHaveBeenNthCalledWith(2, 'get_booking_notification_context', {
+      p_booking_id: 'booking-public-1',
+      p_manage_token: 'raw-token-once'
+    });
+    expect(rpc).toHaveBeenCalledTimes(2);
+
+    const createPublicBookingBody = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), 'createPublicBooking');
+    expect(createPublicBookingBody, 'post-create notification context must be loaded by RPC, not direct bookings SELECT').not.toMatch(
+      /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
+    );
+  });
+
+  it('keeps public create success visible when notification context side effects fail after the create RPC commits', async () => {
+    const rpc = vi.fn(async (fn: string) => {
+      if (fn === 'create_public_booking') {
+        return {
+          data: { booking_id: 'booking-public-1', manage_token: 'raw-token-once' },
+          error: null
+        };
+      }
+
+      throw new Error('notification context unavailable');
+    });
+    const from = vi.fn(() => maybeSingleChain(null));
+    createClientMock.mockReturnValue({ rpc, from });
+
+    await expect(
+      realSupabaseGateway.createPublicBooking({
+        businessSlug: 'demo-salon',
+        serviceId: 'service-1',
+        startsAtIso: '2026-06-01T10:00:00.000Z',
+        client: { fullName: 'Ada Lovelace', email: 'ada@example.test' }
+      })
+    ).resolves.toEqual({
+      status: 201,
+      data: {
+        bookingId: 'booking-public-1',
+        manageToken: 'raw-token-once',
+        status: 'confirmed',
+        source: 'client-self-service'
+      }
+    });
+  });
+
+  it.each([
+    ['cancelBookingByToken', 'cancel_booking_by_token', { status: 200, data: { bookingId: 'booking-public-1', status: 'cancelled' } }],
+    ['rescheduleBookingByToken', 'reschedule_booking_by_token', { status: 200, data: { bookingId: 'booking-public-1', startsAtIso: '2026-06-01T11:00:00.000Z' } }]
+  ] as const)('keeps public %s success visible when notification side effects fail after the lifecycle RPC commits', async (methodName, rpcName, expected) => {
+    const rpc = vi.fn(async (fn: string) => {
+      if (fn === rpcName) {
+        return {
+          data: { booking_id: 'booking-public-1' },
+          error: null
+        };
+      }
+
+      throw new Error('notification context unavailable');
+    });
+    const from = vi.fn(() => maybeSingleChain(null));
+    createClientMock.mockReturnValue({ rpc, from });
+
+    const args = {
+      token: 'manage-token-1',
+      nowIso: '2026-06-01T08:30:00.000Z',
+      ...(methodName === 'rescheduleBookingByToken' ? { startsAtIso: '2026-06-01T11:00:00.000Z' } : {})
+    };
+
+    await expect((realSupabaseGateway[methodName] as (input: typeof args) => Promise<unknown>)(args)).resolves.toEqual(expected);
   });
 
   it('preserves backend remaining_capacity when mapping real availability rows', async () => {
