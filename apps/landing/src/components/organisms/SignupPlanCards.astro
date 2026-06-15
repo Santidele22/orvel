@@ -15,7 +15,7 @@ import { SIGNUP_STORAGE_KEYS } from '../../lib/browser-storage-keys';
 
 // Store plans data for client-side use
 const PLANS_DATA = plansData;
-const AUTHENTICATED_FREE_ONBOARDING_URL = '/auth/onboarding?plan=FREE&returnTo=/dashboard/inicio';
+const AUTHENTICATED_FREE_ONBOARDING_URL = '/auth/signup/onboarding?plan=FREE&account_created_modal=welcome_login';
 const AUTHENTICATED_PAID_SUBSCRIPTION_URLS = {
   STARTER: '/billing/subscription?plan=STARTER',
   GROWTH: '/billing/subscription?plan=GROWTH',
@@ -66,19 +66,6 @@ function isCreateAccountRedirectNoticeIntent() {
   return Boolean(getCreateAccountRedirectNoticeReason());
 }
 
-function getDashboardOrigin() {
-  const configured = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-  if (configured) {
-    try {
-      return new URL(configured).origin;
-    } catch {
-      // Fall through to same-origin handoff.
-    }
-  }
-
-  return window.location.origin;
-}
-
 async function hasAuthenticatedSession() {
   if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) {
     return false;
@@ -115,7 +102,7 @@ async function resolveSignupPlanHref(planCode, period, options = { commitPending
 
   if (await hasAuthenticatedSession()) {
     if (planCode === 'FREE') {
-      return `${getDashboardOrigin()}${AUTHENTICATED_FREE_ONBOARDING_URL}`;
+      return `${AUTHENTICATED_FREE_ONBOARDING_URL}&billing=${encodeURIComponent(period)}`;
     }
 
     if (AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]) {

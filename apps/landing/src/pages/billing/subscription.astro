@@ -190,7 +190,6 @@ import Layout from '../../layouts/Layout.astro';
     ORVEL_SUPABASE_AUTH_STORAGE_KEY
   } from '../../lib/supabase-auth-adapter';
   import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
-  import { buildDashboardAuthUrl } from '../../lib/dashboard-auth-handoff';
 
   if (typeof window !== 'undefined') {
     const plans = {
@@ -287,8 +286,16 @@ import Layout from '../../layouts/Layout.astro';
 
     const statusContainer = document.getElementById('subscriptionStatus');
     const stateBadge = document.getElementById('planStateBadge');
+    let currentUiState: 'pending' | 'failed' | 'cancelled' | 'retry' = 'pending';
+    let pollingIntervalId: number | null = null;
+    let pollingAttempts = 0;
+    const MAX_POLLING_ATTEMPTS = 15;
+    const TERMINAL_NON_SUCCESS_STATES = new Set(['failed', 'cancelled']);
     const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry') => {
       if (!statusContainer || !stateBadge) return;
+      if (TERMINAL_NON_SUCCESS_STATES.has(currentUiState) && state === 'pending') return;
+      currentUiState = state;
+      statusContainer.classList.remove('hidden');
       if (state === 'pending') {
         stateBadge.textContent = 'Pago pendiente';
         statusContainer.textContent = 'Estado: estamos esperando confirmación del pago desde backend.';
@@ -313,6 +320,20 @@ import Layout from '../../layouts/Layout.astro';
       const normalizedCode = normalizeSubscriptionErrorCode(codeOrMessage);
       errorContainer.textContent = errorMessages[normalizedCode] || codeOrMessage;
       errorContainer.classList.remove('hidden');
+    };
+
+    const setSubscriptionButtonDisabled = (disabled: boolean) => {
+      if (!continueBtn) return;
+      continueBtn.disabled = disabled;
+      continueBtn.classList.toggle('opacity-50', disabled);
+      continueBtn.classList.toggle('cursor-not-allowed', disabled);
+    };
+
+    const stopSubscriptionPolling = () => {
+      if (pollingIntervalId !== null) {
+        window.clearInterval(pollingIntervalId);
+        pollingIntervalId = null;
+      }
     };
 
     const parseStoredAccessToken = (storageKey: string, tokenField = 'access_token') => {
@@ -347,9 +368,10 @@ import Layout from '../../layouts/Layout.astro';
     const paymentStatus = (params.get('payment_status') || '').trim().toLowerCase();
     const subscriptionState = (params.get('subscription_state') || '').trim().toLowerCase();
     const subscriptionSessionId = (params.get('subscription_session_id') || params.get('preapproval_id') || '').trim();
-    const isApprovedReturn = paymentStatus === 'approved';
-    if (isApprovedReturn) {
-      // Redirect handled below — after normalized subscription error handling
+    if (paymentStatus === 'approved') {
+      // UX only: Mercado Pago return query params are hints, not entitlement proof.
+      // Backend materialized subscription/account state is required before dashboard handoff.
+      setUiState('pending');
     } else if (subscriptionState === 'pending') {
       setUiState('pending');
     } else if (paymentStatus === 'rejected' || paymentStatus === 'failed') {
@@ -362,41 +384,17 @@ import Layout from '../../layouts/Layout.astro';
     if (normalizedSubscriptionError && errorContainer && errorMessages[normalizedSubscriptionError]) {
       showSubscriptionError(normalizedSubscriptionError);
       setUiState(normalizedSubscriptionError === 'subscription_cancelled' ? 'cancelled' : 'retry');
-       
-      // Disable button on error
-      if (continueBtn) {
-        continueBtn.disabled = true;
-        continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      }
+      setSubscriptionButtonDisabled(false);
     }
 
-    const resolveDashboardOrigin = () => {
-      const configuredDashboardOrigin = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-      return configuredDashboardOrigin
-        || (window.location.hostname === 'localhost' && window.location.port === '3000'
-          ? window.location.origin
-          : 'http://localhost:4200');
+    const buildSubscriptionLandingOnboardingUrl = () => {
+      const onboardingUrl = new URL('/auth/signup/onboarding', window.location.origin);
+      onboardingUrl.searchParams.set('plan', plan);
+      onboardingUrl.searchParams.set('billing', billing);
+      onboardingUrl.searchParams.set('account_created_modal', 'welcome_login');
+      onboardingUrl.searchParams.set('source', 'subscription');
+      return onboardingUrl.toString();
     };
-
-    const buildSubscriptionDashboardAuthHandoffUrl = () => {
-      return buildDashboardAuthUrl({
-        dashboardOrigin: resolveDashboardOrigin(),
-        mode: 'login',
-        source: 'subscription',
-        returnTo: '/dashboard/inicio?from=subscription'
-      });
-    };
-
-    // Approved/materialized subscription — route to dashboard auth handoff.
-    // Backend/Supabase/functions/webhooks are source of truth; query params are UX only.
-    {
-      const subscriptionAttemptKey = subscriptionAttemptStorageKey(plan);
-      if (paymentStatus === 'approved') {
-        sessionStorage.removeItem(subscriptionAttemptKey);
-        const handoffUrl = buildSubscriptionDashboardAuthHandoffUrl();
-        window.location.href = handoffUrl;
-      }
-    }
 
     const subscriptionAttemptKey = subscriptionAttemptStorageKey(plan);
     const buildIdempotencyKey = () => {
@@ -409,6 +407,16 @@ import Layout from '../../layouts/Layout.astro';
 
     const pollSubscriptionStatus = async () => {
       if (!subscriptionSessionId) return;
+      if (TERMINAL_NON_SUCCESS_STATES.has(currentUiState)) {
+        stopSubscriptionPolling();
+        return;
+      }
+      pollingAttempts += 1;
+      if (pollingAttempts > MAX_POLLING_ATTEMPTS) {
+        stopSubscriptionPolling();
+        setUiState('retry');
+        return;
+      }
       try {
         const token = await getSubscriptionAccessToken();
         const headers: Record<string, string> = {};
@@ -423,14 +431,24 @@ import Layout from '../../layouts/Layout.astro';
         const normalizedStatus = `${result?.status || result?.payment_status || ''}`.toLowerCase();
         const accountMaterialized = result?.account_materialized === true || result?.materialized === true;
         if (normalizedStatus === 'approved' || normalizedStatus === 'active' || accountMaterialized) {
+          stopSubscriptionPolling();
           sessionStorage.removeItem(subscriptionAttemptKey);
-          const handoffUrl = buildSubscriptionDashboardAuthHandoffUrl();
+          const handoffUrl = buildSubscriptionLandingOnboardingUrl();
           window.location.href = handoffUrl;
           return;
         }
 
         if (normalizedStatus === 'rejected' || normalizedStatus === 'failed') {
           setUiState('failed');
+          stopSubscriptionPolling();
+          setSubscriptionButtonDisabled(false);
+          return;
+        }
+
+        if (normalizedStatus === 'cancelled' || normalizedStatus === 'canceled') {
+          setUiState('cancelled');
+          stopSubscriptionPolling();
+          setSubscriptionButtonDisabled(false);
           return;
         }
 
@@ -440,10 +458,10 @@ import Layout from '../../layouts/Layout.astro';
       }
     };
 
-    if (subscriptionSessionId && !isApprovedReturn) {
+    if (subscriptionSessionId) {
       setUiState('pending');
       pollSubscriptionStatus();
-      window.setInterval(pollSubscriptionStatus, 4000);
+      pollingIntervalId = window.setInterval(pollSubscriptionStatus, 4000);
     }
     // Bind subscription button
     const initSubscriptionBtn = document.getElementById('subscriptionContinueBtn');
@@ -522,6 +540,7 @@ import Layout from '../../layouts/Layout.astro';
           if (!response.ok) {
             const codeOrMessage = normalizeSubscriptionErrorCode(result?.error || result?.message) || 'subscription_failed';
             showSubscriptionError(codeOrMessage);
+            setUiState(codeOrMessage === 'subscription_cancelled' ? 'cancelled' : 'retry');
             
             // Re-enable button
             if (btnText) btnText.innerHTML = 'Continuar con Mercado Pago <svg class="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>';
@@ -533,10 +552,13 @@ import Layout from '../../layouts/Layout.astro';
             window.location.href = result.init_point;
           } else {
             showSubscriptionError('subscription_error');
+            setUiState('retry');
+            initSubscriptionBtn.removeAttribute('disabled');
           }
         } catch (error) {
           console.error('Subscription error:', error);
           showSubscriptionError('subscription_retry');
+          setUiState('retry');
           initSubscriptionBtn.removeAttribute('disabled');
         }
       });

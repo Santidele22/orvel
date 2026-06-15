@@ -20,12 +20,15 @@ describe('Contract: dashboard configuration-only onboarding', () => {
     expect(routesSource.indexOf("path: 'auth/onboarding'")).toBeLessThan(routesSource.indexOf("path: 'dashboard'"));
   });
 
-  it('protects /auth/onboarding with the Supabase dashboard session guard, not local account-method storage', async () => {
+  it('keeps /auth/onboarding as a compatibility redirect, not a guarded dashboard-owned onboarding UI', async () => {
     const routesSource = await load(ROUTES_PATH);
     const onboardingRoute = routesSource.match(/path:\s*['"]auth\/onboarding['"][\s\S]*?(?=\n\s*\},\n\s*\{)/)?.[0] ?? '';
 
-    expect(onboardingRoute).toContain('canActivate');
-    expect(onboardingRoute).toContain('dashboardAuthGuard');
+    expect(onboardingRoute).toContain('redirectTo');
+    expect(onboardingRoute).not.toContain('loadComponent');
+    expect(onboardingRoute).not.toContain('features/onboarding/pages');
+    expect(onboardingRoute).not.toContain('canActivate');
+    expect(onboardingRoute).not.toContain('dashboardAuthGuard');
     expect(onboardingRoute).not.toContain('onboardingAccountGuard');
     expect(onboardingRoute).not.toContain('onboardingBusinessTypesGuard');
     expect(onboardingRoute).not.toContain('onboardingWelcomeGuard');

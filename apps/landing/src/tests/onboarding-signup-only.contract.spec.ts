@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { access, readFile } from 'node:fs/promises';
 
 const LOGIN_PAGE_PATH = new URL('../pages/auth/login.astro', import.meta.url);
-const SIGNUP_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
+const SIGNUP_PAGE_PATH = new URL('../pages/auth/signup/onboarding.astro', import.meta.url);
 
 type OnboardingSignupStateModule = {
   ONBOARDING_COMPLETION_KEY: string;

@@ -41,9 +41,8 @@ export const dashboardShellChildren: Routes = [
 export const routes: Routes = [
   {
     path: 'auth/onboarding',
-    loadComponent: () =>
-      import('./features/onboarding/pages/signup-business-types-step.component').then(m => m.SignupBusinessTypesStepComponent),
-    canActivate: [dashboardAuthGuard]
+    redirectTo: 'dashboard',
+    pathMatch: 'full'
   },
   {
     path: 'booking/manage',

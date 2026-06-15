@@ -75,7 +75,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     expect(credentialsSource).not.toContain('/auth/signup/business-type?plan=');
     expect(credentialsSource).toContain('&billing=');
     expect(completeSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');
-    expect(completeSource).toContain("params.set('billing', billing)");
+    expect(completeSource).toContain('&billing=');
     expect(completeSource).toContain('/billing/subscription?plan=');
     expect(completeSource).toContain('&billing=');
   });
@@ -111,12 +111,13 @@ describe('Contract: authenticated session handoff from landing plan selection', 
     expect(source).not.toMatch(/missing_account[\s\S]{0,800}\/auth\/onboarding/);
   });
 
-  it('FREE selection for an authenticated user sends explicit plan to dashboard onboarding', async () => {
+  it('FREE selection for an authenticated user sends explicit plan to landing-owned onboarding', async () => {
     const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
 
     expect(source).toMatch(/getSession\(|onAuthStateChange|authenticated|session/i);
-    expect(source).toContain('/auth/onboarding?plan=FREE');
-    expect(source).toContain('returnTo=/dashboard/inicio');
+    expect(source).toContain('/auth/signup/onboarding?plan=FREE');
+    expect(source).not.toContain('/auth/onboarding?plan=FREE');
+    expect(source).not.toContain('/auth/signup/onboarding?plan=FREE&returnTo=/dashboard/inicio');
     expect(source).not.toContain('/auth/onboarding?plan=STARTER');
   });
 
