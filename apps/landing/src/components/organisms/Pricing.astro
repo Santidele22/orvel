@@ -40,7 +40,7 @@ import PlanCard from '../molecules/PlanCard.astro';
     </div>
     
     <div class="flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-6">
-      {plansWithBilling.filter(p => p.code !== 'FREE').map((plan) => (
+      {plansWithBilling.map((plan) => (
         <PlanCard plan={plan} />
       ))}
     </div>

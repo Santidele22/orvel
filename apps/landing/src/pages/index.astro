@@ -52,13 +52,9 @@ function updatePrices(period) {
     const plan = PLANS_DATA.find(p => p.code === planCode);
     if (!plan) return;
 
-    // Hide FREE plan if not monthly
+    // Keep FREE visible across billing periods so visitors always see the gratis entry point.
     if (planCode === 'FREE') {
-      if (period !== 'monthly') {
-        card.classList.add('hidden');
-      } else {
-        card.classList.remove('hidden');
-      }
+      card.classList.remove('hidden');
       return;
     }
 
