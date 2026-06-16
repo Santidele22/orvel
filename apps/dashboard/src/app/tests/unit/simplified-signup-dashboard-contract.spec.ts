@@ -72,6 +72,63 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(source.indexOf('showPaidAddonModal = true')).toBeLessThan(source.indexOf('triggerWelcomeConfetti'));
   });
 
+  it('keeps the welcome modal accessible with labelled and described dialog copy', async () => {
+    const template = await loadSource(ONBOARDING_TEMPLATE_PATH);
+
+    expect(template).toMatch(/<section[^>]*class=["'][^"']*welcome-modal[^"']*["'][^>]*role=["']dialog["'][^>]*aria-modal=["']true["']/);
+    expect(template).toMatch(/aria-labelledby=["']welcome-title["']/);
+    expect(template).toMatch(/aria-describedby=["']welcome-description["']/);
+    expect(template).toMatch(/<p[^>]*id=["']welcome-description["']/);
+    expect(template).toMatch(/data-testid=["']onboarding-welcome-primary-action["']/);
+  });
+
+  it('opens the welcome state without blocking when reduced motion disables confetti', async () => {
+    const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
+    const catalogModule = await import('../../core/catalog/reference-catalog');
+    const gatewayModule = await import('../../core/catalog/reference-catalog.gateway');
+    const storage = new Map<string, string>([['turnea.onboarding.plan', 'FREE']]);
+
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key)
+      }
+    });
+    Object.defineProperty(window, 'dispatchEvent', { configurable: true, value: () => true });
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true })
+    });
+
+    gatewayModule.initializeRuntimeReferenceCatalogSnapshot(catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
+    gatewayModule.configureDashboardReferenceCatalogGateway({
+      async getDashboardReferenceCatalog() {
+        return catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE;
+      }
+    });
+
+    try {
+      const component = new SignupBusinessTypesStepPage() as SignupBusinessTypesStepPage & {
+        showWelcomeModal: boolean;
+        showPaidAddonModal: boolean;
+      };
+      component.setOnboardingCompletionHandler(async () => true);
+      component.toggleType('peluqueria');
+
+      await component.submitAsync();
+
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+      expect(component.showWelcomeModal).toBe(true);
+      expect(component.showPaidAddonModal).toBe(false);
+      expect(storage.get('turnea.onboarding.step.v1')).toBe('welcome');
+    } finally {
+      gatewayModule.configureDashboardReferenceCatalogGateway(null);
+      gatewayModule.initializeRuntimeReferenceCatalogSnapshot(catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
+    }
+  });
+
   it('allows exactly one service type for every plan and replaces the prior selection', async () => {
     const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
 
