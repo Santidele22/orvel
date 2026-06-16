@@ -16,8 +16,13 @@ function defaultEnvSource(): EnvSource {
       env?: EnvSource;
     };
   };
+  const processEnv = maybeProcess.process?.env;
 
-  return maybeProcess.process?.env ?? {
+  if (processEnv && hasRequiredDashboardEnv(processEnv)) {
+    return processEnv;
+  }
+
+  return {
     PUBLIC_SUPABASE_URL: environment.supabaseUrl,
     PUBLIC_SUPABASE_ANON_KEY: environment.supabaseAnonKey,
   };
@@ -35,6 +40,12 @@ function withLegacyPublicSupabaseAliases(source: EnvSource): EnvSource {
     NEXT_PUBLIC_SUPABASE_URL: source['NEXT_PUBLIC_SUPABASE_URL'] ?? source['PUBLIC_SUPABASE_URL'],
     NEXT_PUBLIC_SUPABASE_ANON_KEY: source['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? source['PUBLIC_SUPABASE_ANON_KEY']
   };
+}
+
+function hasRequiredDashboardEnv(source: EnvSource): boolean {
+  const normalizedSource = withLegacyPublicSupabaseAliases(source);
+
+  return REQUIRED_DASHBOARD_ENV_KEYS.every((key) => !isMissing(normalizedSource[key]));
 }
 
 export function loadDashboardRuntimeEnv(source: EnvSource = defaultEnvSource()): DashboardRuntimeEnv {
