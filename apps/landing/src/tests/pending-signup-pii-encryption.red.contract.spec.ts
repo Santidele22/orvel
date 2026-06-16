@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const CREDENTIALS_PAGE = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const PENDING_INTENT_PROTECT_API = new URL('../pages/api/signup/pending-intent/protect.ts', import.meta.url);
@@ -36,27 +37,30 @@ function sliceBetween(sourceText: string, startMarker: string, endMarker?: strin
 
 describe('RED contract: Option A pending signup PII is encrypted + HMAC before persistence', () => {
   it('paid signup pending intent stored in browser contains only encrypted/HMAC PII fields and never password', async () => {
-    const credentialsSource = await source(CREDENTIALS_PAGE);
-    const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n\n  }\n</script>');
-    const paidPendingIntentBranch = sliceBetween(submitFlow, 'const pendingSignupIntent =', 'window.location.href = `/billing/subscription');
+    const credentialsSource = await source(CREDENTIALS_CONTROLLER);
+    const paidPendingIntentBranch = sliceBetween(credentialsSource, 'createProtectedPendingSignupIntent', 'window.location.href = `/billing/subscription');
+    const storedPendingIntentWrite = sliceBetween(
+      paidPendingIntentBranch,
+      'sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({',
+      '}));',
+    );
 
-    for (const field of PROTECTED_PENDING_FIELDS) {
-      expect(paidPendingIntentBranch).toContain(`${field}_encrypted`);
-      expect(paidPendingIntentBranch).toContain(`${field}_hmac`);
-    }
+    expect(paidPendingIntentBranch).toContain('/api/signup/pending-intent/protect');
+    expect(paidPendingIntentBranch).toContain('protected_pending_signup_intent');
+    expect(paidPendingIntentBranch).toContain('JSON.stringify(protectedSignup');
 
     for (const key of PLAINTEXT_PII_KEYS) {
-      expect(paidPendingIntentBranch, `pendingSignupIntent must not persist plaintext ${key}`).not.toMatch(
+      expect(storedPendingIntentWrite, `pendingSignupIntent must not persist plaintext ${key}`).not.toMatch(
         new RegExp(`\\b${key}\\s*[,}:]`),
       );
     }
 
-    expect(paidPendingIntentBranch).not.toMatch(/password|confirmPassword|contraseñ/i);
+    expect(storedPendingIntentWrite).not.toMatch(/password|confirmPassword|contraseñ/i);
     expect(paidPendingIntentBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
   });
 
   it('signup credentials does not persist plaintext PII in session/local storage outside transient form variables', async () => {
-    const credentialsSource = await source(CREDENTIALS_PAGE);
+    const credentialsSource = `${await source(CREDENTIALS_PAGE)}\n${await source(CREDENTIALS_CONTROLLER)}`;
     const storageWrites = credentialsSource.match(/(?:sessionStorage|localStorage)\.setItem\([^\n]+/g) ?? [];
     const piiStorageWrites = storageWrites.filter((write) =>
       PLAINTEXT_PII_KEYS.some((key) => write.includes(`SIGNUP_STORAGE_KEYS.${key}`) || write.includes(`'${key}'`) || write.includes(`"${key}"`)),

@@ -140,6 +140,32 @@ describe('Dashboard runtime env RED contracts (single source + deterministic con
       `Dashboard/browser source must not mention server-only Supabase env names.`
     ).toEqual([]);
   });
+
+  it('keeps MercadoPago server-only config out of dashboard/browser runtime env gates', async () => {
+    const envModule = await loadDashboardEnvModule();
+    const tsFiles = walkTsFiles(APP_SRC);
+
+    expect(envModule.REQUIRED_DASHBOARD_ENV_KEYS).not.toEqual(
+      expect.arrayContaining(['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET'])
+    );
+
+    const browserRuntimeFiles = tsFiles.filter((filePath) =>
+      /(?:core\/runtime|environments|app\.config|main)\//.test(`${filePath}/`) ||
+      /(?:environment|dashboard-env|supabase-client\.factory|app\.config|main)\.ts$/.test(filePath)
+    );
+
+    expect(browserRuntimeFiles.length, 'Guard must inspect dashboard/browser runtime configuration files.').toBeGreaterThan(0);
+
+    const offenders = browserRuntimeFiles.filter((filePath) => {
+      const content = fs.readFileSync(filePath, 'utf8');
+      return /MP_(?:ACCESS_TOKEN|WEBHOOK_SECRET)|MERCADOPAGO_(?:ACCESS_TOKEN|WEBHOOK_SECRET)/.test(content);
+    });
+
+    expect(
+      offenders,
+      'Dashboard/browser runtime config must validate only client-safe values; MercadoPago access tokens and webhook secrets belong only in Supabase functions.'
+    ).toEqual([]);
+  });
 });
 
 describe('Supabase client factory RED contract (created from env values)', () => {
