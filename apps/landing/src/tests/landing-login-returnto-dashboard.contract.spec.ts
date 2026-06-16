@@ -6,6 +6,20 @@ import { sanitizeLandingAuthReturnTo } from '../lib/auth-return-to';
 import { loginWithProvider } from '../lib/auth-provider';
 
 describe('Contract: landing login returnTo resolves to dashboard app', () => {
+  it('falls back to the production dashboard origin outside local development when PUBLIC_DASHBOARD_URL is absent', () => {
+    expect(
+      sanitizeLandingAuthReturnTo('/dashboard/inicio', {
+        currentOrigin: 'https://orvel.pro'
+      })
+    ).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+
+    expect(
+      sanitizeLandingAuthReturnTo(null, {
+        currentOrigin: 'https://orvel.pro'
+      })
+    ).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+  });
+
   it('infers the local dashboard origin from localhost landing when PUBLIC_DASHBOARD_URL is absent', () => {
     expect(
       sanitizeLandingAuthReturnTo('/dashboard/inicio', {
@@ -89,6 +103,21 @@ describe('Contract: landing login returnTo resolves to dashboard app', () => {
           currentOrigin: 'http://localhost:4321'
         })
       ).toBe('http://localhost:4200/dashboard/inicio');
+    }
+  });
+
+  it('rejects token/payment-bearing and external returnTo values to the production fallback outside localhost', () => {
+    for (const unsafeReturnTo of [
+      'https://evil.example/dashboard/inicio',
+      '/dashboard/inicio?access_token=secret',
+      '/dashboard/inicio?payment_id=123',
+      '/dashboard/inicio#refresh_token=secret'
+    ]) {
+      expect(
+        sanitizeLandingAuthReturnTo(unsafeReturnTo, {
+          currentOrigin: 'https://orvel.pro'
+        })
+      ).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     }
   });
 });

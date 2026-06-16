@@ -105,10 +105,10 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     const paidPlanReturnTo = '/billing/subscription?plan=STARTER';
 
     expect(sanitizeLandingAuthReturnTo(paidPlanReturnTo, { currentOrigin: 'https://orvel.pro' })).toBe(paidPlanReturnTo);
-    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=auth-code', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo(null, { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro' })).toBe('http://localhost:4200/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=auth-code', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo(null, { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/turnos?view=week');

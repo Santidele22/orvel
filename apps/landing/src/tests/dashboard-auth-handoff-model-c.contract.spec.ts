@@ -77,7 +77,7 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
       })
     );
 
-    expect(fallbackHandoff.origin).toBe('http://localhost:4200');
+    expect(fallbackHandoff.origin).toBe('https://dashboard.orvel.pro');
     expect(fallbackHandoff.pathname).toBe('/auth/signup/plan');
     expect(fallbackHandoff.pathname).not.toBe('/dashboard/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');

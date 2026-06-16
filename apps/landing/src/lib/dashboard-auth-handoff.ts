@@ -3,7 +3,7 @@ type DashboardAuthMode = 'login' | 'signup';
 type BillingSource = 'subscription';
 
 const DASHBOARD_HOME = '/';
-const DEFAULT_DASHBOARD_ORIGIN = 'http://localhost:4200';
+const DEFAULT_DASHBOARD_ORIGIN = 'https://dashboard.orvel.pro';
 const LANDING_ROOT_ORIGINS = new Set([
   'https://orvel.pro',
   'https://www.orvel.pro',
