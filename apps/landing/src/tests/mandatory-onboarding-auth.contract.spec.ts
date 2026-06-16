@@ -152,6 +152,23 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.redirectTo).toMatch(/returnTo=.*auth%2Fonboarding|resume.*onboarding/i);
   });
 
+  it('maps Supabase availability failures to user-friendly signup copy without exposing backend provider names', async () => {
+    const unavailableSignup = vi.fn(async () => ({
+      ok: false,
+      code: 'unavailable',
+      error: 'Supabase no está disponible en este momento. Intentá nuevamente.'
+    })) as unknown as (attempt: SignupAttempt) => Promise<never>;
+
+    const result = (await signupWithProvider({
+      attempt: makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'pendiente' }),
+      supabaseSignup: unavailableSignup
+    })) as LoginResult;
+
+    expect(result.ok).toBe(false);
+    expect(result.error).not.toMatch(/supabase/i);
+    expect(result.error).toMatch(/autenticaci[oó]n|intent[aá].*nuevamente|equipo/i);
+  });
+
   it('keeps explicit Supabase browser auth storage options for email/password sessions', async () => {
     const storage = globalThis.localStorage;
     const startOptions = createSupabaseBrowserAuthOptions(storage);

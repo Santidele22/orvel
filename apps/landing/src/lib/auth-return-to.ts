@@ -1,5 +1,5 @@
 const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
-const DEFAULT_DASHBOARD_BASE_URL = 'http://localhost:4200';
+const DEFAULT_DASHBOARD_BASE_URL = 'https://dashboard.orvel.pro';
 
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session|checkout_session_id)/i;

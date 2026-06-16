@@ -17,6 +17,8 @@ import {
 import { sanitizeLandingAuthReturnTo } from './auth-return-to';
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
+const AUTH_PROVIDER_UNAVAILABLE_MESSAGE =
+  'No pudimos completar la autenticación en este momento. Intentá nuevamente en unos minutos o contactá al equipo de Orvel si el problema continúa.';
 
 export interface LoginResult {
   ok: boolean;
@@ -135,7 +137,7 @@ function mapSupabaseFailureToLoginResult(failure: Extract<SupabaseAdapterResult,
   if (failure.code === 'unavailable') {
     return {
       ok: false,
-      error: 'Supabase no está disponible en este momento. Intentá nuevamente.'
+      error: AUTH_PROVIDER_UNAVAILABLE_MESSAGE
     };
   }
 

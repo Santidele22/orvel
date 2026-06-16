@@ -33,11 +33,14 @@ let currentBillingPeriod = 'monthly';
 
 // Update prices based on billing period
 function updatePrices(period) {
-  currentBillingPeriod = period;
+  const nextPeriod = ['monthly', 'quarterly', 'annual'].includes(period) ? period : 'monthly';
+  currentBillingPeriod = nextPeriod;
   
   // Update button states
   document.querySelectorAll('.billing-option').forEach(btn => {
-    if (btn.dataset.billing === period) {
+    const isSelected = btn.dataset.billing === nextPeriod;
+    btn.setAttribute('aria-pressed', String(isSelected));
+    if (isSelected) {
       btn.classList.add('bg-primary', 'text-on-secondary');
       btn.classList.remove('text-text-primary');
     } else {
@@ -54,7 +57,15 @@ function updatePrices(period) {
 
     // Keep FREE visible across billing periods so visitors always see the gratis entry point.
     if (planCode === 'FREE') {
-      card.classList.remove('hidden');
+      if (nextPeriod !== 'monthly') {
+        card.hidden = true;
+        card.classList.add('hidden');
+        card.setAttribute('aria-hidden', 'true');
+      } else {
+        card.hidden = false;
+        card.classList.remove('hidden');
+        card.setAttribute('aria-hidden', 'false');
+      }
       return;
     }
 
@@ -62,7 +73,7 @@ function updatePrices(period) {
     let savings = 0;
     let billingLabel = '';
 
-    switch (period) {
+    switch (nextPeriod) {
       case 'monthly':
         price = plan.price;
         billingLabel = '/mes';
