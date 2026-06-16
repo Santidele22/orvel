@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Orvel</title>
+  <desc id="desc">Orvel purple circular brand icon</desc>
+  <defs>
+    <linearGradient id="orvel-mark" x1="8" y1="54" x2="54" y2="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c3aed" />
+      <stop offset="1" stop-color="#a855f7" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#070b22" />
+  <path
+    d="M47.2 15.9A22 22 0 1 0 52.5 39"
+    fill="none"
+    stroke="url(#orvel-mark)"
+    stroke-width="10"
+    stroke-linecap="round"
+  />
+  <circle cx="50" cy="20" r="5" fill="#a855f7" />
+</svg>
