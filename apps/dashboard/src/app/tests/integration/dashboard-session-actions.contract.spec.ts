@@ -28,12 +28,12 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(shellTs).toMatch(/\b(?:private|protected|public)?\s+readonly\s+router\s*=\s*inject\(Router\)/);
   });
 
-  it('shell exposes one handleLogout that signs out and redirects through Angular router', async () => {
+  it('shell exposes one handleLogout that signs out and uses logout navigation helper', async () => {
     const shellTs = await source(SHELL_TS);
 
     expect(shellTs).toMatch(/\b(?:protected|public)\s+async\s+handleLogout\s*\(\s*\)\s*:\s*Promise<void>/);
     expect(shellTs).toMatch(/\bhandleLogout[\s\S]*\blogoutAndRedirect\s*\(\s*\)/);
-    expect(shellTs).toMatch(/\bhandleLogout[\s\S]*\bthis\.router\.(?:navigateByUrl|navigate)\s*\(/);
+    expect(shellTs).toMatch(/\bhandleLogout[\s\S]*\bnavigateAfterLogout\s*\(\s*redirectTo\s*,\s*this\.router/);
   });
 
   it('shell wires sidebar logout confirmation and topbar menu to the same logout handler', async () => {

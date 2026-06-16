@@ -15,6 +15,7 @@ import { ThemeService } from '../../core/theming/theme.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
 import { logoutAndRedirect } from '../../core/auth/route-protection';
+import { navigateAfterLogout } from './logout-navigation';
 
 @Component({
   selector: 'app-dashboard-shell',
@@ -80,7 +81,7 @@ export class DashboardShellComponent implements AfterViewInit {
 
   protected async handleLogout(): Promise<void> {
     const redirectTo = await logoutAndRedirect();
-    await this.router.navigateByUrl(redirectTo);
+    await navigateAfterLogout(redirectTo, this.router);
   }
 
   protected trackDashboard(index: number, dashboard: DashboardFromSessionConfig['dashboards'][number]): string {
