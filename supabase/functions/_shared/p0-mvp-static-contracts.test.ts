@@ -121,6 +121,91 @@ Deno.test("P0 email outbox logging contract: process-email-outbox never logs rec
   );
 });
 
+Deno.test("P0 booking management link contract: process-email-outbox does not select or render plaintext booking bearer values", async () => {
+  const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
+  const bookingQuery = source.match(
+    /\.from\("bookings"\)[\s\S]*?\.single\(\)/,
+  )?.[0] ?? "";
+
+  assert(
+    bookingQuery.length > 0,
+    "Guard must inspect process-email-outbox booking enrichment query",
+  );
+  assert(
+    !/\.select\(\s*["']\*/.test(bookingQuery),
+    "process-email-outbox must select an explicit safe booking projection, never bookings.*",
+  );
+  assert(
+    !/manage_token\b/.test(bookingQuery),
+    "process-email-outbox must not select plaintext booking management bearer values from the database",
+  );
+  assert(
+    !/booking\.manage_token\b/.test(source),
+    "process-email-outbox must not build public management links from persisted plaintext booking values",
+  );
+});
+
+Deno.test("P0 booking storage contract: public booking creation hashes bearer values and never persists plaintext management links", async () => {
+  const createPublicBooking = latestFunctionBodyMatching(
+    await readAllSqlMigrations(),
+    "create_public_booking",
+    (body) => /INSERT\s+INTO\s+public\.bookings/i.test(body),
+  );
+  const insertStart = createPublicBooking.search(
+    /INSERT\s+INTO\s+public\.bookings\s*\(/i,
+  );
+  const returningStart = insertStart >= 0
+    ? createPublicBooking.indexOf("RETURNING", insertStart)
+    : -1;
+  const bookingInsert = insertStart >= 0 && returningStart > insertStart
+    ? createPublicBooking.slice(insertStart, returningStart)
+    : "";
+
+  assert(
+    bookingInsert.length > 0,
+    "Guard must inspect create_public_booking bookings insert",
+  );
+  assert(
+    /manage_token_hash/i.test(bookingInsert),
+    "create_public_booking must persist only the management bearer hash",
+  );
+  assert(
+    /_hash_manage_token\(/i.test(bookingInsert),
+    "create_public_booking must hash generated management bearer values before storing them",
+  );
+  const insertColumns = bookingInsert.split(/\bVALUES\b/i)[0] ?? bookingInsert;
+  assert(
+    !/\bmanage_token\b(?!_hash|_expires_at|_revoked_at)/i.test(
+      insertColumns,
+    ),
+    "create_public_booking must not insert a plaintext management bearer column",
+  );
+});
+
+Deno.test("P0 booking storage migration contract: plaintext booking bearer column is nullable before clearing legacy values", async () => {
+  const migration = await readText(
+    new URL(
+      "../../migrations/20260616130000_hash_only_booking_management_bearers.sql",
+      import.meta.url,
+    ),
+  );
+  const dropNotNullIndex = migration.search(
+    /ALTER\s+TABLE\s+public\.bookings[\s\S]*?ALTER\s+COLUMN\s+manage_token\s+DROP\s+NOT\s+NULL/i,
+  );
+  const clearPlaintextIndex = migration.search(
+    /UPDATE\s+public\.bookings\s+SET\s+manage_token\s*=\s*NULL/i,
+  );
+
+  assert(
+    dropNotNullIndex >= 0,
+    "Hash-only migration must drop bookings.manage_token NOT NULL before clearing legacy plaintext values",
+  );
+  assert(
+    clearPlaintextIndex > dropNotNullIndex,
+    "Hash-only migration must make bookings.manage_token nullable before setting legacy plaintext values to NULL",
+  );
+});
+
 Deno.test("P0 billing schema contract: every business_subscriptions column referenced by functions exists in migrations", async () => {
   const migrationsSql = await readAllSqlMigrations();
   const businessSubscriptionColumns = definedColumnsFor(

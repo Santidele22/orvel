@@ -5,6 +5,26 @@ import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 
+type AppointmentLinks = {
+  view: string;
+  cancel: string;
+  reschedule: string;
+};
+
+type MaybeArray<T> = T | T[] | null | undefined;
+
+type BookingEmailProjection = {
+  id: string;
+  business_id: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  duration_minutes?: number | null;
+  price_at_booking?: number | null;
+  customer?: MaybeArray<{ full_name?: string | null; email?: string | null }>;
+  business?: MaybeArray<{ name?: string | null; address?: string | null }>;
+  service?: MaybeArray<{ name?: string | null; duration_minutes?: number | null; price?: number | null }>;
+};
+
 function safeLogContext(record: { id?: unknown; template_key?: unknown; booking_id?: unknown } | undefined) {
   return {
     outbox_id: typeof record?.id === "string" ? record.id : undefined,
@@ -23,6 +43,28 @@ function renderFallbackEmail(title: string, message: string): string {
       </div>
     </div>
   `;
+}
+
+function normalizeAppointmentLinks(rawLinks: unknown, baseUrl: string): AppointmentLinks {
+  const links = rawLinks && typeof rawLinks === "object" ? rawLinks as Partial<AppointmentLinks> : {};
+  const toAbsolute = (value: unknown): string => {
+    if (typeof value !== "string" || !value.trim()) return "#";
+    try {
+      return new URL(value.trim(), baseUrl).toString();
+    } catch {
+      return "#";
+    }
+  };
+
+  const view = toAbsolute(links.view);
+  const cancel = toAbsolute(links.cancel);
+  const reschedule = toAbsolute(links.reschedule);
+
+  return { view, cancel, reschedule };
+}
+
+function relationOne<T>(value: MaybeArray<T>): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
 Deno.serve(async (req) => {
@@ -61,48 +103,48 @@ Deno.serve(async (req) => {
           if (booking_id) {
             const { data: booking, error } = await supabase
               .from("bookings")
-              .select("*, customer:customers(*), business:businesses(*), service:services(*)")
+              .select("id, business_id, customer_id, service_id, starts_at, ends_at, duration_minutes, price_at_booking, customer:customers(full_name,email), business:businesses(name,address), service:services(name,duration_minutes,price)")
               .eq("id", booking_id)
               .single();
             
             if (!error && booking) {
+              const bookingRow = booking as BookingEmailProjection;
+              const customer = relationOne(bookingRow.customer);
+              const business = relationOne(bookingRow.business);
+              const service = relationOne(bookingRow.service);
               // 2. Fetch Business Settings for contact info
               const { data: settings } = await supabase
                 .from("business_settings")
                 .select("*")
-                .eq("business_id", booking.business_id)
+                .eq("business_id", bookingRow.business_id)
                 .maybeSingle();
 
-              const manageBaseUrl = `${dashboardUrl}/turnos/gestionar?token=${booking.manage_token}`;
+              const appointmentLinks = normalizeAppointmentLinks(fullData.links, dashboardUrl);
 
               fullData = {
                 ...fullData,
                 customer: {
-                  name: booking.customer?.full_name || fullData.customer_name || "Cliente",
-                  email: booking.customer?.email || to_email
+                  name: customer?.full_name || fullData.customer_name || "Cliente",
+                  email: customer?.email || to_email
                 },
                 business: {
-                  name: booking.business?.name || fullData.business_name || "Orvel",
-                  address: booking.business?.address || settings?.address || "Consultar dirección"
+                  name: business?.name || fullData.business_name || "Orvel",
+                  address: business?.address || settings?.address || "Consultar dirección"
                 },
                 service: {
-                  name: booking.service?.name || fullData.service_name || "Servicio"
+                  name: service?.name || fullData.service_name || "Servicio"
                 },
-                date: booking.starts_at || fullData.starts_at || fullData.date,
-                time: booking.starts_at 
-                  ? new Date(booking.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) 
+                date: bookingRow.starts_at || fullData.starts_at || fullData.date,
+                time: bookingRow.starts_at 
+                  ? new Date(bookingRow.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) 
                   : (fullData.time || (fullData.starts_at ? new Date(fullData.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : "--:--")),
-                duration: booking.service?.duration_minutes || booking.duration_minutes || fullData.duration || 30,
-                price: booking.price_at_booking || booking.service?.price || fullData.price || 0,
+                duration: service?.duration_minutes || bookingRow.duration_minutes || fullData.duration || 30,
+                price: bookingRow.price_at_booking || service?.price || fullData.price || 0,
                 contact: {
                   phone: settings?.support_phone || fullData.business_phone || "No especificado",
                   email: settings?.support_email || fromEmail
                 },
-                links: {
-                  view: manageBaseUrl,
-                  cancel: `${manageBaseUrl}&action=cancel`,
-                  reschedule: `${manageBaseUrl}&action=reschedule`
-                }
+                links: appointmentLinks
               };
             } else {
               // Fallback if booking query failed but we have payload

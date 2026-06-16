@@ -59,12 +59,23 @@ async function loadBookingNotificationRow(
   };
 }
 
-function notificationPayload(row: BookingNotificationRow): Record<string, unknown> {
+function notificationPayload(row: BookingNotificationRow, manageToken?: string | null): Record<string, unknown> {
+  const manageBaseUrl = manageToken?.trim()
+    ? `/turnos/gestionar?token=${encodeURIComponent(manageToken.trim())}`
+    : null;
+
   return {
     booking_id: row.id,
     starts_at: row.starts_at,
     customer_name: row.customer?.full_name ?? null,
     service_name: row.service?.name ?? null,
+    links: manageBaseUrl
+      ? {
+        view: manageBaseUrl,
+        cancel: `${manageBaseUrl}&action=cancel`,
+        reschedule: `${manageBaseUrl}&action=reschedule`,
+      }
+      : undefined,
   };
 }
 
@@ -254,7 +265,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
               booking_id: bookingId,
               to_email: payload.client.email,
               template_key: 'appointment_confirmation',
-              payload: notificationPayload(booking),
+              payload: notificationPayload(booking, manageToken),
             });
           }
 
@@ -279,7 +290,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
               booking_id: bookingId,
               to_email: businessEmail,
               template_key: 'appointment_created_business',
-              payload: notificationPayload(booking),
+              payload: notificationPayload(booking, manageToken),
             });
           }
 
