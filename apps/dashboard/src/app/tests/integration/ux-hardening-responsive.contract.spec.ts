@@ -11,6 +11,7 @@ const SIDEBAR_TS = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component
 const ZEN_SIDEBAR_TS = 'src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts';
 const STRUCTURAL_TOKENS = 'src/app/core/theming/dashboard-structural.tokens.ts';
 const DASHBOARD_HOME_HTML = 'src/app/features/dashboard-home/pages/dashboard-home.page.html';
+const CONFIGURACION_ZEN_HTML = 'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html';
 
 const CORE_PAGE_CONTAINERS = {
   turnos: 'src/app/features/booking/pages/turnos-list.page.html',
@@ -210,6 +211,56 @@ describe('UX hardening final: responsive/layout contracts (mock mode, RED)', () 
     ];
 
     expect(mismatches, `Dashboard home responsive contract mismatches:\n${mismatches.join('\n')}`).toEqual([]);
+  });
+
+  it('keeps the reservation portal URL in the nested dark card pattern', async () => {
+    const markup = await readFile(fromRoot(DASHBOARD_HOME_HTML), 'utf-8');
+    const portalBlock = markup.slice(markup.indexOf('Portal de Reservas'), markup.indexOf('Compartí este link'));
+
+    const mismatches = [
+      ...missingWhen(portalBlock.includes('Link directo para tus clientes'), 'Reservation portal card must keep the dashboard-home subtitle.'),
+      ...missingWhen(
+        /<div[^>]*class=["'][^"']*group[^"']*flex[^"']*min-w-0[^"']*items-center[^"']*justify-between[^"']*gap-3[^"']*rounded-xl[^"']*border[^"']*border-white\/5[^"']*bg-black\/20[^"']*p-3[^"']*shadow-inner/.test(portalBlock),
+        'Reservation portal URL must sit inside the nested dark group card: group flex min-w-0 rounded-xl border-white/5 bg-black/20 p-3 shadow-inner.'
+      ),
+      ...missingWhen(
+        /<code[^>]*class=["'][^"']*min-w-0[^"']*flex-1[^"']*truncate[^"']*text-\[10px\][^"']*text-purple-400[^"']*["'][^>]*>\s*\{\{\s*bookingUrl\(\)\s*\}\}/.test(portalBlock),
+        'Reservation portal URL must render bookingUrl() in a truncating purple code element.'
+      ),
+      ...missingWhen(
+        /<button[^>]*\(click\)=["']copyBookingUrl\(\)["'][^>]*class=["'][^"']*w-8[^"']*h-8[^"']*rounded-lg[^"']*bg-bg-primary[^"']*border[^"']*border-white\/10[^"']*text-purple-400[^"']*hover:bg-purple-500[^"']*hover:text-white/.test(portalBlock),
+        'Reservation portal copy action must keep the compact nested-card icon button styling.'
+      )
+    ];
+
+    expect(mismatches, `Reservation portal card contract mismatches:\n${mismatches.join('\n')}`).toEqual([]);
+  });
+
+  it('aligns the settings booking-link card with the dashboard home nested dark URL pattern', async () => {
+    const markup = await readFile(fromRoot(CONFIGURACION_ZEN_HTML), 'utf-8');
+    const portalBlock = markup.slice(markup.indexOf('Portal de Reservas'), markup.indexOf('Sucursal activa'));
+
+    const mismatches = [
+      ...missingWhen(portalBlock.includes('Link directo para tus clientes'), 'Settings portal card must reuse the dashboard-home subtitle.'),
+      ...missingWhen(
+        /<div[^>]*class=["'][^"']*group[^"']*flex[^"']*min-w-0[^"']*items-center[^"']*justify-between[^"']*gap-3[^"']*rounded-xl[^"']*border[^"']*border-white\/5[^"']*bg-black\/20[^"']*p-3[^"']*shadow-inner/.test(portalBlock),
+        'Settings booking URL must sit inside the nested dark group card: group flex min-w-0 rounded-xl border-white/5 bg-black/20 p-3 shadow-inner.'
+      ),
+      ...missingWhen(
+        /<code[^>]*class=["'][^"']*min-w-0[^"']*flex-1[^"']*truncate[^"']*text-\[10px\][^"']*text-purple-400[^"']*["'][^>]*>\s*\{\{\s*publicBookingUrl\(\)\s*\}\}/.test(portalBlock),
+        'Settings booking URL must render publicBookingUrl() in a truncating purple code element.'
+      ),
+      ...missingWhen(
+        /<button[^>]*\(click\)=["']copyBookingUrl\(\)["'][^>]*class=["'][^"']*w-8[^"']*h-8[^"']*rounded-lg[^"']*bg-bg-primary[^"']*border[^"']*border-white\/10[^"']*text-purple-400[^"']*hover:bg-purple-500[^"']*hover:text-white/.test(portalBlock),
+        'Settings booking URL copy action must use the compact nested-card icon button styling.'
+      ),
+      ...missingWhen(
+        /<p[^>]*class=["'][^"']*text-\[10px\][^"']*text-slate-600[^"']*italic[^"']*leading-relaxed/.test(portalBlock) && portalBlock.includes('Compartí este link'),
+        'Settings portal card must keep the helper copy below the URL card.'
+      )
+    ];
+
+    expect(mismatches, `Settings portal card contract mismatches:\n${mismatches.join('\n')}`).toEqual([]);
   });
 
   it('requires responsive container hooks for core pages', async () => {
