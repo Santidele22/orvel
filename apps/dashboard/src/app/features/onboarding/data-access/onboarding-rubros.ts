@@ -42,7 +42,7 @@ export function sanitizeSelectedRubros(input: unknown): RequiredRubro[] {
     .map((value) => toRequiredRubro(value))
     .filter((value): value is RequiredRubro => value !== null);
 
-  return dedupeStringArray(selected) as RequiredRubro[];
+  return dedupeStringArray(selected).slice(0, 1) as RequiredRubro[];
 }
 
 export function canContinueOnboarding(selectedRubros: unknown): boolean {
@@ -61,5 +61,5 @@ export function toggleSelectedRubro(selectedRubros: unknown, rubro: unknown): Re
     return currentSelectedRubros.filter((selectedRubro) => selectedRubro !== normalizedRubro);
   }
 
-  return [...currentSelectedRubros, normalizedRubro];
+  return [normalizedRubro];
 }

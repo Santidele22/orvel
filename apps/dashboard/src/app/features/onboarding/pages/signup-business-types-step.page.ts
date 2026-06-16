@@ -206,8 +206,8 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
 /**
  * Signup Business Types Step Page - Pure Business Logic Class
  *
- * Step 3 of the onboarding flow - Business Types Selection.
- * User must select 1+ business types allowed by their plan.
+ * Step 3 of the onboarding flow - Primary Business Type Selection.
+ * User must select one primary business type allowed by their plan.
  * Plan is selected in Step 1.
  *
  * Flow:
@@ -219,7 +219,7 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
    * 6. Navigate based on the selected plan
  */
 export class SignupBusinessTypesStepPage {
-  // Selected types by user
+  // Selected primary type by user
   protected _selectedTypes: BusinessTypeCode[] = [];
   
   // UI state
@@ -290,7 +290,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Gets the maximum number of types allowed for current plan
+   * Gets the maximum number of primary selections allowed for current plan
    */
   getMaxTypes(): number {
     return 1;
@@ -314,7 +314,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Gets the selected business types
+   * Gets the selected primary business type
    */
   get selectedTypes(): BusinessTypeCode[] {
     return [...this._selectedTypes];
@@ -339,7 +339,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Toggles a business type selection
+   * Toggles the primary business type selection
    * @param type - The business type code to toggle
    */
   toggleType(type: BusinessTypeCode): void {
@@ -393,7 +393,7 @@ export class SignupBusinessTypesStepPage {
 
     this.isLoading = true;
 
-    // Persist business types as a draft only. Completion/navigation requires
+    // Persist the primary business type as a draft only. Completion/navigation requires
     // Supabase updateUser metadata and business_settings upsert to succeed.
     persistBusinessTypes(storage, [...this._selectedTypes]);
 
@@ -563,7 +563,7 @@ export class SignupBusinessTypesStepPage {
 }
 
 /**
- * Read persisted business types from storage
+ * Read persisted primary business type from storage
  */
 export function readPersistedBusinessTypes(storage: Pick<Storage, 'getItem'>): BusinessTypeCode[] | null {
   return readBusinessTypes(storage);

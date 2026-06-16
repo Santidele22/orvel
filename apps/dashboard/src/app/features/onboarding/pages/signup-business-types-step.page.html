@@ -1,9 +1,9 @@
 <!--
   Signup Business Types Step - Template
   
-  Step 3 of onboarding flow - Business Types Selection
-  Shows only types allowed by the plan selected in Step 1
-  User selects 1+ types and submits to complete onboarding
+  Step 3 of onboarding flow - Primary Rubro Selection
+  Shows only rubros allowed by the plan selected in Step 1
+  User selects one primary rubro and submits to complete onboarding
 -->
 <div class="business-types-container">
   <!-- Background Decoration -->
@@ -17,12 +17,12 @@
       <!-- Header -->
       <header class="business-types-header">
         <span class="eyebrow">Último paso</span>
-        <h1 class="business-types-title">Elegí los servicios de tu negocio</h1>
+        <h1 class="business-types-title">Elegí el rubro principal de tu negocio</h1>
         <p class="business-types-subtitle">Esto configura tu agenda inicial. Podés cambiarlo más adelante.</p>
       </header>
 
-      <!-- Business Types Grid -->
-      <div class="business-types-grid" aria-label="Tipos de servicios disponibles">
+      <!-- Primary Rubro Grid -->
+      <div class="business-types-grid" aria-label="Rubros principales disponibles">
         @for (type of allowedTypes; track type.code) {
           <button
             type="button"
@@ -47,7 +47,7 @@
       <!-- Selection Info -->
       <div class="selection-info">
         <span class="selection-count">
-          {{ selectedTypes.length }} / {{ getMaxTypes() }} seleccionados
+          Rubro principal: {{ selectedTypes.length }} / {{ getMaxTypes() }}
         </span>
       </div>
 
@@ -91,11 +91,11 @@
     }
 
     @if (showWelcomeModal) {
-      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" aria-describedby="welcome-description">
         <span class="success-orb" aria-hidden="true">✓</span>
         <span class="eyebrow">Configuración guardada</span>
         <h2 id="welcome-title">¡Bienvenida/o a Orvel!</h2>
-        <p>Tu onboarding quedó completo y tus servicios ya quedaron guardados.</p>
+        <p id="welcome-description">Tu onboarding quedó completo y tu rubro principal ya quedó guardado.</p>
         <button type="button" data-testid="onboarding-welcome-primary-action" class="btn-continue btn-welcome-primary" (click)="continueAfterWelcome()">Entrar a Orvel</button>
       </section>
     }
