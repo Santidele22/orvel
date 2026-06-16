@@ -127,6 +127,37 @@ describe('Dashboard runtime env RED contracts (single source + deterministic con
     );
   });
 
+  it('falls back to Angular environment when browser process.env exists without dashboard Supabase keys', async () => {
+    const originalProcess = globalThis.process;
+
+    try {
+      vi.resetModules();
+      Object.defineProperty(globalThis, 'process', {
+        value: {
+          env: {
+            NODE_ENV: 'production',
+            OTHER_PUBLIC_KEY: 'not-dashboard-config'
+          }
+        },
+        configurable: true
+      });
+
+      const envModule = await loadDashboardEnvModule();
+      const env = envModule.loadDashboardRuntimeEnv();
+
+      expect(env.PUBLIC_SUPABASE_URL).toBe('https://tzqgwziyiospmvpdgbnt.supabase.co');
+      expect(env.PUBLIC_SUPABASE_ANON_KEY).toMatch(/^sb_publishable_/);
+      expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe(env.PUBLIC_SUPABASE_URL);
+      expect(env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBe(env.PUBLIC_SUPABASE_ANON_KEY);
+    } finally {
+      Object.defineProperty(globalThis, 'process', {
+        value: originalProcess,
+        configurable: true
+      });
+      vi.resetModules();
+    }
+  });
+
   it('does not copy server-only Supabase env names into dashboard/browser source', () => {
     const tsFiles = walkTsFiles(APP_SRC);
 
