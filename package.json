@@ -13,6 +13,7 @@
     "check:dashboard": "pnpm --dir apps/dashboard run build",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm --dir apps/landing run build",
+    "security:audit:prod": "pnpm audit --prod",
     "supabase:dry-run": "supabase db lint --local",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
     "dev:dashboard:proxy": "pnpm --dir apps/dashboard exec ng serve --host 127.0.0.1 --port 4200 --serve-path /dashboard",
