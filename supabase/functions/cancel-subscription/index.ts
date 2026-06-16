@@ -2,7 +2,7 @@
 // Handles subscription cancellation
 // Endpoint: POST /functions/v1/cancel-subscription
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;

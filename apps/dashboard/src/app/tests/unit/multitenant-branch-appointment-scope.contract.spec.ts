@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { getRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
+import { getCatalogAddOn } from '../../core/catalog/reference-catalog';
 import { getPlanEntitlements } from '../../core/plans/plan-entitlements';
 
 function readSource(relativePath: string): string {
@@ -15,8 +17,9 @@ function readExistingSources(paths: string[]): string {
 }
 
 describe('Multitenant branch appointment scope RED contract', () => {
-  it('allows a PRO tenant to configure five same-category barberia branches under one business brand', () => {
+  it('keeps PRO base at one local and exposes multi-branch as a separate ARS 20,000 add-on', () => {
     const pro = getPlanEntitlements('PRO');
+    const multiBranchAddOn = getCatalogAddOn(getRuntimeReferenceCatalogSnapshot(), 'MULTI_BRANCH');
     const branches = Array.from({ length: 5 }, (_, index) => ({
       id: `branch-barberia-${index + 1}`,
       businessId: 'business-brand-orvel',
@@ -24,7 +27,12 @@ describe('Multitenant branch appointment scope RED contract', () => {
       rubro: 'barberia'
     }));
 
-    expect(pro.maxLocales).toBeGreaterThanOrEqual(5);
+    expect(pro.maxLocales).toBe(1);
+    expect(multiBranchAddOn).toMatchObject({
+      code: 'MULTI_BRANCH',
+      priceMonthlyCents: 2_000_000,
+      billingCadence: 'monthly'
+    });
     expect(new Set(branches.map((branch) => branch.businessId))).toEqual(new Set(['business-brand-orvel']));
     expect(new Set(branches.map((branch) => branch.rubro))).toEqual(new Set(['barberia']));
     expect(new Set(branches.map((branch) => branch.id)).size).toBe(5);
@@ -54,7 +62,12 @@ describe('Multitenant branch appointment scope RED contract', () => {
     const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(turnoService).toMatch(/activeBranch|activeLocation|activeSalon|branchId|branch_id|salonId|salon_id|locationId|location_id/);
-    expect(turnoService).toMatch(/\.from\(['"]bookings['"]\)[\s\S]*\.eq\(['"](?:branch_id|salon_id|location_id)['"]/);
+    expect(turnoService, 'appointment listing must use the least-privilege branch-scoped RPC').toMatch(
+      /\.rpc\(\s*['"]list_admin_bookings['"]\s*,\s*\{[\s\S]{0,240}p_branch_id\s*:/i
+    );
+    expect(turnoService, 'direct bookings reads conflict with revoked SELECT grants').not.toMatch(
+      /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
+    );
     expect(turnoService).not.toMatch(/\.from\(['"]bookings['"]\)[\s\S]*\.eq\(['"]business_id['"],\s*businessId\)/);
   });
 

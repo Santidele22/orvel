@@ -5,7 +5,7 @@ import {
 import type { RequiredRubro } from '../../features/onboarding/data-access/onboarding-rubros';
 import type { TemplateCatalog } from '../../features/onboarding/data-access/onboarding-templates';
 
-export const TURNERA_SESSION_KEY = 'turnea.session.v1';
+export const LEGACY_DASHBOARD_SESSION_STORAGE_KEY = 'turnea.session.v1';
 
 export interface TurneaSessionUser {
   id: string;

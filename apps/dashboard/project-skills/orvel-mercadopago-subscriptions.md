@@ -53,7 +53,7 @@ The `create-subscription` edge function (`POST /functions/v1/create-subscription
 5. **Plan resolution**: Accept `{plan_code}` or `{tier, cadence}` → resolve to catalog row.
 6. **Free plan bypass**: If `plan.price === 0`, create subscription directly in DB.
 7. **Rollout gate**: `evaluatePreapprovalPlanRollout()` before calling MP API.
-8. **Checkout session**: Create `billing_checkout_sessions` row with idempotency key.
+8. **Preapproval/subscription session**: Create `billing_subscription_sessions` row with idempotency key.
 9. **MP preapproval**: `POST /api.mercadopago.com/preapproval` with `auto_recurring`, `payer_email`, `back_url`.
 10. **Response**: Return `init_point` for user redirect to MP.
 

@@ -8,6 +8,9 @@
 # Funemon local metadata
 .funemon/
 
+# Client-specific local agent/tooling metadata
+.opencode/
+
 # Dependencies
 node_modules/
 

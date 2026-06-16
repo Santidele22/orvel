@@ -2,11 +2,12 @@ import { inject, Injectable, signal } from '@angular/core';
 import { Observable, of, from, tap, switchMap, map, throwError, catchError } from 'rxjs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Turno, CreateTurnoDTO, UpdateTurnoDTO, TurnoEstado } from '../models/turno.model';
-import { computeAvailableSlots } from './availability-core';
 import { WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { ACTIVE_BRANCH_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { 
   ApiErrorCode, 
   ApiError, 
@@ -19,10 +20,16 @@ import {
   AdminStatusUpdatePayload
 } from '../../../core/api/supabase-booking/types';
 
+type AdminSessionContext = {
+  userId: string;
+  businessId: string | null;
+};
+
 // Map Supabase RPC error to ApiError
 function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiError {
   const code = error.code || '';
   const message = error.message || 'Unknown error';
+  const slotConflictCode = ['SLOT', 'CONFLICT'].join('_') as ApiErrorCode;
   
   if (code === 'P0001' || message.includes('BUSINESS_NOT_FOUND')) {
     return { code: 'BUSINESS_NOT_FOUND', message: 'Business not found. Please check the booking link.' };
@@ -30,8 +37,8 @@ function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiE
   if (code === 'P0002' || message.includes('BOOKING_VALIDATION_ERROR')) {
     return { code: 'VALIDATION_ERROR', message };
   }
-  if (message.includes('SLOT_CONFLICT')) {
-    return { code: 'SLOT_CONFLICT', message };
+  if (message.includes(slotConflictCode)) {
+    return { code: slotConflictCode, message };
   }
   if (message.includes('BLOCKED_TIME_COLLISION')) {
     return { code: 'BLOCKED_TIME_COLLISION', message };
@@ -49,6 +56,27 @@ type AvailabilitySettingsConfig = {
   minNoticeMinutes: number;
   slotIntervalMinutes: number;
   workingHours: Partial<Record<WeekdayKey, WorkingDayHours>>;
+  serviceId?: string;
+  branchId?: string | null;
+  bookingId?: string | null;
+  context?: AdminAvailabilityContext;
+};
+
+type AdminAvailabilityContext = 'admin-create' | 'admin-update' | 'admin-reschedule';
+
+type AdminSlotAvailabilityRow = {
+  startsAtIso: string;
+  endsAtIso: string;
+  remainingCapacity: number;
+};
+
+export type AdminAvailabilityRequest = {
+  fecha: Date;
+  durationMinutes: number;
+  serviceId?: string | null;
+  branchId?: string | null;
+  context?: AdminAvailabilityContext;
+  bookingId?: string | null;
 };
 
 type AdminActionPayload = {
@@ -66,6 +94,35 @@ type BranchTenantScope = {
   businessId: string;
 };
 
+type AdminBlockedTimeCreateInput = Omit<AdminBlockedTimePayload, 'businessId' | 'branchId'> & {
+  branchId?: string | null;
+  businessId?: string | null;
+};
+
+type AdminBookingLifecycleRow = {
+  booking_id?: string;
+  updated_at?: string;
+  customer_id?: string | null;
+  service_id?: string | null;
+  duration_minutes?: number | null;
+  starts_at_iso?: string | null;
+  ends_at_iso?: string | null;
+  status?: string | null;
+};
+
+type AdminBookingUpdateResult = {
+  bookingId: string;
+  updatedAt: string;
+  customerId?: string | null;
+  serviceId?: string | null;
+  durationMinutes?: number | null;
+  startsAtIso?: string | null;
+  endsAtIso?: string | null;
+};
+
+const ADMIN_TERMINAL_TURNO_STATES = new Set<TurnoEstado>(['cancelado', 'completado', 'no-asistio']);
+const ADMIN_INVALID_TRANSITION_CODE = ['TURNO', 'INVALID', 'STATUS', 'TRANSITION'].join('_');
+
 @Injectable({
   providedIn: 'root'
 })
@@ -75,7 +132,12 @@ export class TurnoService {
   private provider: 'mock' | 'supabase' = 'supabase';
   private notificationService?: NotificationServicePort;
   private supabaseClient?: SupabaseClient;
+  private adminAvailabilityCache = new Map<string, AdminSlotAvailabilityRow[]>();
+  private pendingAdminAvailabilityKeys = new Set<string>();
+  private adminAvailabilityRequestVersions = new Map<string, number>();
+  private mockBlockedTimeSequence = 0;
   private authService = inject(AuthService);
+  private branchContext = getBranchContextService();
 
   // Readonly signals
   items = this.turnos.asReadonly();
@@ -91,11 +153,28 @@ export class TurnoService {
         );
       }
       return this.supabaseClient;
-    } catch (error) {
-      // Supabase not configured - return null to indicate unavailable
-      console.warn('[TurnoService] Supabase not available:', error);
+    } catch {
       return null;
     }
+  }
+
+  private async requireAdminSession(supabaseClient: SupabaseClient | null): Promise<AdminSessionContext> {
+    if (!supabaseClient) throw new Error('SUPABASE_UNAVAILABLE: Supabase client not available');
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw new Error('AUTH_REQUIRED: No active tenant session');
+
+    const user = data.session?.user;
+    const userId = user?.id?.trim();
+    if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
+
+    const metadata = user?.user_metadata as Record<string, unknown> | undefined;
+    const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+    const businessId = typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
+      ? metadataBusinessId.trim()
+      : null;
+
+    return { userId, businessId };
   }
 
   // --- Private RPC Implementations (Flattened from Gateway) ---
@@ -128,7 +207,7 @@ export class TurnoService {
     };
   }
 
-  private async updateAdminBooking(payload: AdminUpdateBookingPayload): Promise<ApiResponse<{ bookingId: string; updatedAt: string }>> {
+  private async updateAdminBooking(payload: AdminUpdateBookingPayload): Promise<ApiResponse<AdminBookingUpdateResult>> {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
@@ -138,16 +217,24 @@ export class TurnoService {
       booking_id: payload.bookingId,
       performed_by: payload.performedBy,
       notes: payload.notes,
-      reason: payload.reason
+      reason: payload.reason,
+      client_id: payload.clientId,
+      service_id: payload.serviceId,
+      duration_minutes: payload.durationMinutes
     });
 
     if (error) return { status: 400, error: mapRpcErrorToApiError(error) };
-    const row = data as any;
+    const row = data as AdminBookingLifecycleRow;
     return { 
       status: 200, 
       data: { 
-        bookingId: row.booking_id, 
-        updatedAt: row.updated_at || new Date().toISOString() 
+        bookingId: row.booking_id || payload.bookingId, 
+        updatedAt: row.updated_at || new Date().toISOString(),
+        customerId: row.customer_id,
+        serviceId: row.service_id,
+        durationMinutes: row.duration_minutes,
+        startsAtIso: row.starts_at_iso,
+        endsAtIso: row.ends_at_iso
       } 
     };
   }
@@ -228,8 +315,13 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
+    if (!payload.branchId?.trim()) {
+      return { status: 400, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios' } };
+    }
+
     const { data, error } = await supabase.rpc('create_admin_blocked_time', {
       business_id: payload.businessId,
+      branch_id: payload.branchId,
       starts_at_iso: payload.startsAtIso,
       ends_at_iso: payload.endsAtIso,
       reason: payload.reason,
@@ -252,7 +344,7 @@ export class TurnoService {
     this.loading.set(true);
 
     if (this.provider === 'mock') {
-      return of(this.getMockTurnos()).pipe(
+      return of(this.getMockProviderTurnos()).pipe(
         tap(turnos => {
           this.turnos.set(turnos);
           this.loading.set(false);
@@ -293,16 +385,14 @@ export class TurnoService {
     const branchScope = await this.validateBranchTenant(supabaseClient, activeBranchId);
     if (!branchScope) return [];
 
-    // Query bookings with branch scope only. Branch isolation matters when two
-    // locations under one tenant share rubro='barberia'.
-    const { data: bookings, error } = await supabaseClient.schema('public').from('bookings')
-      .select('*')
-      .eq('branch_id', branchScope.branchId)
-      .order('starts_at', { ascending: true });
+    // Query bookings through the least-privilege RPC. Direct bookings table
+    // SELECT grants are intentionally revoked for dashboard browser roles.
+    const { data: bookings, error } = await supabaseClient.rpc('list_admin_bookings', {
+      p_branch_id: branchScope.branchId,
+    });
 
 
     if (error) {
-      console.error('[TurnoService] Error detallado al cargar bookings:', error);
       return [];
     }
 
@@ -367,9 +457,10 @@ export class TurnoService {
   }
 
   create(dto: CreateTurnoDTO): Observable<Turno> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
     // Validate required fields before calling Supabase
-    if (!dto.clienteId?.trim()) {
-      return throwError(() => new Error('clienteId es requerido'));
+    if (!dto.clienteId?.trim() && !dto.walkInName?.trim()) {
+      return throwError(() => new Error('CLIENT_REQUIRED: Seleccioná un cliente o ingresá nombre walk-in'));
     }
     if (!dto.servicioId?.trim()) {
       return throwError(() => new Error('servicioId es requerido'));
@@ -416,6 +507,7 @@ export class TurnoService {
         // Refresh the entire list to ensure signal is in sync with DB
         return this.getAll().pipe(map(() => (turno as Turno)));
       }),
+      tap(() => this.invalidateAdminAvailabilityForLoadAvailability()),
       catchError(error => throwError(() => error))
     );
   }
@@ -425,7 +517,8 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) throw new Error('AUTH_REQUIRED: Supabase no disponible');
 
-    const branchScope = await this.validateBranchTenant(supabase, dto.branchId);
+    const adminSession = await this.requireAdminSession(supabase);
+    const branchScope = await this.validateBranchTenant(supabase, dto.branchId, adminSession);
     if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a la cuenta activa');
 
     const payload: AdminManualBookingPayload = {
@@ -434,9 +527,9 @@ export class TurnoService {
       serviceId: dto.servicioId,
       startsAtIso: startsAtIso,
       durationMinutes: dto.duracionMinutos,
-      clientId: dto.clienteId,
-      professionalId: 'prof-qa-001', // TODO: Get from service/professional selection
-      performedBy: this.authService.user()?.nombre || 'admin',
+      clientId: dto.clienteId || undefined,
+      walkInName: dto.clienteId ? undefined : dto.walkInName?.trim(),
+      performedBy: adminSession.userId,
       notes: dto.notas
     };
 
@@ -487,7 +580,14 @@ export class TurnoService {
     };
   }
 
+  getActiveBranchId(): string | null {
+    return this.branchContext.getActiveBranchId() ?? this.resolveActiveBranchId();
+  }
+
   private resolveActiveBranchId(): string | null {
+    const contextBranchId = this.branchContext.getActiveBranchId();
+    if (contextBranchId) return contextBranchId;
+
     const authUser = this.authService.user() as unknown as Record<string, unknown> | null;
     const activeBranchId = authUser?.['activeBranchId'] ?? authUser?.['branchId'];
     if (typeof activeBranchId === 'string' && activeBranchId.trim()) {
@@ -495,7 +595,7 @@ export class TurnoService {
     }
 
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('activeBranchId') ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
+      const stored = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY) ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
       return stored?.trim() || null;
     }
 
@@ -505,16 +605,11 @@ export class TurnoService {
   private async resolveBusinessId(supabaseClient: SupabaseClient | null): Promise<string | null> {
     if (!supabaseClient) return null;
 
-    // Obtener la sesión directamente de Supabase para evitar problemas de timing con AuthService
+    const adminSession = await this.requireAdminSession(supabaseClient);
+    if (adminSession.businessId) return adminSession.businessId;
+
     const { data: { session } } = await supabaseClient.auth.getSession();
-    const authUserId = session?.user?.id;
-
-    if (!authUserId) {
-      console.warn('[TurnoService] resolveBusinessId - No se encontró sesión activa en Supabase');
-      return null;
-    }
-
-    const metadata = session.user.user_metadata as Record<string, unknown> | undefined;
+    const metadata = session?.user?.user_metadata as Record<string, unknown> | undefined;
     const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
     if (typeof businessId === 'string' && businessId.trim()) {
       return businessId.trim();
@@ -523,12 +618,15 @@ export class TurnoService {
     return null;
   }
 
-  private async validateBranchTenant(supabaseClient: SupabaseClient | null, branchId?: string): Promise<BranchTenantScope | null> {
+  private async validateBranchTenant(
+    supabaseClient: SupabaseClient | null,
+    branchId?: string,
+    adminSession?: AdminSessionContext
+  ): Promise<BranchTenantScope | null> {
     if (!supabaseClient) return null;
     if (!branchId?.trim()) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session?.user?.id) throw new Error('AUTH_REQUIRED: No active tenant session');
+    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
 
     const { data: branch, error } = await supabaseClient
       .from('branches')
@@ -544,7 +642,7 @@ export class TurnoService {
       throw new Error('BRANCH_NOT_FOUND: Sucursal inválida para el tenant activo');
     }
 
-    const businessId = await this.resolveBusinessId(supabaseClient);
+    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
     if (!businessId || String(branch.business_id) !== businessId) {
       throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
     }
@@ -559,13 +657,10 @@ export class TurnoService {
     const branchScope = await this.validateBranchTenant(supabaseClient, this.resolveActiveBranchId() ?? undefined);
     if (!branchScope) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const { data: booking, error } = await supabaseClient
-      .from('bookings')
-      .select('id')
-      .eq('id', bookingId)
-      .eq('business_id', branchScope.businessId)
-      .eq('branch_id', branchScope.branchId)
-      .maybeSingle();
+    const { data: booking, error } = await supabaseClient.rpc('assert_admin_booking_in_branch', {
+      p_booking_id: bookingId,
+      p_branch_id: branchScope.branchId,
+    });
 
     if (error || !booking) {
       throw new Error('TURNO_NOT_FOUND');
@@ -603,6 +698,7 @@ export class TurnoService {
   }
 
   update(id: string, dto: UpdateTurnoDTO): Observable<Turno> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
     const exists = this.turnos().some(t => t.id === id);
     if (!exists) {
       throw new Error(TURNO_NOT_FOUND_MESSAGE);
@@ -614,7 +710,7 @@ export class TurnoService {
     }
 
     // Use Supabase provider - convert Promise to Observable
-    return from(this.updateWithSupabase(id, dto));
+    return from(this.updateWithSupabase(id, dto)).pipe(tap(() => this.invalidateAdminAvailabilityForLoadAvailability()));
   }
 
   private updateWithMock(id: string, dto: UpdateTurnoDTO): Observable<Turno> {
@@ -636,72 +732,26 @@ export class TurnoService {
   private async updateWithSupabase(id: string, dto: UpdateTurnoDTO): Promise<Turno> {
     const supabase = this.getSupabaseClient();
     if (!supabase) {
-      // Fall back to in-memory update when Supabase not available
-      const index = this.turnos().findIndex(t => t.id === id);
-      if (index === -1) {
+      throw new Error('SUPABASE_UNAVAILABLE: Supabase client not available');
+    }
+    const adminSession = await this.requireAdminSession(supabase);
+
+    const payload: AdminUpdateBookingPayload = {
+      bookingId: id,
+      performedBy: adminSession.userId,
+      notes: dto.notas,
+      clientId: dto.clienteId,
+      serviceId: dto.servicioId,
+      durationMinutes: dto.duracionMinutos
+    };
+    const response = await this.updateAdminBooking(payload);
+
+    if (response.error) {
+      const errorMessage = response.error.message;
+      if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
-      const actualizado = { ...this.turnos()[index], ...dto, updatedAt: new Date() };
-      this.turnos.update(t => {
-        const nuevas = [...t];
-        nuevas[index] = actualizado;
-        return nuevas;
-      });
-      return actualizado;
-    }
-
-    // Build update payload with all provided fields
-    const updatedFields: Record<string, unknown> = {};
-
-    // Handle all possible update fields
-    if (dto.notas !== undefined) {
-      updatedFields['notes'] = dto.notas;
-    }
-    if (dto.clienteId !== undefined) {
-      updatedFields['customer_id'] = dto.clienteId;
-    }
-    if (dto.servicioId !== undefined) {
-      updatedFields['service_id'] = dto.servicioId;
-    }
-    if (dto.precio !== undefined) {
-      // Note: precio might need different field mapping
-    }
-
-    // If we have special field updates (clienteId, servicioId), use direct update instead of RPC
-    if (dto.clienteId || dto.servicioId || dto.duracionMinutos !== undefined) {
-      const branchScope = await this.validateBranchTenant(supabase, this.resolveActiveBranchId() ?? undefined);
-      if (!branchScope) throw new Error('BRANCH_REQUIRED: Active branch context is required');
-
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update(updatedFields)
-        .eq('id', id)
-        .eq('business_id', branchScope.businessId)
-        .eq('branch_id', branchScope.branchId);
-
-      if (updateError) {
-        if (updateError.message.includes('TURNO_NOT_FOUND') || updateError.code === 'PGRST116') {
-          throw new Error(TURNO_NOT_FOUND_MESSAGE);
-        }
-        // Keep UX resilient in non-production/integration environments.
-        // We still update local state to satisfy guard contracts.
-      }
-    } else {
-      // Use RPC for notes-only update
-      const payload: AdminUpdateBookingPayload = {
-        bookingId: id,
-        performedBy: 'admin',
-        notes: dto.notas
-      };
-      const response = await this.updateAdminBooking(payload);
-
-      if (response.error) {
-        const errorMessage = response.error.message;
-        if (errorMessage.includes('TURNO_NOT_FOUND')) {
-          throw new Error(TURNO_NOT_FOUND_MESSAGE);
-        }
-        // Fall back to local state update when remote mutation fails.
-      }
+      throw new Error(errorMessage || 'Error al actualizar turno');
     }
 
     // Reload the updated turno from signal or fetch fresh
@@ -711,7 +761,8 @@ export class TurnoService {
     }
 
     // Update local state with all provided fields
-    const actualizado = { ...existing, ...dto, updatedAt: new Date() };
+    const backendPatch = response.data ? this.toTurnoPatchFromAdminUpdate(response.data) : {};
+    const actualizado = { ...existing, ...dto, ...backendPatch, updatedAt: new Date(response.data?.updatedAt ?? Date.now()) };
     this.turnos.update(t => {
       const index = t.findIndex(turno => turno.id === id);
       const nuevas = [...t];
@@ -724,7 +775,29 @@ export class TurnoService {
     return actualizado;
   }
 
+  private toTurnoPatchFromAdminUpdate(result: AdminBookingUpdateResult): Partial<Turno> {
+    const patch: Partial<Turno> = {};
+
+    if (result.customerId !== undefined && result.customerId !== null) {
+      patch.clienteId = result.customerId;
+    }
+    if (result.serviceId !== undefined && result.serviceId !== null) {
+      patch.servicioId = result.serviceId;
+    }
+    if (typeof result.durationMinutes === 'number') {
+      patch.duracionMinutos = result.durationMinutes;
+    }
+    if (result.startsAtIso) {
+      const startsAt = new Date(result.startsAtIso);
+      patch.fecha = this.toArgentinaDate(startsAt);
+      patch.hora = this.toArgentinaTime(startsAt);
+    }
+
+    return patch;
+  }
+
   updateEstado(id: string, estado: TurnoEstado): Observable<Turno> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
     const exists = this.turnos().some(t => t.id === id);
     if (!exists) {
       return throwError(() => new Error(TURNO_NOT_FOUND_MESSAGE));
@@ -736,7 +809,7 @@ export class TurnoService {
     }
 
     // Use Supabase provider
-    return from(this.updateEstadoWithSupabase(id, estado));
+    return from(this.updateEstadoWithSupabase(id, estado)).pipe(tap(() => this.invalidateAdminAvailabilityForLoadAvailability()));
   }
 
   private updateEstadoWithMock(id: string, estado: TurnoEstado): Observable<Turno> {
@@ -755,20 +828,18 @@ export class TurnoService {
 
     const dbStatus = statusMap[estado];
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payload: AdminStatusUpdatePayload = {
       bookingId: id,
       status: dbStatus,
-      performedBy: 'admin' // TODO: Get from auth context
+      performedBy: adminSession.userId
     };
 
-    const existing = this.turnos().find(t => t.id === id);
-    if (!existing) {
+    const current = this.turnos().find(t => t.id === id);
+    if (!current) {
       throw new Error(TURNO_NOT_FOUND_MESSAGE);
-    }
-
-    // Idempotent transitions should be accepted (e.g., confirmed -> confirmed)
-    if (existing.estado === estado) {
-      return existing;
     }
 
     const response = await this.updateBookingStatus(payload);
@@ -778,15 +849,14 @@ export class TurnoService {
       if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
-      if (errorMessage.includes('TURNO_INVALID_STATUS_TRANSITION')) {
-        throw new Error('TURNO_INVALID_STATUS_TRANSITION');
+      if (errorMessage.includes(ADMIN_INVALID_TRANSITION_CODE)) {
+        throw new Error(ADMIN_INVALID_TRANSITION_CODE);
       }
       // If it's a "no change needed" case (same status), handle gracefully
       if (errorMessage.includes('same') || errorMessage.includes('already')) {
-        // Still return the turno with current status
-        const existing = this.turnos().find(t => t.id === id);
-        if (existing) {
-          return existing;
+        const currentTurno = this.turnos().find(t => t.id === id);
+        if (currentTurno) {
+          return currentTurno;
         }
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
@@ -794,7 +864,8 @@ export class TurnoService {
     }
 
     // Update local state
-    const actualizado = { ...existing, estado, updatedAt: new Date() };
+    const backendEstado = this.toTurnoEstado(response.data?.status) ?? estado;
+    const actualizado = { ...current, estado: backendEstado, updatedAt: new Date() };
     this.turnos.update(t => {
       const index = t.findIndex(turno => turno.id === id);
       const nuevas = [...t];
@@ -812,6 +883,7 @@ export class TurnoService {
   }
 
   cancelByAdmin(id: string, payload: AdminActionPayload): Observable<Turno> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
     // Validate performedBy is required
     if (!payload.performedBy?.trim()) {
       return throwError(() => new Error('performedBy es requerido para cancelar'));
@@ -834,7 +906,8 @@ export class TurnoService {
           appointmentId: updated.id,
           occurredAt: updated.updatedAt.toISOString()
         });
-      })
+      }),
+      tap(() => this.invalidateAdminAvailabilityForLoadAvailability())
     );
   }
 
@@ -845,8 +918,8 @@ export class TurnoService {
       return throwError(() => new Error(TURNO_NOT_FOUND_MESSAGE));
     }
 
-    if (turno.estado === 'cancelado' || turno.estado === 'completado' || turno.estado === 'no-asistio') {
-      return throwError(() => new Error('TURNO_INVALID_STATUS_TRANSITION'));
+    if (this.isAdminLifecycleTerminalState(turno.estado)) {
+      return throwError(() => new Error(ADMIN_INVALID_TRANSITION_CODE));
     }
 
     return this.updateAdminManagedTurno(id, {
@@ -873,9 +946,12 @@ export class TurnoService {
       throw new Error('performedBy es requerido para cancelar');
     }
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payloadSupabase: AdminCancelBookingPayload = {
       bookingId: id,
-      performedBy: payload.performedBy,
+      performedBy: adminSession.userId,
       notes: payload.reason
     };
 
@@ -886,8 +962,8 @@ export class TurnoService {
       if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
-      if (errorMessage.includes('TURNO_INVALID_STATUS_TRANSITION')) {
-        throw new Error('TURNO_INVALID_STATUS_TRANSITION');
+      if (errorMessage.includes(ADMIN_INVALID_TRANSITION_CODE)) {
+        throw new Error(ADMIN_INVALID_TRANSITION_CODE);
       }
       throw new Error(errorMessage || 'Error al cancelar turno');
     }
@@ -898,10 +974,11 @@ export class TurnoService {
       throw new Error(TURNO_NOT_FOUND_MESSAGE);
     }
 
-    const auditEntry = `[admin:cancel] by=${payload.performedBy} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
+    const auditEntry = `[admin:cancel] by=${adminSession.userId} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
     const newNotes = existing.notas ? `${existing.notas}\n${auditEntry}` : auditEntry;
 
-    const actualizado = { ...existing, estado: 'cancelado' as TurnoEstado, notas: newNotes, updatedAt: new Date() };
+    const backendEstado = this.toTurnoEstado(response.data?.status) ?? 'cancelado';
+    const actualizado = { ...existing, estado: backendEstado, notas: newNotes, updatedAt: new Date() };
     this.turnos.update(t => {
       const index = t.findIndex(turno => turno.id === id);
       const nuevas = [...t];
@@ -919,13 +996,14 @@ export class TurnoService {
   }
 
   rescheduleByAdmin(id: string, payload: AdminReschedulePayload): Observable<Turno> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
     // Check provider first
     if (this.provider === 'mock') {
       return this.rescheduleByAdminWithMock(id, payload);
     }
 
     // Use Supabase provider
-    return from(this.rescheduleByAdminWithSupabase(id, payload));
+    return from(this.rescheduleByAdminWithSupabase(id, payload)).pipe(tap(() => this.invalidateAdminAvailabilityForLoadAvailability()));
   }
 
   private rescheduleByAdminWithMock(id: string, payload: AdminReschedulePayload): Observable<Turno> {
@@ -935,8 +1013,8 @@ export class TurnoService {
       return throwError(() => new Error(TURNO_NOT_FOUND_MESSAGE));
     }
 
-    if (turno.estado === 'cancelado' || turno.estado === 'completado' || turno.estado === 'no-asistio') {
-      return throwError(() => new Error('TURNO_INVALID_STATUS_TRANSITION'));
+    if (this.isAdminLifecycleTerminalState(turno.estado)) {
+      return throwError(() => new Error(ADMIN_INVALID_TRANSITION_CODE));
     }
 
     const hasCollision = this.turnos().some(existing => {
@@ -948,7 +1026,7 @@ export class TurnoService {
         return false;
       }
 
-      if (existing.estado === 'cancelado' || existing.estado === 'no-asistio') {
+      if (this.isAdminAvailabilityIgnoredState(existing.estado)) {
         return false;
       }
 
@@ -979,19 +1057,18 @@ export class TurnoService {
       throw new Error(TURNO_NOT_FOUND_MESSAGE);
     }
 
-    if (existing.estado === 'cancelado' || existing.estado === 'completado' || existing.estado === 'no-asistio') {
-      throw new Error('TURNO_INVALID_STATUS_TRANSITION');
-    }
-
     // Convert fecha + hora to ISO 8601
     const startDateTime = new Date(payload.fecha);
     const [horaHours, horaMinutes] = payload.hora.split(':').map(Number);
     startDateTime.setHours(horaHours, horaMinutes, 0, 0);
     const startsAtIso = startDateTime.toISOString();
 
+    const supabase = this.getSupabaseClient();
+    const adminSession = await this.requireAdminSession(supabase);
+
     const payloadSupabase: AdminRescheduleBookingPayload = {
       bookingId: id,
-      performedBy: payload.performedBy,
+      performedBy: adminSession.userId,
       notes: payload.reason,
       startsAtIso
     };
@@ -1003,8 +1080,8 @@ export class TurnoService {
       if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
       }
-      if (errorMessage.includes('TURNO_INVALID_STATUS_TRANSITION')) {
-        throw new Error('TURNO_INVALID_STATUS_TRANSITION');
+      if (errorMessage.includes(ADMIN_INVALID_TRANSITION_CODE)) {
+        throw new Error(ADMIN_INVALID_TRANSITION_CODE);
       }
       if (errorMessage.includes('SLOT_CONFLICT') || errorMessage.includes('conflict')) {
         throw new Error('TURNO_SLOT_COLLISION');
@@ -1013,10 +1090,17 @@ export class TurnoService {
     }
 
     // Update local state
-    const auditEntry = `[admin:reschedule] by=${payload.performedBy} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
+    const auditEntry = `[admin:reschedule] by=${adminSession.userId} at=${new Date().toISOString()}${payload.reason ? ' | reason=' + payload.reason : ''}`;
     const newNotes = existing.notas ? `${existing.notas}\n${auditEntry}` : auditEntry;
 
-    const actualizado = { ...existing, fecha: payload.fecha, hora: payload.hora, notas: newNotes, updatedAt: new Date() };
+    const backendStart = response.data?.startsAtIso ? new Date(response.data.startsAtIso) : null;
+    const actualizado = {
+      ...existing,
+      fecha: backendStart ? this.toArgentinaDate(backendStart) : payload.fecha,
+      hora: backendStart ? this.toArgentinaTime(backendStart) : payload.hora,
+      notas: newNotes,
+      updatedAt: new Date()
+    };
     this.turnos.update(t => {
       const index = t.findIndex(turno => turno.id === id);
       const nuevas = [...t];
@@ -1029,12 +1113,24 @@ export class TurnoService {
     return actualizado;
   }
 
-  createBlockedTime(payload: AdminBlockedTimePayload): Observable<{ blockId: string }> {
-    if (this.provider === 'mock') {
-      return of({ blockId: 'mock-block-' + Date.now() });
+  createBlockedTime(payload: AdminBlockedTimeCreateInput): Observable<{ blockId: string }> {
+    this.invalidateAdminAvailabilityForLoadAvailability();
+    const branchId = payload.branchId?.trim() || this.resolveActiveBranchId();
+
+    if (!branchId) {
+      return throwError(() => new Error('ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios'));
     }
 
-    return from(this.createAdminBlockedTime(payload)).pipe(
+    if (!payload.performedBy?.trim()) {
+      return throwError(() => new Error('AUTH_REQUIRED: No se pudo identificar el administrador'));
+    }
+
+    if (this.provider === 'mock') {
+      this.mockBlockedTimeSequence += 1;
+      return of({ blockId: `mock-block-${this.mockBlockedTimeSequence}` });
+    }
+
+    return from(this.createBlockedTimeWithResolvedTenant(payload, branchId)).pipe(
       map(response => {
         if (response.error) {
           throw new Error(response.error.message || 'Error al crear bloqueo de tiempo');
@@ -1043,13 +1139,39 @@ export class TurnoService {
           throw new Error('Error al crear bloqueo de tiempo: no se recibió respuesta');
         }
         return response.data;
-      })
+      }),
+      tap(() => this.invalidateAdminAvailabilityForLoadAvailability())
     );
+  }
+
+  private async createBlockedTimeWithResolvedTenant(
+    payload: AdminBlockedTimeCreateInput,
+    branchId: string
+  ): Promise<ApiResponse<{ blockId: string }>> {
+    const supabase = this.getSupabaseClient();
+    if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
+
+    const adminSession = await this.requireAdminSession(supabase);
+    const branchScope = await this.validateBranchTenant(supabase, branchId, adminSession);
+    if (!branchScope) {
+      return { status: 400, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios' } };
+    }
+
+    const resolvedPayload: AdminBlockedTimePayload = {
+      businessId: branchScope.businessId,
+      branchId: branchScope.branchId,
+      startsAtIso: payload.startsAtIso,
+      endsAtIso: payload.endsAtIso,
+      reason: payload.reason,
+      performedBy: adminSession.userId
+    };
+
+    return this.createAdminBlockedTime(resolvedPayload);
   }
 
   delete(id: string): Observable<boolean> {
     this.turnos.update(t => t.filter(turno => turno.id !== id));
-    return of(true);
+    return of(true).pipe(tap(() => this.invalidateAdminAvailabilityForLoadAvailability()));
   }
 
   // Filtrar turnos por fecha
@@ -1086,18 +1208,24 @@ export class TurnoService {
 
   // Disponibilidad de horarios (para una fecha)
   getHorariosDisponibles(fecha: Date, duracionMinutos: number): string[] {
-    const fechaStr = this.toDateKey(fecha);
-    const occupiedWindows = this.getOccupiedWindowsForDate(fecha);
+    if (this.provider === 'mock') {
+      return this.getMockHorariosDisponibles(fecha, duracionMinutos);
+    }
 
-    return computeAvailableSlots({
-      date: fechaStr,
-      serviceDurationMinutes: duracionMinutos,
-      slotIntervalMinutes: 30,
-      bufferMinutes: 0,
-      minNoticeMinutes: 0,
-      workingWindows: [{ start: '09:00', end: '19:00' }],
-      occupiedWindows
-    });
+    const request: AdminAvailabilityRequest = {
+      fecha,
+      durationMinutes: duracionMinutos,
+      context: 'admin-create'
+    };
+    const cacheKey = this.adminAvailabilityCacheKey(request);
+    this.adminAvailabilityCache.delete(cacheKey);
+    this.pendingAdminAvailabilityKeys.add(cacheKey);
+    void this.queryAdminSlotAvailability(request).catch(() => undefined);
+    if (this.pendingAdminAvailabilityKeys.has(cacheKey)) return [];
+    const availableSlots = (this.adminAvailabilityCache.get(cacheKey) ?? [])
+      .filter(slot => slot.remainingCapacity > 0);
+
+    return availableSlots.map(slot => this.toArgentinaTime(new Date(slot.startsAtIso)));
   }
 
   getHorariosDisponiblesConConfiguracion(
@@ -1105,25 +1233,158 @@ export class TurnoService {
     duracionMinutos: number,
     config: AvailabilitySettingsConfig
   ): string[] {
-    const fechaStr = this.toDateKey(fecha);
-    const dayKey = this.toWeekdayKey(fecha);
-    const dayHours = config.workingHours?.[dayKey];
+    if (this.provider === 'mock') {
+      return this.getMockHorariosDisponibles(fecha, duracionMinutos, config);
+    }
 
-    const workingWindows = dayHours?.enabled
-      ? [{ start: dayHours.start, end: dayHours.end }]
-      : [];
+    const request: AdminAvailabilityRequest = {
+      fecha,
+      durationMinutes: duracionMinutos,
+      serviceId: config.serviceId,
+      branchId: config.branchId,
+      context: config.context ?? 'admin-create',
+      bookingId: config.bookingId
+    };
+    const cacheKey = this.adminAvailabilityCacheKey(request);
+    this.adminAvailabilityCache.delete(cacheKey);
+    this.pendingAdminAvailabilityKeys.add(cacheKey);
+    void this.queryAdminSlotAvailability(request).catch(() => undefined);
+    if (this.pendingAdminAvailabilityKeys.has(cacheKey)) return [];
+    const availableSlots = (this.adminAvailabilityCache.get(cacheKey) ?? [])
+      .filter(slot => slot.remainingCapacity > 0);
 
+    return availableSlots.map(slot => this.toArgentinaTime(new Date(slot.startsAtIso)));
+  }
+
+  public async loadAvailabilityAdminSlotTimes(request: AdminAvailabilityRequest): Promise<string[]> {
+    const slots = await this.queryAdminSlotAvailability(request);
+    return slots
+      .filter(slot => slot.remainingCapacity > 0)
+      .map(slot => this.toArgentinaTime(new Date(slot.startsAtIso)));
+  }
+
+  public invalidateAdminAvailability(): void {
+    this.adminAvailabilityCache.clear();
+    this.pendingAdminAvailabilityKeys.clear();
+    this.adminAvailabilityRequestVersions.clear();
+  }
+
+  private invalidateAdminAvailabilityForLoadAvailability(): void {
+    this.invalidateAdminAvailability();
+  }
+
+  private async queryAdminSlotAvailability(request: AdminAvailabilityRequest): Promise<AdminSlotAvailabilityRow[]> {
+    const cacheKey = this.adminAvailabilityCacheKey(request);
+    const availabilityRequestVersion = (this.adminAvailabilityRequestVersions.get(cacheKey) ?? 0) + 1;
+    this.adminAvailabilityRequestVersions.set(cacheKey, availabilityRequestVersion);
+    this.pendingAdminAvailabilityKeys.add(cacheKey);
+    this.adminAvailabilityCache.delete(cacheKey);
+
+    const supabase = this.getSupabaseClient();
+    if (!supabase) {
+      this.pendingAdminAvailabilityKeys.delete(cacheKey);
+      this.adminAvailabilityCache.set(cacheKey, []);
+      return [];
+    }
+
+    let data: unknown;
+    let error: { message?: string; code?: string } | null = null;
+    try {
+      const branchScope = await this.validateBranchTenant(supabase, request.branchId ?? this.resolveActiveBranchId() ?? undefined);
+      if (!branchScope) {
+        this.pendingAdminAvailabilityKeys.delete(cacheKey);
+        this.adminAvailabilityCache.set(cacheKey, []);
+        return [];
+      }
+
+      const response = await supabase.rpc('query_admin_slot_availability', {
+        business_id: branchScope.businessId,
+        service_id: request.serviceId ?? null,
+        date_iso: this.toDateKey(request.fecha),
+        branch_id: branchScope.branchId,
+        context: request.context ?? 'admin-create',
+        booking_id: request.bookingId ?? null,
+        duration_minutes: request.durationMinutes ?? null
+      });
+      data = response.data;
+      error = response.error;
+    } catch {
+      this.adminAvailabilityCache.delete(cacheKey);
+      this.pendingAdminAvailabilityKeys.delete(cacheKey);
+      throw new Error('ADMIN_AVAILABILITY_RPC_ERROR: No se pudo consultar disponibilidad');
+    }
+
+    if (error) {
+      this.adminAvailabilityCache.delete(cacheKey);
+      this.pendingAdminAvailabilityKeys.delete(cacheKey);
+      throw new Error('ADMIN_AVAILABILITY_RPC_ERROR: No se pudo consultar disponibilidad');
+    }
+
+    if (this.adminAvailabilityRequestVersions.get(cacheKey) !== availabilityRequestVersion) {
+      return this.adminAvailabilityCache.get(cacheKey) ?? [];
+    }
+
+    const rows = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>;
+    const slots = rows.map(row => ({
+      startsAtIso: String(row['starts_at_iso'] ?? ''),
+      endsAtIso: String(row['ends_at_iso'] ?? ''),
+      remainingCapacity: Number(row['remaining_capacity'] ?? 0)
+    })).filter(slot => slot.startsAtIso && slot.endsAtIso && slot.remainingCapacity > 0);
+
+    this.adminAvailabilityCache.set(cacheKey, slots);
+    this.pendingAdminAvailabilityKeys.delete(cacheKey);
+    return slots;
+  }
+
+  private adminAvailabilityCacheKey(request: AdminAvailabilityRequest): string {
+    return [
+      this.toDateKey(request.fecha),
+      request.durationMinutes,
+      request.serviceId ?? '',
+      request.branchId ?? this.resolveActiveBranchId() ?? '',
+      request.context ?? 'admin-create',
+      request.bookingId ?? ''
+    ].join('|');
+  }
+
+  private getMockHorariosDisponibles(
+    fecha: Date,
+    duracionMinutos: number,
+    config?: AvailabilitySettingsConfig
+  ): string[] {
     const occupiedWindows = this.getOccupiedWindowsForDate(fecha);
+    const dayKey = this.toWeekdayKey(fecha);
+    const defaultWindow = { start: '09:00', end: '19:00' };
+    const configuredHours = config?.workingHours?.[dayKey];
+    const workingWindows = config
+      ? (configuredHours?.enabled ? [{ start: configuredHours.start, end: configuredHours.end }] : [])
+      : [defaultWindow];
+    const interval = config?.slotIntervalMinutes ?? 30;
+    const buffer = config?.bufferMinutes ?? 0;
+    const minNotice = config?.minNoticeMinutes ?? 0;
+    const nowMinutes = config ? this.timeToMinutes('00:00') + minNotice : 0;
 
-    return computeAvailableSlots({
-      date: fechaStr,
-      serviceDurationMinutes: duracionMinutos,
-      slotIntervalMinutes: config.slotIntervalMinutes,
-      bufferMinutes: config.bufferMinutes,
-      minNoticeMinutes: config.minNoticeMinutes,
-      workingWindows,
-      occupiedWindows,
-      now: new Date(`${fechaStr}T00:00:00`)
+    return workingWindows.flatMap(window => {
+      const startMinutes = this.timeToMinutes(window.start);
+      const endMinutes = this.timeToMinutes(window.end);
+      const slots: string[] = [];
+
+      for (let cursor = startMinutes; cursor + duracionMinutos <= endMinutes; cursor += interval) {
+        if (cursor < nowMinutes) continue;
+
+        const slotEnd = cursor + duracionMinutos + buffer;
+        const collides = occupiedWindows.some(occupied => {
+          const occupiedStart = this.timeToMinutes(occupied.start);
+          const occupiedEnd = this.timeToMinutes(occupied.end) + buffer;
+          return cursor < occupiedEnd && occupiedStart < slotEnd;
+        });
+
+        if (!collides) {
+          slots.push(this.minutesToTime(cursor));
+        }
+      }
+
+      return slots;
     });
   }
 
@@ -1149,6 +1410,48 @@ export class TurnoService {
     const nextMinute = normalized % 60;
 
     return `${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`;
+  }
+
+  private minutesToTime(totalMinutes: number): string {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  private toArgentinaDate(date: Date): Date {
+    const argDateStr = date.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+    const [year, month, day] = argDateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  private toArgentinaTime(date: Date): string {
+    return date.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: TIMEZONE
+    });
+  }
+
+  private toTurnoEstado(status?: string | null): TurnoEstado | null {
+    const statusMap: Record<string, TurnoEstado> = {
+      booked: 'confirmado',
+      confirmed: 'confirmado',
+      in_progress: 'en-proceso',
+      completed: 'completado',
+      cancelled: 'cancelado',
+      no_show: 'no-asistio'
+    };
+
+    return status ? (statusMap[status] ?? null) : null;
+  }
+
+  private isAdminLifecycleTerminalState(estado: TurnoEstado): boolean {
+    return ADMIN_TERMINAL_TURNO_STATES.has(estado);
+  }
+
+  private isAdminAvailabilityIgnoredState(estado: TurnoEstado): boolean {
+    return estado === 'cancelado' || estado === 'no-asistio';
   }
 
   private timeToMinutes(time: string): number {
@@ -1213,122 +1516,152 @@ export class TurnoService {
     this.provider = provider;
   }
 
-  private getMockTurnos(): Turno[] {
-    const hoy = new Date();
-    const ayer = new Date(hoy);
-    ayer.setDate(ayer.getDate() - 1);
-    const manana = new Date(hoy);
-    manana.setDate(manana.getDate() + 1);
+  private getMockProviderTurnos(): Turno[] {
+    const fixtureDate = (dateKey: string) => new Date(`${dateKey}T12:00:00.000Z`);
+    const fixtureTimestamp = new Date('2026-04-18T09:00:00.000Z');
+    const todayFixture = new Date();
+    todayFixture.setHours(12, 0, 0, 0);
+    const tomorrowFixture = new Date(todayFixture);
+    tomorrowFixture.setDate(tomorrowFixture.getDate() + 1);
+    const fixtureDates = {
+      past: fixtureDate('2026-04-19'),
+      current: fixtureDate('2026-04-20'),
+      future: fixtureDate('2026-04-21')
+    };
 
     return [
       {
         id: 'turno-001',
         clienteId: 'cliente-001',
         servicioId: 'servicio-002',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '10:00',
         duracionMinutos: 45,
         estado: 'confirmado',
         precio: 3500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-002',
         clienteId: 'cliente-002',
         servicioId: 'servicio-001',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '11:00',
         duracionMinutos: 30,
         estado: 'confirmado',
         notas: 'Primera vez',
         precio: 2500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-003',
         clienteId: 'cliente-003',
         servicioId: 'servicio-003',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '14:00',
         duracionMinutos: 90,
         estado: 'completado',
         precio: 8000,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-006',
         clienteId: 'cliente-006',
         servicioId: 'servicio-005',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '16:30',
         duracionMinutos: 60,
         estado: 'en-proceso',
         precio: 5500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-007',
         clienteId: 'cliente-007',
         servicioId: 'servicio-006',
-        fecha: hoy,
+        fecha: fixtureDates.current,
         hora: '17:30',
         duracionMinutos: 60,
         estado: 'confirmado',
         precio: 4500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-004',
         clienteId: 'cliente-004',
         servicioId: 'servicio-007',
-        fecha: manana,
+        fecha: fixtureDates.future,
         hora: '10:00',
         duracionMinutos: 120,
         estado: 'confirmado',
         precio: 12000,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-005',
         clienteId: 'cliente-005',
         servicioId: 'servicio-004',
-        fecha: manana,
+        fecha: fixtureDates.future,
         hora: '14:00',
         duracionMinutos: 90,
         estado: 'confirmado',
         precio: 8500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-008',
         clienteId: 'cliente-001',
         servicioId: 'servicio-002',
-        fecha: ayer,
+        fecha: fixtureDates.past,
         hora: '10:00',
         duracionMinutos: 45,
         estado: 'completado',
         precio: 3500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       },
       {
         id: 'turno-009',
         clienteId: 'cliente-002',
         servicioId: 'servicio-001',
-        fecha: ayer,
+        fecha: fixtureDates.past,
         hora: '15:00',
         duracionMinutos: 30,
         estado: 'completado',
         precio: 2500,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
+      },
+      {
+        id: 'turno-dynamic-today-001',
+        clienteId: 'cliente-dynamic-001',
+        servicioId: 'servicio-dynamic-001',
+        fecha: todayFixture,
+        hora: '10:00',
+        duracionMinutos: 45,
+        estado: 'confirmado',
+        precio: 3500,
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
+      },
+      {
+        id: 'turno-dynamic-tomorrow-001',
+        clienteId: 'cliente-dynamic-002',
+        servicioId: 'servicio-dynamic-002',
+        fecha: tomorrowFixture,
+        hora: '10:00',
+        duracionMinutos: 45,
+        estado: 'confirmado',
+        precio: 3500,
+        createdAt: fixtureTimestamp,
+        updatedAt: fixtureTimestamp
       }
     ];
   }

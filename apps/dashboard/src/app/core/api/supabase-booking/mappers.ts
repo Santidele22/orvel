@@ -13,26 +13,6 @@ export function id(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function buildDeterministicPublicSlots(dateIso: string): Array<{ startsAtIso: string; endsAtIso: string }> {
-  const slots = [];
-  const serviceDuration = 30; // Default 30 minutes
-  
-  // Generate slots from 9:00 to 18:00 at 30-minute intervals
-  for (let hour = 9; hour < 18; hour++) {
-    for (let minute = 0; minute < 60; minute += serviceDuration) {
-      const startDate = new Date(`${dateIso}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000Z`);
-      const endDate = new Date(startDate.getTime() + serviceDuration * 60000);
-      
-      slots.push({
-        startsAtIso: startDate.toISOString(),
-        endsAtIso: endDate.toISOString()
-      });
-    }
-  }
-  
-  return slots;
-}
-
 // Convert DB business record and settings to BusinessPublicView
 export function mapBusinessToPublicView(
   record: { id: string; slug: string; name: string; timezone: string },
@@ -79,6 +59,12 @@ export function mapRpcErrorToApiError(error: { message?: string; code?: string }
   // Check code first (more reliable), then message
   if (code === 'P0001' || message.includes('BUSINESS_NOT_FOUND')) {
     return { code: 'BUSINESS_NOT_FOUND', message: 'Business not found. Please check the booking link.' };
+  }
+  if (code === 'TOKEN_REVOKED' || message.includes('TOKEN_REVOKED')) {
+    return { code: 'TOKEN_REVOKED', message };
+  }
+  if (code === 'BOOKING_ALREADY_CANCELLED' || message.includes('BOOKING_ALREADY_CANCELLED')) {
+    return { code: 'BOOKING_ALREADY_CANCELLED', message };
   }
   if (code === 'P0002' || message.includes('BOOKING_VALIDATION_ERROR')) {
     return { code: 'VALIDATION_ERROR', message };

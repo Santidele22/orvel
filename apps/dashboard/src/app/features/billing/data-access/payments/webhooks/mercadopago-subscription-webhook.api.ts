@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolvePlanCodeFromCatalog } from '../../../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../../../core/catalog/reference-catalog.gateway';
 import type { SubscriptionEvent } from '../../subscriptions/subscription-state-machine.api';
 
 type WebhookResponse = {
@@ -89,11 +91,19 @@ async function sha256Text(value: string): Promise<string> {
 }
 
 function mapPlanCode(planId: string | undefined): SubscriptionEvent['planCode'] {
-  const normalized = (planId ?? '').toLowerCase();
-  if (normalized.includes('basic') || normalized.includes('starter')) return 'BASIC';
-  if (normalized.includes('medium') || normalized.includes('growth')) return 'MEDIUM';
-  if (normalized.includes('pro')) return 'PRO';
-  return 'FREE';
+  const normalized = (planId ?? '').trim();
+  const referenceCatalog = getRuntimeReferenceCatalogSnapshot();
+  const directMatch = resolvePlanCodeFromCatalog(referenceCatalog, normalized);
+  if (directMatch) return directMatch as SubscriptionEvent['planCode'];
+
+  const normalizedPlanIdTokens = normalized.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+  const catalogCodesAndAliases = [
+    ...referenceCatalog.plans.map((plan) => plan.code),
+    ...referenceCatalog.planAliases.map((alias) => alias.alias)
+  ];
+  const matchedToken = catalogCodesAndAliases.find((code) => normalizedPlanIdTokens.includes(code));
+  const catalogPlanCode = resolvePlanCodeFromCatalog(referenceCatalog, matchedToken);
+  return (catalogPlanCode as SubscriptionEvent['planCode'] | null) ?? 'FREE';
 }
 
 function parseEvent(rawBody: string, payloadHash: string): SubscriptionEvent | null {

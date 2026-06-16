@@ -6,6 +6,7 @@ import { Observable, of, from, delay, tap, switchMap, throwError, catchError } f
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS } from '../../../models/servicio.model';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { inject } from '@angular/core';
 
@@ -635,7 +636,8 @@ export class ServicioService {
       return [];
     }
 
-    const raw = globalThis.localStorage.getItem('servicios:fallback');
+    // Degraded local fallback key: servicios:fallback
+    const raw = globalThis.localStorage.getItem(SERVICIOS_FALLBACK_STORAGE_KEY);
     if (!raw) {
       return [];
     }
@@ -663,7 +665,7 @@ export class ServicioService {
       return;
     }
 
-    globalThis.localStorage.setItem('servicios:fallback', JSON.stringify(servicios));
+    globalThis.localStorage.setItem(SERVICIOS_FALLBACK_STORAGE_KEY, JSON.stringify(servicios));
   }
 
   private syncStateFromRead(servicios: Servicio[]): void {

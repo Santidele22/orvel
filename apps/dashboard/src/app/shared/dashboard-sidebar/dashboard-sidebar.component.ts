@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, inject, computed } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, inject, computed, signal } from '@angular/core';
 import { CommonModule, NgComponentOutlet } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ThemeService } from '../../core/theming/theme.service';
@@ -17,23 +17,28 @@ import { ThemeService } from '../../core/theming/theme.service';
   templateUrl: './dashboard-sidebar.component.html',
   styleUrls: ['./dashboard-sidebar.component.scss']
 })
-export class DashboardSidebarComponent {
+export class DashboardSidebarComponent implements OnChanges {
   private readonly themeService = inject(ThemeService);
+  private readonly templateInputVersion = signal(0);
 
   @Input() theme: string = 'zen';
-  @Input() businessName: string = 'Atelier Zen';
+  @Input() businessName: string = 'Mi negocio Orvel';
   @Input() dashboards: any[] = [];
+  @Input() collapsed: boolean = false;
   @Output() themeChange = new EventEmitter<any>();
   @Output() logoutConfirm = new EventEmitter<void>();
+  @Output() readonly collapseToggle = new EventEmitter<void>();
 
   protected readonly activeTemplate = this.themeService.activeTemplate;
 
   // New: Compute inputs for the dynamic component
   protected readonly templateInputs = computed(() => ({
     activeTheme: this.theme,
-    dashboards: this.dashboards,
+    dashboards: (this.templateInputVersion(), this.dashboards),
     businessName: this.businessName,
+    collapsed: this.collapsed,
     onThemeChange: (theme: string) => this.selectTheme(theme),
+    onToggleCollapse: () => this.collapseToggle.emit(),
     onLogout: () => this.openLogoutConfirmModal()
   }));
 
@@ -43,6 +48,10 @@ export class DashboardSidebarComponent {
 
   protected isEditProfileModalOpen = false;
   protected isLogoutConfirmModalOpen = false;
+
+  ngOnChanges(_changes: SimpleChanges): void {
+    this.templateInputVersion.update(version => version + 1);
+  }
 
   protected profileForm = {
     name: '',

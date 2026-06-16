@@ -1,36 +1,30 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY,
-  markWelcomeEmailTriggeredOnce
-} from '../../features/onboarding/data-access/onboarding-flow-state';
 
-function createMemoryStorage(seed?: Record<string, string>): Pick<Storage, 'getItem' | 'setItem'> {
-  const map = new Map<string, string>(Object.entries(seed ?? {}));
+const FLOW_STATE_PATH = new URL('../../features/onboarding/data-access/onboarding-flow-state.ts', import.meta.url);
+const ONBOARDING_PAGE_PATH = new URL('../../features/onboarding/pages/signup-business-types-step.page.ts', import.meta.url);
+const ONBOARDING_TEMPLATE_PATH = new URL('../../features/onboarding/pages/signup-business-types-step.page.html', import.meta.url);
 
-  return {
-    getItem(key: string): string | null {
-      return map.has(key) ? map.get(key)! : null;
-    },
-    setItem(key: string, value: string): void {
-      map.set(key, value);
-    }
-  };
+function read(path: URL): string {
+  return readFileSync(path, 'utf8');
 }
 
-describe('Onboarding welcome email trigger idempotency contract', () => {
-  it('enqueues only once by storage gate semantics', () => {
-    const storage = createMemoryStorage();
+describe('Onboarding welcome email paused contract', () => {
+  it('does not expose or mutate welcome-email trigger state while welcome email is disabled', () => {
+    const source = read(FLOW_STATE_PATH);
 
-    expect(markWelcomeEmailTriggeredOnce(storage)).toBe(true);
-    expect(storage.getItem(ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY)).toBe('1');
-    expect(markWelcomeEmailTriggeredOnce(storage)).toBe(false);
+    expect(source).not.toMatch(/WELCOME_EMAIL|welcome-email|welcomeEmail|markWelcomeEmailTriggeredOnce/i);
   });
 
-  it('rejects enqueue when already marked in storage', () => {
-    const storage = createMemoryStorage({
-      [ONBOARDING_WELCOME_EMAIL_TRIGGERED_KEY]: '1'
-    });
+  it('does not dispatch frontend welcome-email events from onboarding completion', () => {
+    const source = read(ONBOARDING_PAGE_PATH);
 
-    expect(markWelcomeEmailTriggeredOnce(storage)).toBe(false);
+    expect(source).not.toMatch(/welcome-email|onboarding:welcome-email-trigger|triggerWelcomeEmail|markWelcomeEmailTriggeredOnce/i);
+  });
+
+  it('does not mention email in the visible welcome copy', () => {
+    const template = read(ONBOARDING_TEMPLATE_PATH);
+
+    expect(template).not.toMatch(/email|correo|mail/i);
   });
 });

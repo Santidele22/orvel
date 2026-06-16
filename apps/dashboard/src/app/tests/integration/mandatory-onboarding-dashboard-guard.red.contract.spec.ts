@@ -13,7 +13,7 @@ import {
   getPlanEntitlements,
   normalizePlanCode
 } from '../../core/plans/plan-entitlements';
-import { TURNERA_SESSION_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
 
 const supabaseAuthClientMock = {
   getSession: vi.fn(),
@@ -62,7 +62,7 @@ function ensureLocalStorage(): Storage {
   return storage;
 }
 
-const ALLOWED_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro'] as const;
+const ALLOWED_BUSINESS_TYPES = ['unas', 'peluqueria', 'barberia', 'spa', 'pestanas', 'cejas', 'masajes', 'otro'] as const;
 
 type BusinessType = (typeof ALLOWED_BUSINESS_TYPES)[number];
 
@@ -125,7 +125,12 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     expect(PLAN_CODE_ALIASES).toEqual({ STARTER: 'STARTER', BASIC: 'STARTER', MEDIUM: 'GROWTH' });
     expect(normalizePlanCode('FREE')).toBe('FREE');
     expect(normalizePlanCode('medium')).toBe('GROWTH');
-    expect(getPlanEntitlements('PRO')).toEqual({ maxLocales: 10, maxRubros: 10, maxMonthlyBookings: null });
+    expect(getPlanEntitlements('PRO')).toEqual({
+      maxLocales: 1,
+      maxRubros: 10,
+      maxMonthlyBookings: null,
+      aiCreditsMonthly: 2000
+    });
   });
 
   it('creates deterministic initial settings for every allowed business type and persists capacity', async () => {
@@ -171,7 +176,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   it('security regression: forged legacy localStorage session does not grant dashboard access without Supabase onboarding', async () => {
     const now = new Date('2026-05-05T12:00:00.000Z').getTime();
     localStorage.setItem(
-      TURNERA_SESSION_KEY,
+      LEGACY_DASHBOARD_SESSION_STORAGE_KEY,
       JSON.stringify({
         version: 'v1',
         token: 'forged-token-that-only-exists-in-local-storage',
@@ -191,19 +196,19 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     const result = await canAccessDashboardAsync(now);
 
     expect(result.allowed).toBe(false);
-    expect(result.redirectTo).toMatch(/^\/login\?returnTo=|^\/auth\/onboarding\?/);
+    expect(result.redirectTo).toMatch(/^https:\/\/orvel\.pro\/auth\/login\?returnTo=|^\/auth\/onboarding\?/);
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 
-  it('Google OAuth login reaches dashboard only after Supabase has persisted complete onboarding metadata', async () => {
+  it('Supabase session reaches dashboard only after persisted complete onboarding metadata', async () => {
     const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {
         session: {
-          access_token: 'oauth-token-incomplete',
+          access_token: 'supabase-token-incomplete',
           user: {
-            id: 'google-user-1',
+            id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
               plan: 'GROWTH',
@@ -224,9 +229,9 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {
         session: {
-          access_token: 'oauth-token-complete',
+          access_token: 'supabase-token-complete',
           user: {
-            id: 'google-user-1',
+            id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
               plan: 'GROWTH',
@@ -242,7 +247,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
   });
 
-  it('security regression: OAuth onboarding cannot complete from localStorage business type selection alone', async () => {
+  it('security regression: Supabase onboarding cannot complete from localStorage business type selection alone', async () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-business-types-step.page.ts'),
       'utf-8'

@@ -4,6 +4,8 @@ export type ApiErrorCode =
   | 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN'
   | 'INVALID_TOKEN'
   | 'TOKEN_EXPIRED'
+  | 'TOKEN_REVOKED'
+  | 'BOOKING_ALREADY_CANCELLED'
   | 'POLICY_WINDOW_CLOSED'
   | 'SLOT_CONFLICT'
   | 'BLOCKED_TIME_COLLISION';
@@ -62,6 +64,33 @@ export type PublicSlotAvailabilityInput = {
   dateIso: string;
 };
 
+export type PublicSlot = {
+  startsAtIso: string;
+  endsAtIso: string;
+  remainingCapacity?: number;
+};
+
+export type PublicBookingConfirmation = {
+  bookingId: string;
+  status: 'confirmed';
+  source: 'client-self-service';
+  manageToken?: string;
+};
+
+export type ManageBookingDetails = {
+  bookingId: string;
+  businessId: string;
+  serviceId: string;
+  startsAtIso: string;
+  canCancelOrReschedule: boolean;
+  status?: string;
+  booking?: Record<string, unknown>;
+  business?: Record<string, unknown>;
+  service?: Record<string, unknown>;
+  policy?: Record<string, unknown>;
+  actions?: Record<string, unknown>;
+};
+
 export type CancelBookingByTokenInput = ManageBookingInput;
 
 export type RescheduleBookingByTokenInput = ManageBookingInput & {
@@ -76,13 +105,14 @@ export type AdminManualBookingPayload = {
   durationMinutes: number;
   clientId?: string;
   walkInName?: string;
-  professionalId: string;
+  professionalId?: string;
   performedBy: string;
   notes?: string;
 };
 
 export type AdminBlockedTimePayload = {
   businessId: string;
+  branchId?: string;
   startsAtIso: string;
   endsAtIso: string;
   reason: string;
@@ -94,6 +124,9 @@ export type AdminUpdateBookingPayload = {
   performedBy: string;
   notes?: string;
   reason?: string;
+  clientId?: string | null;
+  serviceId?: string | null;
+  durationMinutes?: number | null;
 };
 
 export type AdminCancelBookingPayload = AdminUpdateBookingPayload;

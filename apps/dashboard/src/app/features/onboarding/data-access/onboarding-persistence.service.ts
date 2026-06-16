@@ -1,6 +1,8 @@
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+import { resolveAccountPlanPolicy } from '../../../core/accounts/account-plan-policy';
+import { normalizePlanCode, type CanonicalPlanCode } from '../../../core/plans/plan-entitlements';
+
 type AccountState = 'enabled' | 'pending_payment';
-type NextRouteDecision = 'dashboard_home' | 'billing_checkout';
+type NextRouteDecision = 'dashboard_home' | 'billing_subscription';
 
 type OnboardingPayload = {
   profile: {
@@ -12,14 +14,14 @@ type OnboardingPayload = {
     businessName: string;
   };
   salons: Array<{ name: string }>;
-  selectedPlan: PlanCode;
+  selectedPlan: unknown;
 };
 
 type PersistOnboardingResult = {
   accountId: string;
   accountState: AccountState;
   nextRoute: NextRouteDecision;
-  selectedPlan: PlanCode;
+  selectedPlan: CanonicalPlanCode;
 };
 
 type OnboardingPersistenceDependencies = {
@@ -28,7 +30,7 @@ type OnboardingPersistenceDependencies = {
       tenantAccountId: string;
       profile: OnboardingPayload['profile'];
       account: OnboardingPayload['account'];
-      selectedPlan: PlanCode;
+      selectedPlan: CanonicalPlanCode;
       accountState: AccountState;
     }) => Promise<{ accountId: string; tenantAccountId: string }>;
   };
@@ -41,8 +43,10 @@ type OnboardingPersistenceDependencies = {
   };
 };
 
-function resolveTransition(plan: PlanCode): { accountState: AccountState; nextRoute: NextRouteDecision } {
-  if (plan === 'FREE') {
+function resolveTransition(plan: CanonicalPlanCode): { accountState: AccountState; nextRoute: NextRouteDecision } {
+  const policy = resolveAccountPlanPolicy({ plan, premiumPaid: false });
+
+  if (policy.accountEnabled) {
     return {
       accountState: 'enabled',
       nextRoute: 'dashboard_home'
@@ -51,7 +55,7 @@ function resolveTransition(plan: PlanCode): { accountState: AccountState; nextRo
 
   return {
     accountState: 'pending_payment',
-    nextRoute: 'billing_checkout'
+    nextRoute: 'billing_subscription'
   };
 }
 
@@ -83,7 +87,8 @@ export function createOnboardingPersistenceService(deps: OnboardingPersistenceDe
     }): Promise<PersistOnboardingResult> {
       const tenantAccountId = ensureTenantAccountId(input.tenantContext);
       const payload = input.payload;
-      const transition = resolveTransition(payload.selectedPlan);
+      const selectedPlan = normalizePlanCode(payload.selectedPlan);
+      const transition = resolveTransition(selectedPlan);
 
       await deps.accountRepository.upsertForTenant({
         tenantAccountId,
@@ -95,7 +100,7 @@ export function createOnboardingPersistenceService(deps: OnboardingPersistenceDe
         account: {
           businessName: payload.account.businessName
         },
-        selectedPlan: payload.selectedPlan,
+        selectedPlan,
         accountState: transition.accountState
       });
 
@@ -112,7 +117,7 @@ export function createOnboardingPersistenceService(deps: OnboardingPersistenceDe
         accountId: tenantAccountId,
         accountState: transition.accountState,
         nextRoute: transition.nextRoute,
-        selectedPlan: payload.selectedPlan
+        selectedPlan
       };
     }
   };

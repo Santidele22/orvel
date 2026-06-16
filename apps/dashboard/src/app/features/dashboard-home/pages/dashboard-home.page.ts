@@ -5,7 +5,6 @@ import { ThemeService } from '../../../core/theming/theme.service';
 import { AuthService } from '../../../services/auth.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
-import { ONBOARDING_DASHBOARD_CUE_KEY } from '../../onboarding/data-access/onboarding-flow-state';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -34,14 +33,6 @@ export class DashboardHomeComponent {
   protected readonly featuredAppointments = this.dashboardService.featuredAppointments;
   protected readonly stats = this.dashboardService.stats;
   protected readonly copied = signal(false);
-  protected readonly showOnboardingCue = signal(false);
-
-  constructor() {
-    if (typeof window !== 'undefined' && window.localStorage?.getItem(ONBOARDING_DASHBOARD_CUE_KEY) === '1') {
-      this.showOnboardingCue.set(true);
-      window.localStorage.removeItem(ONBOARDING_DASHBOARD_CUE_KEY);
-    }
-  }
 
   /** Dynamic greeting based on current time */
   protected readonly greeting = computed(() => {

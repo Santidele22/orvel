@@ -72,11 +72,11 @@ Each step transition MUST save state to localStorage using well-known keys:
 
 | Key | Purpose |
 |-----|---------|
-| `turnea.onboarding.step.v1` | Current step position |
-| `turnea.onboarding.account-method.v1` | Account creation method (`manual`/`google`) |
-| `turnea.onboarding.welcome-email-triggered.v1` | Whether welcome email was sent (`1`) |
-| `turnea.onboarding.dashboard-cue.v1` | Whether dashboard cue was shown (`1`) |
-| `turnea.onboarding.v1` | Full onboarding state (rubros, templates, catalog) |
+| `orvel.onboarding.step.v1` | Current step position |
+| `orvel.onboarding.account-method.v1` | Account creation method (`manual`/`google`) |
+| `orvel.onboarding.welcome-email-triggered.v1` | Whether welcome email was sent (`1`) |
+| `orvel.onboarding.dashboard-cue.v1` | Whether dashboard cue was shown (`1`) |
+| `orvel.onboarding.v1` | Full onboarding state (rubros, templates, catalog) |
 
 Use `setCurrentStep(storage, step)` to advance the user's position.
 Use `getCurrentStep(storage)` to read it (defaults to `'plan'`).
@@ -107,13 +107,13 @@ export type OnboardingResumeCheckpoint = {
 `onboarding-persistence.service.ts` is the wiring to backend repositories:
 
 - Free plans → `accountState: 'enabled'`, `nextRoute: 'dashboard_home'`.
-- Paid plans → `accountState: 'pending_payment'`, `nextRoute: 'billing_checkout'`.
+- Paid plans → `accountState: 'pending_payment'`, `nextRoute: 'billing_subscription'`.
 - Uses dependency injection pattern: `createOnboardingPersistenceService(deps)` with `accountRepository` and `salonRepository`.
 - Salon names are normalized (deduplicated, trimmed) and capped to 1.
 
 ### 7. Landing-Dashboard Wiring + Simulation
 `createLandingDashboardOnboardingFlowWiring(deps)` provides:
-- `submitLandingOnboarding()`: Validates profile, persists via `onboardingPersistenceService`, routes to dashboard or checkout.
+- `submitLandingOnboarding()`: Validates profile, persists via `onboardingPersistenceService`, routes to dashboard or subscription/preapproval.
 - `simulateBillingOutcome()`: Test-mode billing simulation for development.
 - `resumeOnboardingFromStorage()`: Rehydrates checkpoint from localStorage.
 - State version validation prevents stale submissions.
@@ -124,7 +124,7 @@ export type OnboardingResumeCheckpoint = {
 - ❌ **Hard-coding localStorage keys** — always use the exported constants (`ONBOARDING_STEP_KEY`, etc.).
 - ❌ **Writing directly to onboarding state without sanitization** — always go through `sanitizeOnboardingState()`.
 - ❌ **Allowing navigation to steps out of order** — `canAccessStep()` enforces order.
-- ❌ **Mixing onboarding state with other localStorage keys** — keep everything prefixed with `turnea.onboarding.*`.
+- ❌ **Mixing onboarding state with other localStorage keys** — keep new keys prefixed with `orvel.onboarding.*`; read legacy `turnea.onboarding.*` only through explicit migration/compatibility code.
 - ❌ **Forgetting to mark welcome email as triggered** — `markWelcomeEmailTriggeredOnce()` is required for progression.
 - ❌ **Hard-coding plan transitions** — use `resolveTransition()` from persistence service.
 
@@ -171,7 +171,7 @@ const state = readOnboardingState(localStorage);
 ## Checklist
 - [ ] All onboarding steps have corresponding route guards
 - [ ] Guard functions call `canAccessStep()` with the correct step argument
-- [ ] localStorage keys use the `turnea.onboarding.*` prefix constants
+- [ ] localStorage keys use the `orvel.onboarding.*` prefix constants for new writes; legacy `turnea.onboarding.*` reads are compatibility-only
 - [ ] State reads are sanitized (corrupted JSON → empty state)
 - [ ] `setCurrentStep()` is called after each successful step transition
 - [ ] Welcome email trigger is marked with `markWelcomeEmailTriggeredOnce()`

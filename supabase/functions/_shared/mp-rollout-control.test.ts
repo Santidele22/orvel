@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/assert_equals.ts";
+import { assertEquals } from "std/assert/assert_equals.ts";
 import { evaluatePreapprovalPlanRollout } from "./mp-rollout-control.ts";
 
 Deno.test("evaluatePreapprovalPlanRollout fails closed in production when rollout config is missing", () => {

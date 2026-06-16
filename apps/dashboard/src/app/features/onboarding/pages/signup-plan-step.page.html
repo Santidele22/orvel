@@ -43,15 +43,16 @@
             <span class="plan-price-period">/ mes</span>
           </div>
 
-          <p class="plan-provider">Pago con {{ plan.checkoutProvider === 'mercado_pago' ? 'Mercado Pago' : plan.checkoutProvider }}</p>
+          <p class="plan-provider">Suscripción con {{ plan.subscriptionProvider === 'mercado_pago' ? 'Mercado Pago' : plan.subscriptionProvider }}</p>
 
           <!-- Plan Features -->
           <div class="plan-features">
             <div class="plan-feature">
               <i class="ri-store-2-line feature-icon"></i>
-              <span class="feature-value">{{ plan.maxLocales }}</span>
-              <span class="feature-label">{{ plan.maxLocales === 1 ? 'local' : 'locales' }}</span>
+              <span class="feature-value">1</span>
+              <span class="feature-label">local incluido</span>
             </div>
+            <p class="plan-addon-note">Sucursales adicionales / Multi-sucursal disponible como add-on.</p>
             <div class="plan-feature">
               <i class="ri-folder-line feature-icon"></i>
               <span class="feature-value">{{ plan.maxRubros }}</span>

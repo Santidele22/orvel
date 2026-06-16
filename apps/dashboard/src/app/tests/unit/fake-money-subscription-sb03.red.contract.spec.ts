@@ -7,10 +7,10 @@ type SimulationOutcome = 'success' | 'failure' | 'cancel';
 type FakeMoneySimulationResult = {
   accountId: string;
   accountState: AccountState;
-  nextRoute: 'dashboard_home' | 'billing_checkout';
+  nextRoute: 'dashboard_home' | 'billing_subscription';
   retry?: {
     allowed: boolean;
-    route: 'billing_checkout';
+    route: 'billing_subscription';
     reason: 'payment_failure';
     attemptId: string;
   };
@@ -54,7 +54,7 @@ type FakeMoneySimulatorModule = {
 
 async function loadFakeMoneySimulatorModule(): Promise<FakeMoneySimulatorModule> {
   try {
-    const mod = await import('../../core/payments/fake-money-subscription-simulator');
+    const mod = await import('../../features/billing/data-access/payments/fake-money-subscription-simulator');
     return mod as FakeMoneySimulatorModule;
   } catch {
     throw new Error(
@@ -143,10 +143,10 @@ describe('SB-03 RED contract: fake-money subscription simulation outcomes', () =
     expect(result).toEqual({
       accountId: 'acc-001',
       accountState: 'pending_payment',
-      nextRoute: 'billing_checkout',
+      nextRoute: 'billing_subscription',
       retry: {
         allowed: true,
-        route: 'billing_checkout',
+        route: 'billing_subscription',
         reason: 'payment_failure',
         attemptId: 'retry-att-001'
       }
@@ -190,7 +190,7 @@ describe('SB-03 RED contract: fake-money subscription simulation outcomes', () =
     expect(result).toEqual({
       accountId: 'acc-001',
       accountState: 'pending_payment',
-      nextRoute: 'billing_checkout'
+      nextRoute: 'billing_subscription'
     });
   });
 

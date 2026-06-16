@@ -164,7 +164,7 @@ async function loadPaymentConfirmedBusinessSyncModule(): Promise<PaymentConfirme
 }
 
 describe('Mercado Pago webhooks S3 RED contract (wiring + audit + business sync)', () => {
-  it('keeps checkout return routes in app router and wires webhook endpoint in server entrypoint', async () => {
+  it('keeps payment return routes in app router and wires webhook endpoint in server entrypoint', async () => {
     const appRoutesSource = fs.readFileSync(APP_ROUTES_PATH, 'utf8');
 
     expect(appRoutesSource).toMatch(/path:\s*['"]payments\/return\/success['"]/);

@@ -1,20 +1,18 @@
-export const REQUIRED_RUBROS = ['peluqueria', 'unas', 'pestanas', 'barberia', 'spa'] as const;
+import {
+  resolveBusinessTypeCodeFromCatalog
+} from '../../../core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+
+const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
+
+export const REQUIRED_RUBROS = REFERENCE_CATALOG.businessTypes.map((businessType) => businessType.code.toLowerCase());
 
 export type RequiredRubro = (typeof REQUIRED_RUBROS)[number];
 
 const REQUIRED_RUBROS_SET = new Set<string>(REQUIRED_RUBROS);
 
 export function normalizeRubro(input: unknown): string {
-  if (typeof input !== 'string') {
-    return '';
-  }
-
-  return input
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '');
+  return resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, input)?.toLowerCase() ?? '';
 }
 
 export function dedupeStringArray(items: string[]): string[] {
@@ -44,7 +42,7 @@ export function sanitizeSelectedRubros(input: unknown): RequiredRubro[] {
     .map((value) => toRequiredRubro(value))
     .filter((value): value is RequiredRubro => value !== null);
 
-  return dedupeStringArray(selected) as RequiredRubro[];
+  return dedupeStringArray(selected).slice(0, 1) as RequiredRubro[];
 }
 
 export function canContinueOnboarding(selectedRubros: unknown): boolean {
@@ -63,5 +61,5 @@ export function toggleSelectedRubro(selectedRubros: unknown, rubro: unknown): Re
     return currentSelectedRubros.filter((selectedRubro) => selectedRubro !== normalizedRubro);
   }
 
-  return [...currentSelectedRubros, normalizedRubro];
+  return [normalizedRubro];
 }

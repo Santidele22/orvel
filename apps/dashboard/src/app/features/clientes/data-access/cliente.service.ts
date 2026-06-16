@@ -6,6 +6,7 @@ import { Observable, of, from, delay, tap, throwError, switchMap, catchError } f
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Cliente, CreateClienteDTO, UpdateClienteDTO } from '../../../models/cliente.model';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 
 @Injectable({
@@ -525,7 +526,8 @@ export class ClienteService {
       return [];
     }
 
-    const raw = globalThis.localStorage.getItem('clientes:fallback');
+    // Degraded local fallback key: clientes:fallback
+    const raw = globalThis.localStorage.getItem(CLIENTES_FALLBACK_STORAGE_KEY);
     if (!raw) {
       return [];
     }
@@ -555,7 +557,7 @@ export class ClienteService {
       return;
     }
 
-    globalThis.localStorage.setItem('clientes:fallback', JSON.stringify(clientes));
+    globalThis.localStorage.setItem(CLIENTES_FALLBACK_STORAGE_KEY, JSON.stringify(clientes));
   }
 
   private validateCreatePayload(dto: CreateClienteDTO): void {

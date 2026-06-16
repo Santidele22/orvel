@@ -4,7 +4,6 @@ import {
   type SupabaseAdapterResult,
   type SupabaseAuthDependencies,
   type SupabaseAuthEnv,
-  createSupabaseOAuthAdapter,
   createSupabaseSignupAdapter,
   type SignupAttempt
 } from './supabase-auth-adapter';
@@ -15,34 +14,9 @@ import {
   decryptToken,
   isEncryptionReady
 } from './encrypted-token-storage';
+import { sanitizeLandingAuthReturnTo } from './auth-return-to';
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
-const DEFAULT_DASHBOARD_PATH = '/dashboard/inicio';
-
-function resolveDashboardBaseUrl(): URL | null {
-  const candidate = import.meta.env.PUBLIC_DASHBOARD_URL?.trim();
-  if (!candidate) return null;
-  try {
-    const url = new URL(candidate);
-    if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
-    url.search = '';
-    url.hash = '';
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-function defaultDashboardReturnTo(): string {
-  const dashboardBaseUrl = resolveDashboardBaseUrl();
-  if (!dashboardBaseUrl) return DEFAULT_DASHBOARD_PATH;
-
-  const basePath = dashboardBaseUrl.pathname;
-  const relativePath = DEFAULT_DASHBOARD_PATH.startsWith(basePath)
-    ? DEFAULT_DASHBOARD_PATH.slice(basePath.length)
-    : DEFAULT_DASHBOARD_PATH.replace(/^\//, '');
-  return new URL(relativePath, dashboardBaseUrl).toString();
-}
 
 export interface LoginResult {
   ok: boolean;
@@ -78,33 +52,14 @@ type OrvelSession = {
 };
 
 function sanitizeReturnTo(returnTo: string | null | undefined): string {
-  if (!returnTo) {
-    return defaultDashboardReturnTo();
-  }
+  const currentOrigin = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'http://localhost:4321';
 
-  const value = returnTo.trim();
-  if (value.startsWith('/')) {
-    if (value.startsWith('//')) {
-      return defaultDashboardReturnTo();
-    }
-    return value;
-  }
-
-  try {
-    const requested = new URL(value);
-    const dashboardBaseUrl = resolveDashboardBaseUrl();
-    if (
-      dashboardBaseUrl &&
-      requested.origin === dashboardBaseUrl.origin &&
-      requested.pathname.startsWith(dashboardBaseUrl.pathname.replace(/\/$/, ''))
-    ) {
-      return requested.toString();
-    }
-  } catch {
-    // fall through
-  }
-
-  return defaultDashboardReturnTo();
+  return sanitizeLandingAuthReturnTo(returnTo, {
+    currentOrigin,
+    dashboardBaseUrl: import.meta.env.PUBLIC_DASHBOARD_URL
+  });
 }
 
 function sanitizeSelectedRubros(raw: unknown): string[] {
@@ -162,6 +117,14 @@ function getRuntimeModeValue(rawModeOrRuntime: RawRuntimeModeInput): string | nu
 }
 
 function mapSupabaseFailureToLoginResult(failure: Extract<SupabaseAdapterResult, { ok: false }>): LoginResult {
+  if (failure.code === 'signup_existing') {
+    return {
+      ok: false,
+      error: 'Ya existe una cuenta con ese email. Iniciá sesión para continuar y retomar el onboarding.',
+      redirectTo: failure.redirectTo
+    };
+  }
+
   if (failure.code === 'invalid_credentials') {
     return {
       ok: false,
@@ -180,6 +143,13 @@ function mapSupabaseFailureToLoginResult(failure: Extract<SupabaseAdapterResult,
     ok: false,
     error: failure.error || 'No pudimos iniciar sesión por el momento.'
   };
+}
+
+function buildSignupExistingLoginRedirect(returnTo: string | null | undefined): string {
+  const loginUrl = new URL('/auth/login', typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:4321');
+  loginUrl.searchParams.set('returnTo', sanitizeReturnTo(returnTo));
+  loginUrl.searchParams.set('resume', 'onboarding');
+  return `${loginUrl.pathname}${loginUrl.search}`;
 }
 
 async function persistSupabaseSession(
@@ -235,14 +205,6 @@ export async function loginWithProvider(input: LoginWithProviderInput): Promise<
   return mapSupabaseFailureToLoginResult(result);
 }
 
-export async function loginWithGoogle(input: string | { redirectTo: string; plan?: string }) {
-  const oauthAdapter = createSupabaseOAuthAdapter({
-    SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
-    SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-  });
-  return await oauthAdapter('google', input);
-}
-
 export function createSupabaseLoginAdapterFromEnv(
   env: SupabaseAuthEnv,
   dependencies?: SupabaseAuthDependencies
@@ -275,7 +237,15 @@ export async function signupWithProvider(input: SignupWithProviderInput): Promis
     };
   }
 
-  return mapSupabaseFailureToLoginResult(result as Extract<SupabaseAdapterResult, { ok: false }>);
+  const failure = result as Extract<SupabaseAdapterResult, { ok: false }>;
+  if (failure.code === 'signup_existing') {
+    return mapSupabaseFailureToLoginResult({
+      ...failure,
+      redirectTo: failure.redirectTo ?? buildSignupExistingLoginRedirect(input.attempt.returnTo)
+    });
+  }
+
+  return mapSupabaseFailureToLoginResult(failure);
 }
 
 export function createSupabaseSignupAdapterFromEnv(

@@ -1,38 +1,52 @@
 type DashboardAuthMode = 'login' | 'signup';
 
-type CheckoutSource = 'checkout';
+type BillingSource = 'subscription';
 
 const DASHBOARD_HOME = '/';
-const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token)/i;
+const DEFAULT_DASHBOARD_ORIGIN = 'http://localhost:4200';
+const LANDING_ROOT_ORIGINS = new Set([
+  'https://orvel.pro',
+  'https://www.orvel.pro',
+  'http://localhost:4321',
+  'http://127.0.0.1:4321'
+]);
+const TOKEN_TEXT_PATTERN = /(access_token|refresh_token|id_token|code)/i;
 const PAYMENT_ID_PATTERN = /(preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 
 export function buildDashboardAuthUrl(input: {
   dashboardOrigin: string;
   mode: DashboardAuthMode;
-  source?: CheckoutSource;
+  source?: BillingSource;
   returnTo?: string | null;
 }): string {
-  const authUrl = new URL('auth', normalizeDashboardBaseUrl(input.dashboardOrigin));
+  const authPath = input.mode === 'signup' ? '/auth/signup/plan' : '/auth/login';
+  const authUrl = new URL(authPath, normalizeDashboardBaseUrl(input.dashboardOrigin));
   authUrl.searchParams.set('mode', input.mode === 'signup' ? 'signup' : 'login');
-  if (input.source === 'checkout') {
-    authUrl.searchParams.set('source', 'checkout');
+  if (input.source === 'subscription') {
+    authUrl.searchParams.set('source', 'subscription');
   }
   authUrl.searchParams.set('returnTo', sanitizeDashboardReturnTo(input.returnTo));
   return authUrl.toString();
 }
 
 function normalizeDashboardBaseUrl(dashboardOrigin: string): string {
-  const candidate = dashboardOrigin.trim() || 'http://localhost:4200';
+  const candidate = dashboardOrigin.trim() || DEFAULT_DASHBOARD_ORIGIN;
   try {
     const url = new URL(candidate);
-    if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
+    if (isLandingRootUrl(url)) return `${url.origin}/`;
+    url.pathname = '/';
     url.search = '';
     url.hash = '';
     return url.toString();
   } catch {
-    return 'http://localhost:4200/';
+    return `${DEFAULT_DASHBOARD_ORIGIN}/`;
   }
+}
+
+function isLandingRootUrl(url: URL): boolean {
+  const isRootPath = url.pathname === '' || url.pathname === '/';
+  return isRootPath && LANDING_ROOT_ORIGINS.has(url.origin);
 }
 
 function sanitizeDashboardReturnTo(returnTo: string | null | undefined): string {

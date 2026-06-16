@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import {
+  getDefaultDashboardReferenceCatalog,
+  resolveBusinessTypeCodeFromCatalog
+} from '../../core/catalog/reference-catalog';
 
-type RubroSlug = 'peluqueria' | 'unas' | 'pestanas' | 'barberia' | 'spa';
+type RubroSlug = 'peluqueria' | 'unas' | 'barberia' | 'spa' | 'pestanas' | 'cejas' | 'masajes' | 'otro';
 
 type SanitizeSelectedRubrosFn = (input: unknown) => RubroSlug[];
 type CanContinueOnboardingFn = (selectedRubros: unknown) => boolean;
@@ -38,22 +42,34 @@ async function loadOnboardingRubrosModule(): Promise<{
   return { REQUIRED_RUBROS, sanitizeSelectedRubros, canContinueOnboarding, toggleSelectedRubro };
 }
 
-describe('TDD contract: onboarding rubro multi-select (1..N)', () => {
-  it('supports required rubros exactly as product contract', async () => {
+describe('TDD contract: onboarding rubro single-select', () => {
+  it('supports rubros from the dashboard reference catalog in catalog sort order', async () => {
     const { REQUIRED_RUBROS } = await loadOnboardingRubrosModule();
+    const catalogBusinessTypes = getDefaultDashboardReferenceCatalog().businessTypes;
 
-    expect(REQUIRED_RUBROS).toEqual(['peluqueria', 'unas', 'pestanas', 'barberia', 'spa']);
+    expect(REQUIRED_RUBROS).toEqual(catalogBusinessTypes.map((businessType) => businessType.code.toLowerCase()));
+    expect(catalogBusinessTypes.map((businessType) => businessType.label)).toEqual([
+      'Peluquería',
+      'Uñas',
+      'Barbería',
+      'Spa',
+      'Pestañas',
+      'Cejas',
+      'Masajes',
+      'Otro'
+    ]);
   });
 
-  it('allows selecting 1..N rubros to continue', async () => {
+  it('allows exactly one rubro to continue and trims any extra persisted rubros', async () => {
     const { canContinueOnboarding, sanitizeSelectedRubros } = await loadOnboardingRubrosModule();
 
     expect(canContinueOnboarding(sanitizeSelectedRubros([]))).toBe(false);
     expect(canContinueOnboarding(sanitizeSelectedRubros(['peluqueria']))).toBe(true);
-    expect(canContinueOnboarding(sanitizeSelectedRubros(['peluqueria', 'spa', 'barberia']))).toBe(true);
+    expect(sanitizeSelectedRubros(['peluqueria', 'spa', 'barberia'])).toEqual(['peluqueria']);
+    expect(sanitizeSelectedRubros(['cejas', 'masajes', 'otro'])).toEqual(['cejas']);
   });
 
-  it('toggles selected rubros deterministically and keeps canContinue in sync', async () => {
+  it('toggles selected rubros deterministically by replacing the previous rubro', async () => {
     const { toggleSelectedRubro, canContinueOnboarding } = await loadOnboardingRubrosModule();
 
     const afterFirstToggle = toggleSelectedRubro([], 'peluqueria');
@@ -61,16 +77,39 @@ describe('TDD contract: onboarding rubro multi-select (1..N)', () => {
     expect(canContinueOnboarding(afterFirstToggle)).toBe(true);
 
     const afterSecondToggle = toggleSelectedRubro(afterFirstToggle, 'spa');
-    expect(afterSecondToggle).toEqual(['peluqueria', 'spa']);
+    expect(afterSecondToggle).toEqual(['spa']);
     expect(canContinueOnboarding(afterSecondToggle)).toBe(true);
 
-    const afterThirdToggle = toggleSelectedRubro(afterSecondToggle, 'peluqueria');
-    expect(afterThirdToggle).toEqual(['spa']);
-    expect(canContinueOnboarding(afterThirdToggle)).toBe(true);
+    const afterThirdToggle = toggleSelectedRubro(afterSecondToggle, 'spa');
+    expect(afterThirdToggle).toEqual([]);
+    expect(canContinueOnboarding(afterThirdToggle)).toBe(false);
 
-    const afterFourthToggle = toggleSelectedRubro(afterThirdToggle, 'spa');
-    expect(afterFourthToggle).toEqual([]);
-    expect(canContinueOnboarding(afterFourthToggle)).toBe(false);
+    const afterFourthToggle = toggleSelectedRubro(afterThirdToggle, 'barberia');
+    expect(afterFourthToggle).toEqual(['barberia']);
+    expect(canContinueOnboarding(afterFourthToggle)).toBe(true);
+  });
+
+  it('normalizes aliases but persists only the first canonical rubro', async () => {
+    const { sanitizeSelectedRubros, toggleSelectedRubro } = await loadOnboardingRubrosModule();
+    const catalog = getDefaultDashboardReferenceCatalog();
+
+    expect(resolveBusinessTypeCodeFromCatalog(catalog, 'uñas')).toBe('unas');
+    expect(resolveBusinessTypeCodeFromCatalog(catalog, 'pestañas')).toBe('pestanas');
+
+    expect(sanitizeSelectedRubros(['uñas', 'Pestañas', 'barbería'])).toEqual(['unas']);
+    expect(toggleSelectedRubro(['uñas'], 'pestañas')).toEqual(['pestanas']);
+  });
+
+  it('keeps canContinue false when a duplicate click clears the only selected rubro', async () => {
+    const { toggleSelectedRubro, canContinueOnboarding } = await loadOnboardingRubrosModule();
+
+    const afterFirstToggle = toggleSelectedRubro([], 'spa');
+    expect(afterFirstToggle).toEqual(['spa']);
+    expect(canContinueOnboarding(afterFirstToggle)).toBe(true);
+
+    const afterDuplicateToggle = toggleSelectedRubro(afterFirstToggle, 'spa');
+    expect(afterDuplicateToggle).toEqual([]);
+    expect(canContinueOnboarding(afterDuplicateToggle)).toBe(false);
   });
 
   it('sanitizes, normalizes and dedupes rubro input', async () => {
@@ -83,11 +122,14 @@ describe('TDD contract: onboarding rubro multi-select (1..N)', () => {
       'Pestañas',
       'barberia',
       'Spa',
+      'Cejas',
+      'MASAJES',
+      'Otro',
       'fotografia',
       null,
       100
     ]);
 
-    expect(selected).toEqual(['peluqueria', 'unas', 'pestanas', 'barberia', 'spa']);
+    expect(selected).toEqual(['peluqueria']);
   });
 });

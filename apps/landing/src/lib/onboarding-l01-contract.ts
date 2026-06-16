@@ -182,15 +182,12 @@ export function previousStep(state: OnboardingStepState): OnboardingStepState {
 export function getPlanUxContract(plan: PlanCode): OnboardingPlanUxContract {
   const resolvedPlan = resolvePlanCode(plan);
   const maxSalons = PLAN_ENTITLEMENTS[resolvedPlan].maxLocales;
-  const multiSalonEnabled = maxSalons > 1;
 
   return {
     plan: resolvedPlan,
-    multiSalonEnabled,
+    multiSalonEnabled: false,
     maxSalons,
-    salonNamesHint: multiSalonEnabled
-      ? `Plan ${resolvedPlan}: podés cargar hasta ${maxSalons} salones.`
-      : 'Plan FREE: 1 salón incluido. Pasate a premium para multi-sucursal.'
+    salonNamesHint: `Plan ${resolvedPlan}: 1 salón incluido. Los locales adicionales se gestionan como add-on o por consulta con Orvel.`
   };
 }
 

@@ -2,9 +2,11 @@
 // Handles plan upgrades/downgrades
 // Endpoint: POST /functions/v1/change-subscription
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
+import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
 import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
+import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -39,20 +41,6 @@ function isRateLimited(req: Request): boolean {
 const MP_API_BASE = "https://api.mercadopago.com";
 const MP_PREAPPROVAL_ENDPOINT = "/preapproval";
 
-function normalizePlanCode(planCode: string): string {
-  const normalized = planCode.trim().toUpperCase();
-
-  if (normalized === 'FREE' || normalized === 'BASIC') {
-    return 'STARTER';
-  }
-
-  if (normalized === 'MEDIUM') {
-    return 'GROWTH';
-  }
-
-  return normalized;
-}
-
 interface ChangeSubscriptionRequest {
   business_id: string;
   new_plan_code: string;
@@ -64,7 +52,7 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function createOpaqueCheckoutToken(): string {
+function createOpaqueSubscriptionSessionToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -152,7 +140,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const canonicalNewPlanCode = normalizePlanCode(new_plan_code);
+    const canonicalNewPlanCode = normalizeCanonicalPlanCode(new_plan_code);
 
     // =============================================================================
     // 3. VERIFY USER OWNS THE BUSINESS
@@ -214,7 +202,7 @@ Deno.serve(async (req) => {
     const { data: currentPlan } = await supabaseAdmin
       .from("plans")
       .select("*")
-      .eq("code", normalizePlanCode(currentSubscription.plan_code))
+      .eq("code", normalizeCanonicalPlanCode(currentSubscription.plan_code))
       .single();
 
     // =============================================================================
@@ -311,11 +299,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      const checkoutToken = createOpaqueCheckoutToken();
-      const externalReference = `checkout-session:${checkoutToken}`;
-      const checkoutExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+      const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
+      const externalReference = createSubscriptionSessionReference(subscriptionSessionToken);
+      const subscriptionSessionExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
 
-      const { data: checkoutSession, error: checkoutError } = await supabaseAdmin
+      const { data: subscriptionSession, error: subscriptionSessionError } = await supabaseAdmin
         .from("billing_checkout_sessions")
         .insert({
           tenant_id: business.owner_id,
@@ -325,17 +313,17 @@ Deno.serve(async (req) => {
           expected_currency: newPlan.currency,
           provider: "mercado_pago",
           external_reference: externalReference,
-          token_hash: await sha256Text(checkoutToken),
-          expires_at: checkoutExpiresAt.toISOString(),
+          token_hash: await sha256Text(subscriptionSessionToken),
+          expires_at: subscriptionSessionExpiresAt.toISOString(),
           created_by: user.id,
         })
         .select("id, external_reference")
         .single();
 
-      if (checkoutError || !checkoutSession) {
-        console.error("Checkout session insert error:", checkoutError?.message);
+      if (subscriptionSessionError || !subscriptionSession) {
+        console.error("Subscription session insert error:", subscriptionSessionError?.message);
         return new Response(
-          JSON.stringify({ error: "CHECKOUT_SESSION_FAILED", message: "Error al crear sesión segura de checkout" }),
+          JSON.stringify({ error: "SUBSCRIPTION_SESSION_FAILED", message: "Error al crear sesión segura de suscripción" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -387,7 +375,7 @@ Deno.serve(async (req) => {
           provider_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || null,
           status: "provider_created",
         })
-        .eq("id", checkoutSession.id);
+        .eq("id", subscriptionSession.id);
 
       // Update subscription with new preapproval
       updateData = {

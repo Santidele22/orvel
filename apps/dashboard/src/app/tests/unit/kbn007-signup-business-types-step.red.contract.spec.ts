@@ -4,18 +4,17 @@
  * Product Spec:
  *  - Path: Step 3 of onboarding → after credentials entered in Step 2
  *  - Constraint: Show only business types ALLOWED by the plan selected in Step 1
- *  - Behavior: Select 1+ types → Review → Submit → Onboarding complete
+ *  - Behavior: Select exactly one service type → Review → Submit → Onboarding complete
  *
  * Plan-to-Business-Type Rules:
- *  - Plan: FREE  → allowed: ["peluqueria"]
- *  - Plan: BASIC → allowed: ["peluqueria", "unas"]
- *  - Plan: MEDIUM → allowed: ["peluqueria", "unas", "barberia"]
- *  - Plan: PRO → allowed: ["peluqueria", "unas", "barberia", "spa"]
+ *  - Business type options are catalog-owned, not defined locally in the component.
+ *  - Plans resolve through the Supabase/reference catalog aliases and planBusinessTypes mapping.
+ *  - PRO/full-access catalog plans expose every catalog business type.
  *
  * Scope:
  *  1) UI filters by plan - Only allowed types shown based on Step 1 plan
  *  2) Cannot select disallowed - If plan changes, invalid selections cleared
- *  3) Multiple selection - Can select 1 or more (depending on plan limits)
+ *  3) Single selection - Can select exactly one service type
  *  4) Required at least one - Must select to submit
  *  5) Visual feedback - Selected types have distinct styling
  *  6) State persistence - Selected types stored
@@ -29,29 +28,22 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
 
-type BusinessTypeCode = 'peluqueria' | 'unas' | 'barberia' | 'spa';
+type BusinessTypeCode =
+  | 'peluqueria'
+  | 'unas'
+  | 'barberia'
+  | 'spa'
+  | 'pestanas'
+  | 'cejas'
+  | 'masajes'
+  | 'otro'
+  | 'depilacion';
 
 type BusinessType = {
   code: BusinessTypeCode;
   label: string;
-};
-
-// All available business types
-const ALL_BUSINESS_TYPES: BusinessType[] = [
-  { code: 'peluqueria', label: 'Peluquería' },
-  { code: 'unas', label: 'Uñas' },
-  { code: 'barberia', label: 'Barbería' },
-  { code: 'spa', label: 'Spa' }
-];
-
-// Plan-to-business-type mapping per spec
-const PLAN_BUSINESS_TYPES: Record<PlanCode, BusinessTypeCode[]> = {
-  FREE: ['peluqueria'],
-  BASIC: ['peluqueria', 'unas'],
-  MEDIUM: ['peluqueria', 'unas', 'barberia'],
-  PRO: ['peluqueria', 'unas', 'barberia', 'spa']
 };
 
 type OnboardingStorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -127,9 +119,13 @@ type SignupBusinessTypesComponentModule = {
       selectedTypes: BusinessTypeCode[];
       canContinue(): boolean;
       canSelect(type: BusinessTypeCode): boolean;
+      getMaxTypes(): number;
+      refreshReferenceCatalog(): Promise<void>;
       toggleType(type: BusinessTypeCode): void;
       isTypeSelected(type: BusinessTypeCode): boolean;
       submit(): void;
+      submitAsync(): Promise<void>;
+      setOnboardingCompletionHandler(handler: ((input: unknown) => Promise<boolean>) | null): void;
       goBack(): void;
     };
   };
@@ -159,7 +155,7 @@ async function loadSignupBusinessTypesComponent(): Promise<SignupBusinessTypesCo
   return { SignupBusinessTypesStepPage };
 }
 
-function readBusinessTypesStepSources(): { component: string; html: string } {
+function readBusinessTypesStepSources(): { component: string; html: string; scss: string; gateway: string } {
   const componentPath = resolve(
     process.cwd(),
     'src/app/features/onboarding/pages/signup-business-types-step.page.ts'
@@ -168,17 +164,24 @@ function readBusinessTypesStepSources(): { component: string; html: string } {
     process.cwd(),
     'src/app/features/onboarding/pages/signup-business-types-step.page.html'
   );
+  const scssPath = resolve(
+    process.cwd(),
+    'src/app/features/onboarding/pages/signup-business-types-step.page.scss'
+  );
+  const gatewayPath = resolve(process.cwd(), 'src/app/core/catalog/reference-catalog.gateway.ts');
 
   const component = existsSync(componentPath) ? readFileSync(componentPath, 'utf-8') : '';
   const html = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';
+  const scss = existsSync(scssPath) ? readFileSync(scssPath, 'utf-8') : '';
+  const gateway = existsSync(gatewayPath) ? readFileSync(gatewayPath, 'utf-8') : '';
 
-  return { component, html };
+  return { component, html, scss, gateway };
 }
 
 function createMemoryStorage(seed?: Record<string, string>): OnboardingStorageLike {
   const map = new Map<string, string>(Object.entries(seed ?? {}));
 
-  return {
+  const storage = {
     getItem(key: string): string | null {
       return map.has(key) ? map.get(key)! : null;
     },
@@ -189,10 +192,165 @@ function createMemoryStorage(seed?: Record<string, string>): OnboardingStorageLi
       map.delete(key);
     }
   };
+
+  installWindowLocalStorage(storage);
+  return storage;
 }
 
+function installWindowLocalStorage(storage: OnboardingStorageLike): void {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: storage
+  });
+
+  if (typeof window.dispatchEvent !== 'function') {
+    Object.defineProperty(window, 'dispatchEvent', {
+      configurable: true,
+      value: () => true
+    });
+  }
+
+  if (typeof globalThis.CustomEvent !== 'function') {
+    Object.defineProperty(globalThis, 'CustomEvent', {
+      configurable: true,
+      value: class CustomEvent<T = unknown> extends Event {
+        detail: T;
+
+        constructor(type: string, init?: CustomEventInit<T>) {
+          super(type, init);
+          this.detail = init?.detail as T;
+        }
+      }
+    });
+  }
+}
+
+describe('KBN-007.CATALOG - onboarding business types use the reference catalog', () => {
+  it('CAT-OBT-000 @RED - production onboarding catalog snapshot has a non-empty free fallback before RPC refresh', () => {
+    const { gateway } = readBusinessTypesStepSources();
+
+    expect(gateway, 'Free signup cannot render 0/1 when the remote catalog has not initialized yet').toMatch(
+      /ONBOARDING_REFERENCE_CATALOG_FALLBACK|DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE/
+    );
+    expect(gateway, 'Fallback must preserve the free plan business-type allowlist').toMatch(
+      /plan_business_types|planBusinessTypes/
+    );
+    expect(gateway, 'Closed empty runtime catalog caused the launch onboarding screen to render zero options').not.toMatch(
+      /businessTypes:\s*\[\],[\s\S]*businessTypeAliases:\s*\[\],[\s\S]*planBusinessTypes:\s*\[\]/
+    );
+  });
+
+  it('CAT-OBT-001 @RED - component must not define local ALL_BUSINESS_TYPES as source of truth', () => {
+    const { component } = readBusinessTypesStepSources();
+
+    expect(component).toMatch(/REFERENCE_CATALOG|getDefaultDashboardReferenceCatalog|getAllowedBusinessTypesForPlan/);
+    expect(component, 'Business type options must come from catalog.businessTypes/planBusinessTypes, not a local component array').not.toMatch(
+      /export\s+const\s+ALL_BUSINESS_TYPES\s*[:=]/
+    );
+  });
+
+  it('CAT-OBT-002 @RED - component must not keep a four-item local allowlist', () => {
+    const { component } = readBusinessTypesStepSources();
+
+    expect(component, 'Remove local allowlist limited to the legacy four business types').not.toMatch(
+      /\[\s*['"]peluqueria['"]\s*,\s*['"]unas['"]\s*,\s*['"]barberia['"]\s*,\s*['"]spa['"]\s*\]/
+    );
+    expect(component, 'Alias/canonicalization should delegate to catalog helpers, not local switch/list code').toMatch(
+      /resolveBusinessTypeCodeFromCatalog|businessTypeAliases|getAllowedBusinessTypesForPlan/
+    );
+  });
+
+  it('CAT-OBT-003 @RED - PRO plan exposes every catalog business type', async () => {
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    installWindowLocalStorage(storage);
+
+    const component = new SignupBusinessTypesStepPage();
+
+    expect(component.allowedTypes.map((type) => type.code)).toEqual([
+      'peluqueria',
+      'unas',
+      'barberia',
+      'spa',
+      'pestanas',
+      'cejas',
+      'masajes',
+      'otro'
+    ]);
+  });
+
+  it('CAT-OBT-004 @RED - accented aliases are normalized through catalog helpers into canonical ascii selected codes', async () => {
+    const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({
+      'turnea.onboarding.plan': 'PRO',
+      [ONBOARDING_BUSINESS_TYPES_STORAGE_KEY]: JSON.stringify(['uñas', 'pestañas'])
+    });
+    installWindowLocalStorage(storage);
+
+    const component = new SignupBusinessTypesStepPage();
+
+    expect(component.selectedTypes).toEqual(['unas']);
+  });
+
+  it('CAT-OBT-005 @RED - selection and submit persist canonical ascii codes for expanded catalog types', async () => {
+    const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    installWindowLocalStorage(storage);
+    const component = new SignupBusinessTypesStepPage();
+    component.setOnboardingCompletionHandler(async () => true);
+
+    component.toggleType('pestanas');
+    await component.submitAsync();
+
+    expect(JSON.parse(storage.getItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY) ?? '[]')).toEqual(['pestanas']);
+  });
+
+  it('CAT-OBT-006 @RED - onboarding refreshes the RPC catalog after module load instead of freezing stale fallback', async () => {
+    const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
+    const catalogModule = await import('../../core/catalog/reference-catalog');
+    const gatewayModule = await import('../../core/catalog/reference-catalog.gateway');
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'STARTER' });
+    installWindowLocalStorage(storage);
+
+    gatewayModule.initializeRuntimeReferenceCatalogSnapshot(catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
+    gatewayModule.configureDashboardReferenceCatalogGateway({
+      async getDashboardReferenceCatalog() {
+        return catalogModule.normalizeDashboardReferenceCatalog({
+          ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD,
+          business_types: [
+            ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.business_types,
+            { code: 'depilacion', label: 'Depilación', theme_key: 'beauty', sort_order: 80, default_capacity: 1 }
+          ],
+          business_type_aliases: [
+            ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.business_type_aliases,
+            { alias: 'depilación', business_type_code: 'depilacion' },
+            { alias: 'depilacion', business_type_code: 'depilacion' }
+          ],
+          plan_business_types: [
+            ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.plan_business_types,
+            { plan_code: 'STARTER', business_type_code: 'depilacion' }
+          ]
+        });
+      }
+    });
+
+    try {
+      const component = new SignupBusinessTypesStepPage();
+      await component.refreshReferenceCatalog();
+
+      expect(component.allowedTypes.map((type) => type.code)).toContain('depilacion');
+      expect(component.allowedTypes.find((type) => type.code === 'depilacion')?.label).toBe('Depilación');
+    } finally {
+      gatewayModule.configureDashboardReferenceCatalogGateway(null);
+      gatewayModule.initializeRuntimeReferenceCatalogSnapshot(catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
+    }
+  });
+});
+
 describe('KBN-007.1 - UI filters by plan', () => {
-  it('KBN-007.1.1 @RED - FREE plan shows only peluqueria', async () => {
+  it('KBN-007.1.1 @RED - FREE plan shows all active catalog types while max_rubros limits selection count', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
@@ -204,7 +362,17 @@ describe('KBN-007.1 - UI filters by plan', () => {
     expect(plan).toBe('FREE');
 
     const component = new SignupBusinessTypesStepPage();
-    expect(component.allowedTypes.map((t) => t.code)).toEqual(['peluqueria']);
+    expect(component.allowedTypes.map((t) => t.code)).toEqual([
+      'peluqueria',
+      'unas',
+      'barberia',
+      'spa',
+      'pestanas',
+      'cejas',
+      'masajes',
+      'otro'
+    ]);
+    expect(component.getMaxTypes()).toBe(1);
   });
 
   it('KBN-007.1.2 @RED - BASIC plan shows peluqueria, unas', async () => {
@@ -213,12 +381,12 @@ describe('KBN-007.1 - UI filters by plan', () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'BASIC');
-    expect(readPlanSelection(storage)).toBe('BASIC');
+    expect(readPlanSelection(storage)).toBe('STARTER');
 
     const component = new SignupBusinessTypesStepPage();
     expect(component.allowedTypes.map((t) => t.code)).toContain('peluqueria');
     expect(component.allowedTypes.map((t) => t.code)).toContain('unas');
-    expect(component.allowedTypes.length).toBe(2);
+    expect(component.allowedTypes.length).toBe(8);
   });
 
   it('KBN-007.1.3 @RED - MEDIUM plan shows peluqueria, unas, barberia', async () => {
@@ -227,17 +395,17 @@ describe('KBN-007.1 - UI filters by plan', () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
-    expect(readPlanSelection(storage)).toBe('MEDIUM');
+    expect(readPlanSelection(storage)).toBe('GROWTH');
 
     const component = new SignupBusinessTypesStepPage();
     const codes = component.allowedTypes.map((t) => t.code);
     expect(codes).toContain('peluqueria');
     expect(codes).toContain('unas');
     expect(codes).toContain('barberia');
-    expect(component.allowedTypes.length).toBe(3);
+    expect(component.allowedTypes.length).toBe(8);
   });
 
-  it('KBN-007.1.4 @RED - PRO plan shows all 4 business types', async () => {
+  it('KBN-007.1.4 @RED - PRO plan shows all catalog business types', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
@@ -251,16 +419,29 @@ describe('KBN-007.1 - UI filters by plan', () => {
     expect(codes).toContain('unas');
     expect(codes).toContain('barberia');
     expect(codes).toContain('spa');
-    expect(component.allowedTypes.length).toBe(4);
+    expect(codes).toContain('pestanas');
+    expect(codes).toContain('cejas');
+    expect(codes).toContain('masajes');
+    expect(codes).toContain('otro');
+    expect(component.allowedTypes.length).toBe(8);
   });
 
-  it('KBN-007.1.5 @RED - template displays business type labels', async () => {
+  it('KBN-007.1.5 @RED - template renders catalog-derived business type labels dynamically', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    expect(html).toMatch(/Peluquería/i);
-    expect(html).toMatch(/Uñas/i);
-    expect(html).toMatch(/Barbería/i);
-    expect(html).toMatch(/Spa/i);
+    expect(html).toMatch(/allowedTypes/);
+    expect(html).toMatch(/type\.label/);
+    expect(html, 'Template should not duplicate catalog labels as static local markup').not.toMatch(/Peluquería[\s\S]*Uñas[\s\S]*Barbería[\s\S]*Spa/i);
+  });
+
+  it('KBN-007.1.6 @RED - launch onboarding screen uses Orvel dark/purple auth styling markers', () => {
+    const { scss } = readBusinessTypesStepSources();
+
+    expect(scss).toMatch(/#0b0714|#120a1f|bg-primary|dark/i);
+    expect(scss).toMatch(/#8b5cf6|#a855f7|purple|violet/i);
+    expect(scss, 'Remove legacy light/green Luminous Atelier tokens from this launch auth screen').not.toMatch(
+      /#F2F4F3|#8BA888|Luminous Atelier/i
+    );
   });
 });
 
@@ -275,11 +456,11 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
 
     const component = new SignupBusinessTypesStepPage();
 
-    // FREE plan: only peluqueria is allowed
+    // FREE plan: all active types are visible/selectable; max_rubros enforces how many can be selected.
     expect(component.canSelect('peluqueria')).toBe(true);
-    expect(component.canSelect('unas')).toBe(false);
-    expect(component.canSelect('barberia')).toBe(false);
-    expect(component.canSelect('spa')).toBe(false);
+    expect(component.canSelect('unas')).toBe(true);
+    expect(component.canSelect('barberia')).toBe(true);
+    expect(component.canSelect('spa')).toBe(true);
   });
 
   it('KBN-007.2.2 @RED - canSelect returns true for allowed types', async () => {
@@ -297,7 +478,7 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
     expect(component.canSelect('spa')).toBe(true);
   });
 
-  it('KBN-007.2.3 @RED - toggleType does nothing for disallowed types', async () => {
+  it('KBN-007.2.3 @RED - toggleType allows exactly one service type and replaces the previous selection', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
@@ -306,13 +487,15 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
 
     const component = new SignupBusinessTypesStepPage();
 
-    // Try to select disallowed type - should be no-op
+    component.toggleType('peluqueria');
     component.toggleType('spa');
-    expect(component.isTypeSelected('spa')).toBe(false);
+    expect(component.isTypeSelected('peluqueria')).toBe(false);
+    expect(component.isTypeSelected('spa')).toBe(true);
+    expect(component.selectedTypes).toEqual(['spa']);
   });
 });
 
-describe('KBN-007.3 - Multiple selection', () => {
+describe('KBN-007.3 - Single selection', () => {
   it('KBN-007.3.1 @RED - can select one type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
@@ -326,7 +509,7 @@ describe('KBN-007.3 - Multiple selection', () => {
     expect(component.selectedTypes).toContain('peluqueria');
   });
 
-  it('KBN-007.3.2 @RED - can select multiple types up to plan limit', async () => {
+  it('KBN-007.3.2 @RED - selecting a different service type replaces the previous selection', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -336,12 +519,12 @@ describe('KBN-007.3 - Multiple selection', () => {
     component.toggleType('peluqueria');
     component.toggleType('unas');
 
-    expect(component.isTypeSelected('peluqueria')).toBe(true);
+    expect(component.isTypeSelected('peluqueria')).toBe(false);
     expect(component.isTypeSelected('unas')).toBe(true);
-    expect(component.selectedTypes.length).toBe(2);
+    expect(component.selectedTypes).toEqual(['unas']);
   });
 
-  it('KBN-007.3.3 @RED - BASIC plan limit is 2 types', async () => {
+  it('KBN-007.3.3 @RED - BASIC plan still allows continuing with exactly one selected service type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -349,14 +532,13 @@ describe('KBN-007.3 - Multiple selection', () => {
 
     const component = new SignupBusinessTypesStepPage();
 
-    // Can select up to 2 for BASIC
     component.toggleType('peluqueria');
-    component.toggleType('unas');
 
+    expect(component.selectedTypes).toEqual(['peluqueria']);
     expect(component.canContinue()).toBe(true);
   });
 
-  it('KBN-007.3.4 @RED - MEDIUM plan allows 3 types', async () => {
+  it('KBN-007.3.4 @RED - MEDIUM plan also replaces previous selections and keeps one service type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
@@ -368,7 +550,7 @@ describe('KBN-007.3 - Multiple selection', () => {
     component.toggleType('unas');
     component.toggleType('barberia');
 
-    expect(component.selectedTypes.length).toBe(3);
+    expect(component.selectedTypes).toEqual(['barberia']);
     expect(component.canContinue()).toBe(true);
   });
 
@@ -433,11 +615,11 @@ describe('KBN-007.5 - Visual feedback for selected types', () => {
     expect(component.isTypeSelected('peluqueria')).toBe(false);
   });
 
-  it('KBN-007.5.3 @RED - template uses checkbox or multi-select pattern', async () => {
+  it('KBN-007.5.3 @RED - template uses a single-select card/radio pattern', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    // Should use checkboxes (multi-select) NOT radio buttons (single-select)
-    expect(html).toMatch(/type="checkbox"|type='checkbox'|\[checked\]/i);
+    expect(html).toMatch(/type="radio"|type='radio'|\[checked\]|\[class\.selected\]|isTypeSelected/i);
+    expect(html).not.toMatch(/type="checkbox"|type='checkbox'/i);
   });
 });
 
@@ -447,18 +629,18 @@ describe('KBN-007.6 - State persistence', () => {
       await loadOnboardingBusinessTypesStorageModule();
     const storage = createMemoryStorage();
 
-    persistBusinessTypes(storage, ['peluqueria', 'unas']);
+    persistBusinessTypes(storage, ['peluqueria']);
 
     expect(storage.getItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY)).toBeDefined();
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas']);
+    expect(readBusinessTypes(storage)).toEqual(['peluqueria']);
   });
 
-  it('KBN-007.6.2 @RED - persists multiple types correctly', async () => {
+  it('KBN-007.6.2 @RED - persists one selected service type correctly', async () => {
     const { persistBusinessTypes, readBusinessTypes } = await loadOnboardingBusinessTypesStorageModule();
     const storage = createMemoryStorage();
 
-    persistBusinessTypes(storage, ['peluqueria', 'unas', 'barberia']);
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas', 'barberia']);
+    persistBusinessTypes(storage, ['barberia']);
+    expect(readBusinessTypes(storage)).toEqual(['barberia']);
   });
 
   it('KBN-007.6.3 @RED - readBusinessTypes returns null when no data persisted', async () => {
@@ -529,11 +711,13 @@ describe('KBN-007.8 - Final submit completes onboarding', () => {
     component.toggleType('peluqueria');
     component.toggleType('unas');
 
-    // submit() should persist business types
-    component.submit();
+    component.setOnboardingCompletionHandler(async () => true);
+
+    // submitAsync() should persist business types before mandatory completion succeeds
+    await component.submitAsync();
 
     const { readBusinessTypes } = await loadOnboardingBusinessTypesStorageModule();
-    expect(readBusinessTypes(storage)).toEqual(['peluqueria', 'unas']);
+    expect(readBusinessTypes(storage)).toEqual(['unas']);
   });
 });
 
@@ -545,11 +729,13 @@ describe('KBN-007.9 - Navigation based on plan', () => {
     expect(component).toMatch(/dashboard|home|principal/i);
   });
 
-  it('KBN-007.9.2 @RED - Paid plans route to billing/payment', async () => {
+  it('KBN-007.9.2 @RED - paid plans show optional extra-branch modal after persistence, not billing redirect', async () => {
     const { component } = readBusinessTypesStepSources();
 
-    // Should route to billing for paid plans
-    expect(component).toMatch(/billing|pago|payment|payment-method/i);
+    // Simplified onboarding: paid plans can skip the branch add-on and continue to welcome.
+    expect(component).toMatch(/showPaidAddonModal|extra Branch|extra-branch/i);
+    expect(component.indexOf('persistMandatoryOnboarding')).toBeLessThan(component.indexOf('showPaidAddonModal = true'));
+    expect(component).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
   });
 
   it('KBN-007.9.3 @RED - template button triggers submit action', async () => {
@@ -598,21 +784,30 @@ describe('KBN-007.11 - Edge cases', () => {
     expect(readBusinessTypes(corruptedStorage)).toBeNull();
   });
 
-  it('KBN-007.11.2 @RED - when no plan in storage, defaults to FREE', async () => {
+  it('KBN-007.11.2 @RED - when no plan in storage, defaults to catalog STARTER', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const emptyStorage = createMemoryStorage();
 
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
     const plan = readPlanSelection(emptyStorage);
 
-    // No plan selected = FREE by default
-    expect(plan ?? 'FREE').toBe('FREE');
+    // No stored plan: component falls back to the catalog starter plan.
+    expect(plan).toBeNull();
 
     const component = new SignupBusinessTypesStepPage();
-    expect(component.allowedTypes.map((t) => t.code)).toEqual(['peluqueria']);
+    expect(component.allowedTypes.map((t) => t.code)).toEqual([
+      'peluqueria',
+      'unas',
+      'barberia',
+      'spa',
+      'pestanas',
+      'cejas',
+      'masajes',
+      'otro'
+    ]);
   });
 
-  it('KBN-007.11.3 @RED - reads persisted plan from Step 1 storage', async () => {
+  it('KBN-007.11.3 @RED - reads persisted plan aliases from Step 1 storage as canonical catalog plans', async () => {
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
     const storage = createMemoryStorage();
 
@@ -620,6 +815,6 @@ describe('KBN-007.11 - Edge cases', () => {
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
     const plan = readPlanSelection(storage);
 
-    expect(plan).toBe('MEDIUM');
+    expect(plan).toBe('GROWTH');
   });
 });

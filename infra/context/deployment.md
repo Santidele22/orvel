@@ -5,7 +5,7 @@ This document records only known deployment facts for the Orvel monorepo migrati
 ## Known Facts
 
 - Supabase functions are deployed.
-- Supabase database push is blocked by remote migration history mismatch.
+- Repository context records that Supabase migration history was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date.
 - No deployment guarantees for dashboard or landing have been verified in this monorepo context.
 
 ## Deployment Boundaries

@@ -18,7 +18,9 @@ export type PlanOption = {
   priceMonthlyCents: number;
   maxLocales: number;
   maxRubros: number;
-  checkoutProvider: 'mercado_pago';
+  includedLocalesLabel: string;
+  multiBranchAddOnLabel: string;
+  subscriptionProvider: 'mercado_pago';
 };
 
 // Storage key per KBN-004.5.4 spec
@@ -58,7 +60,9 @@ export class SignupPlanStepPage {
     priceMonthlyCents: plan.priceMonthlyCents,
     maxLocales: plan.maxLocales,
     maxRubros: plan.maxRubros,
-    checkoutProvider: plan.checkoutProvider
+    includedLocalesLabel: plan.includedLocalesLabel,
+    multiBranchAddOnLabel: plan.multiBranchAddOnLabel,
+    subscriptionProvider: plan.subscriptionProvider
   }));
 
   /** Currently selected plan (null = no selection) */

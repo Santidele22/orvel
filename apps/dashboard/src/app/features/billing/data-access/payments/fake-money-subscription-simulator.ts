@@ -5,10 +5,10 @@ type SimulationOutcome = 'success' | 'failure' | 'cancel';
 type FakeMoneySimulationResult = {
   accountId: string;
   accountState: AccountState;
-  nextRoute: 'dashboard_home' | 'billing_checkout';
+  nextRoute: 'dashboard_home' | 'billing_subscription';
   retry?: {
     allowed: boolean;
-    route: 'billing_checkout';
+    route: 'billing_subscription';
     reason: 'payment_failure';
     attemptId: string;
   };
@@ -125,10 +125,10 @@ export function createFakeMoneySubscriptionSimulator(deps: FakeMoneySimulatorDep
         return {
           accountId: input.accountId,
           accountState: 'pending_payment',
-          nextRoute: 'billing_checkout',
+          nextRoute: 'billing_subscription',
           retry: {
             allowed: true,
-            route: 'billing_checkout',
+            route: 'billing_subscription',
             reason: 'payment_failure',
             attemptId: retryAttemptIdFactory()
           }
@@ -138,7 +138,7 @@ export function createFakeMoneySubscriptionSimulator(deps: FakeMoneySimulatorDep
       return {
         accountId: input.accountId,
         accountState: 'pending_payment',
-        nextRoute: 'billing_checkout'
+        nextRoute: 'billing_subscription'
       };
     }
   };

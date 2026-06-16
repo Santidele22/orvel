@@ -71,9 +71,9 @@ describe('RED contract: post-onboarding edit remains allowed but plan-constraine
 
     const expectedByPlan: Record<PlanCode, { acceptsAt: number; rejectsAt: number }> = {
       FREE: { acceptsAt: 0, rejectsAt: 1 },
-      BASIC: { acceptsAt: 2, rejectsAt: 3 },
-      MEDIUM: { acceptsAt: 3, rejectsAt: 4 },
-      PRO: { acceptsAt: 4, rejectsAt: 5 }
+      BASIC: { acceptsAt: 0, rejectsAt: 1 },
+      MEDIUM: { acceptsAt: 0, rejectsAt: 1 },
+      PRO: { acceptsAt: 0, rejectsAt: 1 }
     };
 
     (Object.keys(expectedByPlan) as PlanCode[]).forEach((plan) => {

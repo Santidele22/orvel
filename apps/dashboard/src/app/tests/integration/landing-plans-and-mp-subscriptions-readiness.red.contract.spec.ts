@@ -10,7 +10,7 @@ type LandingPlanViewModel = {
   billingCadences: { monthly: number; quarterly: number; annual: number };
   maxLocales: number;
   maxRubros: number;
-  checkoutProvider: 'mercado_pago';
+  subscriptionProvider: 'mercado_pago';
 };
 
 type LandingPlansSourceModule = {
@@ -25,6 +25,8 @@ type MercadoPagoSubscriptionEnvModule = {
 const ROOT = process.cwd();
 const CORE_DIR = path.join(ROOT, 'src', 'app', 'core');
 const SUPABASE_MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
+const MONOREPO_ROOT = path.resolve(ROOT, '../..');
+const SUPABASE_FUNCTIONS_DIR = path.join(MONOREPO_ROOT, 'supabase', 'functions');
 
 function readSqlCorpus(): string {
   expect(fs.existsSync(SUPABASE_MIGRATIONS_DIR), `Missing migrations directory: ${SUPABASE_MIGRATIONS_DIR}`).toBe(true);
@@ -86,7 +88,7 @@ describe('Landing plans + Mercado Pago subscriptions readiness (RED contracts)',
             }),
             maxLocales: expect.any(Number),
             maxRubros: expect.any(Number),
-            checkoutProvider: 'mercado_pago'
+            subscriptionProvider: 'mercado_pago'
           })
         ])
       );
@@ -94,20 +96,18 @@ describe('Landing plans + Mercado Pago subscriptions readiness (RED contracts)',
   });
 
   describe('Mercado Pago subscription env contract', () => {
-    it('must enforce required MP subscription env keys via explicit loader (no hardcoded secrets)', async () => {
+    it('must keep MP secret requirements in server functions, not dashboard runtime env', async () => {
       const env = await loadMercadoPagoSubscriptionEnvModule();
+      const createSubscriptionSource = fs.readFileSync(path.join(SUPABASE_FUNCTIONS_DIR, 'create-subscription', 'index.ts'), 'utf8');
+      const webhookSource = fs.readFileSync(path.join(SUPABASE_FUNCTIONS_DIR, 'mercadopago-webhook', 'index.ts'), 'utf8');
 
-      expect(env.REQUIRED_MERCADO_PAGO_SUBSCRIPTION_ENV_KEYS).toEqual(
-        expect.arrayContaining([
-          'MP_ACCESS_TOKEN',
-          'MP_WEBHOOK_SECRET',
-          'MP_PREAPPROVAL_PLAN_ID',
-          'APP_BASE_URL'
-        ])
-      );
+      expect(env.REQUIRED_MERCADO_PAGO_SUBSCRIPTION_ENV_KEYS).toEqual(expect.arrayContaining(['MP_PREAPPROVAL_PLAN_ID', 'APP_BASE_URL']));
+      expect(env.REQUIRED_MERCADO_PAGO_SUBSCRIPTION_ENV_KEYS).not.toEqual(expect.arrayContaining(['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET']));
       expect(() => env.loadMercadoPagoSubscriptionEnv({ APP_BASE_URL: 'https://app.salon.test' })).toThrow(
         /Missing required/i
       );
+      expect(createSubscriptionSource).toMatch(/MP_ACCESS_TOKEN/);
+      expect(webhookSource).toMatch(/MP_WEBHOOK_SECRET/);
     });
 
     it('must not contain hardcoded Mercado Pago credentials in core source files', () => {

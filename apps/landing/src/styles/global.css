@@ -1,6 +1,33 @@
 @import "tailwindcss";
 @import "./theme/index.css";
 
+html {
+  font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(h1, h2, h3, .font-headline) {
+  font-family: var(--font-headline);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+:where(h4, h5, h6) {
+  font-family: var(--font-headline);
+  letter-spacing: -0.015em;
+}
+
+:where(label, .font-label) {
+  font-family: var(--font-label);
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 100, 'GRAD' 0, 'opsz' 24;
 }

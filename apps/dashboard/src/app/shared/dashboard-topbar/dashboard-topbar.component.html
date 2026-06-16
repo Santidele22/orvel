@@ -1,4 +1,6 @@
-<ng-container *ngComponentOutlet="activeTemplate().topbarComponent" />
+<div class="relative sm:block md:block lg:hidden">
+  <ng-container *ngComponentOutlet="activeTemplate().topbarComponent; inputs: templateInputs()" />
+</div>
 
 <div class="sr-only">
   <div class="dashboard-topbar-contract sm:block md:block lg:block" data-testid="dashboard-topbar-responsive">

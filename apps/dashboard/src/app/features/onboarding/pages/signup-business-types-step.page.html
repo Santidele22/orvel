@@ -1,9 +1,9 @@
 <!--
   Signup Business Types Step - Template
   
-  Step 3 of onboarding flow - Business Types Selection
-  Shows only types allowed by the plan selected in Step 1
-  User selects 1+ types and submits to complete onboarding
+  Step 3 of onboarding flow - Primary Rubro Selection
+  Shows only rubros allowed by the plan selected in Step 1
+  User selects one primary rubro and submits to complete onboarding
 -->
 <div class="business-types-container">
   <!-- Background Decoration -->
@@ -12,79 +12,91 @@
     <div class="decoration-circle circle-2"></div>
   </div>
 
-  <div class="business-types-card">
-    <!-- Header -->
-    <header class="business-types-header">
-      <h1 class="business-types-title">¿Qué servicios ofrece tu negocio?</h1>
-      <p class="business-types-subtitle">Seleccioná uno o más tipos de servicio</p>
-    </header>
+  <div class="business-types-card" [class.state-success]="showWelcomeModal" [class.state-addon]="showPaidAddonModal">
+    @if (isSelectionStep()) {
+      <!-- Header -->
+      <header class="business-types-header">
+        <span class="eyebrow">Último paso</span>
+        <h1 class="business-types-title">Elegí el rubro principal de tu negocio</h1>
+        <p class="business-types-subtitle">Esto configura tu agenda inicial. Podés cambiarlo más adelante.</p>
+      </header>
 
-    <!-- Business Types Grid -->
-    <div class="business-types-grid">
-      @for (type of allowedTypes; track type.code) {
+      <!-- Primary Rubro Grid -->
+      <div class="business-types-grid" aria-label="Rubros principales disponibles">
+        @for (type of allowedTypes; track type.code) {
+          <button
+            type="button"
+            class="business-type-card"
+            [class.selected]="isTypeSelected(type.code)"
+            [attr.aria-pressed]="isTypeSelected(type.code)"
+            [disabled]="!canSelect(type.code)"
+            (click)="toggleType(type.code)"
+          >
+            <span class="type-checkbox" aria-hidden="true">
+              @if (isTypeSelected(type.code)) {
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              }
+            </span>
+            <span class="type-label">{{ type.label }}</span>
+          </button>
+        }
+      </div>
+
+      <!-- Selection Info -->
+      <div class="selection-info">
+        <span class="selection-count">
+          Rubro principal: {{ selectedTypes.length }} / {{ getMaxTypes() }}
+        </span>
+      </div>
+
+      <!-- Error Message -->
+      @if (errorMessage) {
+        <div class="error-message" role="alert">
+          {{ errorMessage }}
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="signup-actions">
         <button
           type="button"
-          class="business-type-card"
-          [class.selected]="isTypeSelected(type.code)"
-          [disabled]="!canSelect(type.code)"
-          (click)="toggleType(type.code)"
+          class="btn-back"
+          (click)="goBack()"
         >
-          <span class="type-checkbox">
-            @if (isTypeSelected(type.code)) {
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            }
-          </span>
-          <span class="type-label">{{ type.label }}</span>
+          Ir al dashboard
         </button>
-      }
-    </div>
-
-    <!-- Selection Info -->
-    <div class="selection-info">
-      <span class="selection-count">
-        {{ selectedTypes.length }} / {{ getMaxTypes() }} seleccionados
-      </span>
-    </div>
-
-    <!-- Error Message -->
-    @if (errorMessage) {
-      <div class="error-message">
-        {{ errorMessage }}
+        <button
+          type="button"
+          class="btn-continue"
+          [disabled]="!canContinue()"
+          (click)="submit()"
+        >
+          {{ isLoading ? 'Guardando configuración' : 'Guardar configuración' }}
+        </button>
       </div>
     }
 
-    @if (successMessage) {
-      <div class="success-message" role="status" aria-live="polite">
-        {{ successMessage }}
-      </div>
+    @if (showPaidAddonModal) {
+      <section class="extra-branch-modal" role="dialog" aria-modal="true" aria-labelledby="extra-branch-title">
+        <span class="eyebrow">Opcional para planes pagos</span>
+        <h2 id="extra-branch-title">¿Querés sumar otra sucursal?</h2>
+        <p>Tu configuración principal ya está lista. Podés preparar un local adicional ahora o saltar este paso y entrar a Orvel.</p>
+        <div class="signup-actions">
+          <button type="button" class="btn-back" (click)="omitPaidAddon()">Omitir sucursal</button>
+          <button type="button" class="btn-continue" (click)="continueWithPaidAddonLater()">Entrar a Orvel</button>
+        </div>
+      </section>
     }
-
-    <!-- Actions -->
-    <div class="signup-actions">
-      <button
-        type="button"
-        class="btn-back"
-        (click)="goBack()"
-      >
-        Volver
-      </button>
-      <button
-        type="button"
-        class="btn-continue"
-        [disabled]="!canContinue()"
-        (click)="submit()"
-      >
-        Completar registro
-      </button>
-    </div>
 
     @if (showWelcomeModal) {
-      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-        <h2 id="welcome-title">¡Bienvenida/o a Turnea!</h2>
-        <p>Tu onboarding quedó completo. Revisá tu email para el mensaje de bienvenida.</p>
-        <button type="button" class="btn-continue" (click)="continueToLogin()">Ir al login</button>
+      <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" aria-describedby="welcome-description">
+        <span class="success-orb" aria-hidden="true">✓</span>
+        <span class="eyebrow">Configuración guardada</span>
+        <h2 id="welcome-title">¡Bienvenida/o a Orvel!</h2>
+        <p id="welcome-description">Tu onboarding quedó completo y tu rubro principal ya quedó guardado.</p>
+        <button type="button" data-testid="onboarding-welcome-primary-action" class="btn-continue btn-welcome-primary" (click)="continueAfterWelcome()">Entrar a Orvel</button>
       </section>
     }
   </div>

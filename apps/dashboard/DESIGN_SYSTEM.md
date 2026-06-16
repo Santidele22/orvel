@@ -1,103 +1,80 @@
-# Atomic Design System: Luminous Atelier (Turnea)
+# Orvel Design System
 
-Este sistema de diseño está organizado siguiendo los principios de **Atomic Design** para garantizar modularidad, escalabilidad y facilidad de implementación para Aurora.
+Orvel usa una estética premium, oscura y enfocada en claridad operativa para negocios de belleza. No reutilizar lenguaje visual ni nombres de Turnea; Turnea solo puede aparecer como compatibilidad técnica legacy si una migración lo requiere.
 
----
+## Identidad visual
 
-## 🚀 Visión: "The Luminous Atelier"
-Una estética premium y glassmorphic definida por la luz, la transparencia y diagramaciones editoriales. Sin bordes duros, solo cambios tonales y brillos suaves.
+- **Marca:** Orvel.
+- **Personalidad:** calma, precisión, intención y control. La interfaz debe sentirse elegante, confiable y simple.
+- **Producto:** agenda/turnos para salones, barberías, uñas, estética, spas y profesionales de belleza.
+- **Promesa visual:** menos ruido, más foco; cada pantalla debe ayudar a completar un turno o entender el estado del negocio.
 
----
+## Paleta
 
-## ⚛️ 1. Atoms (Fundamentos)
+- Fondo principal: `#0A0A0A` / negro suave.
+- Superficie: `#121212` con glass sutil.
+- Texto principal: `#F1F5F9`.
+- Texto secundario: `#94A3B8`.
+- Acento principal: violeta Orvel `#7C3AED`.
+- Acento hover: `#6D28D9`.
+- Acento claro/glow: `#A78BFA`.
+- Éxito: `#10B981`.
+- Advertencia premium/pro: `#F59E0B` / dorado suave.
+- Bordes: `#334155` con opacidad baja.
 
-### 1.1 Tipografía
-- **Headings (Manrope, SemiBold):** Alto contraste, tracking -0.02em.
-  - `Display Large`: 56px (Títulos Hero)
-  - `Headline Large`: 32px (Títulos de sección)
-- **Body (Inter, Regular):** 
-  - `Body Large`: 18px (Párrafos)
-  - `Body Small`: 14px (Meta info, captions)
-- **Labels (Inter, Medium):** 12px, Uppercase, tracking 0.1em.
+## Tipografía
 
-### 1.2 Colores (Sub-temas por Negocio)
+- Headlines: grandes, compactos, peso `800–900`, tracking levemente negativo.
+- Énfasis editorial: usar violeta e itálica en frases cortas, por ejemplo `con intención`.
+- Labels: uppercase, `10–12px`, bold, tracking amplio.
+- Body: gris slate, line-height generoso.
 
-El sistema de diseño se adapta cromáticamente según el tipo de negocio, manteniendo siempre la estética **Luminous Atelier** (glassmorphism/luz).
+## Landing actual
 
-- **🖤 Atelier Industrial (Peluquerías & Barberías):**
-  - `Background`: #0F0F0F (Negro Azabache)
-  - `Primary`: #C6C6C7 (Plata Metálico)
-  - `Accent`: #B8860B (Bronce Viejo)
-  - *Vibra*: Profesional, clásico, robusto.
+Hero canónico:
 
-- **🌿 Atelier Zen (Spas & Estética & Masajerías):**
-  - `Background`: #F2F4F3 (Blanco Hueso / Zen Light)
-  - `Primary`: #8BA888 (Verde Salvia)
-  - `Accent`: #D9C5B2 (Arena Suave)
-  - *Vibra*: Calma, naturaleza, bienestar.
+- Pill: `VERSIÓN 1.0 PRÓXIMAMENTE`.
+- Título: `Gestioná tu salón con intención.`
+- Subcopy: Orvel como plataforma para excelencia en cada turno y fidelidad en cada cliente.
+- Visual: screenshot/mock del dashboard en card glass con glow violeta y floating card de turno confirmado.
 
-- **🌸 Atelier Chic (Uñas & Pestañas & Cejas):**
-  - `Background`: #FBFAFB (Blanco Perlado)
-  - `Primary`: #E8B4B8 (Rosa Viejo)
-  - `Accent`: #D4C1EC (Lavanda Pálido)
-  - *Vibra*: Glamour, moda, detalle.
+## Pricing
 
-- **🎨 Atelier Ink (Tattoo & Piercing):**
-  - `Background`: #050505 (Negro Absoluto)
-  - `Primary`: #A10000 (Rojo Sangría)
-  - `Accent`: #DAA520 (Oro Mate)
-  - *Vibra*: Artístico, rebelde, premium.
+Planes base:
 
-### 1.3 Primitivas UI
-- **Buttons:**
-  - `Primary`: Gradiente (Menta a Menta Oscuro), forma de píldora (full radius).
-  - `Secondary`: Ghost/Glass, borde blanco fino (20% opacidad).
-- **Icons:** Línea fina (1px stroke weight).
-- **Radius:** `LG` (16px) para cards, `FULL` para botones/chips.
+- `STARTER` — `$12.900/mes`.
+- `GROWTH` — `$24.900/mes`.
+- `PRO` — `desde $44.900/mes`.
+- Todos los planes base incluyen **1 local**.
 
----
+Regla de monetización:
 
-## 🧩 2. Molecules (Ensamblaje)
+- Multi-sucursal NO se comunica como incluido en planes base.
+- Multi-sucursal es add-on separado: `+$20.000/mes por local adicional`.
+- CTA recomendado: `Consultar multi-sucursal`, no `Comprar ahora` ni `Checkout`.
 
-### 2.1 Pricing Card Atomized
-- **Header:** Label + Price (Display Large) + Periodicity.
-- **Feature List Item:** Icono + Texto (Body Small).
-- **CTA:** Botón Primario.
+Diseño del add-on:
 
-### 2.2 Stat Card
-- **Value:** Display Large en `Primary`.
-- **Label:** Label Medium en `Secondary`.
+- Ubicación: debajo de las 3 cards de pricing.
+- Forma: banda horizontal glass en desktop; card vertical en mobile.
+- Fondo: gradiente violeta sutil sobre superficie oscura.
+- Borde: violeta con opacidad baja.
+- Copy:
+  - Pill: `ADD-ON`.
+  - Título: `Multi-sucursal`.
+  - Precio: `+$20.000/mes por local adicional`.
+  - Nota: `Los planes base incluyen 1 local.`
 
-### 2.3 Feature Card (Glassmorphic)
-- **Container:** `Surface High` con 20px blur y borde 15% `Primary`.
-- **Content:** Título (Headline) + Descripción (Body).
+## Componentes
 
-### 2.4 Agenda Row
-- **Estructura:** Hora (Label) | Nombre (Body) | Tag (Chip).
+- Cards: fondo oscuro, borde fino, radius grande, hover con borde violeta y elevación mínima.
+- Buttons: pills redondeadas, sin exceso de gradientes; usar violeta para acciones principales.
+- Badges: uppercase, tracking amplio, border/glass.
+- Estados: loading, error, empty y success deben ser explícitos y accesibles.
 
----
+## Reglas
 
-## 🏗️ 3. Organisms (Contextos)
-
-### 3.1 Global Navbar
-- Posición fija, fondo glassmorphic (80% opacidad, 40px blur).
-- Contiene: Logo, molécula NavLinks y Átomo CTA.
-
-### 3.2 Comparison Section
-- Dos feature cards grandes lado a lado.
-- Izquierda: "Hecho para vos" (Menta).
-- Derecha: "No es para todos" (Gris Neutro).
-
-### 3.3 Pricing Matrix
-- Grid de 4 moléculas de Pricing Card: Free, Básico, Medio (Destacado), Premium.
-
-### 3.4 Dashboard Showcase
-- Contenedor grande con stack vertical de "Agenda Row".
-
----
-
-## 🛠️ Reglas para Aurora
-1. **Sin Bordes:** Nunca usar `border: 1px solid`. Usar cambios de fondo o "Ghost Borders" (15% opacidad).
-2. **Glassmorphism:** Todo elemento flotante DEBE tener `backdrop-filter: blur(20px)`.
-3. **Espaciado:** Usar escala base 8 (8px). Márgenes entre secciones: 80px-120px. Padding en cards: 32px.
-4. **Brillos:** Usar `box-shadow: 0 0 40px [color]10` para estados hover.
+- No usar marca Turnea en UI ni documentación visual actual.
+- No prometer checkout si el flujo real es MercadoPago subscriptions/preapproval.
+- Mantener contraste AA como mínimo.
+- Mantener mobile-first: cards stacked y CTA full-width en mobile.

@@ -8,16 +8,20 @@ import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
 
 const runtimeEnv = loadDashboardRuntimeEnv();
 
+export const ORVEL_SUPABASE_AUTH_STORAGE_KEY = 'orvel.supabase.auth';
+
 export const SUPABASE_CONFIG = {
   /** Supabase project URL */
-  url: runtimeEnv.NEXT_PUBLIC_SUPABASE_URL || '',
+  url: runtimeEnv.PUBLIC_SUPABASE_URL || '',
   /** Supabase anonymous key (publishable key) */
-  anonKey: runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  anonKey: runtimeEnv.PUBLIC_SUPABASE_ANON_KEY || '',
+  /** Shared browser storage key used by landing and dashboard for same-origin local auth */
+  storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY
 } as const;
 
 
 if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
-  throw new Error('[supabase-config] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in environment');
+  throw new Error('[supabase-config] Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY in environment');
 }
 
 export type SupabaseConfig = typeof SUPABASE_CONFIG;

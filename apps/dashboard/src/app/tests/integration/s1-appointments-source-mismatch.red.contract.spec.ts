@@ -7,29 +7,32 @@ function readSource(relativePath: string): string {
   return existsSync(absolutePath) ? readFileSync(absolutePath, 'utf-8') : '';
 }
 
-function extractFirstTableRef(source: string): string | null {
-  const match = source.match(/\.from\('([^']+)'\)/);
-  return match?.[1] ?? null;
+function directBookingsReadPattern(): RegExp {
+  return /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i;
 }
 
 describe('S1 RED - Appointments must read from same source as public booking writes', () => {
-  it('write/read source contract: public flow writes into public.bookings, appointments must read same qualified source', () => {
+  it('write/read source contract: public flow writes behind RPC and appointments list through least-privilege RPC', () => {
     const migrationSql = readSource('supabase/migrations/20260428110000_fix_public_booking_customers.sql');
     const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     const writeTargetIsPublicBookings = /insert\s+into\s+public\.bookings/i.test(migrationSql);
-    const readTarget = extractFirstTableRef(turnoServiceSource);
 
     expect(writeTargetIsPublicBookings).toBe(true);
-    expect(readTarget).toBe('bookings');
+    expect(turnoServiceSource).toMatch(/\.rpc\(\s*['"]list_admin_bookings['"]/i);
+    expect(turnoServiceSource).toMatch(/list_admin_bookings[\s\S]{0,240}p_branch_id/i);
+    expect(turnoServiceSource, 'dashboard must not read public.bookings directly after direct SELECT grants are removed').not.toMatch(
+      directBookingsReadPattern()
+    );
   });
 
-  it('regression contract: appointments dataset refresh path must read from public.bookings after booking.created', () => {
+  it('regression contract: appointments dataset refresh path must refresh via list_admin_bookings after booking.created', () => {
     const turnosListSource = readSource('src/app/features/booking/pages/turnos-list.page.ts');
     const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(turnosListSource).toMatch(/window\.addEventListener\('booking\.created'/);
     expect(turnosListSource).toMatch(/refreshTurnosFromSource\(\)/);
-    expect(turnoServiceSource).toMatch(/\.schema\('public'\)\.from\('bookings'\)|\.from\('public\.bookings'\)/);
+    expect(turnoServiceSource).toMatch(/\.rpc\(\s*['"]list_admin_bookings['"]/i);
+    expect(turnoServiceSource, 'refresh must not depend on direct public.bookings reads').not.toMatch(directBookingsReadPattern());
   });
 });

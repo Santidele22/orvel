@@ -12,7 +12,7 @@ Orvel currently exists across separate repositories:
 - `orvel-landing`: Astro landing site.
 - `orvel-functions`: Supabase functions and migrations.
 
-The current repos are not clean: dashboard has an active feature-slice migration, landing is dirty, and functions includes a migration rename. Supabase functions are deployed, but database push is blocked by remote migration history mismatch.
+The current repos are not clean: dashboard has an active feature-slice migration, landing is dirty, and functions includes a migration rename. Recorded Supabase context says functions are deployed, migration history was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date.
 
 ## Decision
 

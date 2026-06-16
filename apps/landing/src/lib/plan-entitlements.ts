@@ -1,3 +1,5 @@
+import { SIGNUP_STORAGE_KEYS } from './browser-storage-keys';
+
 export type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
 
 export type PlanEntitlements = {
@@ -11,21 +13,21 @@ export const PLAN_ENTITLEMENTS: Record<PlanCode, PlanEntitlements> = {
     maxRubros: 1
   },
   BASIC: {
-    maxLocales: 3,
+    maxLocales: 1,
     maxRubros: 3
   },
   MEDIUM: {
-    maxLocales: 4,
+    maxLocales: 1,
     maxRubros: 4
   },
   PRO: {
-    maxLocales: 5,
+    maxLocales: 1,
     maxRubros: 5
   }
 };
 
 const PLAN_CONTEXT_QUERY_KEYS = ['plan', 'planCode', 'tier'] as const;
-const PLAN_CONTEXT_STORAGE_KEYS = ['orvel.signup.plan', 'orvel.plan', 'plan'] as const;
+const PLAN_CONTEXT_STORAGE_KEYS = [SIGNUP_STORAGE_KEYS.plan, 'orvel.plan', 'plan'] as const;
 
 type BrowserStorageLike = {
   getItem: (key: string) => string | null;

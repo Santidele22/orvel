@@ -9,6 +9,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 import {
+  ORVEL_SUPABASE_AUTH_STORAGE_KEY,
   createSupabaseAuthClient,
   type SupabaseSession
 } from './supabase-auth.client';
@@ -42,6 +43,28 @@ describe('SupabaseAuthClientAdapter.onAuthStateChange contract', () => {
     result.data.subscription.unsubscribe();
 
     expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the shared landing/dashboard Supabase auth storage key without trusting storage as auth', () => {
+    createClientMock.mockReturnValue({ auth: { onAuthStateChange: vi.fn() } });
+
+    createSupabaseAuthClient({
+      supabaseUrl: 'https://example.supabase.co',
+      supabaseAnonKey: 'anon-key'
+    });
+
+    expect(ORVEL_SUPABASE_AUTH_STORAGE_KEY).toBe('orvel.supabase.auth');
+    expect(createClientMock).toHaveBeenCalledWith(
+      'https://example.supabase.co',
+      'anon-key',
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          storageKey: 'orvel.supabase.auth',
+          persistSession: true,
+          flowType: 'pkce'
+        })
+      })
+    );
   });
 
   it('maps callback session to local SupabaseSession contract', () => {
