@@ -8,6 +8,7 @@ const PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.met
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
 const LOGIN_PATH = new URL('../pages/auth/login.astro', import.meta.url);
+const LOGIN_CONTROLLER_PATH = new URL('../lib/login-page-controller.ts', import.meta.url);
 const AUTH_RETURN_TO_PATH = new URL('../lib/auth-return-to.ts', import.meta.url);
 
 type AuthReturnToModule = {
@@ -84,16 +85,21 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(activeLandingSources).not.toMatch(/checkout[_-]?session/i);
   });
 
-  it('keeps the multi-sucursal add-on price and sends add-on intent through subscription billing', async () => {
+  it('defers multi-sucursal outside the production MVP instead of selling it as a live billing add-on', async () => {
+    const index = await source(INDEX_PATH);
     const pricing = await source(PRICING_PATH);
+    const planCard = await source(PLAN_CARD_PATH);
+    const activeLandingSources = `${index}\n${pricing}\n${planCard}`;
 
-    expect(pricing).toMatch(/Multi-sucursal/i);
-    expect(pricing).toMatch(/\+\$20\.000|20000/);
-    expect(pricing).toMatch(/\/auth\/login\?returnTo=\/billing\/subscription/);
+    expect(activeLandingSources).not.toMatch(/\bAdd-on\b|Multi-sucursal disponible como add-on/i);
+    expect(activeLandingSources).not.toMatch(/\+\s*\$?\s*(?:20\.000|20000)\s*(?:\/mes|por mes)?/i);
+    expect(activeLandingSources).not.toMatch(/Sumar sucursal|Comprar sucursal|Agregar sucursal|Contratar multi-sucursal/i);
+    expect(activeLandingSources).not.toMatch(/billing\/subscription[^\s"'<>]*(?:addon|add-on|multi-?sucursal|sucursal-adicional|local-adicional)/i);
   });
 
   it('preserves paid plan subscription returnTo through email/password login sanitization', async () => {
     const login = await source(LOGIN_PATH);
+    const loginController = await source(LOGIN_CONTROLLER_PATH);
     const { sanitizeLandingAuthReturnTo } = await loadAuthReturnTo();
 
     const paidPlanReturnTo = '/billing/subscription?plan=STARTER';
@@ -108,7 +114,9 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/turnos?view=week');
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/turnos?view=week');
 
-    expect(login).toContain('sanitizeLandingAuthReturnTo');
-    expect(login).toContain('attempt: { email, password, returnTo }');
+    expect(login).toContain("import { initLoginPage } from '../../lib/login-page-controller'");
+    expect(login).toContain('initLoginPage(import.meta.env)');
+    expect(loginController).toContain('sanitizeLandingAuthReturnTo');
+    expect(loginController).toContain('attempt: { email, password, returnTo }');
   });
 });

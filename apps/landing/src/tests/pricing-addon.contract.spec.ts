@@ -6,18 +6,20 @@ const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.
 const BILLING_SUBSCRIPTION_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const PLANS_PATH = new URL('../lib/plans.ts', import.meta.url);
 
-describe('Contract: Orvel pricing plans and multi-branch add-on', () => {
-  it('shows multi-sucursal as a separate add-on, not bundled as a base plan feature', async () => {
+describe('Contract: Orvel pricing plans and MVP branch add-on deferral', () => {
+  it('does not present multi-sucursal as a live purchasable landing add-on for MVP', async () => {
     const pricingSource = await readFile(PRICING_PATH, 'utf8');
     const planCardSource = await readFile(PLAN_CARD_PATH, 'utf8');
     const billingSubscriptionSource = await readFile(BILLING_SUBSCRIPTION_PATH, 'utf8');
     const basePlanSources = `${planCardSource}\n${billingSubscriptionSource}`;
+    const visibleLandingSource = `${pricingSource}\n${planCardSource}`;
 
-    expect(pricingSource).toMatch(/Multi-sucursal/i);
-    expect(pricingSource).toMatch(/20\.000|20000/);
-    expect(pricingSource).toMatch(/local adicional|sucursal adicional/i);
     expect(pricingSource).toMatch(/Todos los planes incluyen 1 local|planes base incluyen 1 local/i);
-    expect(pricingSource).toMatch(/Consultar multi-sucursal|Sumar sucursal|Hablar con Orvel/i);
+    expect(visibleLandingSource).not.toMatch(/\bAdd-on\b/i);
+    expect(visibleLandingSource).not.toMatch(/Multi-sucursal disponible como add-on/i);
+    expect(visibleLandingSource).not.toMatch(/\+\s*\$?\s*(?:20\.000|20000)\s*(?:\/mes|por mes)?/i);
+    expect(visibleLandingSource).not.toMatch(/Sumar sucursal|Comprar sucursal|Agregar sucursal|Contratar multi-sucursal/i);
+    expect(visibleLandingSource).not.toMatch(/href=["'][^"']*billing\/subscription[^"']*["'][\s\S]*?(?:Multi-sucursal|sucursal adicional|local adicional)/i);
 
     expect(planCardSource).toMatch(/Incluye 1 local/i);
     expect(planCardSource).not.toMatch(/Múltiples sucursales/i);
