@@ -12,7 +12,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     ssr: {
-      noExternal: ['@supabase/supabase-js']
+      noExternal: ['@supabase/supabase-js', 'zod']
     }
   }
 });
