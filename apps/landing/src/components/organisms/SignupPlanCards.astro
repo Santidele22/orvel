@@ -166,9 +166,12 @@ function showRedirectNotice() {
 
 // Update prices based on billing period
 function updatePrices(period) {
+  const nextPeriod = ['monthly', 'quarterly', 'annual'].includes(period) ? period : 'monthly';
   // Update button states
   document.querySelectorAll('.billing-option').forEach(btn => {
-    if (btn.dataset.billing === period) {
+    const isSelected = btn.dataset.billing === nextPeriod;
+    btn.setAttribute('aria-pressed', String(isSelected));
+    if (isSelected) {
       btn.classList.add('bg-primary', 'text-on-secondary');
       btn.classList.remove('text-text-primary');
     } else {
@@ -184,17 +187,21 @@ function updatePrices(period) {
     if (!plan) return;
 
     // Update href to include billing period, then upgrade authenticated session handoff when a session exists.
-    card.href = `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
-    resolveSignupPlanHref(planCode, period).then((href) => {
+    card.href = `/auth/signup/credentials?plan=${planCode}&billing=${nextPeriod}`;
+    resolveSignupPlanHref(planCode, nextPeriod).then((href) => {
       card.href = href;
     });
 
     // Hide FREE plan if not monthly
     if (planCode === 'FREE') {
-      if (period !== 'monthly') {
+      if (nextPeriod !== 'monthly') {
+        card.hidden = true;
         card.classList.add('hidden');
+        card.setAttribute('aria-hidden', 'true');
       } else {
+        card.hidden = false;
         card.classList.remove('hidden');
+        card.setAttribute('aria-hidden', 'false');
       }
       return;
     }
@@ -203,7 +210,7 @@ function updatePrices(period) {
     let savings = 0;
     let billingLabel = '';
 
-    switch (period) {
+    switch (nextPeriod) {
       case 'monthly':
         price = plan.price;
         billingLabel = '/mes';
@@ -334,11 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
 </style>
 
 <!-- Billing Toggle -->
-<div class="flex justify-center mb-6 mt-8 w-full overflow-x-auto pb-2 scrollbar-hide">
+<div class="flex justify-center mb-6 mt-8 w-full overflow-x-auto pb-2 scrollbar-hide" aria-label="Elegir frecuencia de facturación">
   <div class="bg-bg-primary rounded-full p-1 sm:p-1.5 flex items-center gap-1 border border-border shadow-sm min-w-max mx-auto">
-    <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all bg-primary text-on-secondary whitespace-nowrap" data-billing="monthly">Mensual</button>
-    <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="quarterly">Trimestral (-15%)</button>
-    <button class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="annual">Anual (-30%) <span class="text-primary text-[9px]">🔥</span></button>
+    <button type="button" aria-pressed="true" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all bg-primary text-on-secondary whitespace-nowrap" data-billing="monthly">Mensual</button>
+    <button type="button" aria-pressed="false" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="quarterly">Trimestral (-15%)</button>
+    <button type="button" aria-pressed="false" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="annual">Anual (-30%) <span class="text-primary text-[9px]">🔥</span></button>
   </div>
 </div>
 
