@@ -100,7 +100,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     );
   });
 
-  it('manual paid signup persists canonical plan and each completed business type in Supabase metadata', async () => {
+  it('manual paid signup persists canonical plan but keeps onboarding incomplete until post-billing onboarding', async () => {
     for (const tipoNegocio of ALLOWED_BUSINESS_TYPES) {
       const signUp = vi.fn(async () => ({
         data: { session: { access_token: 'token' }, user: { id: `user-${tipoNegocio}`, email: 'santi@orvel.app' } },
@@ -120,7 +120,8 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
             data: expect.objectContaining({
               plan: 'STARTED',
               tipoNegocio,
-              onboardingCompleted: true
+              onboardingCompleted: false,
+              onboarding_completed: false
             })
           })
         })
