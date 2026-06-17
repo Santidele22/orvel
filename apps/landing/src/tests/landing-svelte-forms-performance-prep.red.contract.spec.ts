@@ -75,7 +75,7 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
     const credentialsScripts = inlineScriptBlocks(credentialsPage).join('\n');
 
     expect(loginPage).toContain("from '../../lib/login-page-controller'");
-    expect(credentialsPage).toContain("from '../../../lib/signup-credentials-page-controller'");
+    expect(credentialsPage).toContain("from '../../../lib/signup-access-page-controller'");
     expect(loginScripts.length).toBeLessThan(2500);
     expect(credentialsScripts.length).toBeLessThan(5000);
     expect(credentialsScripts).not.toMatch(/const\s+createProtectedPendingSignupIntent\s*=|form\.addEventListener\(['"]submit['"]/);

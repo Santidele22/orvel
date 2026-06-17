@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const CREDENTIALS_PAGE = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const PENDING_INTENT_PROTECT_API = new URL('../pages/api/signup/pending-intent/protect.ts', import.meta.url);

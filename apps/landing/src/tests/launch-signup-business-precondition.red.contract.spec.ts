@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const BUSINESS_TYPE_PAGE_PATH = new URL('../pages/auth/signup/business-type.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
@@ -31,8 +31,8 @@ describe('RED contract: launch landing signup must not apply dashboard business 
 
     expect(source).toContain('initSignupCredentialsPage');
     expect(source).toMatch(/createProtectedPendingSignupIntent|protected_pending_signup_intent|pendingSignupIntent/i);
-    expect(source).toContain("new URL('/auth/signup/onboarding'");
-    expect(source).toContain("onboardingUrl.searchParams.set('plan', plan)");
+    expect(source).toContain('showFreeRubroStep');
+    expect(source).toContain('finalizeFreeSignup');
     expect(source).not.toContain('/auth/signup/business-type?plan=');
     expect(source).not.toContain(WRONG_DASHBOARD_PRECONDITION);
     expect(source).not.toContain('/dashboard/inicio');
@@ -51,14 +51,14 @@ describe('RED contract: launch landing signup must not apply dashboard business 
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
     const protectedIntentIndex = credentialsSource.indexOf('createProtectedPendingSignupIntent');
-    const onboardingIndex = credentialsSource.indexOf("new URL('/auth/signup/onboarding'");
+    const sameRuntimeRubroIndex = credentialsSource.indexOf('showFreeRubroStep');
     const paidDeferralIndex = credentialsSource.indexOf('/billing/subscription?plan=');
 
     expect(protectedIntentIndex, 'paid credentials-first flow must protect PII before payment').toBeGreaterThan(-1);
     expect(paidDeferralIndex, 'paid plans must defer account materialization until payment').toBeGreaterThan(-1);
-    expect(onboardingIndex, 'FREE credentials step must defer Auth creation to protected onboarding finalize').toBeGreaterThan(-1);
+    expect(sameRuntimeRubroIndex, 'FREE access step must defer Auth creation to same-runtime rubro finalize').toBeGreaterThan(-1);
     expect(credentialsSource).not.toMatch(/createSupabaseSignupAdapterFromEnv|await signupWithProvider\(/);
-    expect(credentialsSource).not.toContain('/api/signup/pending-intent/finalize');
+    expect(credentialsSource).toContain('/api/signup/pending-intent/finalize');
     expect(completeSource).not.toContain(WRONG_DASHBOARD_PRECONDITION);
   });
 

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -30,7 +30,7 @@ describe('RED contract: paid manual signup defers account creation until payment
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
     const paidBranch = sliceBetween(submitFlow, 'try {\n      const protectedSignup');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
     expect(freeBranch).not.toContain('await signupWithProvider({');
     expect(paidBranch).not.toContain('signupWithProvider');
@@ -42,18 +42,19 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(completeSource).not.toContain('await client.auth.updateUser({');
   });
 
-  it('free manual signup defers Supabase user creation and hands off to landing-owned onboarding', async () => {
+  it('free manual signup defers Supabase user creation to the same-runtime rubro finalize step', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
     expect(freeBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
     expect(freeBranch).not.toContain('await signupWithProvider({');
     expect(freeBranch).not.toContain("tipoNegocio: 'pendiente'");
-    expect(freeBranch).toContain("new URL('/auth/signup/onboarding'");
-    expect(freeBranch).toContain('window.location.href = onboardingUrl.toString()');
-    expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/signup/onboarding');
+    expect(freeBranch).toContain('showFreeRubroStep');
+    expect(freeBranch).toContain('attachFreeRubroFinalizer');
+    expect(freeBranch).not.toContain('window.location.href');
+    expect(`${credentialsSource}\n${completeSource}`).toContain('finalizeFreeSignup');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
   });
@@ -62,12 +63,12 @@ describe('RED contract: paid manual signup defers account creation until payment
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
-    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
+    const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
     expect(pageSource).toContain('name="nombre"');
     expect(pageSource).toContain('name="apellido"');
-    expect(freeBranch).toMatch(/nombre\s*,/);
-    expect(freeBranch).toMatch(/apellido\s*,/);
+    expect(freeBranch).toMatch(/nombre:\s*values\.nombre/);
+    expect(freeBranch).toMatch(/apellido:\s*values\.apellido/);
     expect(freeBranch).not.toMatch(/input\[name=["']name["']\]/);
     expect(freeBranch).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });

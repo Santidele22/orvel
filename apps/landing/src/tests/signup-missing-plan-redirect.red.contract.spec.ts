@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 
@@ -23,7 +23,7 @@ describe('RED contract: signup credentials require an explicit valid plan before
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
     const inlineScript = sliceBetween(pageSource, '<script>', '</script>');
 
-    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-credentials-page-controller'");
+    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-access-page-controller'");
     expect(inlineScript).toMatch(/initSignupCredentialsPage\(import\.meta\.env\)/);
     expect(inlineScript).not.toMatch(/new URLSearchParams|form\.addEventListener|validateSignupCredentials|signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
@@ -66,9 +66,10 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(source).toMatch(/missing_plan/);
     expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
     expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
-    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).toContain('showFreeRubroStep');
     expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|await import\(['"]\.\/auth-provider['"]\)/);
-    expect(source).not.toContain('/api/signup/pending-intent/finalize');
+    const missingPlanBranch = sliceBetween(source, 'if (!hasValidSignupPlan)', 'if (!validateForm() || !button)');
+    expect(missingPlanBranch).not.toContain('/api/signup/pending-intent/finalize');
   });
 
   it('credentials-first submit validates form data before protecting pending intent or navigating', async () => {
@@ -88,10 +89,11 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(source).toMatch(/protected_pending_signup_intent|intent_id|email_encrypted/);
     expect(submitFlow).toMatch(/missing_plan/);
     expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
-    expect(submitFlow).not.toContain('/api/signup/pending-intent/finalize');
+    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm() || !button)');
+    expect(missingPlanBranch).not.toContain('/api/signup/pending-intent/finalize');
     expect(submitFlow).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
     expect(submitFlow).not.toMatch(/sessionStorage\.setItem\([^)]*(?:name|nombre|apellido|negocioNombre|telefono|phone|email)[^)]*(?:\.value|JSON\.stringify\([^)]*(?:email|phone|telefono|negocioNombre))/i);
-    expect(submitFlow).not.toMatch(/password|confirmPassword/);
+    expect(missingPlanBranch).not.toMatch(/password|confirmPassword/);
     expect(submitFlow).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|loginWithGoogle/);
   });
 

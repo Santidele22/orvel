@@ -25,6 +25,28 @@ const normalizeBillingPeriod = (raw: string | null) => {
 const isValidSignupPlan = (rawPlan: string | null) =>
   VALID_SIGNUP_PLANS.includes(normalizeSignupPlan(rawPlan) as typeof VALID_SIGNUP_PLANS[number]);
 
+const RUBRO_OPTIONS = [
+  ['peluqueria', 'Peluquería'],
+  ['unas', 'Uñas'],
+  ['barberia', 'Barbería'],
+  ['spa', 'Spa'],
+  ['pestanas', 'Pestañas'],
+  ['cejas', 'Cejas'],
+  ['masajes', 'Masajes'],
+  ['otro', 'Otro']
+] as const;
+
+type FreeSignupDraft = {
+  nombre: string;
+  apellido: string;
+  negocioNombre: string;
+  email: string;
+  password: string;
+  normalizedPhone: string;
+};
+
+const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
+
 export function initSignupCredentialsPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
 
@@ -178,6 +200,130 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     if (!protectionResponse.ok || !protectionResult?.protected_pending_signup_intent) throw new Error('pending_signup_protection_failed');
     return protectionResult.protected_pending_signup_intent;
   };
+  const finalizeFreeSignup = async (values: { protectedSignupIntent: unknown; password: string; businessType: string }) => {
+    const response = await fetch('/api/signup/pending-intent/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pending_signup_intent: values.protectedSignupIntent,
+        password: values.password,
+        business_type: values.businessType,
+        plan_code: 'FREE',
+        return_to: '/auth/login'
+      })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) {
+      throw new Error(typeof result?.error === 'string' ? result.error : 'pending_signup_finalize_failed');
+    }
+    return result;
+  };
+  const ensureFreeRubroStep = () => {
+    let section = document.getElementById('freeSignupRubroStep') as HTMLElement | null;
+    if (section) return section;
+    section = document.createElement('section');
+    section.id = 'freeSignupRubroStep';
+    section.className = 'hidden mt-8 rounded-2xl border border-border bg-bg-secondary/80 p-6 shadow-xl';
+    section.setAttribute('aria-labelledby', 'freeSignupRubroTitle');
+    section.innerHTML = `
+      <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Paso 3 de 3</p>
+      <h2 id="freeSignupRubroTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">Tu rubro.</h2>
+      <p class="mt-2 text-sm leading-6 text-text-secondary">Seleccioná la categoría que mejor describe tu negocio para crear tu cuenta y configuración inicial.</p>
+      <form id="freeSignupRubroForm" class="mt-6 space-y-5">
+        <fieldset class="grid gap-3 sm:grid-cols-2" aria-describedby="freeSignupRubroHelper freeSignupRubroError">
+          <legend class="sr-only">Categoría del negocio</legend>
+          ${RUBRO_OPTIONS.map(([value, label]) => `<label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="${value}" required /><span>${label}</span></label>`).join('')}
+        </fieldset>
+        <p id="freeSignupRubroHelper" class="text-xs text-text-secondary">Tu contraseña queda solo en memoria hasta finalizar este paso.</p>
+        <p id="freeSignupRubroError" class="hidden rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert" aria-live="polite"></p>
+        <button id="freeSignupRubroSubmit" type="submit" class="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">Crear cuenta</button>
+      </form>
+      <div id="freeSignupWelcomeModal" class="fixed inset-0 z-50 hidden items-center justify-center overflow-hidden bg-black/70 px-6" role="dialog" aria-modal="true" aria-labelledby="freeSignupWelcomeTitle" aria-describedby="freeSignupWelcomeDescription">
+        <section class="relative w-full max-w-sm rounded-2xl border border-border bg-bg-secondary p-6 text-center shadow-2xl">
+          <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Cuenta lista</p>
+          <h2 id="freeSignupWelcomeTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">¡Bienvenida a Orvel!</h2>
+          <p id="freeSignupWelcomeDescription" class="mt-3 text-sm leading-6 text-text-secondary">Tu cuenta y configuración inicial ya están listas. Iniciá sesión para empezar a organizar tus turnos con Orvel.</p>
+          <a id="freeSignupWelcomeLogin" href="/auth/login" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-secondary">Iniciar sesión</a>
+        </section>
+      </div>
+    `;
+    form.insertAdjacentElement('afterend', section);
+    return section;
+  };
+  let freeSignupDraft: FreeSignupDraft | null = null;
+  const showFreeRubroStep = (draft: FreeSignupDraft) => {
+    freeSignupDraft = draft;
+    const section = ensureFreeRubroStep();
+    section.classList.remove('hidden');
+    form.classList.add('hidden');
+    form.setAttribute('aria-hidden', 'true');
+    document.getElementById('freeSignupRubroTitle')?.focus();
+  };
+  const attachFreeRubroFinalizer = () => {
+    const section = ensureFreeRubroStep();
+    const rubroForm = section.querySelector<HTMLFormElement>('#freeSignupRubroForm');
+    if (!rubroForm || rubroForm.dataset.bound === 'true') return;
+    rubroForm.dataset.bound = 'true';
+    rubroForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const errorEl = document.getElementById('freeSignupRubroError');
+      const button = document.getElementById('freeSignupRubroSubmit') as HTMLButtonElement | null;
+      const selected = rubroForm.querySelector<HTMLInputElement>('input[name="rubro"]:checked')?.value;
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      }
+      if (!selected) {
+        if (errorEl) {
+          errorEl.textContent = 'Seleccioná una categoría para continuar.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+      if (!freeSignupDraft) {
+        if (errorEl) {
+          errorEl.textContent = 'Volvé al paso anterior para completar tus datos de acceso.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Creando cuenta...';
+      }
+      try {
+        const protectedSignup = await createProtectedPendingSignupIntent({
+          email: freeSignupDraft.email,
+          first_name: freeSignupDraft.nombre,
+          last_name: freeSignupDraft.apellido,
+          business_name: freeSignupDraft.negocioNombre,
+          phone: freeSignupDraft.normalizedPhone
+        });
+        await finalizeFreeSignup({
+          protectedSignupIntent: protectedSignup,
+          password: freeSignupDraft.password,
+          businessType: normalizeBusinessType(selected)
+        });
+        freeSignupDraft = null;
+        sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, 'FREE');
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
+        const modal = document.getElementById('freeSignupWelcomeModal');
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+        document.getElementById('freeSignupWelcomeTitle')?.focus();
+      } catch {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Crear cuenta';
+        }
+        if (errorEl) {
+          errorEl.textContent = 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+      }
+    });
+  };
   const readSubmitValues = () => {
     const values = readSignupCredentialValues();
     return {
@@ -238,44 +384,24 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
       return;
     }
 
-    if (!(isPaidPlan ? validateForm() : validateNonSensitiveCredentials()) || !button) return;
+    if (!validateForm() || !button) return;
     button.disabled = true;
     button.textContent = 'Procesando...';
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, plan);
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
     if (!isPaidPlan) {
-      const landingOwnedOnboardingUrl = new URL('/auth/signup/onboarding', window.location.origin);
-      const accountCreatedModalLoginUrl = new URL('/auth/login', window.location.origin);
-      const onboardingUrl = landingOwnedOnboardingUrl;
-      onboardingUrl.searchParams.set('onboarding_required', 'true');
-      onboardingUrl.searchParams.set('account_created_modal', 'welcome_login');
-      onboardingUrl.searchParams.set('loginUrl', accountCreatedModalLoginUrl.pathname);
-      onboardingUrl.searchParams.set('plan', plan);
-      onboardingUrl.searchParams.set('billing', billing);
-      try {
-        const protectedSignup = await createProtectedPendingSignupIntent({
-          email: values.email,
-          first_name: values.nombre,
-          last_name: values.apellido,
-          business_name: values.negocioNombre,
-          phone: values.normalizedPhone
-        });
-        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
-          ...protectedSignup,
-          plan_code: plan,
-          billing_period: billing
-        }));
-        window.history.pushState({}, '', onboardingUrl.toString());
-        window.location.href = onboardingUrl.toString();
-      } catch {
-        button.disabled = false;
-        button.textContent = 'Continuar';
-        if (errorEl) {
-          errorEl.textContent = 'No pudimos continuar con el alta. Reintentá en unos segundos.';
-          errorEl.classList.remove('hidden');
-        }
-      }
+      showFreeRubroStep({
+        nombre: values.nombre,
+        apellido: values.apellido,
+        negocioNombre: values.negocioNombre,
+        email: values.email,
+        password: values.password,
+        normalizedPhone: values.normalizedPhone
+      });
+      attachFreeRubroFinalizer();
+      button.disabled = false;
+      button.textContent = 'Continuar';
       return;
     }
 
