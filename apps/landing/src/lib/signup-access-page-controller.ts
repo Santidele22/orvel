@@ -104,13 +104,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
   }
 
   const passwordFields = document.getElementById('passwordFields');
-  const passwordInput = document.getElementById('password') as HTMLInputElement | null;
-  const confirmPasswordInput = document.getElementById('confirmPassword') as HTMLInputElement | null;
-  if (hasValidSignupPlan && isPaidPlan) {
-    passwordFields?.classList.add('hidden');
-    passwordInput?.removeAttribute('required');
-    confirmPasswordInput?.removeAttribute('required');
-  }
+  passwordFields?.classList.remove('hidden');
 
   const backLink = document.getElementById('backLink') as HTMLAnchorElement | null;
   if (backLink) {
@@ -129,7 +123,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     password: form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '',
     confirm: form.querySelector<HTMLInputElement>('input[name="confirm"]')?.value ?? ''
   });
-  const getFieldError = (fieldName: SignupCredentialField, value?: string, requirePassword = !isPaidPlan) => {
+  const getFieldError = (fieldName: SignupCredentialField, value?: string, requirePassword = true) => {
     const current = readSignupCredentialValues();
     const result = validateSignupCredentials({ ...current, [fieldName]: value ?? current[fieldName] }, { requirePassword });
     return mapSignupCredentialErrorsForAstro(result)[fieldName] ?? '';
@@ -164,7 +158,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     return validators[fieldName] ? paintFieldError(input, validators[fieldName](input.value)) : true;
   };
   const validateForm = () => {
-    const result = validateSignupCredentials(readSignupCredentialValues(), { requirePassword: !isPaidPlan });
+    const result = validateSignupCredentials(readSignupCredentialValues(), { requirePassword: true });
     const fieldErrors = mapSignupCredentialErrorsForAstro(result);
     let valid = true;
     form.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
