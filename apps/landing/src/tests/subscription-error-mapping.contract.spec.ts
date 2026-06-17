@@ -13,6 +13,8 @@ describe('Contract: subscription canonical error mapping', () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(source).toContain('BUSINESS_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
     expect(source).toContain('EMAIL_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_INVALID');
@@ -46,7 +48,24 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('PLAN_IDENTIFIER_INVALID');
     expect(source).toContain('fallbackReason');
     expect(source).toContain('BUSINESS_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
     expect(source).toContain('EMAIL_REQUIRED');
+  });
+
+  it('maps pending signup 400 contract errors to friendly non-raw copy', async () => {
+    const pageSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
+    const apiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
+
+    expect(pageSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(pageSource).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(pageSource).toContain('BUSINESS_REQUIRED');
+    expect(apiSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(apiSource).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(pageSource).toMatch(/Necesitamos proteger tu email antes de iniciar el pago|Volvé al formulario/i);
+    expect(pageSource).toMatch(/No pudimos validar tus datos protegidos|Volvé al formulario/i);
+    expect(pageSource).not.toMatch(/PENDING_SIGNUP_EMAIL_REQUIRED['"]:\s*['"][^'"]*PENDING_SIGNUP_EMAIL_REQUIRED/);
+    expect(pageSource).not.toMatch(/PENDING_SIGNUP_PII_INVALID['"]:\s*['"][^'"]*PENDING_SIGNUP_PII_INVALID/);
   });
 });
 
