@@ -37,7 +37,8 @@ function sanitizeSelectedRubros(selectedRubros: string[]): string[] {
     .filter((value): value is string => typeof value === 'string')
     .map((value) => value.trim().toLowerCase())
     .filter((value) => value.length > 0)
-    .filter((value, index, all) => all.indexOf(value) === index);
+    .filter((value, index, all) => all.indexOf(value) === index)
+    .slice(0, 1);
 }
 
 function canUseLocalStorage(): boolean {

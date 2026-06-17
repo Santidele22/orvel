@@ -6,16 +6,14 @@ const TEST_DEMO_USER_EMAIL = 'demo@orvel.local';
 const TEST_DEMO_USER_PASSWORD = 'demo-password';
 
 const ONBOARDING_TITLE = 'Tu Rubro.';
-const ONBOARDING_SUBTITLE = 'Seleccioná las categorías de tu negocio.';
+const ONBOARDING_SUBTITLE = 'Seleccioná una categoría de tu negocio.';
 const ONBOARDING_PLAN_LIMIT = 'Paso 3 de 3';
 const ONBOARDING_HELPER = 'Personalizá tu experiencia.';
 const ONBOARDING_RULE =
-  'Elegí las categorías que mejor describen tu salón para adaptar las herramientas.';
+  'Elegí la categoría que mejor describe tu salón para adaptar las herramientas.';
 const ONBOARDING_CTA = 'FINALIZAR CONFIGURACIÓN';
 
 const REQUIRED_OPTIONS = ['Peluquería', 'Uñas', 'Barbería'] as const;
-const SELECTED_RUBROS_SAMPLE = ['peluqueria', 'unas', 'spa'];
-
 const ALLOWED_UI_EXTENSIONS = new Set(['.astro', '.html', '.ts', '.tsx', '.js', '.jsx']);
 
 async function listUiFiles(root: string): Promise<string[]> {
@@ -98,7 +96,7 @@ describe('Contract: onboarding landing step for business services', () => {
     ).toBeDefined();
   });
 
-  it('uses checkbox multi-select semantics', async () => {
+  it('uses native radio single-select semantics', async () => {
     const onboardingCandidates = await loadOnboardingSourceCandidates();
     const source = onboardingCandidates.map((candidate) => candidate.source).join('\n\n');
 
@@ -108,10 +106,10 @@ describe('Contract: onboarding landing step for business services', () => {
     const radioCount = (source.match(/type\s*=\s*["']radio["']/gi) ?? []).length;
 
     expect(
-      checkboxCount >= REQUIRED_OPTIONS.length,
-      `Expected at least ${REQUIRED_OPTIONS.length} checkbox controls. Found checkbox=${checkboxCount}.`
+      radioCount >= REQUIRED_OPTIONS.length,
+      `Expected at least ${REQUIRED_OPTIONS.length} radio controls. Found radio=${radioCount}.`
     ).toBe(true);
-    expect(radioCount, 'Onboarding rubro selector must use checkbox multi-select controls.').toBe(0);
+    expect(checkboxCount, 'Onboarding rubro selector must not allow checkbox multi-select controls.').toBe(0);
   });
 
 // Login tests via mock removed as mock deprecated
@@ -126,14 +124,14 @@ describe('Contract: onboarding landing step for business services', () => {
     const hasEquivalentGroup = /role\s*=\s*["']group["'][\s\S]*?(aria-label|aria-labelledby)/i.test(source) || /id\s*=\s*["']completeForm["']/i.test(source);
     expect(
       hasFieldsetLegend || hasEquivalentGroup,
-      'Expected fieldset+legend or equivalent labeled group for rubro multi-select controls.'
+      'Expected fieldset+legend or equivalent labeled group for rubro single-select controls.'
     ).toBe(true);
 
-    const hasNativeCheckbox = /type\s*=\s*["']checkbox["']/i.test(source);
+    const hasNativeRadio = /type\s*=\s*["']radio["']/i.test(source);
 
     expect(
-      hasNativeCheckbox,
-      'Expected keyboard toggling support via native checkbox buttons.'
+      hasNativeRadio,
+      'Expected keyboard selection support via native radio buttons.'
     ).toBe(true);
   });
 
