@@ -66,6 +66,36 @@ import Layout from '../../../layouts/Layout.astro';
         return '/auth/login';
       }
     };
+    const resolveDashboardBaseUrl = () => {
+      try {
+        return new URL(import.meta.env.PUBLIC_DASHBOARD_URL || 'https://dashboard.orvel.pro');
+      } catch {
+        return new URL('https://dashboard.orvel.pro');
+      }
+    };
+    const sanitizeReturnTo = (rawReturnTo: string | null) => {
+      const dashboardBaseUrl = resolveDashboardBaseUrl();
+      const fallback = new URL('/dashboard/inicio', dashboardBaseUrl).toString();
+      const value = rawReturnTo?.trim();
+      if (!value || value.startsWith('//') || /^(?:javascript|data):/i.test(value) || /(access_token|refresh_token|id_token|code)/i.test(value)) {
+        return fallback;
+      }
+
+      try {
+        const candidate = new URL(value, window.location.origin);
+        if (candidate.origin === window.location.origin && (candidate.pathname === '/dashboard' || candidate.pathname.startsWith('/dashboard/'))) {
+          return new URL(`${candidate.pathname}${candidate.search}${candidate.hash}`, dashboardBaseUrl).toString();
+        }
+        if (candidate.origin === dashboardBaseUrl.origin && (candidate.pathname === '/dashboard' || candidate.pathname.startsWith('/dashboard/'))) {
+          return candidate.toString();
+        }
+      } catch {
+        return fallback;
+      }
+
+      return fallback;
+    };
+    const safeReturnTo = sanitizeReturnTo(params.get('returnTo'));
     const safeLoginUrl = sanitizeLoginUrl(params.get('loginUrl'));
     const loginLink = document.getElementById('loginLink') as HTMLAnchorElement | null;
     if (loginLink) loginLink.href = safeLoginUrl;
@@ -132,11 +162,19 @@ import Layout from '../../../layouts/Layout.astro';
       sessionStorage.setItem('orvel.signup.selectedRubros', JSON.stringify(selectedRubros));
 
       const result = await syncOnboardingMetadata(selectedRubros).catch(() => ({ synced: false, reason: 'update_failed' }));
+      if (result.synced) {
+        window.location.href = safeReturnTo;
+        return;
+      }
+
       if (!result.synced && errorEl) {
         errorEl.textContent = 'Guardamos tu selección en este navegador, pero no pudimos confirmarla con backend. Iniciá sesión para continuar y retomar la configuración.';
         errorEl.classList.remove('hidden');
       }
-      showAccountCreatedModal();
+      if (button) {
+        button.disabled = false;
+        button.textContent = 'FINALIZAR CONFIGURACIÓN';
+      }
     });
   }
 </script>
