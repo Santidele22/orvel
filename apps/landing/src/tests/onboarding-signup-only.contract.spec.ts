@@ -70,6 +70,23 @@ describe('Contract: onboarding runs only on signup path', () => {
     expect(source).not.toMatch(/auth\.updateUser\([\s\S]{0,260}onboardingCompleted/);
   });
 
+  it('uses onboarding RPC persisted business identity and booking slug returned by backend', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source, 'Signup onboarding must send the real business name collected during signup to the backend RPC.').toMatch(
+      /p_business_name:\s*(businessName|[^,]*negocioNombre)/
+    );
+    expect(source, 'The RPC response must be read so the persisted slug/business identity is consumed, not ignored.').toMatch(
+      /const\s*\{\s*data\s*:\s*(?:onboardingResult|result|identity)[\s\S]*?error\s*\}\s*=\s*await\s+client\.rpc\(\s*['"]complete_signup_onboarding['"]/i
+    );
+    expect(source, 'Successful onboarding must require and use the backend-persisted booking slug.').toMatch(
+      /(onboardingResult|result|identity)\?\.(booking_slug|business_slug|slug)|\[(?:['"]booking_slug['"]|['"]business_slug['"]|['"]slug['"])\]/i
+    );
+    expect(source, 'Onboarding must not continue with placeholder booking slugs when backend identity is available.').not.toMatch(
+      /booking\/(?:mi-salon|orvel)|['"](?:mi-salon|orvel)['"]\s*(?:\}|\)|,|;)/i
+    );
+  });
+
   it('uses the same explicit welcome modal for subscription-sourced onboarding', async () => {
     const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
 

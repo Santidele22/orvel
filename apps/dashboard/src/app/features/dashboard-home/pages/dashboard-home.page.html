@@ -194,6 +194,7 @@
         <div class="group flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3 shadow-inner">
           <code class="min-w-0 flex-1 truncate text-[10px] text-purple-400">{{ bookingUrl() }}</code>
           <button (click)="copyBookingUrl()"
+            [attr.disabled]="hasBookingUrl() ? null : true"
             class="w-8 h-8 rounded-lg bg-bg-primary border border-white/10 flex items-center justify-center text-purple-400 hover:bg-purple-500 hover:text-white transition-all">
             <i [class]="copied() ? 'ri-check-line' : 'ri-file-copy-line'"></i>
           </button>

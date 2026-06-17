@@ -21,6 +21,14 @@ export interface SupabaseUser {
   email_confirmed_at: string | null;
   created_at: string;
   user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+}
+
+export interface DashboardAuthState {
+  dashboard_ready: boolean;
+  selected_plan_code: string | null;
+  business_type: string | null;
+  business_id?: string | null;
 }
 
 export interface SupabaseSession {
@@ -57,12 +65,22 @@ export interface SignOutResult {
   error: AuthError | null;
 }
 
+export interface SetSessionResult {
+  data: { session: SupabaseSession | null };
+  error: AuthError | null;
+}
+
 export interface ResetPasswordResult {
   error: AuthError | null;
 }
 
 export interface UpdateUserResult {
   data: { user: SupabaseUser | null };
+  error: AuthError | null;
+}
+
+export interface DashboardAuthStateResult {
+  data: DashboardAuthState | null;
   error: AuthError | null;
 }
 
@@ -101,7 +119,7 @@ export function createSupabaseBrowserClient(config: SupabaseAuthConfig): Supabas
         flowType: 'pkce',
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
         storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       }
@@ -234,6 +252,29 @@ class SupabaseAuthClientAdapter {
     }
   }
 
+  async setSession(session: { access_token: string; refresh_token: string }): Promise<SetSessionResult> {
+    try {
+      const { data, error } = await this.client.auth.setSession(session);
+
+      if (error) {
+        return {
+          data: { session: this.mapSession(data?.session ?? null) },
+          error: { message: error.message, status: error.status }
+        };
+      }
+
+      return {
+        data: { session: this.mapSession(data?.session ?? null) },
+        error: null
+      };
+    } catch (err) {
+      return {
+        data: { session: null },
+        error: { message: (err as Error).message }
+      };
+    }
+  }
+
   /**
    * Sends password reset email.
    */
@@ -283,6 +324,30 @@ class SupabaseAuthClientAdapter {
     } catch (err) {
       return {
         data: { user: null },
+        error: { message: (err as Error).message }
+      };
+    }
+  }
+
+  async getDashboardAuthState(): Promise<DashboardAuthStateResult> {
+    try {
+      const { data, error } = await this.client.rpc('get_dashboard_auth_state');
+
+      if (error) {
+        return {
+          data: null,
+          error: { message: error.message }
+        };
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        data: mapDashboardAuthState(row),
+        error: null
+      };
+    } catch (err) {
+      return {
+        data: null,
         error: { message: (err as Error).message }
       };
     }
@@ -347,9 +412,24 @@ class SupabaseAuthClientAdapter {
       email: user.email ?? '',
       email_confirmed_at: user.email_confirmed_at ?? null,
       created_at: user.created_at,
-      user_metadata: user.user_metadata
+      user_metadata: user.user_metadata,
+      app_metadata: user.app_metadata
     };
   }
+}
+
+function mapDashboardAuthState(value: unknown): DashboardAuthState | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  return {
+    dashboard_ready: row['dashboard_ready'] === true,
+    selected_plan_code: typeof row['selected_plan_code'] === 'string' ? row['selected_plan_code'] : null,
+    business_type: typeof row['business_type'] === 'string' ? row['business_type'] : null,
+    business_id: typeof row['business_id'] === 'string' ? row['business_id'] : null
+  };
 }
 
 // Re-export the Supabase Auth client interface
@@ -368,6 +448,7 @@ export interface SupabaseAuthClient {
     };
   }): Promise<SignUpResult>;
   signOut(): Promise<SignOutResult>;
+  setSession(session: { access_token: string; refresh_token: string }): Promise<SetSessionResult>;
   resetPasswordForEmail(
     email: string,
     options?: {
@@ -375,5 +456,6 @@ export interface SupabaseAuthClient {
     }
   ): Promise<ResetPasswordResult>;
   updateUser(input: { data: Record<string, unknown> }): Promise<UpdateUserResult>;
+  getDashboardAuthState(): Promise<DashboardAuthStateResult>;
   onAuthStateChange(callback: AuthStateChangeCallback): AuthStateSubscription;
 }

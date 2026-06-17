@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, effect } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BusinessService } from '../data-access/business.service';
 import type { BusinessSettingsState } from '../data-access/business-settings.facade';
@@ -89,20 +88,22 @@ export class ConfiguracionPage {
     })
   });
 
-  // DB-FIX-007: Public Booking Link (Dynamic Slug via Signals)
-  private readonly businessNameValue = toSignal(this.settingsForm.controls.businessName.valueChanges, {
-    initialValue: this.settingsForm.controls.businessName.value
-  });
-
   readonly publicBookingUrl = computed(() => {
-    const bizName = this.businessNameValue() || this.settingsForm.controls.businessName.value || 'mi-salon';
-    const slug = bizName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const slug = this.savedState()?.slug?.trim() || this.facade.settings()?.slug?.trim();
+    if (!slug) {
+      return 'Link de reservas no disponible';
+    }
+
     return `${window.location.origin}/booking/${slug}`;
   });
+
+  readonly hasPublicBookingUrl = computed(() => Boolean(this.savedState()?.slug?.trim() || this.facade.settings()?.slug?.trim()));
 
   readonly urlCopied = signal(false);
 
   copyBookingUrl(): void {
+    if (!this.hasPublicBookingUrl()) return;
+
     navigator.clipboard.writeText(this.publicBookingUrl());
     this.urlCopied.set(true);
     setTimeout(() => this.urlCopied.set(false), 2000);
@@ -157,7 +158,7 @@ export class ConfiguracionPage {
   readonly userBusinesses = computed<UserBusiness[]>(() => {
     const user = this.authService.user();
     if (!user) return [];
-    return [{ id: user.id || 'default', name: user.negocioNombre || 'Mi Negocio' }];
+    return [{ id: user.id || 'default', name: user.negocioNombre?.trim() || 'Sucursal sin nombre' }];
   });
 
   // Mock templates - in real app would come from template service
@@ -359,7 +360,7 @@ export class ConfiguracionPage {
 
     try {
       this.loading.set(true);
-      const result = await this.facade.saveToSupabase(user.id, {
+      const result = await this.facade.save(user.id, {
         businessName: values.businessName.trim(),
         bufferMinutes: values.bufferMinutes,
         minNoticeMinutes: values.minNoticeMinutes,
@@ -382,8 +383,7 @@ export class ConfiguracionPage {
         timeFormat: values.timeFormat,
         firstName: values.firstName,
         lastName: values.lastName,
-        phone: values.phone,
-        slug: values.businessName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        phone: values.phone
       });
 
       this.savedState.set(this.facade.getSnapshot());
@@ -457,10 +457,8 @@ export class ConfiguracionPage {
     } else {
       // Prioridad: Metadatos reales del usuario desde el registro (Día 0)
       console.log('[Configuracion] No saved settings, using defaults');
-      const bizName = user?.negocioNombre || 'Mi Negocio';
-      
       this.settingsForm.patchValue({
-        businessName: bizName,
+        businessName: user?.negocioNombre?.trim() ?? '',
         bufferMinutes: 15,
         minNoticeMinutes: 120,
         slotIntervalMinutes: 30,

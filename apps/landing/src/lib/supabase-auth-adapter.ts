@@ -23,6 +23,7 @@ export type SupabaseAdapterResult =
   | {
       ok: true;
       token: string;
+      refreshToken?: string;
     user: {
         id: string;
         email: string;
@@ -215,6 +216,7 @@ export function createSupabaseLoginAdapter(
       return {
         ok: true,
         token: session.access_token,
+        refreshToken: session.refresh_token,
         user: {
           id: user.id,
           email: user.email,

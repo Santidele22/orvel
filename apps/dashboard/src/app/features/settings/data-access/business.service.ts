@@ -105,7 +105,13 @@ export class BusinessService {
       .eq('business_id', businessId)
       .maybeSingle();
 
-    this.currentSettings.set(this.mapToSettings(businessData, settingsData));
+    const { data: profileData } = await this.supabaseClient
+      .from('profiles')
+      .select('first_name, last_name, phone')
+      .eq('id', businessId)
+      .maybeSingle();
+
+    this.currentSettings.set(this.mapToSettings(businessData, settingsData, profileData));
   }
 
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
@@ -115,7 +121,7 @@ export class BusinessService {
     if (settings.businessName) {
       await this.supabaseClient
         .from('businesses')
-        .update({ name: settings.businessName, slug: settings.slug })
+        .update({ name: settings.businessName })
         .eq('id', businessId);
     }
 
@@ -154,6 +160,10 @@ export class BusinessService {
     return { source: 'supabase' };
   }
 
+  async save(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
+    return this.saveToSupabase(businessId, settings);
+  }
+
   getSnapshot(): BusinessSettings | null {
     return this.currentSettings();
   }
@@ -171,7 +181,7 @@ export class BusinessService {
     return defaultHours as Record<WeekdayKey, WorkingDayHours>;
   }
 
-  private mapToSettings(business: any, settings: any): BusinessSettings {
+  private mapToSettings(business: any, settings: any, profile?: any): BusinessSettings {
     const defaultHours = this.getDefaultWorkingHours();
     return {
       businessName: business.name || '',
@@ -195,9 +205,9 @@ export class BusinessService {
       capacity: settings?.capacity ?? 1,
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
-      firstName: settings?.first_name,
-      lastName: settings?.last_name,
-      phone: settings?.phone
+      firstName: profile?.first_name ?? settings?.first_name ?? '',
+      lastName: profile?.last_name ?? settings?.last_name ?? '',
+      phone: profile?.phone ?? settings?.phone ?? ''
     };
   }
 

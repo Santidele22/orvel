@@ -160,6 +160,11 @@ import Layout from '../../../layouts/Layout.astro';
       if (normalized === 'MEDIUM') return 'GROWTH';
       return ['FREE', 'STARTED', 'GROWTH', 'PRO'].includes(normalized ?? '') ? normalized : 'FREE';
     };
+    const readStringField = (value: unknown, key: string) => {
+      if (!value || typeof value !== 'object') return '';
+      const field = (value as Record<string, unknown>)[key];
+      return typeof field === 'string' ? field.trim() : '';
+    };
     const syncOnboardingMetadata = async (selectedRubros: string[]) => {
       if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) return { synced: false, reason: 'missing_config' };
       const client = createClient(
@@ -174,12 +179,24 @@ import Layout from '../../../layouts/Layout.astro';
       const businessName = typeof data.session.user.user_metadata?.negocioNombre === 'string'
         ? data.session.user.user_metadata.negocioNombre
         : 'Mi Negocio';
-      const { error } = await client.rpc('complete_signup_onboarding', {
+      const { data: onboardingResult, error } = await client.rpc('complete_signup_onboarding', {
         p_business_name: businessName,
         p_business_type: primaryType,
         p_plan_code: normalizePlanCode(params.get('plan'))
       });
       if (error) return { synced: false, reason: 'update_failed' };
+      const bookingSlug = onboardingResult?.booking_slug || readStringField(onboardingResult, 'slug');
+      const businessId = readStringField(onboardingResult, 'business_id');
+      const persistedBusinessName = readStringField(onboardingResult, 'business_name') || businessName;
+      if (!bookingSlug || !businessId) return { synced: false, reason: 'missing_backend_identity' };
+      sessionStorage.setItem('orvel.signup.business_identity', JSON.stringify({
+        business_id: businessId,
+        business_name: persistedBusinessName,
+        booking_slug: bookingSlug,
+        business_type: readStringField(onboardingResult, 'business_type') || primaryType,
+        plan: readStringField(onboardingResult, 'plan') || normalizePlanCode(params.get('plan')),
+        dashboard_ready: true
+      }));
       markSignupOnboardingCompleted({ email, selectedRubros });
       return { synced: true };
     };

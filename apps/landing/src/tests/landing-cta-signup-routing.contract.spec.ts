@@ -25,9 +25,9 @@ describe('Contract: landing CTA routing to signup', () => {
     expectAnchorCtaToSignup(source, 'Crear cuenta', 'Header.astro');
   });
 
-  it('hero CTA "Comenzar ahora" points to /auth/signup/plan', async () => {
+  it('hero CTA "Probalo hoy" points to /auth/signup/plan', async () => {
     const source = await readFile(HERO_PATH, 'utf8');
 
-    expectAnchorCtaToSignup(source, 'Comenzar ahora', 'Hero.astro');
+    expectAnchorCtaToSignup(source, 'Probalo hoy', 'Hero.astro');
   });
 });

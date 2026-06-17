@@ -1,0 +1,34 @@
+# Local/private metadata
+.funemon/
+funemon/
+.opencode/
+
+# Environment files and secrets
+.env*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs and caches
+dist/
+build/
+coverage/
+.angular/
+.astro/
+.turbo/
+.vite/
+.parcel-cache/
+.svelte-kit/
+.next/
+out/
+.cache/
+.eslintcache
+.stylelintcache
+
+# Local hosting/tooling state
+.vercel/
+.netlify/
+.supabase/
+supabase/.branches/
+supabase/.temp/

@@ -10,10 +10,11 @@ async function resolveDashboardAccessRedirect(
     return true;
   }
 
-  const redirectTo = access.redirectTo ?? buildLandingLoginRedirect(safeReturnTo);
+  const fallbackRedirect = buildLandingLoginRedirect(safeReturnTo);
+  const landingRedirect = access.redirectTo || fallbackRedirect;
 
   if (typeof window !== 'undefined') {
-    window.location.assign(redirectTo);
+    window.location.assign(landingRedirect);
   }
 
   return false;
