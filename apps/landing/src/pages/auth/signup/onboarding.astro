@@ -7,22 +7,22 @@ import Layout from '../../../layouts/Layout.astro';
     <section class="w-full max-w-2xl rounded-2xl border border-border bg-bg-secondary/80 p-8 shadow-2xl">
       <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Paso 3 de 3</p>
       <h1 class="mb-3 font-headline text-3xl font-black tracking-tighter">Tu Rubro.</h1>
-      <p class="text-sm leading-6 text-text-secondary">Seleccioná las categorías de tu negocio.</p>
-      <p class="mt-2 text-xs leading-5 text-text-secondary">Elegí las categorías que mejor describen tu salón para adaptar las herramientas. Personalizá tu experiencia.</p>
+      <p class="text-sm leading-6 text-text-secondary">Seleccioná una categoría de tu negocio.</p>
+      <p class="mt-2 text-xs leading-5 text-text-secondary">Elegí la categoría que mejor describe tu salón para adaptar las herramientas. Personalizá tu experiencia.</p>
 
       <form id="completeForm" data-form-alias="onboardingForm" class="mt-8 space-y-6">
         <fieldset class="grid gap-3 sm:grid-cols-2" aria-describedby="onboardingHelper onboardingError">
-          <legend class="sr-only">Categorías del negocio</legend>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="peluqueria" /><span>Peluquería</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="unas" /><span>Uñas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="barberia" /><span>Barbería</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="spa" /><span>Spa</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="pestanas" /><span>Pestañas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="cejas" /><span>Cejas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="masajes" /><span>Masajes</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="checkbox" name="rubro" value="otro" /><span>Otro</span></label>
+          <legend class="sr-only">Categoría del negocio</legend>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="peluqueria" /><span>Peluquería</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="unas" /><span>Uñas</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="barberia" /><span>Barbería</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="spa" /><span>Spa</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="pestanas" /><span>Pestañas</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="cejas" /><span>Cejas</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="masajes" /><span>Masajes</span></label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="otro" /><span>Otro</span></label>
         </fieldset>
-        <p id="onboardingHelper" class="text-xs text-text-secondary">Seleccioná al menos una categoría para continuar.</p>
+        <p id="onboardingHelper" class="text-xs text-text-secondary">Seleccioná una categoría para continuar.</p>
         <p id="onboardingError" class="hidden rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert"></p>
         <button id="completeOnboardingBtn" type="submit" class="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">
           FINALIZAR CONFIGURACIÓN
@@ -144,10 +144,10 @@ import Layout from '../../../layouts/Layout.astro';
     const button = document.getElementById('completeOnboardingBtn') as HTMLButtonElement | null;
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const selectedRubros = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubro"]:checked')).map((input) => input.value);
+      const selectedRubros = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubro"]:checked')).map((input) => input.value).slice(0, 1);
       if (selectedRubros.length === 0) {
         if (errorEl) {
-          errorEl.textContent = 'Seleccioná al menos una categoría para continuar.';
+          errorEl.textContent = 'Seleccioná una categoría para continuar.';
           errorEl.classList.remove('hidden');
         }
         return;

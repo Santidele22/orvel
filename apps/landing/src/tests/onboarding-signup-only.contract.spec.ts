@@ -32,7 +32,7 @@ describe('Contract: onboarding runs only on signup path', () => {
     expect(source).not.toMatch(/selectedRubros\.length\s*===\s*0/);
   });
 
-  it('signup path requires rubros onboarding and enforces at least one selected rubro', async () => {
+  it('signup path requires rubros onboarding and enforces one selected rubro', async () => {
     await expect(
       access(SIGNUP_PAGE_PATH),
       'Expected signup page at src/pages/signup.astro to host onboarding step for new accounts.'
@@ -40,14 +40,15 @@ describe('Contract: onboarding runs only on signup path', () => {
 
     const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
     expect(source).toContain('Tu Rubro.');
-    expect(source).toMatch(/type\s*=\s*["']checkbox["']/i);
+    expect(source).toMatch(/type\s*=\s*["']radio["']/i);
+    expect(source).not.toMatch(/type\s*=\s*["']checkbox["']/i);
     expect(source).toMatch(/seleccion[aá].*(categor[íi]a)|al menos una/i);
   });
 
   it('signup continue CTA is wired to an explicit submit action', async () => {
     const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
-    const checkboxCount = (source.match(/type\s*=\s*["']checkbox["']/gi) ?? []).length;
-    expect(checkboxCount, 'Expected at least one native HTML checkbox for multiselection features.').toBeGreaterThanOrEqual(1);
+    const radioCount = (source.match(/type\s*=\s*["']radio["']/gi) ?? []).length;
+    expect(radioCount, 'Expected at least one native HTML radio for single-selection rubro features.').toBeGreaterThanOrEqual(1);
   });
 
   it('persists onboarding completion and future login can bypass onboarding for same user', async () => {
@@ -78,6 +79,29 @@ describe('Contract: onboarding runs only on signup path', () => {
     expect(onboardingState.readSignupOnboardingCompletion({ email: 'new@orvel.app' })).toEqual({
       completed: false,
       selectedRubros: []
+    });
+  });
+
+  it('stores only one selected rubro even if stale callers pass multiple values', async () => {
+    localStorage.clear();
+
+    const onboardingState = await loadSignupOnboardingStateModule();
+    expect(onboardingState).not.toBeNull();
+
+    if (!onboardingState) {
+      return;
+    }
+
+    onboardingState.markSignupOnboardingCompleted({
+      email: 'single@orvel.app',
+      selectedRubros: ['peluqueria', 'barberia', 'pestanas'],
+      now: 1_700_000_000_000
+    });
+
+    expect(onboardingState.readSignupOnboardingCompletion({ email: 'single@orvel.app' })).toEqual({
+      completed: true,
+      selectedRubros: ['peluqueria'],
+      completedAt: 1_700_000_000_000
     });
   });
 
