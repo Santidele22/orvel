@@ -13,6 +13,7 @@ const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
 const SIGNUP_ONBOARDING_ROUTE = '/auth/signup/onboarding';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
+const SESSION_HANDOFF_PARAM = 'handoff';
 
 /**
  * Gets the Supabase Auth client (cached for performance).
@@ -68,6 +69,79 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
 export function buildLandingLoginRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
   return `${resolveLandingOrigin()}${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+type SessionHandoffAuth = {
+  setSession(session: { access_token: string; refresh_token: string }): Promise<{ error?: { message?: string } | null }>;
+};
+
+type RedeemDashboardSessionHandoffInput = {
+  functionUrl?: string;
+  fetch?: typeof fetch;
+  auth?: SessionHandoffAuth;
+};
+
+function currentBrowserUrl(): URL | null {
+  const location = (globalThis as { window?: { location?: Location } }).window?.location;
+  if (!location?.href) return null;
+
+  try {
+    return new URL(location.href);
+  } catch {
+    return null;
+  }
+}
+
+function stripHandoffParam(url: URL): void {
+  const win = (globalThis as { window?: { history?: { replaceState?: History['replaceState'] } } }).window;
+  url.searchParams.delete(SESSION_HANDOFF_PARAM);
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  win?.history?.replaceState?.(null, '', nextUrl);
+}
+
+function resolveRedeemFunctionUrl(): string {
+  return new URL('/functions/v1/redeem-session-handoff', SUPABASE_CONFIG.url).toString();
+}
+
+export async function redeemDashboardSessionHandoff(
+  input: RedeemDashboardSessionHandoffInput = {}
+): Promise<{ redeemed: boolean }> {
+  const url = currentBrowserUrl();
+  const handoff = url?.searchParams.get(SESSION_HANDOFF_PARAM)?.trim();
+  if (!url || !handoff) {
+    return { redeemed: false };
+  }
+
+  try {
+    const response = await (input.fetch ?? fetch)(input.functionUrl ?? resolveRedeemFunctionUrl(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ handoff })
+    });
+
+    if (!response.ok) {
+      stripHandoffParam(url);
+      return { redeemed: false };
+    }
+
+    const data = await response.json();
+    if (typeof data?.access_token !== 'string' || typeof data?.refresh_token !== 'string') {
+      stripHandoffParam(url);
+      return { redeemed: false };
+    }
+
+    const auth = input.auth ?? getSupabaseAuthClient();
+    const { error } = await auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token
+    });
+
+    stripHandoffParam(url);
+    return { redeemed: !error };
+  } catch {
+    if (url) stripHandoffParam(url);
+    return { redeemed: false };
+  }
 }
 
 export function buildLandingPlanSelectionRedirect(returnTo: string): string {
@@ -140,6 +214,23 @@ function hasSelectedPlan(metadata: Record<string, unknown> | undefined): boolean
   return hasCanonicalOrLegacyPlan(metadata?.['plan']);
 }
 
+function hasSelectedPlanCode(plan: unknown): boolean {
+  return hasCanonicalOrLegacyPlan(plan);
+}
+
+async function loadDashboardAuthState(authClient: ReturnType<typeof getSupabaseAuthClient>) {
+  if (typeof authClient.getDashboardAuthState !== 'function') {
+    return null;
+  }
+
+  try {
+    const result = await authClient.getDashboardAuthState();
+    return result?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function hasCompletedMandatoryOnboarding(metadata: Record<string, unknown> | undefined): boolean {
   if (!metadata) {
     return false;
@@ -172,15 +263,22 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
     if (data?.session?.access_token) {
       const metadata = data.session.user.user_metadata;
-      if (!hasCompletedMandatoryOnboarding(metadata)) {
-        if (!hasSelectedPlan(metadata)) {
-          return { allowed: false, redirectTo: buildLandingPlanSelectionRedirect(safeReturnTo) };
-        }
+      const serverState = await loadDashboardAuthState(authClient);
 
-        return { allowed: false, redirectTo: buildMandatoryOnboardingRedirect(safeReturnTo) };
+      if (
+        serverState?.dashboard_ready === true &&
+        hasSelectedPlanCode(serverState.selected_plan_code) &&
+        isAllowedOnboardingBusinessType(serverState.business_type)
+      ) {
+        return { allowed: true };
       }
 
-      return { allowed: true };
+      const selectedPlan = serverState?.selected_plan_code ?? metadata?.['plan'];
+      if (!hasSelectedPlanCode(selectedPlan)) {
+        return { allowed: false, redirectTo: buildLandingPlanSelectionRedirect(safeReturnTo) };
+      }
+
+      return { allowed: false, redirectTo: buildMandatoryOnboardingRedirect(safeReturnTo) };
     }
 
     // No Supabase session
@@ -223,6 +321,7 @@ export async function canAccessDashboardAsync(
   _now = Date.now(),
   returnTo = '/dashboard'
 ): Promise<{ allowed: boolean; redirectTo?: string }> {
+  await redeemDashboardSessionHandoff();
   return checkSupabaseSession(returnTo);
 }
 

@@ -3,6 +3,7 @@ import {
   loginWithProvider
 } from './auth-provider';
 import { sanitizeLandingAuthReturnTo } from './auth-return-to';
+import { createDashboardSessionHandoffInvoke } from './dashboard-session-handoff';
 import { buildLocalProxyAuthCanonicalUrl } from './local-auth-proxy-canonicalizer';
 
 export function initLoginPage(env: {
@@ -42,6 +43,13 @@ export function initLoginPage(env: {
     SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
     SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
   });
+  const dashboardOrigin = env.PUBLIC_DASHBOARD_URL || returnTo;
+  const dashboardHandoff = env.PUBLIC_SUPABASE_URL
+    ? {
+        dashboardOrigin,
+        invoke: createDashboardSessionHandoffInvoke({ supabaseUrl: env.PUBLIC_SUPABASE_URL })
+      }
+    : undefined;
 
   document.getElementById('loginForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -64,7 +72,7 @@ export function initLoginPage(env: {
     button.textContent = 'Ingresando...';
 
     try {
-      const result = await loginWithProvider({ attempt: { email, password, returnTo }, supabaseLogin });
+      const result = await loginWithProvider({ attempt: { email, password, returnTo }, supabaseLogin, dashboardHandoff });
       if (result.ok && result.redirectTo) {
         window.location.assign(result.redirectTo);
         return;

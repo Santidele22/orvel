@@ -28,6 +28,7 @@ export class ConfiguracionZenThemeComponent {
   get urlCopied() { return this.ctx.urlCopied; }
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
+  hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }
   copyBookingUrl(): void { this.ctx.copyBookingUrl(); }
   planDisplayLabel(): string { return this.ctx.planDisplayLabel(); }
 

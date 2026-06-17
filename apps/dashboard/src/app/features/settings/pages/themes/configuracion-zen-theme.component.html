@@ -168,11 +168,13 @@
               <div class="group flex min-w-0 items-center justify-between gap-3 flex-1 rounded-xl border border-white/5 bg-black/20 p-3 shadow-inner">
                 <code class="min-w-0 flex-1 truncate text-[10px] text-purple-400">{{ publicBookingUrl() }}</code>
                 <button type="button" (click)="copyBookingUrl()" aria-label="Copiar link de reservas"
+                  [attr.disabled]="hasPublicBookingUrl() ? null : true"
                   class="w-8 h-8 rounded-lg bg-bg-primary border border-white/10 flex items-center justify-center text-purple-400 hover:bg-purple-500 hover:text-white transition-all active:scale-95">
                   <i [class]="urlCopied() ? 'ri-check-line' : 'ri-file-copy-line'" aria-hidden="true"></i>
                 </button>
               </div>
-              <a [href]="publicBookingUrl()" target="_blank" aria-label="Abrir portal de reservas"
+              <a [href]="hasPublicBookingUrl() ? publicBookingUrl() : null" target="_blank" aria-label="Abrir portal de reservas"
+                [attr.aria-disabled]="hasPublicBookingUrl() ? null : true"
                 class="h-zen-control-md w-zen-control-md flex items-center justify-center bg-primary text-white rounded-zen-card hover:brightness-110 transition-all shadow-xl shadow-primary/20">
                 <i class="ri-external-link-line text-lg" aria-hidden="true"></i>
               </a>

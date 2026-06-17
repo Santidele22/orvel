@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const supabaseAuthClientMock = vi.hoisted(() => ({
   getSession: vi.fn(),
+  getDashboardAuthState: vi.fn(),
   signOut: vi.fn()
 }));
 
@@ -14,6 +15,7 @@ describe('dashboard auth onboarding contract', () => {
   beforeEach(() => {
     vi.resetModules();
     supabaseAuthClientMock.getSession.mockReset();
+    supabaseAuthClientMock.getDashboardAuthState.mockReset();
     supabaseAuthClientMock.signOut.mockReset();
 
     Object.defineProperty(globalThis, 'window', {
@@ -27,6 +29,64 @@ describe('dashboard auth onboarding contract', () => {
       writable: true,
       configurable: true
     });
+  });
+
+  it('denies dashboard access when user-writable metadata self-asserts onboarding without server auth state', async () => {
+    supabaseAuthClientMock.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'supabase-access-token',
+          user: {
+            id: 'self-asserted-user',
+            email: 'attacker@orvel.pro',
+            user_metadata: {
+              plan: 'PRO',
+              tipoNegocio: 'peluqueria',
+              onboardingCompleted: true,
+              onboarding_completed: true
+            }
+          }
+        }
+      },
+      error: null
+    });
+    supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue({
+      data: { dashboard_ready: false, selected_plan_code: null, business_type: null },
+      error: null
+    });
+
+    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const access = await checkSupabaseSession('/dashboard/inicio');
+
+    expect(access.allowed).toBe(false);
+    expect(access.redirectTo).not.toBeUndefined();
+  });
+
+  it('allows dashboard access only when server-controlled onboarding state is dashboard ready', async () => {
+    supabaseAuthClientMock.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'supabase-access-token',
+          user: {
+            id: 'server-authorized-user',
+            email: 'owner@orvel.pro',
+            user_metadata: {
+              plan: 'FREE',
+              tipoNegocio: 'peluqueria',
+              onboardingCompleted: false
+            }
+          }
+        }
+      },
+      error: null
+    });
+    supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue({
+      data: { dashboard_ready: true, selected_plan_code: 'FREE', business_type: 'peluqueria' },
+      error: null
+    });
+
+    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    await expect(checkSupabaseSession('/dashboard/inicio')).resolves.toEqual({ allowed: true });
   });
 
   it('dashboardAuthGuard redirects authenticated users missing onboarding to landing-owned onboarding', async () => {

@@ -58,8 +58,8 @@ export class DashboardHomeComponent {
     const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
 
     return {
-      name: state?.businessName || 'Mi Negocio',
-      slug: state?.slug || 'mi-salon',
+      name: state?.businessName || 'Sucursal sin nombre',
+      slug: state?.slug || '',
       workingRange: `${hours.start} - ${hours.end}`,
       totalMinutes: Math.max(0, totalMinutes)
     };
@@ -100,11 +100,21 @@ export class DashboardHomeComponent {
 
   protected bookingUrl(): string {
     const state = this.businessFacade.settings();
-    const slug = state?.slug || state?.businessName?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'mi-salon';
+    const slug = state?.slug?.trim();
+    if (!slug) {
+      return 'Link de reservas no disponible';
+    }
+
     return `${window.location.origin}/booking/${slug}`;
   }
 
+  protected hasBookingUrl(): boolean {
+    return Boolean(this.businessFacade.settings()?.slug?.trim());
+  }
+
   protected copyBookingUrl(): void {
+    if (!this.hasBookingUrl()) return;
+
     navigator.clipboard.writeText(this.bookingUrl());
     this.copied.set(true);
     setTimeout(() => this.copied.set(false), 2000);

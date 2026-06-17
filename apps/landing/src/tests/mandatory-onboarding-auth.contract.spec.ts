@@ -219,12 +219,13 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.redirectTo).not.toContain('dashboard.orvel.pro');
   });
 
-  it('onboarding completion with a Supabase session returns to dashboard instead of auto-redirecting to login', async () => {
+  it('onboarding completion with a Supabase session shows welcome modal instead of auto-redirecting to login or dashboard', async () => {
     const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
 
     expect(source).toContain("const safeReturnTo = sanitizeReturnTo(params.get('returnTo'))");
-    expect(source).toMatch(/if\s*\(result\.synced\)\s*\{[\s\S]*window\.location\.href\s*=\s*safeReturnTo/);
-    expect(source).not.toMatch(/const result = await syncOnboardingMetadata[\s\S]{0,600}showAccountCreatedModal\(\);/);
+    expect(source).toMatch(/if\s*\(result\.synced\)\s*\{[\s\S]{0,220}showAccountCreatedModal\(\);/);
+    expect(source).not.toMatch(/if\s*\(result\.synced\)\s*\{[\s\S]{0,260}window\.location\.href\s*=\s*safeReturnTo/);
+    expect(source).not.toMatch(/setTimeout\s*\([\s\S]{0,160}(?:safeLoginUrl|safeReturnTo|redirectToLogin)/i);
   });
 
   it('maps Supabase availability failures to user-friendly signup copy without exposing backend provider names', async () => {

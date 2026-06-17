@@ -15,6 +15,7 @@ import {
   isEncryptionReady
 } from './encrypted-token-storage';
 import { sanitizeLandingAuthReturnTo } from './auth-return-to';
+import { createDashboardSessionHandoff, type HandoffInvoke } from './dashboard-session-handoff';
 
 export const ORVEL_SESSION_KEY = 'orvel.session.v1';
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE =
@@ -29,6 +30,10 @@ export interface LoginResult {
 type LoginWithProviderInput = {
   attempt: LoginAttempt;
   supabaseLogin: (attempt: LoginAttempt) => SupabaseAdapterResult | Promise<SupabaseAdapterResult>;
+  dashboardHandoff?: {
+    dashboardOrigin: string;
+    invoke: HandoffInvoke;
+  };
 };
 
 type RawRuntimeModeInput =
@@ -198,9 +203,33 @@ export async function loginWithProvider(input: LoginWithProviderInput): Promise<
 
   if (result.ok) {
     await persistSupabaseSession(input.attempt, result);
+    const redirectTo = sanitizeReturnTo(input.attempt.returnTo);
+
+    if (input.dashboardHandoff && result.refreshToken) {
+      try {
+        return {
+          ok: true,
+          redirectTo: await createDashboardSessionHandoff({
+            dashboardOrigin: input.dashboardHandoff.dashboardOrigin,
+            returnTo: redirectTo,
+            session: {
+              access_token: result.token,
+              refresh_token: result.refreshToken
+            },
+            invoke: input.dashboardHandoff.invoke
+          })
+        };
+      } catch {
+        return {
+          ok: false,
+          error: 'No pudimos preparar el acceso seguro al dashboard. Intentá nuevamente.'
+        };
+      }
+    }
+
     return {
       ok: true,
-      redirectTo: sanitizeReturnTo(input.attempt.returnTo)
+      redirectTo
     };
   }
 

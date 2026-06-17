@@ -17,6 +17,7 @@ import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-co
 
 const supabaseAuthClientMock = {
   getSession: vi.fn(),
+  getDashboardAuthState: vi.fn(),
   signOut: vi.fn()
 };
 
@@ -117,6 +118,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   beforeEach(() => {
     ensureLocalStorage().clear();
     supabaseAuthClientMock.getSession.mockClear();
+    supabaseAuthClientMock.getDashboardAuthState.mockClear();
     supabaseAuthClientMock.signOut.mockClear();
   });
 
@@ -220,10 +222,14 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
       },
       error: null
     });
+    supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
+      data: { dashboard_ready: false, selected_plan_code: 'GROWTH', business_type: 'peluqueria' },
+      error: null
+    });
 
     await expect(canAccessDashboardAsync()).resolves.toEqual({
       allowed: false,
-      redirectTo: '/auth/onboarding?onboarding_required=true&returnTo=%2Fdashboard'
+      redirectTo: 'https://orvel.pro/auth/signup/onboarding?onboarding_required=true&returnTo=%2Fdashboard'
     });
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
@@ -241,6 +247,10 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
           }
         }
       },
+      error: null
+    });
+    supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
+      data: { dashboard_ready: true, selected_plan_code: 'GROWTH', business_type: 'peluqueria' },
       error: null
     });
 

@@ -235,9 +235,13 @@ export class BusinessSettingsFacade {
           // OJO: Podríamos usar un JOIN pero para máxima compatibilidad y robustez hacemos consultas paralelas o secuenciales
           const { data: bizData } = await supabase
             .from('businesses')
-            .select('slug')
+            .select('name, slug')
             .eq('id', businessId)
             .maybeSingle();
+
+          if (bizData?.name) {
+            row.business_name = bizData.name;
+          }
 
           const { data: profileData } = await supabase
             .from('profiles')
@@ -332,21 +336,18 @@ export class BusinessSettingsFacade {
           week_start_day: persistedLocal.weekStartDay,
           time_format: persistedLocal.timeFormat,
 
-          updated_at: persistedLocal.updatedAt,
-          slug: persistedLocal.slug || this.generateSlugFromName(persistedLocal.businessName)
+          updated_at: persistedLocal.updatedAt
         };
 
         // 1. SIEMPRE intentar actualizar el nombre y slug en la tabla principal 'businesses'
         // Lo hacemos PRIMERO para asegurar la identidad del negocio y la URL de booking.
         // NOTA: Un TRIGGER en la base de datos (fn_sync_business_identity) se encargará de
         // propagar estos cambios a 'business_settings' automáticamente, asegurando coherencia total.
-        const slugToSync = savePayload.slug;
-        console.log(`[Facade] Identity Sync: Updating businesses table for ${businessId}...`, { slug: slugToSync, name: persistedLocal.businessName });
+        console.log(`[Facade] Identity Sync: Updating businesses table for ${businessId}...`, { name: persistedLocal.businessName });
         
         const { error: bizUpdateError } = await supabase
           .from('businesses')
           .update({ 
-            slug: slugToSync, 
             name: persistedLocal.businessName,
             updated_at: new Date().toISOString()
           })
@@ -401,7 +402,7 @@ export class BusinessSettingsFacade {
         const row = data as BusinessSettingsSupabaseRow;
         
         // Actualizamos el signal local con lo que realmente quedó en DB
-        const finalSlug = row?.slug || slugToSync;
+        const finalSlug = row?.slug || persistedLocal.slug;
         const finalName = row?.business_name || persistedLocal.businessName;
         
         this.settings.update(s => s ? { ...s, businessName: finalName, slug: finalSlug } : s);
@@ -463,20 +464,22 @@ export class BusinessSettingsFacade {
     }
 
     // 3. Only if it doesn't exist, create it with the persisted onboarding identity.
-    const name = businessName || authUser?.negocioNombre || `Negocio ${businessId}`;
-    const slug = this.generateSlugFromName(name);
+    const name = businessName || authUser?.negocioNombre?.trim();
+    if (!name) {
+      this.persistenceError.set('Persisted business identity is unavailable. Complete onboarding before saving settings.');
+      return;
+    }
 
-    console.log(`[Facade] Creating NEW business record: ${businessId} (${slug}) - "${name}"`);
+    console.log(`[Facade] Creating NEW business record: ${businessId} - "${name}"`);
     
     // DB-FIX: Sincronizar con el owner_id para formalizar la propiedad
     const { error: insertError } = await supabase
       .from('businesses')
-      .insert({
-        id: businessId,
-        slug: slug,
-        name: name,
-        timezone: 'America/Argentina/Buenos_Aires',
-        owner_id: businessId // Usamos el ID del usuario como propietario inicial
+        .insert({
+          id: businessId,
+          name: name,
+          timezone: 'America/Argentina/Buenos_Aires',
+          owner_id: businessId // Usamos el ID del usuario como propietario inicial
       });
     
     if (insertError) {
@@ -491,7 +494,13 @@ export class BusinessSettingsFacade {
       });
 
       // Now ensure default settings exist for this new business
-      await this.ensureBusinessSettings(supabase, businessId, slug, name);
+      const { data: createdBusiness } = await supabase
+        .from('businesses')
+        .select('slug')
+        .eq('id', businessId)
+        .maybeSingle();
+
+      await this.ensureBusinessSettings(supabase, businessId, createdBusiness?.slug ?? '', name);
     }
   }
 
@@ -556,13 +565,9 @@ export class BusinessSettingsFacade {
   }
 
   private mapFromSupabaseRow(row: BusinessSettingsSupabaseRow, businessId: string, slug?: string): BusinessSettingsState {
-    const user = this.authService.user();
-    const fallbackName = user?.negocioNombre || `Negocio ${businessId}`;
-    const fallbackSlug = this.generateSlugFromName(fallbackName);
-
     return {
-      businessName: (row.business_name && row.business_name.trim()) ? row.business_name : fallbackName,
-      slug: slug || fallbackSlug,
+      businessName: (row.business_name && row.business_name.trim()) ? row.business_name : '',
+      slug: slug?.trim() || row.slug?.trim() || '',
       bufferMinutes: Number.isFinite(row.buffer_minutes) ? Number(row.buffer_minutes) : 10,
       minNoticeMinutes: Number.isFinite(row.min_notice_minutes) ? Number(row.min_notice_minutes) : 120,
       slotIntervalMinutes: Number.isFinite(row.slot_interval_minutes) ? Number(row.slot_interval_minutes) : 30,
@@ -585,20 +590,18 @@ export class BusinessSettingsFacade {
       timeFormat: row.time_format ?? '12h',
 
       // Profile Fields
-      firstName: row.first_name ?? user?.nombre ?? '',
-      lastName: row.last_name ?? user?.apellido ?? '',
-      phone: row.profile_phone ?? user?.telefono ?? '',
+      firstName: row.first_name ?? '',
+      lastName: row.last_name ?? '',
+      phone: row.profile_phone ?? '',
       
       updatedAt: String(row.updated_at ?? new Date().toISOString())
     };
   }
 
   private buildDefaultState(): BusinessSettingsState {
-    const user = this.authService.user();
-    const name = user?.negocioNombre || 'Completar onboarding';
     return {
-      businessName: name,
-      slug: this.generateSlugFromName(name),
+      businessName: '',
+      slug: '',
       bufferMinutes: 10,
       minNoticeMinutes: 120,
       slotIntervalMinutes: 30,
@@ -614,22 +617,12 @@ export class BusinessSettingsFacade {
       timeFormat: '12h',
 
       // Profile Fallbacks
-      firstName: user?.nombre ?? '',
-      lastName: user?.apellido ?? '',
-      phone: user?.telefono ?? '',
+      firstName: '',
+      lastName: '',
+      phone: '',
 
       updatedAt: new Date().toISOString()
     };
-  }
-
-  private generateSlugFromName(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .normalize('NFD')                     // Eliminar acentos
-      .replace(/[\u0300-\u036f]/g, '')      // Eliminar acentos
-      .replace(/[^a-z0-9]+/g, '-')         // Reemplazar caracteres no alfanuméricos por guiones
-      .replace(/^-+|-+$/g, '') || 'mi-salon'; // Eliminar guiones al inicio/final o fallback
   }
 
   private hasCompletedMandatoryOnboarding(): boolean {
