@@ -140,6 +140,19 @@ import Layout from '../../../layouts/Layout.astro';
     const safeLoginUrl = sanitizeLoginUrl(params.get('loginUrl'));
     const onboardingSource = params.get('source');
     const normalizedOnboardingSource = onboardingSource === 'subscription' ? 'subscription' : 'signup';
+    const backendConfirmationFailureMessage = 'Guardamos tu selección en este navegador, pero no pudimos confirmarla con backend. Iniciá sesión para continuar y retomar la configuración.';
+    const buildOnboardingResumeLoginUrl = () => {
+      const loginUrl = new URL('/auth/login', window.location.origin);
+      const resumeUrl = new URL(window.location.pathname, window.location.origin);
+      const resumeParams = new URLSearchParams(window.location.search);
+      resumeParams.set('resume', 'onboarding');
+      resumeParams.set('source', normalizedOnboardingSource);
+      resumeUrl.search = resumeParams.toString();
+      loginUrl.searchParams.set('returnTo', `${resumeUrl.pathname}${resumeUrl.search}`);
+      loginUrl.searchParams.set('resume', 'onboarding');
+      loginUrl.searchParams.set('source', normalizedOnboardingSource);
+      return `${loginUrl.pathname}${loginUrl.search}`;
+    };
     const loginLink = document.getElementById('loginLink') as HTMLAnchorElement | null;
     if (loginLink) loginLink.href = safeLoginUrl;
     const continueLink = document.getElementById('accountCreatedContinue') as HTMLAnchorElement | null;
@@ -174,7 +187,7 @@ import Layout from '../../../layouts/Layout.astro';
       );
       const { data } = await client.auth.getSession();
       const email = data.session?.user?.email;
-      if (!data.session?.access_token || !email) return { synced: false, reason: 'missing_session' };
+      if (!data.session?.access_token || !email) return { synced: false, reason: 'missing_session', loginUrl: buildOnboardingResumeLoginUrl() };
       const primaryType = normalizeBusinessType(selectedRubros[0] ?? 'otro');
       const businessName = typeof data.session.user.user_metadata?.negocioNombre === 'string'
         ? data.session.user.user_metadata.negocioNombre
@@ -229,8 +242,20 @@ import Layout from '../../../layouts/Layout.astro';
         return;
       }
 
+      if (result.reason === 'missing_session' && errorEl) {
+        const loginUrl = 'loginUrl' in result && typeof result.loginUrl === 'string' ? result.loginUrl : buildOnboardingResumeLoginUrl();
+        if (loginLink) loginLink.href = loginUrl;
+        errorEl.textContent = 'Guardamos tu categoría en este navegador. Para confirmarla, iniciá sesión y vas a volver a esta pantalla para retomar el onboarding.';
+        errorEl.classList.remove('hidden');
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        }
+        return;
+      }
+
       if (!result.synced && errorEl) {
-        errorEl.textContent = 'Guardamos tu selección en este navegador, pero no pudimos confirmarla con backend. Iniciá sesión para continuar y retomar la configuración.';
+        errorEl.textContent = backendConfirmationFailureMessage;
         errorEl.classList.remove('hidden');
       }
       if (button) {
