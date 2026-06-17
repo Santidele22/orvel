@@ -6,6 +6,7 @@ const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro',
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
 const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const PENDING_INTENT_FINALIZE_PATH = new URL('../pages/api/signup/pending-intent/finalize.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -43,43 +44,48 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(source).not.toMatch(/window\.location\.(?:href|assign)\s*=\s*['"`]\/auth\/signup\/plan/);
   });
 
-  it('credentials page treats missing or invalid plan as a hard boundary before Supabase signup', async () => {
+  it('credentials page treats missing or invalid plan as a hard boundary before account finalize', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const planResolution = source.match(/const\s+plan\s*=\s*[^;]+;/)?.[0] ?? '';
 
     expect(planResolution, 'Missing plan must not silently default to FREE because that creates accounts without an explicit plan selection.').not.toContain("|| 'FREE'");
     expect(source).toMatch(/VALID_SIGNUP_PLANS|isValidSignupPlan|assertValidSignupPlan/);
-
-    const validationIndex = Math.max(
-      source.indexOf('VALID_SIGNUP_PLANS'),
-      source.indexOf('isValidSignupPlan'),
-      source.indexOf('assertValidSignupPlan')
-    );
-    const adapterIndex = indexOfOrThrow(source, 'createSupabaseSignupAdapterFromEnv');
-    const signupIndex = indexOfOrThrow(source, 'signupWithProvider({');
-
-    expect(validationIndex).toBeGreaterThanOrEqual(0);
-    expect(validationIndex).toBeLessThan(adapterIndex);
-    expect(validationIndex).toBeLessThan(signupIndex);
+    expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
     expect(source).toMatch(/\/auth\/signup\/plan\?[^`'"\n]*(?:reason=missing_plan|reason=invalid_plan|plan_error=)/);
+    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|\/api\/signup\/pending-intent\/finalize/);
   });
 
-  it('Supabase signup is only reachable for a valid explicit plan and valid required fields', async () => {
+  it('credentials submit validates required fields before creating a protected pending intent or navigating', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
 
-    const validateFormIndex = indexOfOrThrow(source, 'if (!validateForm()');
+    const validateFormIndex = indexOfOrThrow(source, 'validateNonSensitiveCredentials()');
+    const protectIndex = indexOfOrThrow(source, 'await createProtectedPendingSignupIntent');
+    const onboardingIndex = indexOfOrThrow(source, '/auth/signup/onboarding');
     const planGuardIndex = Math.max(
       source.indexOf('VALID_SIGNUP_PLANS'),
       source.indexOf('isValidSignupPlan'),
       source.indexOf('assertValidSignupPlan')
     );
-    const signupIndex = indexOfOrThrow(source, 'signupWithProvider({');
 
-    expect(validateFormIndex).toBeLessThan(signupIndex);
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(planGuardIndex).toBeLessThan(signupIndex);
-    expect(source).toContain('plan,');
-    expect(source).toMatch(/returnTo:\s*(?:nextStep|onboardingUrl\.toString\(\))/);
+    expect(validateFormIndex).toBeLessThan(protectIndex);
+    expect(validateFormIndex).toBeLessThan(onboardingIndex);
+    expect(source).toContain('plan');
+    expect(source).toMatch(/onboardingUrl|pendingSignupIntent|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
+  });
+
+  it('pending-intent finalize is the account creation boundary and rejects non-FREE before Supabase signup', async () => {
+    const source = await loadSource(PENDING_INTENT_FINALIZE_PATH);
+    const planGuardIndex = indexOfOrThrow(source, "FREE_SIGNUP_PLAN = 'FREE'");
+    const rejectionIndex = indexOfOrThrow(source, 'pending_signup_finalize_free_plan_only');
+    const adapterIndex = indexOfOrThrow(source, 'createSupabaseSignupAdapter({');
+
+    expect(source).toMatch(/normalizeRequestedPlanCode\(body\?\.plan_code\)\s*!==\s*FREE_SIGNUP_PLAN/);
+    expect(planGuardIndex).toBeLessThan(rejectionIndex);
+    expect(rejectionIndex).toBeLessThan(adapterIndex);
+    expect(source).toMatch(/plan:\s*FREE_SIGNUP_PLAN/);
+    expect(source).not.toMatch(/\b(?:STARTER|GROWTH|PRO)\b|createSubscription|mercadopago/i);
   });
 
   it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {

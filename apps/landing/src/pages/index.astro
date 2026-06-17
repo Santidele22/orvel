@@ -57,15 +57,9 @@ function updatePrices(period) {
 
     // Keep FREE visible across billing periods so visitors always see the gratis entry point.
     if (planCode === 'FREE') {
-      if (nextPeriod !== 'monthly') {
-        card.hidden = true;
-        card.classList.add('hidden');
-        card.setAttribute('aria-hidden', 'true');
-      } else {
-        card.hidden = false;
-        card.classList.remove('hidden');
-        card.setAttribute('aria-hidden', 'false');
-      }
+      card.hidden = false;
+      card.classList.remove('hidden');
+      card.setAttribute('aria-hidden', 'false');
       return;
     }
 

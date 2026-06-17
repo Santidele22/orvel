@@ -52,7 +52,7 @@ describe('RED Contract: active launch landing account/auth actions', () => {
 
     expect(index).toMatch(/<CTA\s*\/>/);
     expect(index).not.toMatch(/<!--\s*<CTA\s*\/>\s*-->/);
-    expectVisibleAnchorTo(cta, /Activar|Comenzar|Empezar|Crear cuenta/, '/auth/signup/plan');
+    expectVisibleAnchorTo(cta, /Activar|Comenzar|Empezar|Crear cuenta|Probalo hoy/, '/auth/signup/plan');
   });
 });
 

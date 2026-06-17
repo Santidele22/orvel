@@ -47,7 +47,7 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
     const validationSource = await source(CREDENTIALS_VALIDATION);
     const validatorsBlock = sliceBetween(controllerSource, 'const validators = {', '\n  };');
     const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });\n}');
-    const invalidGuard = sliceBetween(submitFlow, 'if (!validateForm()', 'button.disabled = true');
+    const invalidGuard = sliceBetween(submitFlow, 'if (!(isPaidPlan ? validateForm() : validateNonSensitiveCredentials()) || !button)', 'button.disabled = true');
 
     expect(validatorsBlock).toMatch(/telefonoCaracteristica\s*:/);
     expect(validatorsBlock).toMatch(/telefonoNumero\s*:/);
@@ -57,7 +57,7 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
     expect(invalidGuard).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|import\(/);
   });
 
-  it('normalizes split Argentina phone before FREE signup and never sends raw split fields to Supabase', async () => {
+  it('normalizes split Argentina phone before protecting FREE pending intent and never signs up directly', async () => {
     const controllerSource = await source(CREDENTIALS_CONTROLLER);
     const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });\n}');
     const freeSignupBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {\n      const protectedSignup');
@@ -65,8 +65,12 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
     expect(controllerSource).toMatch(/normalizeArgentinaPhone|buildArgentinaPhone|normalizedPhone/i);
     expect(controllerSource).toMatch(/telefonoCaracteristica/);
     expect(controllerSource).toMatch(/telefonoNumero/);
-    expect(freeSignupBranch).toMatch(/telefono\s*:\s*values\.normalizedPhone/);
-    expect(freeSignupBranch).not.toMatch(/telefono\s*:\s*telefono(?:Caracteristica|Numero)?\b/);
+    expect(freeSignupBranch).toMatch(/createProtectedPendingSignupIntent\(\{[\s\S]*phone:\s*values\.normalizedPhone[\s\S]*\}\)/);
+    expect(freeSignupBranch).toMatch(/sessionStorage\.setItem\(SIGNUP_STORAGE_KEYS\.pendingSignupIntent,/);
+    expect(freeSignupBranch).toMatch(/window\.location\.href\s*=\s*onboardingUrl\.toString\(\)/);
+    expect(freeSignupBranch).not.toMatch(/telefonoCaracteristica|telefonoNumero/);
+    expect(freeSignupBranch).not.toMatch(/telefono\s*:\s*values\.normalizedPhone/);
+    expect(freeSignupBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
 
   it('FREE signup visibly redirects or surfaces errors and cannot leave a silent same-screen failure', async () => {

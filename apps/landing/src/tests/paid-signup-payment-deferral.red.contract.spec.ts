@@ -32,7 +32,7 @@ describe('RED contract: paid manual signup defers account creation until payment
     const paidBranch = sliceBetween(submitFlow, 'try {\n      const protectedSignup');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
-    expect(freeBranch).toContain('await signupWithProvider({');
+    expect(freeBranch).not.toContain('await signupWithProvider({');
     expect(paidBranch).not.toContain('signupWithProvider');
     expect(paidBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
     expect(submitFlow).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
@@ -42,15 +42,15 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(completeSource).not.toContain('await client.auth.updateUser({');
   });
 
-  it('free manual signup still creates the Supabase user immediately and hands off to landing-owned onboarding', async () => {
+  it('free manual signup defers Supabase user creation and hands off to landing-owned onboarding', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
-    expect(freeBranch).toContain('createSupabaseSignupAdapterFromEnv');
-    expect(freeBranch).toContain('await signupWithProvider({');
-    expect(freeBranch).toContain("tipoNegocio: 'pendiente'");
+    expect(freeBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
+    expect(freeBranch).not.toContain('await signupWithProvider({');
+    expect(freeBranch).not.toContain("tipoNegocio: 'pendiente'");
     expect(freeBranch).toContain("new URL('/auth/signup/onboarding'");
     expect(freeBranch).toContain('window.location.href = onboardingUrl.toString()');
     expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/signup/onboarding');

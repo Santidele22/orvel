@@ -65,6 +65,21 @@ describe('RED contract: FREE signup credentials controller submission', () => {
     vi.clearAllMocks();
     vi.resetModules();
     window.history.pushState({}, '', '/auth/signup/credentials?plan=FREE&billing=monthly');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      protected_pending_signup_intent: {
+        email_encrypted: '{\"v\":\"pending_signup_pii_v1\",\"alg\":\"AES-GCM\",\"iv\":\"iv\",\"ct\":\"ct\"}',
+        email_hmac: 'email-hmac',
+        first_name_encrypted: 'first-name-ciphertext',
+        first_name_hmac: 'first-name-hmac',
+        last_name_encrypted: 'last-name-ciphertext',
+        last_name_hmac: 'last-name-hmac',
+        phone_encrypted: 'phone-ciphertext',
+        phone_hmac: 'phone-hmac',
+        business_name_encrypted: 'business-name-ciphertext',
+        business_name_hmac: 'business-name-hmac',
+        pii_crypto_version: 'pending_signup_pii_v1'
+      }
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
     sessionStorage.clear();
     renderCredentialsForm();
   });
@@ -72,15 +87,12 @@ describe('RED contract: FREE signup credentials controller submission', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     sessionStorage.clear();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     vi.clearAllMocks();
   });
 
-  it('submits a valid FREE payload through signupWithProvider with normalized 294 phone and surfaces known provider failures', async () => {
-    const providerFailure = createDeferred<{ ok: false; error: string }>();
-    signupWithProvider.mockReturnValueOnce(providerFailure.promise);
-    const duplicateEmailError = 'Ya existe una cuenta con ese email. Iniciá sesión para continuar y retomar el onboarding.';
-
+  it('valid FREE submit defers account creation and stores only protected onboarding handoff data', async () => {
     const { initSignupCredentialsPage } = await loadController();
     initSignupCredentialsPage({
       PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
@@ -90,33 +102,48 @@ describe('RED contract: FREE signup credentials controller submission', () => {
 
     dispatchCredentialsSubmit();
 
-    await vi.waitFor(() => expect(signupWithProvider).toHaveBeenCalledTimes(1));
-    providerFailure.resolve({ ok: false, error: duplicateEmailError });
-    expect(createSupabaseSignupAdapterFromEnv).toHaveBeenCalledWith({
-      SUPABASE_URL: 'https://supabase.test',
-      SUPABASE_ANON_KEY: 'anon-test-key'
+    await vi.waitFor(() => {
+      expect(signupWithProvider).not.toHaveBeenCalled();
+      expect(createSupabaseSignupAdapterFromEnv).not.toHaveBeenCalled();
+      expect(window.location.href).toBe('http://localhost:3000/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly');
     });
-    expect(signupWithProvider).toHaveBeenCalledWith(expect.objectContaining({
-      attempt: expect.objectContaining({
-        nombre: 'Ana',
-        apellido: 'García',
-        negocioNombre: 'Ana Beauty Studio',
-        tipoNegocio: 'pendiente',
-        telefono: '+54294667161',
-        email: 'ana@example.com',
-        password: 'password-segura-123',
-        plan: 'FREE',
-        returnTo: 'http://localhost:3000/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly'
-      })
-    }));
+
+    expect(sessionStorage.getItem('orvel.signup.plan')).toBe('FREE');
+    expect(sessionStorage.getItem('orvel.signup.billing')).toBe('monthly');
+    const pendingSignupIntent = JSON.parse(sessionStorage.getItem('orvel.signup.pending_signup_intent') || '{}');
+    expect(typeof pendingSignupIntent.email_encrypted).toBe('string');
+    expect(typeof pendingSignupIntent.email_hmac).toBe('string');
+    expect(sessionStorage.getItem('orvel.signup.email')).toBeNull();
+    expect(sessionStorage.getItem('orvel.signup.telefono')).toBeNull();
+    expect(JSON.stringify(sessionStorage)).not.toContain('ana@example.com');
+    expect(JSON.stringify(sessionStorage)).not.toContain('+54294667161');
+    expect(JSON.stringify(sessionStorage)).not.toContain('password-segura-123');
+  });
+
+  it('defers FREE account creation at credentials submit and continues to onboarding without a rubro error', async () => {
+    signupWithProvider.mockResolvedValueOnce({
+      ok: false,
+      error: 'Seleccioná el rubro o categoría de tu negocio antes de crear la cuenta.'
+    });
+    const { initSignupCredentialsPage } = await loadController();
+    initSignupCredentialsPage({
+      PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
+      PUBLIC_SUPABASE_URL: 'https://supabase.test',
+      PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
+    });
+
+    dispatchCredentialsSubmit();
+
+    await vi.waitFor(() => {
+      expect(signupWithProvider).not.toHaveBeenCalled();
+      expect(createSupabaseSignupAdapterFromEnv).not.toHaveBeenCalled();
+      expect(window.location.href).toBe('http://localhost:3000/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly');
+    });
 
     const signupError = document.getElementById('signupError');
-    const submitButton = document.querySelector<HTMLButtonElement>('#credentialsForm button[type="submit"]');
-    await vi.waitFor(() => {
-      expect(signupError?.textContent).toBe(duplicateEmailError);
-      expect(submitButton?.disabled).toBe(false);
-      expect(submitButton?.textContent).toBe('Continuar');
-    });
-    expect(signupError?.textContent).not.toBe('No pudimos crear tu cuenta. Reintentá en unos segundos.');
+    expect(signupError?.textContent).not.toMatch(/Seleccion[aá] el rubro|categor[ií]a|crear la cuenta/i);
+    expect(signupError?.classList.contains('hidden')).toBe(true);
+    expect(sessionStorage.getItem('orvel.signup.plan')).toBe('FREE');
+    expect(sessionStorage.getItem('orvel.signup.billing')).toBe('monthly');
   });
 });

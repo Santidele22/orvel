@@ -23,6 +23,14 @@ import Layout from '../../../layouts/Layout.astro';
           <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="otro" /><span>Otro</span></label>
         </fieldset>
         <p id="onboardingHelper" class="text-xs text-text-secondary">Seleccioná una categoría para continuar.</p>
+        <div id="freeAuthFields" class="space-y-3 rounded-2xl border border-border bg-bg-primary/40 p-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Creá tu acceso</p>
+          <label class="block text-sm font-semibold" for="onboardingPassword">Contraseña</label>
+          <input id="onboardingPassword" name="password" type="password" autocomplete="new-password" minlength="8" class="w-full rounded-xl border border-border bg-bg-secondary px-4 py-3 text-sm outline-none focus:border-primary" />
+          <label class="block text-sm font-semibold" for="onboardingConfirmPassword">Confirmar contraseña</label>
+          <input id="onboardingConfirmPassword" name="confirm" type="password" autocomplete="new-password" minlength="8" class="w-full rounded-xl border border-border bg-bg-secondary px-4 py-3 text-sm outline-none focus:border-primary" />
+          <p class="text-xs leading-5 text-text-secondary">Por seguridad, la contraseña se ingresa en este último paso y no se guarda en el navegador.</p>
+        </div>
         <p id="onboardingError" class="hidden rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert"></p>
         <button id="completeOnboardingBtn" type="submit" class="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">
           FINALIZAR CONFIGURACIÓN
@@ -173,10 +181,40 @@ import Layout from '../../../layouts/Layout.astro';
       if (normalized === 'MEDIUM') return 'GROWTH';
       return ['FREE', 'STARTED', 'GROWTH', 'PRO'].includes(normalized ?? '') ? normalized : 'FREE';
     };
+    const currentPlan = normalizePlanCode(params.get('plan'));
+    const isFreeSignupOnboarding = normalizedOnboardingSource === 'signup' && currentPlan === 'FREE';
+    const FREE_SIGNUP_HANDOFF_STORAGE_KEYS = [
+      SIGNUP_STORAGE_KEYS.plan,
+      SIGNUP_STORAGE_KEYS.billing,
+      SIGNUP_STORAGE_KEYS.pendingSignupIntent,
+      SIGNUP_STORAGE_KEYS.tipoNegocio,
+      'orvel.signup.selectedRubros'
+    ] as const;
+    const clearFreeSignupHandoffStorage = () => {
+      for (const key of FREE_SIGNUP_HANDOFF_STORAGE_KEYS) {
+        sessionStorage.removeItem(key);
+      }
+    };
+    if (loginLink && isFreeSignupOnboarding) {
+      loginLink.addEventListener('click', clearFreeSignupHandoffStorage);
+    }
+    const freeAuthFields = document.getElementById('freeAuthFields');
+    if (!isFreeSignupOnboarding) freeAuthFields?.classList.add('hidden');
     const readStringField = (value: unknown, key: string) => {
       if (!value || typeof value !== 'object') return '';
       const field = (value as Record<string, unknown>)[key];
       return typeof field === 'string' ? field.trim() : '';
+    };
+    const readProtectedPendingSignupIntent = () => {
+      try {
+        const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+      } catch {
+        // Invalid or tampered handoff; finalization will ask the user to restart.
+      }
+      return null;
     };
     const syncOnboardingMetadata = async (selectedRubros: string[]) => {
       if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) return { synced: false, reason: 'missing_config' };
@@ -213,6 +251,38 @@ import Layout from '../../../layouts/Layout.astro';
       markSignupOnboardingCompleted({ email, selectedRubros });
       return { synced: true };
     };
+    const completeFreeSignupFromOnboarding = async (selectedRubros: string[]) => {
+      const password = (document.getElementById('onboardingPassword') as HTMLInputElement | null)?.value ?? '';
+      const confirm = (document.getElementById('onboardingConfirmPassword') as HTMLInputElement | null)?.value ?? '';
+      if (password.length < 8 || password !== confirm) {
+        return { ok: false, error: 'Ingresá una contraseña de al menos 8 caracteres y confirmala para crear tu acceso.' };
+      }
+
+      const pendingSignupIntent = readProtectedPendingSignupIntent();
+      if (!pendingSignupIntent) {
+        return { ok: false, error: 'No encontramos los datos iniciales del alta. Volvé al paso anterior para continuar.' };
+      }
+
+      const tipoNegocio = normalizeBusinessType(selectedRubros[0] ?? 'otro');
+      const finalizeResponse = await fetch('/api/signup/pending-intent/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pending_signup_intent: pendingSignupIntent,
+          password,
+          business_type: tipoNegocio,
+          selected_business_types: selectedRubros,
+          plan_code: currentPlan,
+          return_to: safeLoginUrl
+        })
+      });
+      const signupResult = await finalizeResponse.json().catch(() => ({ ok: false, error: 'No pudimos crear tu cuenta. Reintentá en unos segundos.' }));
+      if (signupResult.ok) {
+        if (typeof signupResult.email === 'string') markSignupOnboardingCompleted({ email: signupResult.email, selectedRubros });
+        clearFreeSignupHandoffStorage();
+      }
+      return signupResult;
+    };
 
     const form = document.getElementById('completeForm') as HTMLFormElement | null;
     const errorEl = document.getElementById('onboardingError');
@@ -234,7 +304,25 @@ import Layout from '../../../layouts/Layout.astro';
       }
       if (errorEl) errorEl.classList.add('hidden');
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, normalizeBusinessType(selectedRubros[0] ?? 'otro'));
+      // syncOnboardingMetadata(selectedRubros) remains the session-backed path below.
       sessionStorage.setItem('orvel.signup.selectedRubros', JSON.stringify(selectedRubros));
+
+      if (isFreeSignupOnboarding) {
+        const signupResult = await completeFreeSignupFromOnboarding(selectedRubros).catch(() => ({ ok: false, error: 'No pudimos crear tu cuenta. Reintentá en unos segundos.' }));
+        if (signupResult.ok) {
+          showAccountCreatedModal();
+          return;
+        }
+        if (errorEl) {
+          errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        }
+        return;
+      }
 
       const result = await syncOnboardingMetadata(selectedRubros).catch(() => ({ synced: false, reason: 'update_failed' }));
       if (result.synced) {
