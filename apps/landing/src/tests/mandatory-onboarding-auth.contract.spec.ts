@@ -323,10 +323,22 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(storageKeysSource).not.toMatch(/password|confirmPassword|contraseñ/i);
   });
 
+  it('onboarding page collects only rubro/category and welcome login, without password fields or standalone login button', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+    const formMarkup = source.slice(source.indexOf('<form id="completeForm"'), source.indexOf('</form>'));
+    const welcomeMarkup = source.slice(source.indexOf('<div id="accountCreatedModal"'));
+
+    expect(formMarkup).toMatch(/name="rubro"/);
+    expect(formMarkup).not.toMatch(/type="password"|name="password"|name="confirm"|onboardingPassword|onboardingConfirmPassword/i);
+    expect(formMarkup).not.toMatch(/Ir al login/i);
+    expect(source).not.toMatch(/id="loginLink"/);
+    expect(welcomeMarkup).toMatch(/Iniciar sesión/);
+    expect(welcomeMarkup).not.toMatch(/Ir al login/i);
+  });
+
   it('successful FREE onboarding auth clears protected handoff session storage before showing success', async () => {
     const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
     const handoffKeysMatch = source.match(/FREE_SIGNUP_HANDOFF_STORAGE_KEYS\s*=\s*\[([\s\S]*?)\]\s*as const/);
-    const successBranchMatch = source.match(/if\s*\(signupResult\.ok\)\s*\{([\s\S]*?)\n\s*\}/);
 
     expect(handoffKeysMatch?.[1]).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
     expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.email');
@@ -337,8 +349,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(handoffKeysMatch?.[1]).toContain('SIGNUP_STORAGE_KEYS.tipoNegocio');
     expect(handoffKeysMatch?.[1]).toContain('orvel.signup.selectedRubros');
     expect(source).toMatch(/for\s*\(const key of FREE_SIGNUP_HANDOFF_STORAGE_KEYS\)\s*\{\s*sessionStorage\.removeItem\(key\);\s*\}/);
-    expect(successBranchMatch?.[1]).toContain('clearFreeSignupHandoffStorage();');
-    expect(source).toMatch(/loginLink\.addEventListener\('click', clearFreeSignupHandoffStorage\)/);
+    expect(source).toMatch(/continueLink\.addEventListener\('click', clearFreeSignupHandoffStorage\)/);
   });
 
   it('keeps explicit Supabase browser auth storage options for email/password sessions', async () => {

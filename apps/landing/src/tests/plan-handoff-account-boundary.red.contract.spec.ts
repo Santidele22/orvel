@@ -5,7 +5,7 @@ const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.ur
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const PENDING_INTENT_FINALIZE_PATH = new URL('../pages/api/signup/pending-intent/finalize.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
@@ -16,6 +16,14 @@ function indexOfOrThrow(source: string, marker: string): number {
   const index = source.indexOf(marker);
   expect(index, `Expected source to contain marker: ${marker}`).toBeGreaterThanOrEqual(0);
   return index;
+}
+
+function sliceBetween(source: string, startMarker: string, endMarker?: string): string {
+  const start = source.indexOf(startMarker);
+  expect(start, `Missing start marker: ${startMarker}`).toBeGreaterThanOrEqual(0);
+  const end = endMarker ? source.indexOf(endMarker, start + startMarker.length) : source.length;
+  expect(end, `Missing end marker: ${endMarker}`).toBeGreaterThan(start);
+  return source.slice(start, end);
 }
 
 describe('Feature B contract: plan handoff before account creation', () => {
@@ -44,7 +52,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(source).not.toMatch(/window\.location\.(?:href|assign)\s*=\s*['"`]\/auth\/signup\/plan/);
   });
 
-  it('credentials page treats missing or invalid plan as a hard boundary before account finalize', async () => {
+  it('credentials page treats missing or invalid plan as a hard boundary before account finalization', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const planResolution = source.match(/const\s+plan\s*=\s*[^;]+;/)?.[0] ?? '';
 
@@ -52,15 +60,19 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(source).toMatch(/VALID_SIGNUP_PLANS|isValidSignupPlan|assertValidSignupPlan/);
     expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
     expect(source).toMatch(/\/auth\/signup\/plan\?[^`'"\n]*(?:reason=missing_plan|reason=invalid_plan|plan_error=)/);
-    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|\/api\/signup\/pending-intent\/finalize/);
+    const missingPlanBranch = source.slice(source.indexOf('if (!hasValidSignupPlan)'), source.indexOf('if (!validateForm() || !button)'));
+    expect(missingPlanBranch).toMatch(/createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
+    expect(missingPlanBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|\/api\/signup\/pending-intent\/finalize/);
   });
 
-  it('credentials submit validates required fields before creating a protected pending intent or navigating', async () => {
+  it('credentials submit validates required fields before protecting data or showing the same-runtime rubro step', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
 
-    const validateFormIndex = indexOfOrThrow(source, 'validateNonSensitiveCredentials()');
-    const protectIndex = indexOfOrThrow(source, 'await createProtectedPendingSignupIntent');
-    const onboardingIndex = indexOfOrThrow(source, '/auth/signup/onboarding');
+    const validateMissingPlanIndex = indexOfOrThrow(submitFlow, 'if (!validateNonSensitiveCredentials()) return;');
+    const validateFormIndex = indexOfOrThrow(submitFlow, 'if (!validateForm() || !button) return;');
+    const protectIndex = indexOfOrThrow(submitFlow, 'await createProtectedPendingSignupIntent');
+    const rubroStepIndex = indexOfOrThrow(submitFlow, 'showFreeRubroStep({');
     const planGuardIndex = Math.max(
       source.indexOf('VALID_SIGNUP_PLANS'),
       source.indexOf('isValidSignupPlan'),
@@ -68,10 +80,10 @@ describe('Feature B contract: plan handoff before account creation', () => {
     );
 
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(validateFormIndex).toBeLessThan(protectIndex);
-    expect(validateFormIndex).toBeLessThan(onboardingIndex);
+    expect(validateMissingPlanIndex).toBeLessThan(protectIndex);
+    expect(validateFormIndex).toBeLessThan(rubroStepIndex);
     expect(source).toContain('plan');
-    expect(source).toMatch(/onboardingUrl|pendingSignupIntent|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(source).toMatch(/freeSignupRubroStep|finalizeFreeSignup|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
     expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
 
