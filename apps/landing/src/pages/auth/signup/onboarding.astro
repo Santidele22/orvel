@@ -35,19 +35,60 @@ import Layout from '../../../layouts/Layout.astro';
     </section>
   </main>
 
-  <div id="accountCreatedModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-6" role="dialog" aria-modal="true" aria-labelledby="accountCreatedTitle" aria-describedby="accountCreatedDescription">
-    <section class="w-full max-w-sm rounded-2xl border border-border bg-bg-secondary p-6 text-center shadow-2xl">
-      <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Cuenta creada</p>
-      <h2 id="accountCreatedTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">Ya podés iniciar sesión</h2>
+  <div id="accountCreatedModal" class="fixed inset-0 z-50 hidden items-center justify-center overflow-hidden bg-black/70 px-6" role="dialog" aria-modal="true" aria-labelledby="accountCreatedTitle" aria-describedby="accountCreatedDescription">
+    <div class="pointer-events-none absolute inset-0" aria-hidden="true" data-confetti="welcome">
+      <span class="confetti-piece left-[12%] bg-primary animation-delay-0"></span>
+      <span class="confetti-piece left-[24%] bg-accent animation-delay-150"></span>
+      <span class="confetti-piece left-[38%] bg-success animation-delay-300"></span>
+      <span class="confetti-piece left-[52%] bg-primary animation-delay-75"></span>
+      <span class="confetti-piece left-[66%] bg-accent animation-delay-225"></span>
+      <span class="confetti-piece left-[80%] bg-success animation-delay-375"></span>
+    </div>
+    <section class="relative w-full max-w-sm rounded-2xl border border-border bg-bg-secondary p-6 text-center shadow-2xl">
+      <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Cuenta lista</p>
+      <h2 id="accountCreatedTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">¡Bienvenida a Orvel!</h2>
       <p id="accountCreatedDescription" class="mt-3 text-sm leading-6 text-text-secondary">
-        Creamos tu cuenta. Por seguridad, iniciá sesión para continuar con Orvel.
+        Tu cuenta y configuración inicial ya están listas. Iniciá sesión para empezar a organizar tus turnos con Orvel.
       </p>
-      <button id="accountCreatedContinue" type="button" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-secondary">
-        Continuar al login
-      </button>
+      <a id="accountCreatedContinue" href="/auth/login" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-secondary">
+        Ir al login
+      </a>
     </section>
   </div>
 </Layout>
+
+<style>
+  .confetti-piece {
+    position: absolute;
+    top: -1rem;
+    height: 0.9rem;
+    width: 0.45rem;
+    border-radius: 999px;
+    animation: welcome-confetti 2.8s ease-in-out infinite;
+    opacity: 0.9;
+  }
+
+  .animation-delay-0 { animation-delay: 0ms; }
+  .animation-delay-75 { animation-delay: 75ms; }
+  .animation-delay-150 { animation-delay: 150ms; }
+  .animation-delay-225 { animation-delay: 225ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-375 { animation-delay: 375ms; }
+
+  @keyframes welcome-confetti {
+    0% { transform: translate3d(0, -10%, 0) rotate(0deg); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translate3d(1.75rem, 105vh, 0) rotate(540deg); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .confetti-piece {
+      animation: none;
+      top: 1rem;
+      opacity: 0.7;
+    }
+  }
+</style>
 
 <script>
   import { createClient } from '@supabase/supabase-js';
@@ -97,23 +138,28 @@ import Layout from '../../../layouts/Layout.astro';
     };
     const safeReturnTo = sanitizeReturnTo(params.get('returnTo'));
     const safeLoginUrl = sanitizeLoginUrl(params.get('loginUrl'));
+    const onboardingSource = params.get('source');
+    const normalizedOnboardingSource = onboardingSource === 'subscription' ? 'subscription' : 'signup';
     const loginLink = document.getElementById('loginLink') as HTMLAnchorElement | null;
     if (loginLink) loginLink.href = safeLoginUrl;
-
-    const redirectToLogin = () => {
-      window.location.href = safeLoginUrl;
-    };
+    const continueLink = document.getElementById('accountCreatedContinue') as HTMLAnchorElement | null;
+    if (continueLink) continueLink.href = safeLoginUrl;
 
     const showAccountCreatedModal = () => {
       const modal = document.getElementById('accountCreatedModal');
+      modal?.setAttribute('data-onboarding-source', normalizedOnboardingSource);
       modal?.classList.remove('hidden');
       modal?.classList.add('flex');
       document.getElementById('accountCreatedTitle')?.focus();
-      document.getElementById('accountCreatedContinue')?.addEventListener('click', redirectToLogin);
-      window.setTimeout(redirectToLogin, 3500);
     };
 
     const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
+    const normalizePlanCode = (value: string | null) => {
+      const normalized = value?.trim().toUpperCase();
+      if (normalized === 'BASIC' || normalized === 'STARTER') return 'STARTED';
+      if (normalized === 'MEDIUM') return 'GROWTH';
+      return ['FREE', 'STARTED', 'GROWTH', 'PRO'].includes(normalized ?? '') ? normalized : 'FREE';
+    };
     const syncOnboardingMetadata = async (selectedRubros: string[]) => {
       if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) return { synced: false, reason: 'missing_config' };
       const client = createClient(
@@ -125,14 +171,13 @@ import Layout from '../../../layouts/Layout.astro';
       const email = data.session?.user?.email;
       if (!data.session?.access_token || !email) return { synced: false, reason: 'missing_session' };
       const primaryType = normalizeBusinessType(selectedRubros[0] ?? 'otro');
-      const { error } = await client.auth.updateUser({
-        data: {
-          tipoNegocio: primaryType,
-          selectedRubros,
-          selectedBusinessTypes: selectedRubros.map(normalizeBusinessType),
-          onboardingCompleted: true,
-          onboarding_completed: true
-        }
+      const businessName = typeof data.session.user.user_metadata?.negocioNombre === 'string'
+        ? data.session.user.user_metadata.negocioNombre
+        : 'Mi Negocio';
+      const { error } = await client.rpc('complete_signup_onboarding', {
+        p_business_name: businessName,
+        p_business_type: primaryType,
+        p_plan_code: normalizePlanCode(params.get('plan'))
       });
       if (error) return { synced: false, reason: 'update_failed' };
       markSignupOnboardingCompleted({ email, selectedRubros });
@@ -163,7 +208,7 @@ import Layout from '../../../layouts/Layout.astro';
 
       const result = await syncOnboardingMetadata(selectedRubros).catch(() => ({ synced: false, reason: 'update_failed' }));
       if (result.synced) {
-        window.location.href = safeReturnTo;
+        showAccountCreatedModal();
         return;
       }
 
