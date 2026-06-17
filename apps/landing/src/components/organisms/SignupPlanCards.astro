@@ -106,7 +106,7 @@ async function resolveSignupPlanHref(planCode, period, options = { commitPending
     }
 
     if (AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]) {
-      return `${AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]}&billing=${period}&returnTo=/dashboard/inicio`;
+      return `${AUTHENTICATED_PAID_SUBSCRIPTION_URLS[planCode]}&billing=${period}`;
     }
   }
 

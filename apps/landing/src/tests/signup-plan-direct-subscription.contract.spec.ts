@@ -129,6 +129,7 @@ describe('Contract: authenticated session handoff from landing plan selection', 
       expect(source).not.toContain(`/auth/onboarding?plan=${plan}`);
       expect(source).not.toContain(`/auth/signup/credentials?plan=${plan}`);
     }
+    expect(source).not.toContain('&returnTo=/dashboard/inicio');
     expect(source).toMatch(/preapproval|subscription/i);
   });
 });

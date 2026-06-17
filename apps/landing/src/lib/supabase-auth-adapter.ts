@@ -272,7 +272,7 @@ export function createSupabaseSignupAdapter(
         };
       }
 
-      const onboardingCompleted = !isFreeSignupPlan(planCode);
+      const onboardingCompleted = false;
 
       const { data, error } = await client.auth.signUp({
         email: attempt.email ?? '',
