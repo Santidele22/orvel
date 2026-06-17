@@ -20,6 +20,24 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('normalizeSubscriptionErrorCode');
   });
 
+  it('maps Supabase gateway INVALID_JWT_FORMAT to friendly retry copy without raw backend/JWT wording', async () => {
+    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
+
+    expect(source).toContain('UNAUTHORIZED_INVALID_JWT_FORMAT');
+    expect(source).toContain('No pudimos iniciar la suscripción. Reintentá en unos segundos.');
+    expect(source).not.toContain('|| codeOrMessage');
+    expect(source).not.toMatch(/UNAUTHORIZED_INVALID_JWT_FORMAT['"]:\s*['"][^'"]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)/i);
+  });
+
+  it('keeps subscription error copy user-friendly and announces it as an alert region', async () => {
+    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
+    const markupBeforeScript = source.split('<script>')[0] ?? source;
+
+    expect(markupBeforeScript).not.toMatch(/>[^<]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)[^<]*</i);
+    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*role="alert"/);
+    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*aria-live="polite"/);
+  });
+
   it('keeps /api/subscriptions/start aligned with canonical contract errors', async () => {
     const source = await loadSource(SUBSCRIPTION_START_API_PATH);
 
