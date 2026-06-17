@@ -1,4 +1,5 @@
 const JWT_SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
+const BEARER_AUTHORIZATION_PATTERN = /^Bearer\s+(.+)$/i;
 
 export function isJwtShapedSupabaseKey(value: string | null | undefined): boolean {
   const key = value?.trim();
@@ -15,7 +16,10 @@ export function appendSupabaseAuthorizationHeader(
 ): void {
   const authorization = inboundAuthorization?.trim();
   if (authorization) {
-    headers.Authorization = authorization;
+    const bearerToken = authorization.match(BEARER_AUTHORIZATION_PATTERN)?.[1]?.trim();
+    if (isJwtShapedSupabaseKey(bearerToken)) {
+      headers.Authorization = authorization;
+    }
     return;
   }
 
