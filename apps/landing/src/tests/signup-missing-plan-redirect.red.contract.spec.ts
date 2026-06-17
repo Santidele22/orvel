@@ -59,52 +59,56 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(beforeSubmit).not.toMatch(/window\.location\.(?:href|assign)\s*=\s*['"][^'"]*\/auth\/signup\/plan['"]/);
   });
 
-  it('does not reach Supabase signup or external account creation calls until the selected plan is valid', async () => {
+  it('does not call Supabase signup or external account creation from the credentials controller', async () => {
     const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
-    const accountCreationIndexes = [
-      source.indexOf('const supabaseSignup = createSupabaseSignupAdapterFromEnv'),
-      source.indexOf('await signupWithProvider'),
-      source.indexOf("await import('./auth-provider')")
-    ].filter((index) => index >= 0);
-    expect(accountCreationIndexes.length).toBeGreaterThan(0);
-    const firstAccountCreationIndex = Math.min(...accountCreationIndexes);
-    expect(firstAccountCreationIndex).toBeGreaterThan(0);
 
-    const beforeAccountCreation = source.slice(0, firstAccountCreationIndex);
-    expect(beforeAccountCreation).toMatch(/hasValidSignupPlan|isValidSelectedPlan|selectedPlanIsValid/);
-    expect(beforeAccountCreation).toMatch(/missing_plan/);
-    expect(beforeAccountCreation).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(source).toMatch(/hasValidSignupPlan|isValidSelectedPlan|selectedPlanIsValid/);
+    expect(source).toMatch(/missing_plan/);
+    expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
+    expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
+    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|await import\(['"]\.\/auth-provider['"]\)/);
+    expect(source).not.toContain('/api/signup/pending-intent/finalize');
   });
 
-  it('credentials-first submit protects a pending intent before sending the user to plan selection', async () => {
+  it('credentials-first submit validates form data before protecting pending intent or navigating', async () => {
     const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
     const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
-    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm()');
+    const validateIndex = submitFlow.indexOf('validateNonSensitiveCredentials()');
+    const protectIndex = submitFlow.indexOf('await createProtectedPendingSignupIntent');
+    const navigateIndex = submitFlow.indexOf('redirectToPlanSelection');
 
-    expect(missingPlanBranch).toMatch(/fetch\(['"]\/api\/signup\/pending-intent\/protect['"]|createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id/);
-    expect(missingPlanBranch).toMatch(/await\s+(?:fetch|createProtectedPendingSignupIntent)|\.then\(/);
-    expect(missingPlanBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
-    expect(missingPlanBranch).toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(validateIndex).toBeGreaterThanOrEqual(0);
+    expect(protectIndex).toBeGreaterThan(validateIndex);
+    expect(navigateIndex).toBeGreaterThan(validateIndex);
+    expect(source).toMatch(/fetch\(['"]\/api\/signup\/pending-intent\/protect['"]|createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id/);
+    expect(submitFlow).toMatch(/await\s+(?:fetch|createProtectedPendingSignupIntent)|\.then\(/);
+    expect(submitFlow).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
+    expect(submitFlow).toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
     expect(source).toMatch(/protected_pending_signup_intent|intent_id|email_encrypted/);
-    expect(missingPlanBranch).toMatch(/missing_plan/);
+    expect(submitFlow).toMatch(/missing_plan/);
     expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
-    expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
-    expect(missingPlanBranch).not.toMatch(/sessionStorage\.setItem\([^)]*(?:name|nombre|apellido|negocioNombre|telefono|phone|email)[^)]*(?:\.value|JSON\.stringify\([^)]*(?:email|phone|telefono|negocioNombre))/i);
-    expect(missingPlanBranch).not.toMatch(/password|confirmPassword/);
-    expect(missingPlanBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|loginWithGoogle/);
+    expect(submitFlow).not.toContain('/api/signup/pending-intent/finalize');
+    expect(submitFlow).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
+    expect(submitFlow).not.toMatch(/sessionStorage\.setItem\([^)]*(?:name|nombre|apellido|negocioNombre|telefono|phone|email)[^)]*(?:\.value|JSON\.stringify\([^)]*(?:email|phone|telefono|negocioNombre))/i);
+    expect(submitFlow).not.toMatch(/password|confirmPassword/);
+    expect(submitFlow).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|loginWithGoogle/);
   });
 
   it('credentials-first redirect branch validates required non-sensitive fields but never validates or persists password', async () => {
     const source = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
     const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
-    const missingPlanBranch = sliceBetween(submitFlow, 'if (!hasValidSignupPlan)', 'if (!validateForm()');
 
-    expect(missingPlanBranch).toMatch(/validatePendingCredentialsFirst|validateNonSensitiveCredentials|validateForm\([^)]*credentialsFirst/);
+    expect(submitFlow).toMatch(/validatePendingCredentialsFirst|validateNonSensitiveCredentials|validateForm\([^)]*credentialsFirst/);
     for (const field of ['nombre', 'apellido', 'negocioNombre', 'telefonoCaracteristica', 'telefonoNumero', 'email']) {
       expect(source).toMatch(new RegExp(field));
     }
-    expect(missingPlanBranch).not.toMatch(/['"]name['"]|input\[name=["']name["']\]/);
-    expect(missingPlanBranch).not.toMatch(/password|confirmPassword|contraseñ/i);
+    const validateIndex = submitFlow.indexOf('validateNonSensitiveCredentials()');
+    const protectIndex = submitFlow.indexOf('await createProtectedPendingSignupIntent');
+    expect(validateIndex).toBeGreaterThanOrEqual(0);
+    expect(protectIndex).toBeGreaterThan(validateIndex);
+    expect(submitFlow).not.toMatch(/['"]name['"]|input\[name=["']name["']\]/);
+    expect(submitFlow).not.toMatch(/sessionStorage\.setItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
   });
 
   it('credentials form captures first and last name as separate required fields instead of a full-name field', async () => {

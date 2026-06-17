@@ -238,7 +238,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
       return;
     }
 
-    if (!validateForm() || !button) return;
+    if (!(isPaidPlan ? validateForm() : validateNonSensitiveCredentials()) || !button) return;
     button.disabled = true;
     button.textContent = 'Procesando...';
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, plan);
@@ -254,39 +254,25 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
       onboardingUrl.searchParams.set('plan', plan);
       onboardingUrl.searchParams.set('billing', billing);
       try {
-        const { createSupabaseSignupAdapterFromEnv, signupWithProvider } = await import('./auth-provider');
-        const signupResult = await signupWithProvider({
-          attempt: {
-            nombre: values.nombre,
-            apellido: values.apellido,
-            negocioNombre: values.negocioNombre,
-            tipoNegocio: 'pendiente',
-            telefono: values.normalizedPhone,
-            email: values.email,
-            password: values.password,
-            plan,
-            returnTo: onboardingUrl.toString()
-          },
-          supabaseSignup: createSupabaseSignupAdapterFromEnv({
-            SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
-            SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
-          })
+        const protectedSignup = await createProtectedPendingSignupIntent({
+          email: values.email,
+          first_name: values.nombre,
+          last_name: values.apellido,
+          business_name: values.negocioNombre,
+          phone: values.normalizedPhone
         });
-        if (signupResult.redirectTo) window.location.href = signupResult.redirectTo;
-        else if (signupResult.ok) window.location.href = onboardingUrl.toString();
-        else {
-          button.disabled = false;
-          button.textContent = 'Continuar';
-          if (errorEl) {
-            errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
-            errorEl.classList.remove('hidden');
-          }
-        }
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
+          ...protectedSignup,
+          plan_code: plan,
+          billing_period: billing
+        }));
+        window.history.pushState({}, '', onboardingUrl.toString());
+        window.location.href = onboardingUrl.toString();
       } catch {
         button.disabled = false;
         button.textContent = 'Continuar';
         if (errorEl) {
-          errorEl.textContent = 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.textContent = 'No pudimos continuar con el alta. Reintentá en unos segundos.';
           errorEl.classList.remove('hidden');
         }
       }

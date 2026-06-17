@@ -46,20 +46,19 @@ describe('RED contract: launch landing signup must not apply dashboard business 
     expect(completeSource).not.toContain('/auth/signup/business-type');
   });
 
-  it('manual launch signup creates/authenticates immediately only for free plans and defers paid account creation until payment', async () => {
+  it('manual launch signup protects intent for onboarding/finalize and defers paid account creation until payment', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
     const protectedIntentIndex = credentialsSource.indexOf('createProtectedPendingSignupIntent');
-    const signupAdapterIndex = credentialsSource.indexOf('createSupabaseSignupAdapterFromEnv');
-    const signupWithProviderIndex = credentialsSource.indexOf('await signupWithProvider({');
+    const onboardingIndex = credentialsSource.indexOf("new URL('/auth/signup/onboarding'");
     const paidDeferralIndex = credentialsSource.indexOf('/billing/subscription?plan=');
 
     expect(protectedIntentIndex, 'paid credentials-first flow must protect PII before payment').toBeGreaterThan(-1);
     expect(paidDeferralIndex, 'paid plans must defer account materialization until payment').toBeGreaterThan(-1);
-    expect(signupAdapterIndex, 'credentials step must build the canonical landing signup adapter for free accounts').toBeGreaterThan(-1);
-    expect(signupWithProviderIndex, 'credentials step must create/authenticate free accounts without storing passwords').toBeGreaterThan(-1);
-    expect(signupAdapterIndex).toBeLessThan(signupWithProviderIndex);
+    expect(onboardingIndex, 'FREE credentials step must defer Auth creation to protected onboarding finalize').toBeGreaterThan(-1);
+    expect(credentialsSource).not.toMatch(/createSupabaseSignupAdapterFromEnv|await signupWithProvider\(/);
+    expect(credentialsSource).not.toContain('/api/signup/pending-intent/finalize');
     expect(completeSource).not.toContain(WRONG_DASHBOARD_PRECONDITION);
   });
 
