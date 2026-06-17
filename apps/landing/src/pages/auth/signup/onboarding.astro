@@ -140,7 +140,7 @@ import Layout from '../../../layouts/Layout.astro';
     const safeLoginUrl = sanitizeLoginUrl(params.get('loginUrl'));
     const onboardingSource = params.get('source');
     const normalizedOnboardingSource = onboardingSource === 'subscription' ? 'subscription' : 'signup';
-    const backendConfirmationFailureMessage = 'Guardamos tu selección en este navegador, pero no pudimos confirmarla con backend. Iniciá sesión para continuar y retomar la configuración.';
+    const backendConfirmationFailureMessage = 'Guardamos tu selección en este navegador, pero no pudimos confirmar la configuración. Iniciá sesión para continuar y retomar la configuración.';
     const buildOnboardingResumeLoginUrl = () => {
       const loginUrl = new URL('/auth/login', window.location.origin);
       const resumeUrl = new URL(window.location.pathname, window.location.origin);

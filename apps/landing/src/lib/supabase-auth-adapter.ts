@@ -274,6 +274,14 @@ export function createSupabaseSignupAdapter(
         };
       }
 
+      if (isFreeSignupPlan(planCode) && businessType === 'pendiente') {
+        return {
+          ok: false,
+          code: 'onboarding_required',
+          error: 'Seleccioná el rubro o categoría de tu negocio antes de crear la cuenta.'
+        };
+      }
+
       const onboardingCompleted = false;
 
       const { data, error } = await client.auth.signUp({
@@ -333,6 +341,22 @@ export function createSupabaseSignupAdapter(
           code: 'unknown',
           error: 'Supabase devolvió una sesión incompleta al registrar.'
         };
+      }
+
+      if (isFreeSignupPlan(planCode) && typeof client.rpc === 'function') {
+        const { data: onboardingResult, error: onboardingError } = await client.rpc('complete_signup_onboarding', {
+          p_business_name: attempt.negocioNombre,
+          p_business_type: businessType,
+          p_plan_code: planCode
+        });
+
+        if (onboardingError || !onboardingResult) {
+          return {
+            ok: false,
+            code: 'onboarding_required',
+            error: 'No pudimos confirmar la configuración inicial. Intentá nuevamente para completar el onboarding.'
+          };
+        }
       }
 
       return {
