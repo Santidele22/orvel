@@ -51,6 +51,34 @@ describe('Contract: onboarding runs only on signup path', () => {
     expect(radioCount, 'Expected at least one native HTML radio for single-selection rubro features.').toBeGreaterThanOrEqual(1);
   });
 
+  it('shows an explicit welcome/confetti modal after onboarding completion instead of auto-redirecting to login', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source).toContain('id="accountCreatedModal"');
+    expect(source).toMatch(/Bienvenid[oa]\s+a\s+Orvel|Te damos la bienvenida a Orvel/i);
+    expect(source).toMatch(/confetti|Confetti/i);
+    expect(source).toMatch(/id="accountCreatedContinue"[\s\S]{0,220}href="\/auth\/login"/);
+    expect(source).toContain("if (continueLink) continueLink.href = safeLoginUrl");
+    expect(source).toMatch(/if\s*\(result\.synced\)\s*\{[\s\S]{0,180}showAccountCreatedModal\(\);/);
+    expect(source).not.toMatch(/setTimeout\s*\([\s\S]{0,160}(?:login|redirectToLogin|safeLoginUrl)/i);
+  });
+
+  it('completes signup onboarding through server-controlled RPC instead of user_metadata self-assertion', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source).toMatch(/\.rpc\(\s*['"]complete_signup_onboarding['"]/);
+    expect(source).not.toMatch(/auth\.updateUser\([\s\S]{0,260}onboardingCompleted/);
+  });
+
+  it('uses the same explicit welcome modal for subscription-sourced onboarding', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source).toContain("const onboardingSource = params.get('source')");
+    expect(source).toContain("onboardingSource === 'subscription'");
+    expect(source).toMatch(/source=subscription|subscription/i);
+    expect(source).not.toMatch(/source[\s\S]{0,220}window\.location\.href\s*=\s*safeLoginUrl/i);
+  });
+
   it('persists onboarding completion and future login can bypass onboarding for same user', async () => {
     localStorage.clear();
 
