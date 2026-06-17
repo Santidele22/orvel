@@ -34,7 +34,7 @@ export type SupabaseAdapterResult =
     }
   | {
       ok: false;
-      code: 'invalid_credentials' | 'unavailable' | 'unknown' | 'onboarding_required' | 'signup_existing';
+      code: 'invalid_credentials' | 'unavailable' | 'unknown' | 'onboarding_required' | 'signup_existing' | 'email_confirmation_required';
       error: string;
       redirectTo?: string;
     };
@@ -317,11 +317,11 @@ export function createSupabaseSignupAdapter(
         if (user && user.identities && user.identities.length === 0) {
           return buildRecoverableSignupExistingResult();
         }
-        // If email confirmation is enabled, session is null
+        // If email confirmation is enabled, Supabase creates the Auth user but returns no session.
         return {
           ok: false,
-          code: 'unknown',
-          error: 'Registro exitoso. Por favor, revisá tu email para confirmar la cuenta.'
+          code: 'email_confirmation_required',
+          error: 'Registro exitoso. Revisá tu email para confirmar la cuenta antes de continuar.'
         };
       }
 

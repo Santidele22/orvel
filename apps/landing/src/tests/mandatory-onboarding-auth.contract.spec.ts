@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFile } from 'node:fs/promises';
 
 import {
   signupWithProvider,
@@ -150,6 +151,52 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.error).toMatch(/continuar|retomar|onboarding/i);
     expect(result.redirectTo).toMatch(/\/auth\/login/);
     expect(result.redirectTo).toMatch(/returnTo=.*auth%2Fonboarding|resume.*onboarding/i);
+  });
+
+  it('account-created/no-session signup asks for email confirmation without redirecting to login', async () => {
+    const signUp = vi.fn(async () => ({
+      data: {
+        session: null,
+        user: {
+          id: 'new-confirmation-user',
+          email: 'santi@orvel.app',
+          identities: [{ id: 'identity-1' }]
+        }
+      },
+      error: null
+    }));
+
+    const signup = createSupabaseSignupAdapter(SUPABASE_ENV, {
+      createClient: () => ({ auth: { signUp } }) as never
+    });
+
+    const adapterResult = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'pendiente' }));
+
+    expect(adapterResult.ok).toBe(false);
+    expect(adapterResult.code).toBe('email_confirmation_required');
+    expect(adapterResult.error).toMatch(/confirm[aá].*email|revis[aá].*email/i);
+    expect(adapterResult.redirectTo).toBeUndefined();
+
+    const result = await signupWithProvider({
+      attempt: makeSignupAttempt({
+        plan: 'FREE',
+        tipoNegocio: 'pendiente',
+        returnTo: 'https://dashboard.orvel.pro/dashboard/inicio'
+      }),
+      supabaseSignup: signup
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/confirm[aá].*email|revis[aá].*email/i);
+    expect(result.redirectTo).toBeUndefined();
+  });
+
+  it('onboarding completion with a Supabase session returns to dashboard instead of auto-redirecting to login', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+
+    expect(source).toContain("const safeReturnTo = sanitizeReturnTo(params.get('returnTo'))");
+    expect(source).toMatch(/if\s*\(result\.synced\)\s*\{[\s\S]*window\.location\.href\s*=\s*safeReturnTo/);
+    expect(source).not.toMatch(/const result = await syncOnboardingMetadata[\s\S]{0,600}showAccountCreatedModal\(\);/);
   });
 
   it('maps Supabase availability failures to user-friendly signup copy without exposing backend provider names', async () => {
