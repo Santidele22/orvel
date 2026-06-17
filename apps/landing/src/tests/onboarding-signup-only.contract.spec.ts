@@ -96,6 +96,35 @@ describe('Contract: onboarding runs only on signup path', () => {
     expect(source).not.toMatch(/source[\s\S]{0,220}window\.location\.href\s*=\s*safeLoginUrl/i);
   });
 
+  it('maps missing Supabase session to login/resume guidance instead of generic backend failure copy', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source, 'syncOnboardingMetadata must classify absent browser auth as missing_session.').toMatch(
+      /reason:\s*['"]missing_session['"]/
+    );
+    expect(
+      source,
+      'Missing browser session should have a dedicated UX branch before the generic backend/RPC failure message.'
+    ).toMatch(/result\.reason\s*={2,3}\s*['"]missing_session['"][\s\S]{0,900}(?:login|inici[aá]\s+sesi[oó]n|retomar|resume)/i);
+    expect(
+      source,
+      'The missing-session branch must not reuse the generic backend confirmation failure copy.'
+    ).not.toMatch(/result\.reason\s*={2,3}\s*['"]missing_session['"][\s\S]{0,900}no pudimos confirmarla con backend/i);
+  });
+
+  it('keeps selected category and builds a login URL with onboarding resume context when session is missing', async () => {
+    const source = await readFile(SIGNUP_PAGE_PATH, 'utf8');
+
+    expect(source, 'Selected category must be persisted before any backend/session sync so the resume path can restore it.').toMatch(
+      /sessionStorage\.setItem\(SIGNUP_STORAGE_KEYS\.tipoNegocio[\s\S]{0,260}syncOnboardingMetadata\(selectedRubros\)/
+    );
+    expect(
+      source,
+      'Missing-session guidance should send users to login with explicit onboarding return/resume context, including subscription-sourced flows.'
+    ).toMatch(/missing_session[\s\S]{0,1200}(?:URLSearchParams|returnTo|resume|source=subscription|onboarding)/i);
+    expect(source).toMatch(/missing_session[\s\S]{0,1200}(?:safeLoginUrl|loginUrl|\/auth\/login)/i);
+  });
+
   it('persists onboarding completion and future login can bypass onboarding for same user', async () => {
     localStorage.clear();
 
