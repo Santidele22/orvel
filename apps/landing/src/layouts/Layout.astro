@@ -10,6 +10,7 @@ interface Props {
 }
 
 const { title, showPreloader = true } = Astro.props;
+const description = "Gestioná turnos y clientes con Orvel, el software simple para salones de belleza, peluquerías y centros de estética.";
 ---
 
 <!DOCTYPE html>
@@ -18,7 +19,7 @@ const { title, showPreloader = true } = Astro.props;
         <meta charset="UTF-8" />
         <meta
             name="description"
-            content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio."
+            content={description}
         />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -28,14 +29,14 @@ const { title, showPreloader = true } = Astro.props;
         <meta name="robots" content="index, follow" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content={title} />
-        <meta property="og:description" content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio." />
+        <meta property="og:description" content={description} />
         <meta property="og:image" content="/logo.png" />
         <meta property="og:site_name" content="Orvel" />
 
         <!-- Twitter / X -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content="Gestioná tus turnos y clientes con la fluidez que merecés. Orvel es el espacio digital diseñado para potenciar tu negocio." />
+        <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content="/logo.png" />
 
         <title>{title}</title>
