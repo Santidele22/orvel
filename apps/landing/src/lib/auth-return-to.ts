@@ -90,7 +90,11 @@ function hasBlockedParams(params: URLSearchParams): boolean {
 }
 
 function isAllowedInternalPath(pathname: string): boolean {
-  return pathname === '/billing/subscription' || pathname.startsWith('/billing/subscription/');
+  return (
+    pathname === '/billing/subscription' ||
+    pathname.startsWith('/billing/subscription/') ||
+    pathname === '/auth/signup/onboarding'
+  );
 }
 
 function isDashboardPath(pathname: string): boolean {

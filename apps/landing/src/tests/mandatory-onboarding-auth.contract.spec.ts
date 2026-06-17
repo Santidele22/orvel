@@ -192,6 +192,33 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.redirectTo).toBeUndefined();
   });
 
+  it('successful FREE signup returns to landing-owned onboarding instead of falling back to dashboard login', async () => {
+    const successfulSignup = vi.fn(async () => ({
+      ok: true,
+      token: 'session-token',
+      user: {
+        id: 'free-user',
+        email: 'santi@orvel.app',
+        nombre: 'Santi',
+        apellido: 'Perez'
+      }
+    })) as unknown as (attempt: SignupAttempt) => Promise<never>;
+
+    const result = await signupWithProvider({
+      attempt: makeSignupAttempt({
+        plan: 'FREE',
+        tipoNegocio: 'pendiente',
+        returnTo: '/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly'
+      }),
+      supabaseSignup: successfulSignup
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.redirectTo).toBe('/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly');
+    expect(new URL(result.redirectTo ?? '', 'https://orvel.pro').pathname).not.toBe('/auth/login');
+    expect(result.redirectTo).not.toContain('dashboard.orvel.pro');
+  });
+
   it('onboarding completion with a Supabase session returns to dashboard instead of auto-redirecting to login', async () => {
     const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
 
