@@ -10,6 +10,10 @@ const SUBSCRIPTION_START_API = new URL('../pages/api/subscriptions/start.ts', im
 const CREATE_ACCOUNT_BUSINESS_API = new URL('../pages/api/signup/create-account-business.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_FUNCTION = new URL('../../../../supabase/functions/create-subscription/index.ts', import.meta.url);
 const MP_WEBHOOK_FUNCTION = new URL('../../../../supabase/functions/mercadopago-webhook/index.ts', import.meta.url);
+const BUSINESS_SETTINGS_SCHEMA_REPAIR_MIGRATION = new URL(
+  '../../../../supabase/migrations/20260618143000_repair_business_settings_signup_columns.sql',
+  import.meta.url,
+);
 
 async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -106,6 +110,23 @@ describe('RED contract: account-first signup creates the account/business before
     const businessInsertBlock = sliceBetween(apiSource, 'from("businesses").insert({', '\n  });\n  if (businessError)');
     expect(businessInsertBlock, 'businesses insert must only use columns present in the production schema').not.toMatch(/is_active\s*:/);
     expect(apiSource).toMatch(/onboardingStep\s*=\s*isPaidPlan\s*\?\s*["']payment_pending["']/);
+  });
+
+  it('account creation API only upserts business_settings columns guaranteed on upgraded production schemas', async () => {
+    const apiSource = await source(CREATE_ACCOUNT_BUSINESS_API);
+    const repairMigrationSource = await source(BUSINESS_SETTINGS_SCHEMA_REPAIR_MIGRATION);
+
+    const settingsUpsertBlock = sliceBetween(apiSource, 'from("business_settings").upsert({', '\n  });\n  if (settingsError)');
+
+    for (const columnName of ['business_name', 'slug', 'support_phone']) {
+      expect(settingsUpsertBlock, `signup settings upsert must write ${columnName}`).toMatch(
+        new RegExp(`\\b${columnName}\\b`),
+      );
+      expect(
+        repairMigrationSource,
+        `upgraded databases created by the older 20260420 business_settings table must explicitly add ${columnName}`,
+      ).toMatch(new RegExp(`add\\s+column\\s+if\\s+not\\s+exists\\s+${columnName}\\b`, 'i'));
+    }
   });
 
   it('free flow creates account/business on credentials and shows welcome before any login redirect without touching Mercado Pago', async () => {
