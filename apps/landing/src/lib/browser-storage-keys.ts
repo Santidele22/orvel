@@ -7,7 +7,8 @@ export const SIGNUP_STORAGE_KEYS = {
   negocioNombre: 'orvel.signup.negocioNombre',
   telefono: 'orvel.signup.telefono',
   tipoNegocio: 'orvel.signup.tipoNegocio',
-  pendingSignupIntent: 'orvel.signup.pending_signup_intent'
+  pendingSignupIntent: 'orvel.signup.pending_signup_intent',
+  accountFirstSession: 'orvel.signup.account_first_session'
 } as const;
 
 export function subscriptionAttemptStorageKey(plan: string): string {

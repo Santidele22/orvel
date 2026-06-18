@@ -271,25 +271,16 @@ export function initSignupAccountPage(env: SignupEnv): void {
     }
 
     try {
-      await createAccountAndBusiness(accountBusinessPayload);
+      const accountResult = await createAccountAndBusiness(accountBusinessPayload);
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
+      if (accountResult?.account_first_intent_id && accountResult?.account_first_session) {
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.accountFirstSession, JSON.stringify({
+          account_first_intent_id: accountResult.account_first_intent_id,
+          account_first_session: accountResult.account_first_session
+        }));
+      }
       const billingUrl = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_business_created=1`;
-      const { createSupabaseLoginAdapterFromEnv, loginWithProvider } = await import('./auth-provider');
-      const loginResult = await loginWithProvider({
-        attempt: {
-          email: values.email,
-          password: values.password,
-          returnTo: billingUrl,
-          selectedRubros: [values.rubro],
-          plan
-        },
-        supabaseLogin: createSupabaseLoginAdapterFromEnv({
-          SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
-          SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
-        })
-      });
-      if (!loginResult.ok) throw new Error(loginResult.error || 'paid_signup_login_failed');
-      window.location.href = loginResult.redirectTo || billingUrl;
+      window.location.href = billingUrl;
     } catch {
       button.disabled = false;
       button.textContent = 'Continuar';

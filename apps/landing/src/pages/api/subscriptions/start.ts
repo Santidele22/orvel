@@ -57,7 +57,12 @@ function normalizeIdempotencyKey(...candidates: Array<string | null | undefined>
   return null;
 }
 
-async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null): Promise<SubscriptionResult> {
+type AccountFirstSession = {
+  account_first_intent_id: string;
+  account_first_session: string;
+};
+
+async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, accountFirstSession?: AccountFirstSession | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -99,6 +104,7 @@ async function startSubscription(request: Request, plan: string | null, idempote
 
   try {
     const effectiveBusinessType = businessType || null;
+    const mode = accountFirstSession ? "account_first_signup" : "existing_user";
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
@@ -108,7 +114,11 @@ async function startSubscription(request: Request, plan: string | null, idempote
         cadence: normalizeBillingPeriod(billingPeriod),
         billing_period: normalizeBillingPeriod(billingPeriod),
         business_type: effectiveBusinessType,
-        mode: "existing_user"
+        mode,
+        ...(accountFirstSession ? {
+          account_first_intent_id: accountFirstSession.account_first_intent_id,
+          account_first_session: accountFirstSession.account_first_session,
+        } : {}),
       }),
     });
 
@@ -197,11 +207,23 @@ export const POST: APIRoute = async ({ request }) => {
       request.headers.get("x-idempotency-key"),
     );
     const businessType = typeof body?.businessType === "string" ? body.businessType.trim() : null;
+    const accountFirst = body?.account_first && typeof body.account_first === "object"
+      ? body.account_first as Record<string, unknown>
+      : null;
     const billingPeriod = typeof body?.billing === "string" ? body.billing.trim()
       : typeof body?.billing_period === "string" ? body.billing_period.trim()
         : typeof body?.cadence === "string" ? body.cadence.trim()
           : null;
-    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod);
+    const accountFirstIntentId = typeof accountFirst?.account_first_intent_id === "string"
+      ? accountFirst.account_first_intent_id.trim()
+      : null;
+    const accountFirstSession = typeof accountFirst?.account_first_session === "string"
+      ? accountFirst.account_first_session.trim()
+      : null;
+    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod, accountFirstIntentId && accountFirstSession ? {
+      account_first_intent_id: accountFirstIntentId,
+      account_first_session: accountFirstSession,
+    } : null);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });

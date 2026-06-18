@@ -94,6 +94,8 @@ interface SubscriptionRequest {
     plan_code?: string;
     billing_period?: string;
   } | null;
+  account_first_intent_id?: string;
+  account_first_session?: string;
   business_type?: string;
 }
 
@@ -350,6 +352,8 @@ Deno.serve(async (req) => {
       body.mode === "pending_signup_intent" || body.pending_signup_intent
         ? body.pending_signup_intent || {}
         : null;
+    const accountFirstIntentId = sanitizeIntentText(body.account_first_intent_id, 80);
+    const accountFirstSession = sanitizeIntentText(body.account_first_session, 160);
     const requestedCadence = normalizeBillingCadence(
       body.cadence || body.billing_period ||
         pendingSignupIntent?.billing_period,
@@ -359,6 +363,11 @@ Deno.serve(async (req) => {
       80,
     );
     const isPendingSignupIntent = !business && !!pendingSignupIntent;
+    const isAccountFirstSignup = !business && body.mode === "account_first_signup" &&
+      !!accountFirstIntentId && !!accountFirstSession;
+    let accountFirstIntentRecord:
+      | { id: string; external_reference: string | null; business_id: string; user_id: string; plan_code: string; billing_period: string }
+      | null = null;
 
     let effectivePlanCode: string | null = typeof plan_code === "string"
       ? plan_code
@@ -744,6 +753,70 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (isAccountFirstSignup) {
+      const accountFirstSessionHash = await sha256Text(accountFirstSession);
+      const { data: accountFirstIntent, error: accountFirstIntentError } =
+        await supabaseAdmin
+          .from("account_first_intents")
+          .select("id, external_reference, business_id, user_id, plan_code, billing_period, status, expires_at")
+          .eq("id", accountFirstIntentId)
+          .eq("idempotency_key_hash", accountFirstSessionHash)
+          .eq("provider", "mercado_pago")
+          .in("status", ["created", "provider_created"])
+          .gt("expires_at", now.toISOString())
+          .maybeSingle();
+
+      if (accountFirstIntentError || !accountFirstIntent?.business_id || !accountFirstIntent?.user_id) {
+        return new Response(
+          JSON.stringify({
+            error: "ACCOUNT_FIRST_BUSINESS_REQUIRED",
+            message: "No se pudo validar el alta paga creada antes del pago",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      if (accountFirstIntent.plan_code !== plan.code) {
+        return new Response(
+          JSON.stringify({
+            error: "ACCOUNT_FIRST_PLAN_MISMATCH",
+            message: "El plan del alta paga no coincide con la suscripción solicitada",
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      const { data: accountFirstBusiness, error: accountFirstBusinessError } =
+        await supabaseAdmin
+          .from("businesses")
+          .select("id, name, owner_id")
+          .eq("id", accountFirstIntent.business_id)
+          .eq("owner_id", accountFirstIntent.user_id)
+          .single();
+
+      if (accountFirstBusinessError || !accountFirstBusiness) {
+        return new Response(
+          JSON.stringify({
+            error: "ACCOUNT_FIRST_BUSINESS_REQUIRED",
+            message: "No se encontró el negocio creado para iniciar el pago",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      accountFirstIntentRecord = accountFirstIntent;
+      business = accountFirstBusiness;
+    }
+
     if (!business && !pendingSignupRecord) {
       return new Response(
         JSON.stringify({
@@ -823,6 +896,16 @@ Deno.serve(async (req) => {
         })
         .eq("id", pendingSignupRecord.id);
     }
+    if (accountFirstIntentRecord) {
+      await supabaseAdmin
+        .from("account_first_intents")
+        .update({
+          external_reference: externalReference,
+          status: "provider_created",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", accountFirstIntentRecord.id);
+    }
 
     const { data: subscriptionSession, error: subscriptionSessionError } =
       await supabaseAdmin
@@ -845,6 +928,7 @@ Deno.serve(async (req) => {
           expires_at: subscriptionSessionExpiresAt.toISOString(),
           created_by: user?.id || business?.owner_id || null,
           pending_signup_intent_id: pendingSignupRecord?.id || null,
+          account_first_intent_id: accountFirstIntentRecord?.id || null,
         })
         .select("id, external_reference")
         .single();
