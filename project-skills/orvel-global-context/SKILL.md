@@ -33,6 +33,7 @@ Read all six `infra/context/` files when a task crosses app, infra, deployment, 
 - If a fact is not in repo context, checked-in source, tool output, or Santi-provided instructions, state the uncertainty and ask Santi.
 - Do not touch external source repositories unless Santi explicitly authorizes that in the current task.
 - Do not commit, push, open PRs, or deploy unless Santi explicitly asks in the current task.
+- Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow. Do not directly push to `main`, force push, run `reset --hard`, commit secrets or `.funemon/`, or bypass checks.
 
 ## Privacy
 

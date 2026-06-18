@@ -43,6 +43,7 @@ Always read the root Orvel global context skill and the relevant `infra/context/
 - Work on a branch and use a PR path when Santi asks for commits/PRs.
 - Do not push to `main`.
 - Do not commit, push, or open a PR unless Santi explicitly asks in the current task.
+- Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow. No direct push to `main`, `--force`, `reset --hard`, secrets, `.funemon/`, or check bypasses.
 - Keep changes small and scoped to the requested work.
 
 ## Scope Rules

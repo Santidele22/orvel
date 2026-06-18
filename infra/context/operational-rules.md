@@ -5,6 +5,7 @@
 - Work inside this monorepo for Orvel tasks.
 - Do not touch the existing source repos unless Santi explicitly authorizes it in the current task.
 - Do not commit, push, or open PRs unless Santi explicitly requests it.
+- Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow; never direct-push to `main`, force-push, run `reset --hard`, commit secrets or `.funemon/`, or bypass checks.
 
 ## Accuracy
 
