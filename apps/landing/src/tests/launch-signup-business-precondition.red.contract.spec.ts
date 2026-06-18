@@ -4,8 +4,8 @@ import { existsSync } from 'node:fs';
 
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const BUSINESS_TYPE_PAGE_PATH = new URL('../pages/auth/signup/business-type.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
@@ -21,7 +21,7 @@ describe('RED contract: launch landing signup must not apply dashboard business 
   it('launch plan CTAs keep new users inside canonical signup before any subscription/dashboard handoff', async () => {
     const source = `${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(PLAN_CARDS_PATH)}`;
 
-    expect(source).toContain('/auth/signup/credentials?plan=');
+    expect(source).toContain('/auth/signup/account?plan=');
     expect(source).not.toContain('/api/subscriptions/start');
     expect(source).toMatch(/hasPendingCredentialsFirst|pending_signup/i);
   });
@@ -42,7 +42,7 @@ describe('RED contract: launch landing signup must not apply dashboard business 
     expect(existsSync(BUSINESS_TYPE_PAGE_PATH), 'business-type signup page is stale; current signup is credentials-first plus onboarding.').toBe(false);
 
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
-    expect(completeSource).toContain('/auth/signup/credentials');
+    expect(completeSource).toContain('/auth/signup/account');
     expect(completeSource).not.toContain('/auth/signup/business-type');
   });
 

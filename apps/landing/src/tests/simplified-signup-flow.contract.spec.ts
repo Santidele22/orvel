@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const LANDING_INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
@@ -23,38 +23,57 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 }
 
 describe('Contract: simplified launch signup flow', () => {
-  it('landing signup has no business-type/service selector before auth or Mercado Pago', async () => {
-    const landingSignupSources = [
+  it('plan and completion handoff do not own a separate business-type/service selector', async () => {
+    const preAccountSignupSources = [
       await loadSource(LANDING_INDEX_PATH),
       await loadSource(PLAN_PAGE_PATH),
-      await loadSource(CREDENTIALS_PAGE_PATH),
       await loadSource(COMPLETE_PAGE_PATH)
     ].join('\n');
 
-    expect(landingSignupSources).not.toContain('/auth/signup/business-type');
-    expect(landingSignupSources).not.toMatch(/name=["'](?:rubro|business_type|service_type|tipoNegocio)["']/i);
-    expect(landingSignupSources).not.toMatch(/Seleccion[aá].*(categor[ií]as|rubro|servicio|tipo de negocio)/i);
+    expect(preAccountSignupSources).not.toContain('/auth/signup/business-type');
+    expect(preAccountSignupSources).not.toMatch(/name=["'](?:rubro|business_type|service_type|tipoNegocio)["']/i);
+    expect(preAccountSignupSources).not.toMatch(/Seleccion[aá].*(categor[ií]as|rubro|servicio|tipo de negocio)/i);
   });
 
-  it('paid pending signup payload treats business_type as optional legacy data and only requires email before payment', async () => {
+  it('account screen owns required credentials, business, and rubro/category before Mercado Pago', async () => {
+    const credentialsSource = await loadSource(CREDENTIALS_PAGE_PATH);
+
+    for (const fieldName of ['nombre', 'apellido', 'email', 'password', 'negocioNombre']) {
+      expect(credentialsSource, `account page must include required field: ${fieldName}`).toMatch(
+        new RegExp(`name=["']${fieldName}["']`),
+      );
+    }
+    expect(credentialsSource).toMatch(/name=["']telefono["']|name=["']telefonoCaracteristica["'][\s\S]*name=["']telefonoNumero["']/);
+    expect(credentialsSource).toMatch(/name=["'](?:confirmPassword|confirm)["']/);
+    expect(credentialsSource).toMatch(/name=["'](?:rubro|business_category|business_type|tipoNegocio)["']/i);
+    expect(credentialsSource).toMatch(/Seleccion[aá].*(?:rubro|categor[ií]a|tipo de negocio)|Rubro|Categor[ií]a/i);
+    expect(credentialsSource).toMatch(/required|aria-required=["']true["']/i);
+  });
+
+  it('subscription start uses the authenticated account/business instead of pending signup PII', async () => {
     const startApiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
     const createSubscriptionSource = await loadSource(CREATE_SUBSCRIPTION_FN_PATH);
 
-    expect(startApiSource).toMatch(/pendingSignupIntent|pending_signup_intent|pending_signup/i);
-    expect(startApiSource).toContain('email,');
-    expect(startApiSource).toMatch(/business_type:\s*businessType/);
-    expect(createSubscriptionSource).not.toMatch(/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/);
-    expect(createSubscriptionSource).not.toContain('PENDING_SIGNUP_BUSINESS_REQUIRED');
+    expect(startApiSource).toContain('request.headers.get("Authorization")');
+    expect(startApiSource).toContain('appendSupabaseAuthorizationHeader(headers, authorization, supabaseAnonKey)');
+    expect(startApiSource).toContain('mode: "existing_user"');
+    expect(startApiSource).toMatch(/business_type:\s*effectiveBusinessType|businessType/);
+    expect(startApiSource).not.toMatch(/pendingSignupIntent|pending_signup_intent|protected_pending_signup_intent|pending_signup/i);
+    expect(startApiSource).not.toContain('email,');
+    expect(createSubscriptionSource).toMatch(/shouldValidateCreateSubscriptionAuthorization|mode\s*===\s*["']existing_user["']/);
+    expect(createSubscriptionSource).toMatch(/\.from\(["']businesses["']\)[\s\S]{0,240}\.eq\(["']owner_id["'],\s*user\.id\)/);
   });
 
-  it('Mercado Pago approval materializes paid account but keeps onboarding incomplete until dashboard onboarding RPC', async () => {
+  it('Mercado Pago approval can reconcile account-first sessions without marking onboarding dashboard-ready', async () => {
     const webhookSource = await loadSource(MP_WEBHOOK_FN_PATH);
-    const materializeBody = sliceBetween(webhookSource, 'async function materializePendingSignup', '// Verify payment status');
+    const accountFirstBody = sliceBetween(webhookSource, 'async function materializeAccountFirst', 'async function materializePendingSignup');
 
-    expect(materializeBody).toMatch(/auth\.admin\.createUser|pending_signup/i);
-    expect(materializeBody).toMatch(/onboarding_required\s*:\s*true|onboarding_completed\s*:\s*false|onboardingCompleted\s*:\s*false/);
-    expect(materializeBody).not.toMatch(/onboarding_completed\s*:\s*true|onboardingCompleted\s*:\s*true/);
-    expect(materializeBody).not.toMatch(/dashboard_ready_at\s*:|current_step\s*:\s*['"]dashboard_ready['"]/);
+    expect(webhookSource).toMatch(/materializeAccountFirst|account_first_intents|validate_account_first_subscription_session/i);
+    expect(accountFirstBody).toMatch(/account_first_intents/);
+    expect(accountFirstBody).toMatch(/business_onboarding_state/);
+    expect(accountFirstBody).toMatch(/onboarding_required\s*:\s*true|onboarding_completed\s*:\s*false|onboardingCompleted\s*:\s*false|current_step\s*:\s*["']onboarding_required["']/);
+    expect(accountFirstBody).not.toMatch(/onboarding_completed\s*:\s*true|onboardingCompleted\s*:\s*true/);
+    expect(accountFirstBody).not.toMatch(/dashboard_ready_at\s*:|current_step\s*:\s*['"]dashboard_ready['"]/);
   });
 
   it('paid subscription polling routes materialized accounts through landing-owned onboarding instead of dashboard home', async () => {

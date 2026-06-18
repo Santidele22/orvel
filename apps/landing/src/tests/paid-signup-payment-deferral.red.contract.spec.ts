@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -24,36 +24,37 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
   return source.slice(start, end);
 }
 
-describe('RED contract: paid manual signup defers account creation until payment confirmation', () => {
-  it('paid manual signup creates only a pending intent and never calls signupWithProvider before MercadoPago payment', async () => {
+describe('RED contract: account-first paid signup creates account/business before MercadoPago', () => {
+  it('paid manual signup creates account/business before opening MercadoPago and does not create a pending signup intent', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
-    const paidBranch = sliceBetween(submitFlow, 'try {\n      const protectedSignup');
+    const paidBranch = sliceBetween(submitFlow, 'try {');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
-    expect(freeBranch).toContain('await signupWithProvider({');
-    expect(paidBranch).not.toContain('signupWithProvider');
-    expect(paidBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
-    expect(submitFlow).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
-    expect(paidBranch).toContain('/billing/subscription?plan=');
-    expect(completeSource).not.toContain('await signupWithProvider({');
+    expect(freeBranch).toContain('createAccountAndBusiness(accountBusinessPayload)');
+    const accountCreationIndex = paidBranch.indexOf('await createAccountAndBusiness(accountBusinessPayload)');
+    const mpRedirectIndex = paidBranch.indexOf('/billing/subscription?plan=');
+    expect(accountCreationIndex).toBeGreaterThanOrEqual(0);
+    expect(mpRedirectIndex).toBeGreaterThan(accountCreationIndex);
+    expect(submitFlow).not.toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
+    expect(paidBranch).toMatch(/loginWithProvider|window\.location\.href/);
+    expect(completeSource).toContain('/auth/signup/account');
     expect(completeSource).not.toContain('createSupabaseSignupAdapterFromEnv');
     expect(completeSource).not.toContain('await client.auth.updateUser({');
   });
 
-  it('free manual signup still creates the Supabase user immediately and hands off to landing-owned onboarding', async () => {
+  it('free manual signup creates the account/business immediately and shows the welcome login handoff', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n\n    try {');
 
-    expect(freeBranch).toContain('createSupabaseSignupAdapterFromEnv');
-    expect(freeBranch).toContain('await signupWithProvider({');
-    expect(freeBranch).toContain("tipoNegocio: 'pendiente'");
-    expect(freeBranch).toContain("new URL('/auth/signup/onboarding'");
-    expect(freeBranch).toContain('window.location.href = onboardingUrl.toString()');
-    expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/signup/onboarding');
+    expect(freeBranch).toContain('createAccountAndBusiness(accountBusinessPayload)');
+    expect(freeBranch).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro)');
+    expect(freeBranch).toContain('showAccountCreatedModal()');
+    expect(freeBranch).not.toMatch(/Mercado\s*Pago|\/billing\/subscription|preapproval/i);
+    expect(`${credentialsSource}\n${completeSource}`).toContain('/auth/signup/account');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
   });
@@ -66,8 +67,9 @@ describe('RED contract: paid manual signup defers account creation until payment
 
     expect(pageSource).toContain('name="nombre"');
     expect(pageSource).toContain('name="apellido"');
-    expect(freeBranch).toMatch(/nombre\s*,/);
-    expect(freeBranch).toMatch(/apellido\s*,/);
+    expect(credentialsSource).toMatch(/nombre:\s*values\.nombre/);
+    expect(credentialsSource).toMatch(/apellido:\s*values\.apellido/);
+    expect(freeBranch).toContain('accountBusinessPayload');
     expect(freeBranch).not.toMatch(/input\[name=["']name["']\]/);
     expect(freeBranch).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });
@@ -86,50 +88,45 @@ describe('RED contract: paid manual signup defers account creation until payment
   it('simplified completion page never recovers manual signup by reading a stored password', async () => {
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
-    expect(source).toContain('/auth/signup/credentials');
-    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).toContain('/auth/signup/account');
+    expect(source).not.toContain('/auth/signup/onboarding');
     expect(source).not.toContain('getUser()');
     expect(source).not.toContain('updateUser({');
     expect(source).not.toMatch(/(?:sessionStorage|localStorage)\.getItem\([^)]*password/i);
     expect(source).not.toMatch(/password|contraseñ/i);
   });
 
-  it('paid signup creates a pending signup intent and passes it through subscription start without existing auth/business', async () => {
+  it('paid signup starts subscription as existing-user billing without carrying plaintext signup data', async () => {
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const subscriptionSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
     const startApiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
 
-    expect(completeSource).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
-    expect(completeSource).toContain('/billing/subscription?plan=');
-    expect(completeSource).toMatch(/signup_intent|pending_signup_intent/);
+    expect(completeSource).toContain('/auth/signup/account');
+    expect(completeSource).not.toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
 
-    expect(subscriptionSource).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
     expect(subscriptionSource).toContain("fetch('/api/subscriptions/start'");
-    expect(subscriptionSource).toMatch(/pending[_A-Za-z]*Signup|signup_intent|pending_signup_intent/);
+    expect(subscriptionSource).not.toMatch(/pending[_A-Za-z]*Signup|signup_intent|pending_signup_intent/);
 
-    expect(startApiSource).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
-    expect(startApiSource).toMatch(/pending_signup_intent|signup_intent/);
-    expect(startApiSource).toContain('email,');
-    expect(startApiSource).toContain('business_type: businessType');
-    expect(startApiSource).not.toMatch(/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/);
+    expect(startApiSource).not.toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
+    expect(startApiSource).toContain('mode: "existing_user"');
+    expect(startApiSource).toMatch(/business_type:\s*(?:businessType|effectiveBusinessType)/);
+    expect(startApiSource).not.toMatch(/\bemail\s*[:,]/);
   });
 
-  it('paid manual signup protects separately captured first and last name before subscription start', async () => {
+  it('paid manual signup sends separately captured first and last name to account/business creation before subscription start', async () => {
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
-    const paidProtectionFlow = sliceBetween(submitFlow, 'const protectedSignup = await createProtectedPendingSignupIntent', 'sessionStorage.setItem');
-    const paidBranch = sliceBetween(submitFlow, 'sessionStorage.setItem');
+    const paidBranch = sliceBetween(submitFlow, 'try {');
 
     expect(pageSource).toContain('name="nombre"');
     expect(pageSource).toContain('name="apellido"');
-    expect(paidProtectionFlow).toMatch(/first_name\s*:\s*values\.nombre/);
-    expect(paidProtectionFlow).toMatch(/last_name\s*:\s*values\.apellido/);
-    expect(paidBranch).toContain('...protectedSignup');
-    expect(paidBranch).toContain('plan_code: plan');
-    expect(paidBranch).toContain('billing_period: billing');
-    expect(paidProtectionFlow).not.toMatch(/input\[name=["']name["']\]/);
-    expect(paidProtectionFlow).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
+    expect(credentialsSource).toMatch(/nombre:\s*values\.nombre/);
+    expect(credentialsSource).toMatch(/apellido:\s*values\.apellido/);
+    expect(paidBranch).toContain('accountBusinessPayload');
+    expect(paidBranch).toContain('billingUrl');
+    expect(paidBranch).not.toMatch(/input\[name=["']name["']\]/);
+    expect(paidBranch).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });
 
   it('signup credentials removes Google UI entirely before external auth can start', async () => {
@@ -156,7 +153,7 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(credentialsPlanSetup).toContain('sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent)');
     expect(credentialsPlanSetup).toMatch(/isExplicitFreePlan \? searchParams\.get\('billing'\)/);
     expect(completePlanSetup).toContain("isExplicitFreePlan");
-    expect(completePlanSetup).toContain('sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent)');
+    expect(completePlanSetup).not.toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
     expect(completePlanSetup).toMatch(/isExplicitFreePlan \? searchParams\.get\('billing'\)/);
   });
 
@@ -201,26 +198,25 @@ describe('RED contract: paid manual signup defers account creation until payment
   });
 });
 
-describe('RED contract: subscription start supports pending-signup billing without BUSINESS_REQUIRED', () => {
-  it('create-subscription accepts pending signup intent before checking for an existing business', async () => {
+describe('RED contract: subscription start is existing-user/account-first only', () => {
+  it('create-subscription supports existing-user/account-first subscription mode without relying on landing plaintext signup PII', async () => {
     const source = await loadSource(CREATE_SUBSCRIPTION_FN_PATH);
     const paidPlanSection = sliceBetween(source, '// 5. CREATE MERCADO PAGO PREAPPROVAL', '// Build MP preapproval request');
     const businessRequiredIndex = paidPlanSection.indexOf('BUSINESS_REQUIRED');
-    const pendingSignupIndex = paidPlanSection.search(/pendingSignupIntent|pending_signup_intent|signup_intent|pending_signup/i);
-    const mpAccessTokenIndex = paidPlanSection.indexOf('MP_ACCESS_TOKEN');
 
-    expect(pendingSignupIndex, 'paid start must recognize a pending signup/session before requiring a business').toBeGreaterThanOrEqual(0);
-    expect(businessRequiredIndex, 'BUSINESS_REQUIRED must not block pending-signup preapproval creation').toBeGreaterThan(pendingSignupIndex);
-    expect(mpAccessTokenIndex).toBeLessThan(pendingSignupIndex);
+    expect(source).toMatch(/mode\s*===\s*"existing_user"|businesses[\s\S]{0,200}owner_id|account_first_intent|BUSINESS_REQUIRED/);
+    expect(source).toMatch(/business_type|accountFirstBusinessType/);
+    expect(businessRequiredIndex, 'paid start must retain a controlled no-business failure path').toBeGreaterThanOrEqual(0);
+    expect(source).not.toMatch(/\bemail\s*:\s*body\.|pendingSignupEmail\s*=\s*body\./);
   });
 
-  it('create-subscription delegates anon bearer and pending-signup auth decisions to the shared helper', async () => {
+  it('create-subscription delegates existing-user auth decisions to the shared helper', async () => {
     const createSubscriptionSource = await loadSource(CREATE_SUBSCRIPTION_FN_PATH);
     const authHelperSource = await loadSource(CREATE_SUBSCRIPTION_AUTH_HELPER_PATH);
     const authHelperTestSource = await loadSource(CREATE_SUBSCRIPTION_AUTH_HELPER_TEST_PATH);
     const authSection = sliceBetween(
       createSubscriptionSource,
-      '// 2. VERIFY USER AUTHENTICATION (Optional for anonymous pending signup)',
+      '// 2. VERIFY USER AUTHENTICATION',
       '// =============================================================================\n    // 3. PARSE AND VALIDATE REQUEST',
     );
 
@@ -234,55 +230,49 @@ describe('RED contract: subscription start supports pending-signup billing witho
     expect(authHelperSource).toMatch(/export function isSupabaseAnonBearer/);
     expect(authHelperSource).toMatch(/supabaseAnonKey\?: string \| null/);
     expect(authHelperSource).toMatch(/getBearerToken\(authHeader\) === anonKey/);
-    expect(authHelperSource).toMatch(/export function isPendingSignupAuthOptional/);
-    expect(authHelperSource).toMatch(/requestBody\.mode === "pending_signup_intent"/);
-    expect(authHelperSource).toMatch(/requestBody\.mode === "existing_user"[\s\S]*return false/);
-    expect(authHelperSource).toMatch(/requestBody\.pending_signup_intent !== null/);
     expect(authHelperSource).toMatch(/export function shouldValidateCreateSubscriptionAuthorization/);
     expect(authHelperSource).toMatch(/if \(!authHeader\) return false/);
     expect(authHelperSource).toMatch(/if \(isSupabaseAnonBearer\(authHeader, supabaseAnonKey\)\) return false/);
-    expect(authHelperSource).toMatch(/if \(isPendingSignupAuthOptional\(requestBody\)\) return false/);
     expect(authHelperSource).toMatch(/return true/);
+    expect(createSubscriptionSource).toMatch(/mode\s*===\s*"existing_user"|businesses[\s\S]{0,200}owner_id|BUSINESS_REQUIRED/);
 
-    expect(authHelperTestSource).toMatch(/pending signup intent with malformed Authorization/);
-    expect(authHelperTestSource).toMatch(/mode: "pending_signup_intent"[\s\S]*assertEquals\(shouldValidate, false\)/);
     expect(authHelperTestSource).toMatch(/existing-user mode with invalid Authorization/);
     expect(authHelperTestSource).toMatch(/mode: "existing_user"[\s\S]*assertEquals\(shouldValidate, true\)/);
   });
 
-  it('BUSINESS_REQUIRED UI copy distinguishes existing-user billing from pending-signup billing', async () => {
+  it('BUSINESS_REQUIRED UI copy points account-first users back to account creation instead of pending signup recovery', async () => {
     const subscriptionSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
     const startApiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
 
     expect(subscriptionSource).toMatch(/existingUserBusinessRequired|existing_user_business_required|business_required_existing/i);
-    expect(subscriptionSource).toMatch(/pendingSignupBusinessRequired|pending_signup_business_required|business_required_pending_signup/i);
     expect(subscriptionSource).toMatch(/No pudimos preparar tu alta paga|alta paga|pago antes de crear tu cuenta/i);
-    expect(startApiSource).toMatch(/business_required_existing|business_required_pending_signup|pending_signup_business_required/i);
+    expect(`${subscriptionSource}\n${startApiSource}`).not.toMatch(/pendingSignupBusinessRequired|pending_signup_business_required|business_required_pending_signup/i);
+    expect(startApiSource).toMatch(/business_required_existing|business_required_account_first_signup|account_first_signup_business_required/i);
   });
 });
 
-describe('RED contract: approved MercadoPago payment materializes pending paid signup', () => {
-  it('webhook has an approved-payment path that materializes pending signup before entitlement sync', async () => {
+describe('RED contract: approved MercadoPago payment syncs account-first subscription state', () => {
+  it('webhook syncs entitlements only after account-first business state exists', async () => {
     const webhookSource = await loadSource(MP_WEBHOOK_FN_PATH);
     const approvedSideEffects = sliceBetween(webhookSource, 'const shouldSyncEntitlements', '// =============================================================================\n    // 8. FINALIZE WEBHOOK EVENT');
 
-    expect(webhookSource).toMatch(/pendingSignupIntent|pending_signup_intent|materialize_paid_signup|materializePendingSignup/i);
     expect(approvedSideEffects).toMatch(/approved|active/);
-    expect(approvedSideEffects).toMatch(/materialize_paid_signup|materializePendingSignup|auth\.admin\.createUser/i);
-    expect(approvedSideEffects.indexOf('materialize')).toBeLessThan(approvedSideEffects.indexOf('syncEntitlementsForBusiness'));
+    expect(approvedSideEffects).toMatch(/materializeAccountFirst|account_first/i);
+    expect(approvedSideEffects).toContain('syncEntitlementsForBusiness');
+    expect(webhookSource).toMatch(/materializeAccountFirst|validate_account_first_subscription_session|account_first_intents/i);
   });
 
-  it('webhook validates pending signup session before materializing auth/business/subscription', async () => {
+  it('webhook validates account-first subscription session before syncing business subscription', async () => {
     const webhookSource = await loadSource(MP_WEBHOOK_FN_PATH);
-    const pendingApprovedPath = sliceBetween(webhookSource, 'if (!subscription && webhookPaymentApproved)', '// =============================================================================\n    // 6. UPDATE BUSINESS SUBSCRIPTION');
-    const validationIndex = pendingApprovedPath.indexOf('validate_pending_signup_subscription_session');
-    const materializeIndex = pendingApprovedPath.indexOf('materializePendingSignup');
+    const accountFirstPath = sliceBetween(webhookSource, 'if (!subscription && webhookPaymentApproved)', '// =============================================================================\n    // 6. UPDATE BUSINESS SUBSCRIPTION');
+    const validationIndex = accountFirstPath.indexOf('validate_account_first_subscription_session');
+    const materializeIndex = accountFirstPath.indexOf('materializeAccountFirst');
 
     expect(validationIndex).toBeGreaterThanOrEqual(0);
-    expect(pendingApprovedPath).toMatch(/p_external_reference/);
-    expect(pendingApprovedPath).toMatch(/p_amount/);
-    expect(pendingApprovedPath).toMatch(/p_currency/);
-    expect(pendingApprovedPath).toMatch(/p_provider_subscription_id/);
+    expect(accountFirstPath).toMatch(/p_external_reference/);
+    expect(accountFirstPath).toMatch(/p_amount/);
+    expect(accountFirstPath).toMatch(/p_currency/);
+    expect(accountFirstPath).toMatch(/p_provider_subscription_id/);
     expect(validationIndex).toBeLessThan(materializeIndex);
   });
 

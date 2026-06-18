@@ -76,7 +76,7 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     const activeLandingSources = `${index}\n${pricing}\n${planCard}`;
 
     expect(index).toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
-    expect(index).toContain('/auth/signup/credentials');
+    expect(index).toContain('/auth/signup/account');
     expect(index).toContain('/billing/subscription');
     expect(index).toMatch(/plan=\$\{?planCode\}?|planCode/);
     expect(index).not.toContain('/auth/login?plan=${planCode}&returnTo=/auth/signup/plan');

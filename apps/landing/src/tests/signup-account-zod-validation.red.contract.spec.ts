@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-type SignupCredentialsValidationModule = typeof import('../lib/signup-credentials-validation');
+type SignupCredentialsValidationModule = typeof import('../lib/signup-account-validation');
 
 const VALID_FREE_CREDENTIALS = {
   nombre: 'Ana',
   apellido: 'García',
   negocioNombre: 'Ana Beauty Studio',
+  rubro: 'estetica',
   telefonoCaracteristica: '11',
   telefonoNumero: '23456789',
   email: 'ana@example.com',
@@ -14,7 +15,7 @@ const VALID_FREE_CREDENTIALS = {
 };
 
 async function loadValidationModule(): Promise<SignupCredentialsValidationModule> {
-  return import('../lib/signup-credentials-validation');
+  return import('../lib/signup-account-validation');
 }
 
 describe('RED contract: framework-agnostic Zod signup credentials validation', () => {
@@ -41,6 +42,7 @@ describe('RED contract: framework-agnostic Zod signup credentials validation', (
         nombre: '',
         apellido: '',
         negocioNombre: '',
+        rubro: '',
         telefonoCaracteristica: '',
         telefonoNumero: '',
         email: '',
@@ -55,6 +57,7 @@ describe('RED contract: framework-agnostic Zod signup credentials validation', (
       nombre: 'El nombre es requerido',
       apellido: 'El apellido es requerido',
       negocioNombre: 'El nombre del negocio es requerido',
+      rubro: 'Seleccioná el rubro o categoría del negocio',
       telefonoCaracteristica: 'La característica o código de área es requerida',
       telefonoNumero: 'El número local es requerido',
       email: 'El email es requerido',

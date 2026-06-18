@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
-const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-account-validation.ts', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
@@ -23,7 +23,7 @@ describe('RED contract: signup credentials require an explicit valid plan before
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
     const inlineScript = sliceBetween(pageSource, '<script>', '</script>');
 
-    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-credentials-page-controller'");
+    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-account-page-controller'");
     expect(inlineScript).toMatch(/initSignupCredentialsPage\(import\.meta\.env\)/);
     expect(inlineScript).not.toMatch(/new URLSearchParams|form\.addEventListener|validateSignupCredentials|signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
@@ -175,7 +175,7 @@ describe('RED contract: plan-selection redirect notice is reusable and not missi
 
     expect(source).toMatch(/pendingCredentialsFirst|credentials_first|SIGNUP_STORAGE_KEYS\.pendingSignupIntent|intent_id/);
     expect(source).toMatch(/hasPendingCredentialsFirst|isPendingCredentialsFirst|resumePendingCredentialsFirst/);
-    expect(source).toContain('/auth/signup/credentials?plan=');
+    expect(source).toContain('/auth/signup/account?plan=');
     expect(source).toMatch(/resume=(?:credentials_first|pending_credentials)|credentials_first=true|pending_credentials=true/);
     expect(source).not.toMatch(/sessionStorage\.getItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);
     expect(source).not.toMatch(/sessionStorage\.setItem\(\s*SIGNUP_STORAGE_KEYS\.(?:nombre|apellido|negocioNombre|telefono|email)/);

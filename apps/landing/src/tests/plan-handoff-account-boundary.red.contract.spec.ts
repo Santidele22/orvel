@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-credentials-page-controller.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -36,7 +36,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
 
     for (const plan of ['FREE', 'STARTER', 'GROWTH', 'PRO']) {
       expect(source).toContain('data-plan-code={plan.code}');
-      expect(source).toContain('/auth/signup/credentials?plan=');
+      expect(source).toContain('/auth/signup/account?plan=');
       expect(source).toMatch(new RegExp(`plan=\\$\\{[^}]+\\}|planCode|plan\\.code|${plan}`));
     }
 
@@ -55,16 +55,14 @@ describe('Feature B contract: plan handoff before account creation', () => {
       source.indexOf('isValidSignupPlan'),
       source.indexOf('assertValidSignupPlan')
     );
-    const adapterIndex = indexOfOrThrow(source, 'createSupabaseSignupAdapterFromEnv');
-    const signupIndex = indexOfOrThrow(source, 'signupWithProvider({');
+    const accountCreationIndex = indexOfOrThrow(source, 'createAccountAndBusiness(accountBusinessPayload)');
 
     expect(validationIndex).toBeGreaterThanOrEqual(0);
-    expect(validationIndex).toBeLessThan(adapterIndex);
-    expect(validationIndex).toBeLessThan(signupIndex);
+    expect(validationIndex).toBeLessThan(accountCreationIndex);
     expect(source).toMatch(/\/auth\/signup\/plan\?[^`'"\n]*(?:reason=missing_plan|reason=invalid_plan|plan_error=)/);
   });
 
-  it('Supabase signup is only reachable for a valid explicit plan and valid required fields', async () => {
+  it('account/business creation is only reachable for a valid explicit plan and valid required fields', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
 
     const validateFormIndex = indexOfOrThrow(source, 'if (!validateForm()');
@@ -73,13 +71,14 @@ describe('Feature B contract: plan handoff before account creation', () => {
       source.indexOf('isValidSignupPlan'),
       source.indexOf('assertValidSignupPlan')
     );
-    const signupIndex = indexOfOrThrow(source, 'signupWithProvider({');
+    const accountCreationIndex = indexOfOrThrow(source, 'createAccountAndBusiness(accountBusinessPayload)');
 
-    expect(validateFormIndex).toBeLessThan(signupIndex);
+    expect(validateFormIndex).toBeLessThan(accountCreationIndex);
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(planGuardIndex).toBeLessThan(signupIndex);
+    expect(planGuardIndex).toBeLessThan(accountCreationIndex);
     expect(source).toContain('plan,');
-    expect(source).toMatch(/returnTo:\s*(?:nextStep|onboardingUrl\.toString\(\))/);
+    expect(source).toContain('rubro: values.rubro');
+    expect(source).toMatch(/\/billing\/subscription\?plan=|showAccountCreatedModal\(\)/);
   });
 
   it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {
@@ -88,7 +87,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
 
     expect(planSource).toMatch(/missing_account/);
     expect(planSource).toMatch(/create_account/);
-    expect(planSource).toContain('/auth/signup/credentials?plan=');
+    expect(planSource).toContain('/auth/signup/account?plan=');
     expect(credentialsSource).not.toContain('id="googleSignupBtn"');
     expect(credentialsSource).not.toContain("id='googleSignupBtn'");
     expect(credentialsSource).not.toMatch(/Registrarse\s+con\s+Google|Google disponible|Google estar[aá] disponible/i);
