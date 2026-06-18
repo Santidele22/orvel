@@ -103,7 +103,8 @@ describe('RED contract: account-first signup creates the account/business before
     expect(apiSource).toMatch(/auth\.admin\.deleteUser/);
     expect(apiSource).toMatch(/status:\s*subscriptionStatus/);
     expect(apiSource).toMatch(/subscriptionStatus\s*=\s*isPaidPlan\s*\?\s*["']pending_payment["']/);
-    expect(apiSource).toMatch(/is_active:\s*!isPaidPlan/);
+    const businessInsertBlock = sliceBetween(apiSource, 'from("businesses").insert({', '\n  });\n  if (businessError)');
+    expect(businessInsertBlock, 'businesses insert must only use columns present in the production schema').not.toMatch(/is_active\s*:/);
     expect(apiSource).toMatch(/onboardingStep\s*=\s*isPaidPlan\s*\?\s*["']payment_pending["']/);
   });
 
