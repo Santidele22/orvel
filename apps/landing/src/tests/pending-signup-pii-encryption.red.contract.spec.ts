@@ -121,4 +121,12 @@ describe('RED contract: Option A pending signup PII is encrypted + HMAC before p
     expect(protectCall).not.toMatch(/\bname\s*:\s*body\?\.name|full_name|Nombre Completo/i);
     expect(protectApiSource).not.toMatch(/password|confirmPassword|contraseñ/i);
   });
+
+  it('landing pending intent protection normalizes phone whitespace before HMAC to match Supabase verification', async () => {
+    const protectionSource = await source(new URL('../lib/server/pending-signup-pii-protection.ts', import.meta.url));
+    const normalizePiiBlock = sliceBetween(protectionSource, 'function normalizePii', 'async function protectField');
+
+    expect(normalizePiiBlock).toMatch(/field\s*===\s*['"]phone['"]/);
+    expect(normalizePiiBlock).toMatch(/normalized\.replace\(\/\\s\+\/g,\s*['"] ['"]\)/);
+  });
 });
