@@ -169,6 +169,10 @@ describe('RED contract: account-first signup creates the account/business before
     expect(subscriptionStartSource).toMatch(/account_first_intent_id|account_first_session/);
     expect(createSubscriptionSource).toMatch(/account_first_intents/);
     expect(createSubscriptionSource).toMatch(/mode\s*===\s*["']account_first_signup["']|account_first_session/);
+    expect(createSubscriptionSource, 'account-first MP preapproval must use the admin-created user email without requiring password login').toMatch(
+      /auth\.admin\.getUserById\(accountFirstIntent\.user_id\)[\s\S]{0,900}accountFirstPayerEmail\s*=\s*accountFirstUser\.user\.email/,
+    );
+    expect(createSubscriptionSource).toMatch(/user\?\.email\s*\|\|\s*accountFirstPayerEmail\s*\|\|\s*pendingSignupEmail/);
   });
 
   it('welcome modal is the only login handoff gate and login navigation happens after the explicit welcome action', async () => {
