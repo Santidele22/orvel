@@ -194,7 +194,6 @@ export const POST: APIRoute = async ({ request }) => {
     name: businessName,
     owner_id: userId,
     timezone: "America/Argentina/Buenos_Aires",
-    is_active: !isPaidPlan,
   });
   if (businessError) {
     await cleanupProvisioning();
