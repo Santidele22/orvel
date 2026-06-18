@@ -107,6 +107,11 @@ describe('RED contract: account-first signup creates the account/business before
     expect(apiSource).toMatch(/auth\.admin\.deleteUser/);
     expect(apiSource).toMatch(/status:\s*subscriptionStatus/);
     expect(apiSource).toMatch(/subscriptionStatus\s*=\s*isPaidPlan\s*\?\s*["']pending_payment["']/);
+    expect(apiSource, 'paid account-first signup must mint a short-lived account-first session instead of requiring immediate email/password login').toMatch(
+      /account_first_intents[\s\S]{0,900}idempotency_key_hash/,
+    );
+    expect(apiSource).toMatch(/account_first_intent_id/);
+    expect(apiSource).toMatch(/account_first_session/);
     const businessInsertBlock = sliceBetween(apiSource, 'from("businesses").insert({', '\n  });\n  if (businessError)');
     expect(businessInsertBlock, 'businesses insert must only use columns present in the production schema').not.toMatch(/is_active\s*:/);
     expect(apiSource).toMatch(/onboardingStep\s*=\s*isPaidPlan\s*\?\s*["']payment_pending["']/);
@@ -145,6 +150,25 @@ describe('RED contract: account-first signup creates the account/business before
     expect(accountCreatedUiSources).toContain('id="accountCreatedContinue"');
     expect(accountCreatedUiSources).toMatch(/showAccountCreatedModal\(\)|accountCreatedModal[\s\S]{0,240}classList\.remove\(['"]hidden['"]\)/);
     expect(accountCreatedUiSources).toMatch(/accountCreatedContinue[\s\S]{0,240}href=["']\/auth\/login["']|safeLoginUrl/);
+  });
+
+  it('paid flow stores account-first session and goes to subscription start without sign-in before email confirmation', async () => {
+    const controllerSource = await source(SIGNUP_CREDENTIALS_CONTROLLER);
+    const subscriptionSource = await source(SUBSCRIPTION_PAGE);
+    const subscriptionStartSource = await source(SUBSCRIPTION_START_API);
+    const createSubscriptionSource = await source(CREATE_SUBSCRIPTION_FUNCTION);
+
+    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });');
+    const paidBranch = sliceBetween(submitFlow, 'try {');
+
+    expect(paidBranch).toMatch(/account_first_session|accountFirstSession/);
+    expect(paidBranch, 'paid signup must not sign in immediately because production email confirmation returns email_not_confirmed').not.toMatch(
+      /loginWithProvider|createSupabaseLoginAdapterFromEnv/,
+    );
+    expect(subscriptionSource).toMatch(/accountFirstSession|account_first_session/);
+    expect(subscriptionStartSource).toMatch(/account_first_intent_id|account_first_session/);
+    expect(createSubscriptionSource).toMatch(/account_first_intents/);
+    expect(createSubscriptionSource).toMatch(/mode\s*===\s*["']account_first_signup["']|account_first_session/);
   });
 
   it('welcome modal is the only login handoff gate and login navigation happens after the explicit welcome action', async () => {

@@ -397,6 +397,26 @@ import Layout from '../../layouts/Layout.astro';
     };
 
     const subscriptionAttemptKey = subscriptionAttemptStorageKey(plan);
+    const readAccountFirstSession = () => {
+      try {
+        const rawValue = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.accountFirstSession);
+        if (!rawValue) return null;
+        const parsed = JSON.parse(rawValue);
+        const accountFirstIntentId = typeof parsed?.account_first_intent_id === 'string'
+          ? parsed.account_first_intent_id.trim()
+          : '';
+        const accountFirstSession = typeof parsed?.account_first_session === 'string'
+          ? parsed.account_first_session.trim()
+          : '';
+        if (!accountFirstIntentId || !accountFirstSession) return null;
+        return {
+          account_first_intent_id: accountFirstIntentId,
+          account_first_session: accountFirstSession
+        };
+      } catch {
+        return null;
+      }
+    };
     const buildIdempotencyKey = () => {
       const existing = sessionStorage.getItem(subscriptionAttemptKey);
       if (existing) return existing;
@@ -485,6 +505,7 @@ import Layout from '../../layouts/Layout.astro';
           if (token) headers.Authorization = `Bearer ${token}`;
 
           const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
+          const accountFirstSession = readAccountFirstSession();
 
           const response = await fetch('/api/subscriptions/start', {
             method: 'POST',
@@ -495,7 +516,8 @@ import Layout from '../../layouts/Layout.astro';
               billing_period: billing,
               cadence: billing,
               idempotencyKey: buildIdempotencyKey(),
-              businessType
+              businessType,
+              ...(accountFirstSession ? { account_first: accountFirstSession } : {})
             })
           });
           
