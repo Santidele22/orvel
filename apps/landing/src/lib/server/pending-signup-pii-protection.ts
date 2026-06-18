@@ -47,7 +47,9 @@ function normalizePii(field: string, value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.normalize('NFKC').replace(/[\r\n\t]+/g, ' ').trim();
   if (!normalized) return null;
-  return field === 'email' ? normalized.toLowerCase() : normalized;
+  if (field === 'email') return normalized.toLowerCase();
+  if (field === 'phone') return normalized.replace(/\s+/g, ' ');
+  return normalized;
 }
 
 async function protectField(field: string, value: unknown) {
