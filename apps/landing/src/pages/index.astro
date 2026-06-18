@@ -122,7 +122,7 @@ function handlePlanSelection(planCode) {
 
   const billing = currentBillingPeriod || 'monthly';
   const returnTo = encodeURIComponent(`/billing/subscription?plan=${planCode}&billing=${billing}`);
-  window.location.href = `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billing)}&returnTo=${returnTo}`;
+  window.location.href = `/auth/signup/account?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billing)}&returnTo=${returnTo}`;
 }
 
 // Initialize billing toggle

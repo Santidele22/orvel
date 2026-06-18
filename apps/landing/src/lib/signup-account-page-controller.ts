@@ -1,13 +1,13 @@
 import { ARGENTINA_AREA_CODE_DATA_VERSION } from './argentina-area-codes';
 import { SIGNUP_STORAGE_KEYS } from './browser-storage-keys';
 import {
-  SIGNUP_CREDENTIAL_FIELDS,
-  mapSignupCredentialErrorsForAstro,
+  SIGNUP_ACCOUNT_FIELDS,
+  mapSignupAccountErrorsForAstro,
   normalizeArgentinaPhone,
-  validateSignupCredentials,
-  type SignupCredentialField,
-  type SignupCredentialsInput
-} from './signup-credentials-validation';
+  validateSignupAccount,
+  type SignupAccountField,
+  type SignupAccountInput
+} from './signup-account-validation';
 
 type SignupEnv = {
   PUBLIC_DASHBOARD_URL?: string;
@@ -25,10 +25,10 @@ const normalizeBillingPeriod = (raw: string | null) => {
 const isValidSignupPlan = (rawPlan: string | null) =>
   VALID_SIGNUP_PLANS.includes(normalizeSignupPlan(rawPlan) as typeof VALID_SIGNUP_PLANS[number]);
 
-export function initSignupCredentialsPage(env: SignupEnv): void {
+export function initSignupAccountPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
 
-  const form = document.getElementById('credentialsForm') as HTMLFormElement | null;
+  const form = document.getElementById('accountForm') as HTMLFormElement | null;
   if (!form) return;
 
   const searchParams = new URLSearchParams(window.location.search);
@@ -84,11 +84,9 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
   const passwordFields = document.getElementById('passwordFields');
   const passwordInput = document.getElementById('password') as HTMLInputElement | null;
   const confirmPasswordInput = document.getElementById('confirmPassword') as HTMLInputElement | null;
-  if (hasValidSignupPlan && isPaidPlan) {
-    passwordFields?.classList.add('hidden');
-    passwordInput?.removeAttribute('required');
-    confirmPasswordInput?.removeAttribute('required');
-  }
+  passwordFields?.classList.remove('hidden');
+  passwordInput?.setAttribute('required', 'true');
+  confirmPasswordInput?.setAttribute('required', 'true');
 
   const backLink = document.getElementById('backLink') as HTMLAnchorElement | null;
   if (backLink) {
@@ -97,33 +95,35 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
       : missingPlanRedirectUrl;
   }
 
-  const readSignupCredentialValues = (): SignupCredentialsInput => ({
+  const readSignupAccountValues = (): SignupAccountInput => ({
     nombre: form.querySelector<HTMLInputElement>('input[name="nombre"]')?.value ?? '',
     apellido: form.querySelector<HTMLInputElement>('input[name="apellido"]')?.value ?? '',
     negocioNombre: form.querySelector<HTMLInputElement>('input[name="negocioNombre"]')?.value ?? '',
+    rubro: form.querySelector<HTMLSelectElement>('select[name="rubro"]')?.value ?? '',
     telefonoCaracteristica: form.querySelector<HTMLInputElement>('input[name="telefonoCaracteristica"]')?.value ?? '',
     telefonoNumero: form.querySelector<HTMLInputElement>('input[name="telefonoNumero"]')?.value ?? '',
     email: form.querySelector<HTMLInputElement>('input[name="email"]')?.value ?? '',
     password: form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '',
     confirm: form.querySelector<HTMLInputElement>('input[name="confirm"]')?.value ?? ''
   });
-  const getFieldError = (fieldName: SignupCredentialField, value?: string, requirePassword = !isPaidPlan) => {
-    const current = readSignupCredentialValues();
-    const result = validateSignupCredentials({ ...current, [fieldName]: value ?? current[fieldName] }, { requirePassword });
-    return mapSignupCredentialErrorsForAstro(result)[fieldName] ?? '';
+  const getFieldError = (fieldName: SignupAccountField, value?: string, requirePassword = true) => {
+    const current = readSignupAccountValues();
+    const result = validateSignupAccount({ ...current, [fieldName]: value ?? current[fieldName] }, { requirePassword });
+    return mapSignupAccountErrorsForAstro(result)[fieldName] ?? '';
   };
   const validators = {
     nombre: (val: string) => getFieldError('nombre', val),
     apellido: (val: string) => getFieldError('apellido', val),
     negocioNombre: (val: string) => getFieldError('negocioNombre', val),
+    rubro: (val: string) => getFieldError('rubro', val),
     telefonoCaracteristica: (val: string) => getFieldError('telefonoCaracteristica', val),
     telefonoNumero: (val: string) => getFieldError('telefonoNumero', val),
     email: (val: string) => getFieldError('email', val),
     password: (val: string) => getFieldError('password', val),
     confirm: (val: string) => getFieldError('confirm', val)
   };
-  const paintFieldError = (input: HTMLInputElement, message: string) => {
-    const fieldName = input.name as SignupCredentialField;
+  const paintFieldError = (input: HTMLInputElement | HTMLSelectElement, message: string) => {
+    const fieldName = input.name as SignupAccountField;
     const errorEl = document.getElementById(`error-${fieldName === 'confirm' ? 'confirm' : fieldName}`);
     if (message) {
       if (errorEl) {
@@ -137,54 +137,72 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     input.classList.remove('border-error', 'bg-error/5');
     return true;
   };
-  const validateField = (input: HTMLInputElement) => {
+  const validateField = (input: HTMLInputElement | HTMLSelectElement) => {
     const fieldName = input.name as keyof typeof validators;
     return validators[fieldName] ? paintFieldError(input, validators[fieldName](input.value)) : true;
   };
   const validateForm = () => {
-    const result = validateSignupCredentials(readSignupCredentialValues(), { requirePassword: !isPaidPlan });
-    const fieldErrors = mapSignupCredentialErrorsForAstro(result);
+    const result = validateSignupAccount(readSignupAccountValues(), { requirePassword: true });
+    const fieldErrors = mapSignupAccountErrorsForAstro(result);
     let valid = true;
-    form.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
-      const fieldName = input.name as SignupCredentialField;
-      if (SIGNUP_CREDENTIAL_FIELDS.includes(fieldName) && !paintFieldError(input, fieldErrors[fieldName] ?? '')) valid = false;
+    form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
+      const fieldName = input.name as SignupAccountField;
+      if (SIGNUP_ACCOUNT_FIELDS.includes(fieldName) && !paintFieldError(input, fieldErrors[fieldName] ?? '')) valid = false;
     });
     return valid;
   };
-  const validateNonSensitiveCredentials = (fields = ['nombre', 'apellido', 'negocioNombre', 'telefonoCaracteristica', 'telefonoNumero', 'email']) => {
-    const result = validateSignupCredentials(readSignupCredentialValues(), { requirePassword: false });
-    const fieldErrors = mapSignupCredentialErrorsForAstro(result);
+  const validateNonSensitiveCredentials = (fields = ['nombre', 'apellido', 'negocioNombre', 'rubro', 'telefonoCaracteristica', 'telefonoNumero', 'email']) => {
+    const result = validateSignupAccount(readSignupAccountValues(), { requirePassword: false });
+    const fieldErrors = mapSignupAccountErrorsForAstro(result);
     let valid = true;
     fields.forEach((field) => {
-      const input = form.querySelector<HTMLInputElement>(`input[name="${field}"]`);
-      const fieldName = field as SignupCredentialField;
+      const input = form.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${field}"]`);
+      const fieldName = field as SignupAccountField;
       if (input && !paintFieldError(input, fieldErrors[fieldName] ?? '')) valid = false;
     });
     return valid;
   };
-  const allRequiredFieldsComplete = () => Array.from(form.querySelectorAll<HTMLInputElement>('input[required]'))
+  const allRequiredFieldsComplete = () => Array.from(form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[required], select[required]'))
     .every((input) => input.value.trim() && validateField(input));
   const updateContinueButtonState = () => {
     const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     if (button) button.disabled = !allRequiredFieldsComplete();
   };
-  const createProtectedPendingSignupIntent = async (values: { email: string; first_name: string; last_name: string; business_name: string; phone: string }) => {
-    const protectionResponse = await fetch('/api/signup/pending-intent/protect', {
+  const showAccountCreatedModal = () => {
+    const safeLoginUrl = '/auth/login';
+    const modal = document.getElementById('accountCreatedModal');
+    const continueLink = document.getElementById('accountCreatedContinue') as HTMLAnchorElement | null;
+    if (continueLink) continueLink.href = safeLoginUrl;
+    modal?.classList.remove('hidden');
+    modal?.setAttribute('aria-hidden', 'false');
+    document.getElementById('accountCreatedModalTitle')?.focus();
+    buttonReset('Continuar');
+  };
+  const buttonReset = (label: string) => {
+    const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (button) {
+      button.disabled = false;
+      button.textContent = label;
+    }
+  };
+  const createAccountAndBusiness = async (values: { email: string; password: string; nombre: string; apellido: string; negocioNombre: string; rubro: string; telefono: string; plan: string }) => {
+    const response = await fetch('/api/signup/create-account-business', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values)
     });
-    const protectionResult = await protectionResponse.json().catch(() => null);
-    if (!protectionResponse.ok || !protectionResult?.protected_pending_signup_intent) throw new Error('pending_signup_protection_failed');
-    return protectionResult.protected_pending_signup_intent;
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) throw new Error(result?.message || 'create_account_business_failed');
+    return result;
   };
   const readSubmitValues = () => {
-    const values = readSignupCredentialValues();
+    const values = readSignupAccountValues();
     return {
       ...values,
       nombre: values.nombre.trim(),
       apellido: values.apellido.trim(),
       negocioNombre: values.negocioNombre.trim(),
+      rubro: `${values.rubro ?? ''}`.trim(),
       telefonoCaracteristica: values.telefonoCaracteristica.trim(),
       telefonoNumero: values.telefonoNumero.trim(),
       email: values.email.trim(),
@@ -192,7 +210,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     };
   };
 
-  form.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
+  form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
     input.addEventListener('input', () => { validateField(input); updateContinueButtonState(); });
     input.addEventListener('blur', () => { validateField(input); updateContinueButtonState(); });
   });
@@ -211,30 +229,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     if (!hasValidSignupPlan) {
       planSelectionRedirectUrl = missingPlanRedirectUrl;
       if (!validateNonSensitiveCredentials()) return;
-      try {
-        if (button) {
-          button.disabled = true;
-          button.textContent = 'Protegiendo datos...';
-        }
-        const protectedSignup = await createProtectedPendingSignupIntent({
-          email: values.email,
-          first_name: values.nombre,
-          last_name: values.apellido,
-          business_name: values.negocioNombre,
-          phone: values.normalizedPhone
-        });
-        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(protectedSignup));
-        redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
-      } catch {
-        if (button) {
-          button.disabled = false;
-          button.textContent = 'Continuar';
-        }
-        if (errorEl) {
-          errorEl.textContent = 'No pudimos proteger tus datos. Reintentá en unos segundos.';
-          errorEl.classList.remove('hidden');
-        }
-      }
+      redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
       return;
     }
 
@@ -244,74 +239,62 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, plan);
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
+    const accountBusinessPayload = {
+      email: values.email,
+      password: values.password,
+      nombre: values.nombre,
+      apellido: values.apellido,
+      negocioNombre: values.negocioNombre,
+      rubro: values.rubro,
+      telefono: values.normalizedPhone,
+      plan
+    };
+
     if (!isPaidPlan) {
-      const landingOwnedOnboardingUrl = new URL('/auth/signup/onboarding', window.location.origin);
-      const accountCreatedModalLoginUrl = new URL('/auth/login', window.location.origin);
-      const onboardingUrl = landingOwnedOnboardingUrl;
-      onboardingUrl.searchParams.set('onboarding_required', 'true');
-      onboardingUrl.searchParams.set('account_created_modal', 'welcome_login');
-      onboardingUrl.searchParams.set('loginUrl', accountCreatedModalLoginUrl.pathname);
-      onboardingUrl.searchParams.set('plan', plan);
-      onboardingUrl.searchParams.set('billing', billing);
-      try {
-        const { createSupabaseSignupAdapterFromEnv, signupWithProvider } = await import('./auth-provider');
-        const signupResult = await signupWithProvider({
-          attempt: {
-            nombre: values.nombre,
-            apellido: values.apellido,
-            negocioNombre: values.negocioNombre,
-            tipoNegocio: 'pendiente',
-            telefono: values.normalizedPhone,
-            email: values.email,
-            password: values.password,
-            plan,
-            returnTo: onboardingUrl.toString()
-          },
-          supabaseSignup: createSupabaseSignupAdapterFromEnv({
-            SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
-            SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
-          })
-        });
-        if (signupResult.redirectTo) window.location.href = signupResult.redirectTo;
-        else if (signupResult.ok) window.location.href = onboardingUrl.toString();
-        else {
-          button.disabled = false;
-          button.textContent = 'Continuar';
-          if (errorEl) {
-            errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
-            errorEl.classList.remove('hidden');
-          }
-        }
-      } catch {
+      button.textContent = 'Creando cuenta...';
+      const accountResult = await createAccountAndBusiness(accountBusinessPayload).catch((error) => ({ ok: false, error }));
+      if (!accountResult.ok) {
+        const accountErrorMessage = accountResult.error instanceof Error
+          ? accountResult.error.message
+          : 'No pudimos crear tu cuenta y negocio. Reintentá en unos segundos.';
         button.disabled = false;
         button.textContent = 'Continuar';
         if (errorEl) {
-          errorEl.textContent = 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.textContent = accountErrorMessage;
           errorEl.classList.remove('hidden');
         }
+        return;
       }
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
+      showAccountCreatedModal();
       return;
     }
 
     try {
-      const protectedSignup = await createProtectedPendingSignupIntent({
-        email: values.email,
-        first_name: values.nombre,
-        last_name: values.apellido,
-        business_name: values.negocioNombre,
-        phone: values.normalizedPhone
+      await createAccountAndBusiness(accountBusinessPayload);
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
+      const billingUrl = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_business_created=1`;
+      const { createSupabaseLoginAdapterFromEnv, loginWithProvider } = await import('./auth-provider');
+      const loginResult = await loginWithProvider({
+        attempt: {
+          email: values.email,
+          password: values.password,
+          returnTo: billingUrl,
+          selectedRubros: [values.rubro],
+          plan
+        },
+        supabaseLogin: createSupabaseLoginAdapterFromEnv({
+          SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
+          SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
+        })
       });
-      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
-        ...protectedSignup,
-        plan_code: plan,
-        billing_period: billing
-      }));
-      window.location.href = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup`;
+      if (!loginResult.ok) throw new Error(loginResult.error || 'paid_signup_login_failed');
+      window.location.href = loginResult.redirectTo || billingUrl;
     } catch {
       button.disabled = false;
       button.textContent = 'Continuar';
       if (errorEl) {
-        errorEl.textContent = 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
+        errorEl.textContent = 'No pudimos crear tu cuenta y negocio para iniciar el pago. Reintentá en unos segundos.';
         errorEl.classList.remove('hidden');
       }
     }

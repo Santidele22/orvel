@@ -35,7 +35,7 @@ const isPro = plan.code === 'PRO';
 const dotColor = isFree ? 'bg-green-500' : isStarter ? 'bg-primary' : isGrowth ? 'bg-purple-500' : 'bg-yellow-500';
 
 const CardContainer = isSignupPage ? 'a' : 'div';
-const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&billing=monthly` : undefined;
+const cardHref = isSignupPage ? `/auth/signup/account?plan=${plan.code}&billing=monthly` : undefined;
 ---
 
 <CardContainer

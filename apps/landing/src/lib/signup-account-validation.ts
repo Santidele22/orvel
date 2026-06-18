@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { ARGENTINA_AREA_CODES } from './argentina-area-codes';
 
-export const SIGNUP_CREDENTIAL_FIELDS = [
+export const SIGNUP_ACCOUNT_FIELDS = [
   'nombre',
   'apellido',
   'negocioNombre',
+  'rubro',
   'telefonoCaracteristica',
   'telefonoNumero',
   'email',
@@ -12,18 +13,19 @@ export const SIGNUP_CREDENTIAL_FIELDS = [
   'confirm'
 ] as const;
 
-export type SignupCredentialField = typeof SIGNUP_CREDENTIAL_FIELDS[number];
+export type SignupAccountField = typeof SIGNUP_ACCOUNT_FIELDS[number];
 
-export type SignupCredentialsInput = Partial<Record<SignupCredentialField, unknown>>;
+export type SignupAccountInput = Partial<Record<SignupAccountField, unknown>>;
 
-export type SignupCredentialsValidationOptions = {
+export type SignupAccountValidationOptions = {
   requirePassword: boolean;
 };
 
-export type ValidSignupCredentials = {
+export type ValidSignupAccount = {
   nombre: string;
   apellido: string;
   negocioNombre: string;
+  rubro: string;
   telefonoCaracteristica: string;
   telefonoNumero: string;
   email: string;
@@ -32,11 +34,11 @@ export type ValidSignupCredentials = {
   normalizedPhone: string;
 };
 
-export type SignupCredentialErrorMap = Partial<Record<SignupCredentialField, string>>;
+export type SignupAccountErrorMap = Partial<Record<SignupAccountField, string>>;
 
-export type SignupCredentialsValidationResult =
-  | { success: true; data: ValidSignupCredentials }
-  | { success: false; fieldErrors: SignupCredentialErrorMap };
+export type SignupAccountValidationResult =
+  | { success: true; data: ValidSignupAccount }
+  | { success: false; fieldErrors: SignupAccountErrorMap };
 
 const argentinaAreaCodes = new Set<string>(ARGENTINA_AREA_CODES);
 
@@ -60,25 +62,26 @@ export const normalizeArgentinaPhone = (telefonoCaracteristica: string, telefono
   return `+54${areaCode}${localNumber}`;
 };
 
-const credentialString = z.preprocess(
+const accountString = z.preprocess(
   (value) => (typeof value === 'string' ? value : ''),
   z.string()
 );
 
-const baseSignupCredentialsSchema = z.object({
-  nombre: credentialString,
-  apellido: credentialString,
-  negocioNombre: credentialString,
-  telefonoCaracteristica: credentialString,
-  telefonoNumero: credentialString,
-  email: credentialString,
-  password: credentialString,
-  confirm: credentialString
+const baseSignupAccountSchema = z.object({
+  nombre: accountString,
+  apellido: accountString,
+  negocioNombre: accountString,
+  rubro: accountString,
+  telefonoCaracteristica: accountString,
+  telefonoNumero: accountString,
+  email: accountString,
+  password: accountString,
+  confirm: accountString
 });
 
 const addFieldError = (
   ctx: z.RefinementCtx,
-  field: SignupCredentialField,
+  field: SignupAccountField,
   message: string
 ) => {
   ctx.addIssue({
@@ -88,11 +91,12 @@ const addFieldError = (
   });
 };
 
-const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsValidationOptions) =>
-  baseSignupCredentialsSchema.transform((values) => ({
+const buildSignupAccountSchema = ({ requirePassword }: SignupAccountValidationOptions) =>
+  baseSignupAccountSchema.transform((values) => ({
     nombre: values.nombre.trim(),
     apellido: values.apellido.trim(),
     negocioNombre: values.negocioNombre.trim(),
+    rubro: values.rubro.trim(),
     telefonoCaracteristica: values.telefonoCaracteristica.trim(),
     telefonoNumero: values.telefonoNumero.trim(),
     email: values.email.trim(),
@@ -107,6 +111,8 @@ const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsVali
 
     if (!values.negocioNombre) addFieldError(ctx, 'negocioNombre', 'El nombre del negocio es requerido');
     else if (values.negocioNombre.length < 3) addFieldError(ctx, 'negocioNombre', 'Debe tener al menos 3 caracteres');
+
+    if (!values.rubro) addFieldError(ctx, 'rubro', 'Seleccioná el rubro o categoría del negocio');
 
     if (!values.telefonoCaracteristica) {
       addFieldError(ctx, 'telefonoCaracteristica', 'La característica o código de área es requerida');
@@ -139,35 +145,45 @@ const buildSignupCredentialsSchema = ({ requirePassword }: SignupCredentialsVali
       if (!values.confirm) addFieldError(ctx, 'confirm', 'Confirmá tu contraseña');
       else if (values.confirm !== values.password) addFieldError(ctx, 'confirm', 'Las contraseñas no coinciden');
     }
-  }).transform((values): ValidSignupCredentials => ({
+  }).transform((values): ValidSignupAccount => ({
     ...values,
     normalizedPhone: normalizeArgentinaPhone(values.telefonoCaracteristica, values.telefonoNumero)
   }));
 
-export function validateSignupCredentials(
-  input: SignupCredentialsInput,
-  options: SignupCredentialsValidationOptions
-): SignupCredentialsValidationResult {
-  const result = buildSignupCredentialsSchema(options).safeParse(input);
+export function validateSignupAccount(
+  input: SignupAccountInput,
+  options: SignupAccountValidationOptions
+): SignupAccountValidationResult {
+  const result = buildSignupAccountSchema(options).safeParse(input);
 
   if (result.success) {
     return { success: true, data: result.data };
   }
 
-  const fieldErrors: SignupCredentialErrorMap = {};
+  const fieldErrors: SignupAccountErrorMap = {};
   for (const issue of result.error.issues) {
     const field = issue.path[0];
-    if (typeof field === 'string' && SIGNUP_CREDENTIAL_FIELDS.includes(field as SignupCredentialField)) {
-      const credentialField = field as SignupCredentialField;
-      fieldErrors[credentialField] ??= issue.message;
+    if (typeof field === 'string' && SIGNUP_ACCOUNT_FIELDS.includes(field as SignupAccountField)) {
+      const accountField = field as SignupAccountField;
+      fieldErrors[accountField] ??= issue.message;
     }
   }
 
   return { success: false, fieldErrors };
 }
 
-export function mapSignupCredentialErrorsForAstro(
-  result: SignupCredentialsValidationResult
-): SignupCredentialErrorMap {
+export function mapSignupAccountErrorsForAstro(
+  result: SignupAccountValidationResult
+): SignupAccountErrorMap {
   return result.success ? {} : result.fieldErrors;
 }
+
+export const SIGNUP_CREDENTIAL_FIELDS = SIGNUP_ACCOUNT_FIELDS;
+export type SignupCredentialField = SignupAccountField;
+export type SignupCredentialsInput = SignupAccountInput;
+export type SignupCredentialsValidationOptions = SignupAccountValidationOptions;
+export type ValidSignupCredentials = ValidSignupAccount;
+export type SignupCredentialErrorMap = SignupAccountErrorMap;
+export type SignupCredentialsValidationResult = SignupAccountValidationResult;
+export const validateSignupCredentials = validateSignupAccount;
+export const mapSignupCredentialErrorsForAstro = mapSignupAccountErrorsForAstro;
