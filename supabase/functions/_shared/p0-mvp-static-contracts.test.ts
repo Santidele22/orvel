@@ -96,8 +96,11 @@ function latestFunctionBodyMatching(
 }
 
 Deno.test("P0 email outbox logging contract: process-email-outbox never logs recipient email or raw provider errors", async () => {
-  const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
-  const consoleStatements = source.match(/console\.(?:log|error|warn)\s*\([\s\S]*?\);/g) ?? [];
+  const source = await readText(
+    new URL("process-email-outbox/index.ts", functionsDir),
+  );
+  const consoleStatements =
+    source.match(/console\.(?:log|error|warn)\s*\([\s\S]*?\);/g) ?? [];
 
   assert(
     consoleStatements.length > 0,
@@ -122,7 +125,9 @@ Deno.test("P0 email outbox logging contract: process-email-outbox never logs rec
 });
 
 Deno.test("P0 booking management link contract: process-email-outbox does not select or render plaintext booking bearer values", async () => {
-  const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
+  const source = await readText(
+    new URL("process-email-outbox/index.ts", functionsDir),
+  );
   const bookingQuery = source.match(
     /\.from\("bookings"\)[\s\S]*?\.single\(\)/,
   )?.[0] ?? "";
@@ -237,6 +242,140 @@ Deno.test("P0 billing schema contract: every business_subscriptions column refer
       `business_subscriptions.${column} is referenced by Edge Functions but is not defined by checked-in migrations`,
     );
   }
+});
+
+Deno.test("P0 account-first billing contract: create-subscription updates the pending account-created subscription instead of duplicating it", async () => {
+  const source = await readText(
+    new URL("create-subscription/index.ts", functionsDir),
+  );
+  const savePendingSection = source.slice(
+    source.indexOf("// 6. SAVE PENDING SUBSCRIPTION"),
+    source.indexOf("// 7. RETURN INIT POINT TO FRONTEND"),
+  );
+
+  assert(
+    savePendingSection.includes("existingPendingSubscription"),
+    "create-subscription must look for the pending subscription created during account-first signup",
+  );
+  assert(
+    /\.in\("status",\s*\[[^\]]*["']pending_payment["'][^\]]*\]\)/.test(
+      savePendingSection,
+    ),
+    "create-subscription must reuse pending_payment rows created by account-first paid signup",
+  );
+  assert(
+    /\.from\("business_subscriptions"\)[\s\S]*\.update\(subscriptionPayload\)[\s\S]*\.eq\("id", existingPendingSubscription\.id\)/
+      .test(
+        savePendingSection,
+      ),
+    "create-subscription must update the existing pending business_subscriptions row with provider data",
+  );
+  assert(
+    /\.from\("business_subscriptions"\)[\s\S]*\.insert\(subscriptionPayload\)/
+      .test(
+        savePendingSection,
+      ),
+    "create-subscription may insert only when no pending business_subscriptions row exists",
+  );
+  assert(
+    /provider_subscription_id:\s*mpData\.id/.test(savePendingSection) &&
+      /mp_external_reference:\s*externalReference/.test(savePendingSection),
+    "the materialized pending row must receive MercadoPago ids and the external polling reference",
+  );
+});
+
+Deno.test("P0 account-first billing contract: subscription-status resolves return polling through checkout sessions while preserving legacy intents", async () => {
+  const source = await readText(
+    new URL("subscription-status/index.ts", functionsDir),
+  );
+
+  assert(
+    source.includes('.from("billing_checkout_sessions")') &&
+      source.includes("provider_resource_id") &&
+      source.includes("providerPreference") === false,
+    "subscription-status must resolve external_reference return ids through billing_checkout_sessions provider ids",
+  );
+  assert(
+    source.includes('.from("business_subscriptions")') &&
+      source.includes("providerSubscriptionId"),
+    "subscription-status must use the resolved provider subscription id for business_subscriptions polling",
+  );
+  assert(
+    source.includes('.from("account_first_intents")'),
+    "subscription-status must support account-first anonymous intent polling",
+  );
+  assert(
+    source.includes('.from("pending_signup_intents")'),
+    "subscription-status must preserve legacy pending signup polling compatibility",
+  );
+});
+
+Deno.test("P0 account-first schema contract: checked-in migration defines intents, checkout link, and validation RPC", async () => {
+  const migrationsSql = await readAllSqlMigrations();
+  const accountFirstIntentColumns = definedColumnsFor(
+    migrationsSql,
+    "account_first_intents",
+  );
+  const checkoutSessionColumns = definedColumnsFor(
+    migrationsSql,
+    "billing_checkout_sessions",
+  );
+
+  for (const column of [
+    "email_encrypted",
+    "email_hmac",
+    "business_name_encrypted",
+    "provider_subscription_id",
+    "idempotency_key_hash",
+    "expires_at",
+  ]) {
+    assert(
+      accountFirstIntentColumns.has(column),
+      `account_first_intents.${column} must be defined by checked-in migrations`,
+    );
+  }
+  assert(
+    checkoutSessionColumns.has("account_first_intent_id"),
+    "billing_checkout_sessions.account_first_intent_id must be defined by checked-in migrations",
+  );
+  assert(
+    /create\s+or\s+replace\s+function\s+public\.validate_account_first_subscription_session/i
+      .test(migrationsSql),
+    "validate_account_first_subscription_session RPC must be defined by checked-in migrations",
+  );
+  assert(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.validate_account_first_subscription_session[\s\S]*TO\s+service_role/i
+      .test(migrationsSql),
+    "account-first validation RPC must be executable only by service_role",
+  );
+});
+
+Deno.test("P0 account-first paid business contract: prepayment-created businesses stay restricted until payment", async () => {
+  const landingApi = await readText(
+    new URL("../../../apps/landing/src/pages/api/signup/create-account-business.ts", import.meta.url),
+  );
+
+  assert(
+    /subscriptionStatus\s*=\s*isPaidPlan\s*\?\s*["']pending_payment["']/
+      .test(landingApi),
+    "paid account-first signup must create a pending_payment subscription, not active access",
+  );
+  assert(
+    /is_active:\s*!isPaidPlan/.test(landingApi),
+    "paid account-first businesses must be inactive/restricted before payment approval",
+  );
+  assert(
+    /onboardingStep\s*=\s*isPaidPlan\s*\?\s*["']payment_pending["']/.test(
+      landingApi,
+    ) && /current_step:\s*onboardingStep/.test(landingApi),
+    "paid account-first onboarding state must remain payment_pending before payment approval",
+  );
+  assert(
+    !/subscription_status:\s*["']active["'][\s\S]{0,300}isPaidPlan/.test(
+      landingApi,
+    ),
+    "paid account-first signup must not grant active subscription status before payment",
+  );
 });
 
 Deno.test("P0 MercadoPago webhook contract: payment_webhook_events writes processing_state, not a non-schema status column", async () => {
@@ -428,9 +567,11 @@ Deno.test("Launch signup contract: MP approval materializes paid account without
     new URL("mercadopago-webhook/index.ts", functionsDir),
   );
 
-  const materializeBody = /async\s+function\s+materializePendingSignup[\s\S]*?\n}\n\n\/\/ Verify payment status/.exec(
-    webhookSource,
-  )?.[0] ?? "";
+  const materializeBody =
+    /async\s+function\s+materializePendingSignup[\s\S]*?\n}\n\n\/\/ Verify payment status/
+      .exec(
+        webhookSource,
+      )?.[0] ?? "";
 
   assert(materializeBody, "Guard must inspect materializePendingSignup");
   assert(
@@ -446,9 +587,10 @@ Deno.test("Launch signup contract: MP approval materializes paid account without
     "Paid materialization must not mark business_onboarding_state as dashboard ready",
   );
   assert(
-    /onboarding_required\s*:\s*true|onboarding_completed\s*:\s*false|current_step\s*:\s*["']onboarding_required["']/.test(
-      materializeBody,
-    ),
+    /onboarding_required\s*:\s*true|onboarding_completed\s*:\s*false|current_step\s*:\s*["']onboarding_required["']/
+      .test(
+        materializeBody,
+      ),
     "Paid materialization must persist an incomplete/onboarding-required state",
   );
 });
@@ -462,11 +604,13 @@ Deno.test("Launch signup contract: onboarding completion RPC creates dashboard r
     "complete_signup_onboarding must create/upsert main business and business_settings",
   );
   assert(
-    /business_onboarding_state/i.test(body) && /dashboard_ready_at\s*=\s*now\(\)/i.test(body),
+    /business_onboarding_state/i.test(body) &&
+      /dashboard_ready_at\s*=\s*now\(\)/i.test(body),
     "complete_signup_onboarding must mark dashboard readiness only after onboarding completion",
   );
   assert(
-    /auth\.users/i.test(body) && /onboarding_completed/i.test(body) && /true/i.test(body),
+    /auth\.users/i.test(body) && /onboarding_completed/i.test(body) &&
+      /true/i.test(body),
     "complete_signup_onboarding must persist dashboard-required onboarding metadata on the Supabase user",
   );
 });
