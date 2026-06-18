@@ -92,6 +92,29 @@ async function syncEntitlementsForBusiness(
   }
 }
 
+async function materializeAccountFirst(
+  supabaseAdmin: SupabaseClient,
+  params: {
+    externalReference: string;
+    amount: number;
+    currency: string;
+    providerSubscriptionId: string;
+  },
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.rpc(
+    "validate_account_first_subscription_session",
+    {
+      p_external_reference: params.externalReference,
+      p_amount: params.amount,
+      p_currency: params.currency,
+      p_provider_subscription_id: params.providerSubscriptionId,
+    },
+  );
+
+  if (error) return null;
+  return typeof data === "string" ? data : null;
+}
+
 async function materializePendingSignup(
   supabaseAdmin: SupabaseClient,
   params: {

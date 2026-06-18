@@ -78,7 +78,7 @@ import Layout from '../../layouts/Layout.astro';
               Finalizá tu suscripción
             </h2>
             <p class="text-sm text-text-secondary leading-relaxed">
-              Mercado Pago procesará tu pago. Activamos el acceso solo cuando se confirma el estado final.
+              Mercado Pago procesará tu pago. Activamos el acceso solo cuando backend confirma el estado final.
             </p>
           </header>
 
@@ -140,7 +140,7 @@ import Layout from '../../layouts/Layout.astro';
               </li>
               <li class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-[10px] font-bold text-primary">3</span>
-               <span class="text-sm text-text-secondary">Validamos el estado de pago</span>
+               <span class="text-sm text-text-secondary">Backend valida el estado de pago</span>
               </li>
               <li class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-[10px] font-bold text-primary">4</span>
@@ -161,7 +161,7 @@ import Layout from '../../layouts/Layout.astro';
 
           <!-- Primary CTA Button -->
           <div id="subscriptionStatus" class="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-text-primary text-center hidden">Estado: pendiente de pago.</div>
-          <div id="subscriptionError" role="alert" aria-live="polite" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
+          <div id="subscriptionError" class="hidden rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error text-center mb-4"></div>
           
           <button 
             id="subscriptionContinueBtn" 
@@ -251,12 +251,8 @@ import Layout from '../../layouts/Layout.astro';
       business_required: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
       BUSINESS_REQUIRED: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
       business_required_existing: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
-      business_required_pending_signup: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
-      pending_signup_business_required: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
-      pending_signup_email_required: 'Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.',
-      PENDING_SIGNUP_EMAIL_REQUIRED: 'Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.',
-      pending_signup_pii_invalid: 'No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.',
-      PENDING_SIGNUP_PII_INVALID: 'No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.',
+      business_required_account_first_signup: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
+      account_first_signup_business_required: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
       email_required: 'Completá tus datos de contacto para continuar.',
       EMAIL_REQUIRED: 'Completá tus datos de contacto para continuar.',
       subscription_failed: 'No pudimos iniciar el pago. Reintentá en unos segundos.',
@@ -264,14 +260,12 @@ import Layout from '../../layouts/Layout.astro';
       subscription_retry: 'Reintentá en unos segundos.',
       subscription_config_error: 'La suscripción no está configurada para este entorno.',
       invalid_plan: 'El plan seleccionado no está disponible.',
-      PLAN_MAPPING_REQUIRED: 'No pudimos iniciar la suscripción. Reintentá en unos minutos.',
-      PLAN_MAPPING_INVALID: 'No pudimos iniciar la suscripción. Contactá soporte si el problema continúa.',
-      PLAN_IDENTIFIER_INVALID: 'No pudimos iniciar la suscripción. Reintentá en unos segundos.',
-      UNAUTHORIZED_INVALID_JWT_FORMAT: 'No pudimos iniciar la suscripción. Reintentá en unos segundos.',
-      plan_mapping_required: 'No pudimos iniciar la suscripción. Reintentá en unos minutos.',
-      plan_mapping_invalid: 'No pudimos iniciar la suscripción. Contactá soporte si el problema continúa.',
-      plan_identifier_invalid: 'No pudimos iniciar la suscripción. Reintentá en unos segundos.',
-      unauthorized_invalid_jwt_format: 'No pudimos iniciar la suscripción. Reintentá en unos segundos.',
+      PLAN_MAPPING_REQUIRED: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
+      PLAN_MAPPING_INVALID: 'El plan está mal configurado en backend. Contactá soporte.',
+      PLAN_IDENTIFIER_INVALID: 'El plan enviado no cumple el contrato de suscripción.',
+      plan_mapping_required: 'Falta la configuración del plan en backend. Reintentá en unos minutos.',
+      plan_mapping_invalid: 'El plan está mal configurado en backend. Contactá soporte.',
+      plan_identifier_invalid: 'El plan enviado no cumple el contrato de suscripción.',
       subscription_cancelled: 'Cancelaste el pago. Podés reintentar cuando quieras.'
     };
 
@@ -324,7 +318,7 @@ import Layout from '../../layouts/Layout.astro';
     const showSubscriptionError = (codeOrMessage: string) => {
       if (!errorContainer) return;
       const normalizedCode = normalizeSubscriptionErrorCode(codeOrMessage);
-      errorContainer.textContent = errorMessages[normalizedCode] ?? 'No pudimos iniciar la suscripción. Reintentá en unos segundos.';
+      errorContainer.textContent = errorMessages[normalizedCode] || codeOrMessage;
       errorContainer.classList.remove('hidden');
     };
 
@@ -490,8 +484,6 @@ import Layout from '../../layouts/Layout.astro';
           };
           if (token) headers.Authorization = `Bearer ${token}`;
 
-          const pendingSignupIntentRaw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
-          const pendingSignupIntent = pendingSignupIntentRaw ? JSON.parse(pendingSignupIntentRaw) : null;
           const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
 
           const response = await fetch('/api/subscriptions/start', {
@@ -503,41 +495,7 @@ import Layout from '../../layouts/Layout.astro';
               billing_period: billing,
               cadence: billing,
               idempotencyKey: buildIdempotencyKey(),
-              businessType,
-              pending_signup_intent: pendingSignupIntent ? {
-                email_encrypted: pendingSignupIntent.email_encrypted,
-                email_hmac: pendingSignupIntent.email_hmac,
-                first_name_encrypted: pendingSignupIntent.first_name_encrypted,
-                first_name_hmac: pendingSignupIntent.first_name_hmac,
-                last_name_encrypted: pendingSignupIntent.last_name_encrypted,
-                last_name_hmac: pendingSignupIntent.last_name_hmac,
-                phone_encrypted: pendingSignupIntent.phone_encrypted,
-                phone_hmac: pendingSignupIntent.phone_hmac,
-                business_name_encrypted: pendingSignupIntent.business_name_encrypted,
-                business_name_hmac: pendingSignupIntent.business_name_hmac,
-                pii_crypto_version: pendingSignupIntent.pii_crypto_version,
-                business_type: pendingSignupIntent.business_type,
-                selected_business_types: pendingSignupIntent.selected_business_types,
-                plan_code: pendingSignupIntent.plan_code,
-                billing_period: pendingSignupIntent.billing_period
-              } : null,
-              pendingSignupIntent: pendingSignupIntent ? {
-                email_encrypted: pendingSignupIntent.email_encrypted,
-                email_hmac: pendingSignupIntent.email_hmac,
-                first_name_encrypted: pendingSignupIntent.first_name_encrypted,
-                first_name_hmac: pendingSignupIntent.first_name_hmac,
-                last_name_encrypted: pendingSignupIntent.last_name_encrypted,
-                last_name_hmac: pendingSignupIntent.last_name_hmac,
-                phone_encrypted: pendingSignupIntent.phone_encrypted,
-                phone_hmac: pendingSignupIntent.phone_hmac,
-                business_name_encrypted: pendingSignupIntent.business_name_encrypted,
-                business_name_hmac: pendingSignupIntent.business_name_hmac,
-                pii_crypto_version: pendingSignupIntent.pii_crypto_version,
-                business_type: pendingSignupIntent.business_type,
-                selected_business_types: pendingSignupIntent.selected_business_types,
-                plan_code: pendingSignupIntent.plan_code,
-                billing_period: pendingSignupIntent.billing_period
-              } : null
+              businessType
             })
           });
           
