@@ -57,15 +57,9 @@ function updatePrices(period) {
 
     // Keep FREE visible across billing periods so visitors always see the gratis entry point.
     if (planCode === 'FREE') {
-      if (nextPeriod !== 'monthly') {
-        card.hidden = true;
-        card.classList.add('hidden');
-        card.setAttribute('aria-hidden', 'true');
-      } else {
-        card.hidden = false;
-        card.classList.remove('hidden');
-        card.setAttribute('aria-hidden', 'false');
-      }
+      card.hidden = false;
+      card.classList.remove('hidden');
+      card.setAttribute('aria-hidden', 'false');
       return;
     }
 
@@ -122,7 +116,7 @@ function handlePlanSelection(planCode) {
 
   const billing = currentBillingPeriod || 'monthly';
   const returnTo = encodeURIComponent(`/billing/subscription?plan=${planCode}&billing=${billing}`);
-  window.location.href = `/auth/signup/account?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billing)}&returnTo=${returnTo}`;
+  window.location.href = `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billing)}&returnTo=${returnTo}`;
 }
 
 // Initialize billing toggle

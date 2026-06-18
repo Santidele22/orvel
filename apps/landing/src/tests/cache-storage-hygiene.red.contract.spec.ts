@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 const SRC_ROOT = resolve(process.cwd(), 'src');
 const STORAGE_KEYS_PATH = resolve(SRC_ROOT, 'lib/browser-storage-keys.ts');
-const CREDENTIALS_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/account.astro');
-const CREDENTIALS_CONTROLLER = resolve(SRC_ROOT, 'lib/signup-credentials-page-controller.ts');
+const CREDENTIALS_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/credentials.astro');
+const CREDENTIALS_CONTROLLER = resolve(SRC_ROOT, 'lib/signup-access-page-controller.ts');
 const COMPLETE_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/complete.astro');
 const SUBSCRIPTION_PAGE = resolve(SRC_ROOT, 'pages/billing/subscription.astro');
 

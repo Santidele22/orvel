@@ -13,11 +13,31 @@ describe('Contract: subscription canonical error mapping', () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(source).toContain('BUSINESS_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
     expect(source).toContain('EMAIL_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_INVALID');
     expect(source).toContain('PLAN_IDENTIFIER_INVALID');
     expect(source).toContain('normalizeSubscriptionErrorCode');
+  });
+
+  it('maps Supabase gateway INVALID_JWT_FORMAT to friendly retry copy without raw backend/JWT wording', async () => {
+    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
+
+    expect(source).toContain('UNAUTHORIZED_INVALID_JWT_FORMAT');
+    expect(source).toContain('No pudimos iniciar la suscripción. Reintentá en unos segundos.');
+    expect(source).not.toContain('|| codeOrMessage');
+    expect(source).not.toMatch(/UNAUTHORIZED_INVALID_JWT_FORMAT['"]:\s*['"][^'"]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)/i);
+  });
+
+  it('keeps subscription error copy user-friendly and announces it as an alert region', async () => {
+    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
+    const markupBeforeScript = source.split('<script>')[0] ?? source;
+
+    expect(markupBeforeScript).not.toMatch(/>[^<]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)[^<]*</i);
+    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*role="alert"/);
+    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*aria-live="polite"/);
   });
 
   it('keeps /api/subscriptions/start aligned with canonical contract errors', async () => {
@@ -28,7 +48,24 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('PLAN_IDENTIFIER_INVALID');
     expect(source).toContain('fallbackReason');
     expect(source).toContain('BUSINESS_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
     expect(source).toContain('EMAIL_REQUIRED');
+  });
+
+  it('maps pending signup 400 contract errors to friendly non-raw copy', async () => {
+    const pageSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
+    const apiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
+
+    expect(pageSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(pageSource).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(pageSource).toContain('BUSINESS_REQUIRED');
+    expect(apiSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
+    expect(apiSource).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(pageSource).toMatch(/Necesitamos proteger tu email antes de iniciar el pago|Volvé al formulario/i);
+    expect(pageSource).toMatch(/No pudimos validar tus datos protegidos|Volvé al formulario/i);
+    expect(pageSource).not.toMatch(/PENDING_SIGNUP_EMAIL_REQUIRED['"]:\s*['"][^'"]*PENDING_SIGNUP_EMAIL_REQUIRED/);
+    expect(pageSource).not.toMatch(/PENDING_SIGNUP_PII_INVALID['"]:\s*['"][^'"]*PENDING_SIGNUP_PII_INVALID/);
   });
 });
 

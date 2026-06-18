@@ -73,7 +73,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it('FREE manual signup persists explicit FREE plan and incomplete onboarding metadata for dashboard handoff', async () => {
+  it('FREE pending-rubro payload is never accepted as an Auth creation payload', async () => {
     const signUp = vi.fn(async () => ({
       data: { session: { access_token: 'token' }, user: { id: 'free-user', email: 'santi@orvel.app' } },
       error: null
@@ -85,19 +85,73 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
 
     const result = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'pendiente' }));
 
+    // Credentials submit must defer before this adapter is invoked. If a
+    // pending-rubro payload reaches the Auth creation boundary, it must still
+    // be rejected before Supabase Auth so the final onboarding/rubro step is
+    // the only account-creation boundary.
+    expect(result.ok).toBe(false);
+    expect(String(result.code)).toMatch(/onboarding|required|validation/i);
+    expect(result.error).toMatch(/rubro|categor|tipo|negocio|seleccion/i);
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it('FREE final onboarding/rubro submit creates Auth with the selected rubro metadata and never falls back to pendiente', async () => {
+    const signUp = vi.fn(async () => ({
+      data: { session: { access_token: 'token' }, user: { id: 'free-user', email: 'santi@orvel.app' } },
+      error: null
+    }));
+
+    const signup = createSupabaseSignupAdapter(SUPABASE_ENV, {
+      createClient: () => ({ auth: { signUp } }) as never
+    });
+
+    const result = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'peluqueria' }));
+
     expect(result.ok).toBe(true);
     expect(signUp).toHaveBeenCalledWith(
       expect.objectContaining({
         options: expect.objectContaining({
           data: expect.objectContaining({
             plan: 'FREE',
-            tipoNegocio: 'pendiente',
-            onboardingCompleted: false,
-            onboarding_completed: false
+            tipoNegocio: 'peluqueria'
           })
         })
       })
     );
+    expect(signUp).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          data: expect.objectContaining({ tipoNegocio: 'pendiente' })
+        })
+      })
+    );
+  });
+
+  it('FREE final submit depends on complete_signup_onboarding confirmation before reporting success', async () => {
+    const signUp = vi.fn(async () => ({
+      data: { session: { access_token: 'token' }, user: { id: 'free-user', email: 'santi@orvel.app' } },
+      error: null
+    }));
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: { message: 'RPC unavailable' }
+    }));
+
+    const signup = createSupabaseSignupAdapter(SUPABASE_ENV, {
+      createClient: () => ({ auth: { signUp }, rpc }) as never
+    });
+
+    const result = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'peluqueria' }));
+
+    // Approved FREE contract: success is only valid after an Auth session and
+    // complete_signup_onboarding-created backend identity are both confirmed.
+    expect(signUp).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith('complete_signup_onboarding', expect.objectContaining({
+      p_business_type: 'peluqueria',
+      p_plan_code: 'FREE'
+    }));
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/configuraci[oó]n|onboarding|confirm/i);
   });
 
   it('manual paid signup persists canonical plan but keeps onboarding incomplete until post-billing onboarding', async () => {
@@ -171,7 +225,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
       createClient: () => ({ auth: { signUp } }) as never
     });
 
-    const adapterResult = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'pendiente' }));
+    const adapterResult = await signup(makeSignupAttempt({ plan: 'FREE', tipoNegocio: 'peluqueria' }));
 
     expect(adapterResult.ok).toBe(false);
     expect(adapterResult.code).toBe('email_confirmation_required');
@@ -181,7 +235,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     const result = await signupWithProvider({
       attempt: makeSignupAttempt({
         plan: 'FREE',
-        tipoNegocio: 'pendiente',
+        tipoNegocio: 'peluqueria',
         returnTo: 'https://dashboard.orvel.pro/dashboard/inicio'
       }),
       supabaseSignup: signup
@@ -243,6 +297,59 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.ok).toBe(false);
     expect(result.error).not.toMatch(/supabase/i);
     expect(result.error).toMatch(/autenticaci[oó]n|intent[aá].*nuevamente|equipo/i);
+  });
+
+  it('onboarding failure copy hides backend, Supabase, RPC, and provider internals', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+    const failureCopyMatch = source.match(/backendConfirmationFailureMessage\s*=\s*(['"`])(?<copy>[\s\S]*?)\1/);
+
+    expect(failureCopyMatch?.groups?.copy).toBeTruthy();
+    expect(failureCopyMatch?.groups?.copy).not.toMatch(/backend|supabase|rpc|provider/i);
+    expect(failureCopyMatch?.groups?.copy).toMatch(/configuraci[oó]n|confirm|intent[aá]|continuar/i);
+  });
+
+  it('signup flow does not persist passwords in browser storage keys or onboarding URLs', async () => {
+    const [storageKeysSource, authProviderSource, onboardingSource] = await Promise.all([
+      readFile(new URL('../lib/browser-storage-keys.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../lib/auth-provider.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8')
+    ]);
+    const combinedSources = `${storageKeysSource}\n${authProviderSource}\n${onboardingSource}`;
+
+    expect(combinedSources).not.toMatch(/(?:localStorage|sessionStorage)\.setItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(combinedSources).not.toMatch(/(?:localStorage|sessionStorage)\.getItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(combinedSources).not.toMatch(/searchParams\.set\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(combinedSources).not.toMatch(/new\s+URLSearchParams\([^)]*(?:password|confirmPassword|contraseñ)/i);
+    expect(storageKeysSource).not.toMatch(/password|confirmPassword|contraseñ/i);
+  });
+
+  it('onboarding page collects only rubro/category and welcome login, without password fields or standalone login button', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+    const formMarkup = source.slice(source.indexOf('<form id="completeForm"'), source.indexOf('</form>'));
+    const welcomeMarkup = source.slice(source.indexOf('<div id="accountCreatedModal"'));
+
+    expect(formMarkup).toMatch(/name="rubro"/);
+    expect(formMarkup).not.toMatch(/type="password"|name="password"|name="confirm"|onboardingPassword|onboardingConfirmPassword/i);
+    expect(formMarkup).not.toMatch(/Ir al login/i);
+    expect(source).not.toMatch(/id="loginLink"/);
+    expect(welcomeMarkup).toMatch(/Iniciar sesión/);
+    expect(welcomeMarkup).not.toMatch(/Ir al login/i);
+  });
+
+  it('successful FREE onboarding auth clears protected handoff session storage before showing success', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+    const handoffKeysMatch = source.match(/FREE_SIGNUP_HANDOFF_STORAGE_KEYS\s*=\s*\[([\s\S]*?)\]\s*as const/);
+
+    expect(handoffKeysMatch?.[1]).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
+    expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.email');
+    expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.nombre');
+    expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.apellido');
+    expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.negocioNombre');
+    expect(handoffKeysMatch?.[1]).not.toContain('SIGNUP_STORAGE_KEYS.telefono');
+    expect(handoffKeysMatch?.[1]).toContain('SIGNUP_STORAGE_KEYS.tipoNegocio');
+    expect(handoffKeysMatch?.[1]).toContain('orvel.signup.selectedRubros');
+    expect(source).toMatch(/for\s*\(const key of FREE_SIGNUP_HANDOFF_STORAGE_KEYS\)\s*\{\s*sessionStorage\.removeItem\(key\);\s*\}/);
+    expect(source).toMatch(/continueLink\.addEventListener\('click', clearFreeSignupHandoffStorage\)/);
   });
 
   it('keeps explicit Supabase browser auth storage options for email/password sessions', async () => {

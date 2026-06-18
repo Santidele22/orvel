@@ -4,8 +4,9 @@ import { readFile } from 'node:fs/promises';
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
 const PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
+const PENDING_INTENT_FINALIZE_PATH = new URL('../pages/api/signup/pending-intent/finalize.ts', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -15,6 +16,14 @@ function indexOfOrThrow(source: string, marker: string): number {
   const index = source.indexOf(marker);
   expect(index, `Expected source to contain marker: ${marker}`).toBeGreaterThanOrEqual(0);
   return index;
+}
+
+function sliceBetween(source: string, startMarker: string, endMarker?: string): string {
+  const start = source.indexOf(startMarker);
+  expect(start, `Missing start marker: ${startMarker}`).toBeGreaterThanOrEqual(0);
+  const end = endMarker ? source.indexOf(endMarker, start + startMarker.length) : source.length;
+  expect(end, `Missing end marker: ${endMarker}`).toBeGreaterThan(start);
+  return source.slice(start, end);
 }
 
 describe('Feature B contract: plan handoff before account creation', () => {
@@ -36,49 +45,59 @@ describe('Feature B contract: plan handoff before account creation', () => {
 
     for (const plan of ['FREE', 'STARTER', 'GROWTH', 'PRO']) {
       expect(source).toContain('data-plan-code={plan.code}');
-      expect(source).toContain('/auth/signup/account?plan=');
+      expect(source).toContain('/auth/signup/credentials?plan=');
       expect(source).toMatch(new RegExp(`plan=\\$\\{[^}]+\\}|planCode|plan\\.code|${plan}`));
     }
 
     expect(source).not.toMatch(/window\.location\.(?:href|assign)\s*=\s*['"`]\/auth\/signup\/plan/);
   });
 
-  it('credentials page treats missing or invalid plan as a hard boundary before Supabase signup', async () => {
+  it('credentials page treats missing or invalid plan as a hard boundary before account finalization', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const planResolution = source.match(/const\s+plan\s*=\s*[^;]+;/)?.[0] ?? '';
 
     expect(planResolution, 'Missing plan must not silently default to FREE because that creates accounts without an explicit plan selection.').not.toContain("|| 'FREE'");
     expect(source).toMatch(/VALID_SIGNUP_PLANS|isValidSignupPlan|assertValidSignupPlan/);
-
-    const validationIndex = Math.max(
-      source.indexOf('VALID_SIGNUP_PLANS'),
-      source.indexOf('isValidSignupPlan'),
-      source.indexOf('assertValidSignupPlan')
-    );
-    const accountCreationIndex = indexOfOrThrow(source, 'createAccountAndBusiness(accountBusinessPayload)');
-
-    expect(validationIndex).toBeGreaterThanOrEqual(0);
-    expect(validationIndex).toBeLessThan(accountCreationIndex);
+    expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
     expect(source).toMatch(/\/auth\/signup\/plan\?[^`'"\n]*(?:reason=missing_plan|reason=invalid_plan|plan_error=)/);
+    const missingPlanBranch = source.slice(source.indexOf('if (!hasValidSignupPlan)'), source.indexOf('if (!validateForm() || !button)'));
+    expect(missingPlanBranch).toMatch(/createProtectedPendingSignupIntent|protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
+    expect(missingPlanBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|\/api\/signup\/pending-intent\/finalize/);
   });
 
-  it('account/business creation is only reachable for a valid explicit plan and valid required fields', async () => {
+  it('credentials submit validates required fields before protecting data or showing the same-runtime rubro step', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
+    const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
 
-    const validateFormIndex = indexOfOrThrow(source, 'if (!validateForm()');
+    const validateMissingPlanIndex = indexOfOrThrow(submitFlow, 'if (!validateNonSensitiveCredentials()) return;');
+    const validateFormIndex = indexOfOrThrow(submitFlow, 'if (!validateForm() || !button) return;');
+    const protectIndex = indexOfOrThrow(submitFlow, 'await createProtectedPendingSignupIntent');
+    const rubroStepIndex = indexOfOrThrow(submitFlow, 'showFreeRubroStep({');
     const planGuardIndex = Math.max(
       source.indexOf('VALID_SIGNUP_PLANS'),
       source.indexOf('isValidSignupPlan'),
       source.indexOf('assertValidSignupPlan')
     );
-    const accountCreationIndex = indexOfOrThrow(source, 'createAccountAndBusiness(accountBusinessPayload)');
 
-    expect(validateFormIndex).toBeLessThan(accountCreationIndex);
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(planGuardIndex).toBeLessThan(accountCreationIndex);
-    expect(source).toContain('plan,');
-    expect(source).toContain('rubro: values.rubro');
-    expect(source).toMatch(/\/billing\/subscription\?plan=|showAccountCreatedModal\(\)/);
+    expect(validateMissingPlanIndex).toBeLessThan(protectIndex);
+    expect(validateFormIndex).toBeLessThan(rubroStepIndex);
+    expect(source).toContain('plan');
+    expect(source).toMatch(/freeSignupRubroStep|finalizeFreeSignup|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
+  });
+
+  it('pending-intent finalize is the account creation boundary and rejects non-FREE before Supabase signup', async () => {
+    const source = await loadSource(PENDING_INTENT_FINALIZE_PATH);
+    const planGuardIndex = indexOfOrThrow(source, "FREE_SIGNUP_PLAN = 'FREE'");
+    const rejectionIndex = indexOfOrThrow(source, 'pending_signup_finalize_free_plan_only');
+    const adapterIndex = indexOfOrThrow(source, 'createSupabaseSignupAdapter({');
+
+    expect(source).toMatch(/normalizeRequestedPlanCode\(body\?\.plan_code\)\s*!==\s*FREE_SIGNUP_PLAN/);
+    expect(planGuardIndex).toBeLessThan(rejectionIndex);
+    expect(rejectionIndex).toBeLessThan(adapterIndex);
+    expect(source).toMatch(/plan:\s*FREE_SIGNUP_PLAN/);
+    expect(source).not.toMatch(/\b(?:STARTER|GROWTH|PRO)\b|createSubscription|mercadopago/i);
   });
 
   it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {
@@ -87,7 +106,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
 
     expect(planSource).toMatch(/missing_account/);
     expect(planSource).toMatch(/create_account/);
-    expect(planSource).toContain('/auth/signup/account?plan=');
+    expect(planSource).toContain('/auth/signup/credentials?plan=');
     expect(credentialsSource).not.toContain('id="googleSignupBtn"');
     expect(credentialsSource).not.toContain("id='googleSignupBtn'");
     expect(credentialsSource).not.toMatch(/Registrarse\s+con\s+Google|Google disponible|Google estar[aá] disponible/i);

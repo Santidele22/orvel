@@ -41,28 +41,17 @@ Deno.serve(async (req) => {
     requireServerSecret("SUPABASE_SERVICE_ROLE_KEY"),
   );
 
-  const { data: checkoutSession } = await supabaseAdmin
-    .from("billing_checkout_sessions")
-    .select("status, provider_resource_id, provider_preference_id")
-    .eq("external_reference", subscriptionSessionId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const providerSubscriptionId = checkoutSession?.provider_resource_id ||
-    checkoutSession?.provider_preference_id || subscriptionSessionId;
-
   const { data: subscriptionByPreapproval } = await supabaseAdmin
     .from("business_subscriptions")
     .select("id, status")
-    .eq("mp_preapproval_id", providerSubscriptionId)
+    .eq("mp_preapproval_id", subscriptionSessionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const subscription = subscriptionByPreapproval || (await supabaseAdmin
     .from("business_subscriptions")
     .select("id, status")
-    .eq("provider_subscription_id", providerSubscriptionId)
+    .eq("provider_subscription_id", subscriptionSessionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()).data;
@@ -80,41 +69,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  const { data: accountFirstIntentByProvider } = await supabaseAdmin
-    .from("account_first_intents")
-    .select("status")
-    .eq("provider_subscription_id", providerSubscriptionId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const accountFirstIntent = accountFirstIntentByProvider ||
-    (await supabaseAdmin
-      .from("account_first_intents")
-      .select("status")
-      .eq("external_reference", subscriptionSessionId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()).data;
-
-  if (accountFirstIntent) {
-    return json(
-      {
-        subscription_session_id: subscriptionSessionId,
-        status: accountFirstIntent.status === "materialized"
-          ? "active"
-          : "pending",
-        materialized: accountFirstIntent.status === "materialized",
-        account_materialized: accountFirstIntent.status === "materialized",
-      },
-      200,
-      corsHeaders,
-    );
-  }
-
   const { data: intentByProvider } = await supabaseAdmin
     .from("pending_signup_intents")
     .select("status")
-    .eq("provider_subscription_id", providerSubscriptionId)
+    .eq("provider_subscription_id", subscriptionSessionId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

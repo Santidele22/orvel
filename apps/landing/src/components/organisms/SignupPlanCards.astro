@@ -93,11 +93,11 @@ async function resolveSignupPlanHref(planCode, period, options = { commitPending
       return `/billing/subscription?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&signup_intent=pending_signup`;
     }
 
-    return `/auth/signup/account?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&resume=credentials_first`;
+    return `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(period)}&resume=credentials_first`;
   }
 
   if (isCreateAccountRedirectNoticeIntent()) {
-    return `/auth/signup/account?plan=${planCode}&billing=${period}`;
+    return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
   }
 
   if (await hasAuthenticatedSession()) {
@@ -110,7 +110,7 @@ async function resolveSignupPlanHref(planCode, period, options = { commitPending
     }
   }
 
-  return `/auth/signup/account?plan=${planCode}&billing=${period}`;
+  return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
 }
 
 function getSelectedBillingPeriod() {
@@ -187,7 +187,7 @@ function updatePrices(period) {
     if (!plan) return;
 
     // Update href to include billing period, then upgrade authenticated session handoff when a session exists.
-    card.href = `/auth/signup/account?plan=${planCode}&billing=${nextPeriod}`;
+    card.href = `/auth/signup/credentials?plan=${planCode}&billing=${nextPeriod}`;
     resolveSignupPlanHref(planCode, nextPeriod).then((href) => {
       card.href = href;
     });

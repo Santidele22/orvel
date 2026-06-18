@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const landingRoot = resolve(__dirname, '..');
 const productionOrigin = 'https://orvel.pro';
 const approvedSeoTitle = 'Orvel - Organizá tus turnos sin vueltas';
-const approvedVisibleCta = 'Probalo hoy';
+const approvedVisibleCta = 'Empezar ahora';
 const readProjectFile = (relativePath: string) =>
   readFileSync(resolve(landingRoot, relativePath), 'utf8');
 
@@ -46,7 +46,7 @@ describe('landing branding metadata', () => {
     ].join('\n');
 
     expect(ctaSources).toContain(approvedVisibleCta);
-    expect(ctaSources).not.toMatch(/Probalo hoje|Comenzar ahora|Activar Orvel/i);
+    expect(ctaSources).not.toMatch(/Probalo hoje|Activar Orvel/i);
   });
 
   it('publishes absolute production URLs for canonical and social image metadata', () => {

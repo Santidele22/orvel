@@ -10,7 +10,7 @@ import Layout from '../../../layouts/Layout.astro';
       <p class="text-sm leading-6 text-text-secondary">
         La configuración inicial continúa en Orvel antes de entrar al dashboard. Si no avanzás automáticamente, usá el botón.
       </p>
-      <a id="continueLink" href="/auth/signup/account" class="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">
+      <a id="continueLink" href="/auth/signup/credentials" class="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-secondary shadow-lg shadow-primary/20">
         Continuar
       </a>
     </section>
@@ -34,14 +34,45 @@ import Layout from '../../../layouts/Layout.astro';
     const plan = normalizeSelectedPlan(explicitPlan || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.plan));
     const isExplicitFreePlan = explicitPlan?.trim().toUpperCase() === 'FREE';
     const billing = normalizeBillingPeriod(isExplicitFreePlan ? searchParams.get('billing') : searchParams.get('billing') || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.billing));
+    const isPaidPlan = plan !== 'FREE';
+    if (isExplicitFreePlan || plan === 'FREE') {
+      sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+    }
     const step2Link = document.getElementById('continueLink') as HTMLAnchorElement | null;
     const backBtn = step2Link;
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.plan, plan);
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
-    const credentialsUrl = `/auth/signup/account?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`;
+    const credentialsUrl = `/auth/signup/credentials?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`;
     if (step2Link) step2Link.href = credentialsUrl;
     if (backBtn) backBtn.href = credentialsUrl;
-    window.location.href = credentialsUrl;
+    const returnTo = isPaidPlan
+      ? `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`
+      : `/auth/signup/onboarding?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_created_modal=welcome_login`;
+
+    const readProtectedPendingSignupIntent = () => {
+      try {
+        const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.intent_id === 'string' && parsed.intent_id.trim()) return parsed;
+        if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+      } catch {
+        // Ignore invalid resume markers.
+      }
+      return null;
+    };
+
+    const protectedPendingSignupIntent = readProtectedPendingSignupIntent();
+    if (isPaidPlan && protectedPendingSignupIntent) {
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify({
+        ...protectedPendingSignupIntent,
+        plan_code: plan,
+        billing_period: billing
+      }));
+      window.location.href = `${returnTo}&signup_intent=pending_signup`;
+    } else if (!isPaidPlan) {
+      window.location.href = `/auth/signup/credentials?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&resume=credentials_first`;
+    }
   }
 </script>

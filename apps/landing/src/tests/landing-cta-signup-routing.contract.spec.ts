@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const HEADER_PATH = new URL('../components/organisms/Header.astro', import.meta.url);
 const HERO_PATH = new URL('../components/organisms/Hero.astro', import.meta.url);
+const CTA_PATH = new URL('../components/organisms/CTA.astro', import.meta.url);
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -10,7 +11,10 @@ function escapeRegex(value: string): string {
 
 function expectAnchorCtaToSignup(source: string, ctaText: string, sourceName: string): void {
   const text = escapeRegex(ctaText);
-  const anchorRegex = new RegExp(`<a[^>]*href=["']/auth/signup/plan["'][^>]*>\\s*${text}\\s*<\\/a>`, 'i');
+  const anchorRegex = new RegExp(
+    `<a[^>]*href=["']/auth/signup/plan["'][^>]*>\\s*${text}(?:\\s|<[^>]*>)*<\\/a>`,
+    'i'
+  );
 
   expect(
     anchorRegex.test(source),
@@ -25,9 +29,15 @@ describe('Contract: landing CTA routing to signup', () => {
     expectAnchorCtaToSignup(source, 'Crear cuenta', 'Header.astro');
   });
 
-  it('hero CTA "Probalo hoy" points to /auth/signup/plan', async () => {
+  it('hero CTA "Empezar ahora" points to /auth/signup/plan', async () => {
     const source = await readFile(HERO_PATH, 'utf8');
 
-    expectAnchorCtaToSignup(source, 'Probalo hoy', 'Hero.astro');
+    expectAnchorCtaToSignup(source, 'Empezar ahora', 'Hero.astro');
+  });
+
+  it('final CTA "Probalo hoy" points to /auth/signup/plan', async () => {
+    const source = await readFile(CTA_PATH, 'utf8');
+
+    expectAnchorCtaToSignup(source, 'Probalo hoy', 'CTA.astro');
   });
 });

@@ -5,7 +5,7 @@ const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.ur
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const SUBSCRIPTION_STATUS_API_PATH = new URL('../pages/api/subscriptions/status.ts', import.meta.url);
@@ -21,7 +21,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     const cardSource = await loadSource(PLAN_CARD_PATH);
 
     for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
-      expect(`${source}\n${cardSource}`).toContain('/auth/signup/account?plan=');
+      expect(`${source}\n${cardSource}`).toContain('/auth/signup/credentials?plan=');
       expect(source).not.toContain(`href="/api/subscriptions/start?plan=${plan}"`);
     }
   });
@@ -29,7 +29,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
   it('preserves free plan signup credentials routing', async () => {
     const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}`;
 
-    expect(source).toContain('/auth/signup/account?plan=');
+    expect(source).toContain('/auth/signup/credentials?plan=');
   });
 
   it('does not render email modal fields for paid subscription', async () => {
@@ -56,30 +56,28 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     expect(source.indexOf("const plan = normalizeSelectedPlan")).toBeLessThan(source.indexOf("backBtn.href"));
   });
 
-  it('sends signup completions to the account-first credentials/business screen before Mercado Pago', async () => {
+  it('sends paid plan completions to Mercado Pago before dashboard onboarding completion', async () => {
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
-    expect(source).toContain('/auth/signup/account?plan=');
+    expect(source).toContain("const isPaidPlan = plan !== 'FREE'");
+    expect(source).toContain('/billing/subscription?plan=');
     expect(source).toContain('&billing=');
-    expect(source).toContain('window.location.href = credentialsUrl');
-    expect(source).not.toContain('/billing/subscription?plan=');
-    expect(source).not.toMatch(/pendingSignupIntent|pending_signup_intent|pending_signup/i);
-    expect(source).not.toMatch(/completeOAuthBusinessTypeOnboarding[\s\S]{0,800}window\.location\.href/);
+    expect(source).toMatch(/pendingSignupIntent|pending_signup_intent|pending_signup/i);
+    expect(source).toContain("const returnTo = isPaidPlan");
+    expect(source).not.toMatch(/completeOAuthBusinessTypeOnboarding[\s\S]{0,800}window\.location\.href = returnTo/);
   });
 
-  it('preserves selected billing period through account creation, payment, and subscription handoff', async () => {
-    const credentialsSource = `${await loadSource(new URL('../pages/auth/signup/account.astro', import.meta.url))}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
+  it('preserves selected billing period through credentials, payment, dashboard onboarding and subscription handoff', async () => {
+    const credentialsSource = `${await loadSource(new URL('../pages/auth/signup/credentials.astro', import.meta.url))}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(credentialsSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');
     expect(credentialsSource).not.toContain('/auth/signup/business-type?plan=');
     expect(credentialsSource).toContain('&billing=');
-    expect(credentialsSource).toContain('/billing/subscription?plan=');
-    expect(credentialsSource).toContain('account_business_created=1');
     expect(completeSource).toContain('sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing)');
     expect(completeSource).toContain('&billing=');
-    expect(completeSource).toContain('/auth/signup/account?plan=');
-    expect(completeSource).not.toContain('/billing/subscription?plan=');
+    expect(completeSource).toContain('/billing/subscription?plan=');
+    expect(completeSource).toContain('&billing=');
   });
 
   it('renders billing subscription route with plan query fallback and safe placeholder note', async () => {
@@ -109,7 +107,7 @@ describe('Contract: authenticated session handoff from landing plan selection', 
     expect(source).toMatch(/no\s+(?:encontramos|se\s+encontr[oó])\s+(?:una\s+)?cuenta\s+(?:de\s+)?Orvel/i);
     expect(source).toMatch(/crear\s+(?:una\s+)?cuenta|creaci[oó]n\s+de\s+cuenta/i);
     expect(source).toMatch(/setTimeout\([\s\S]{0,300}(?:5000|5\s*\*\s*1000)/);
-    expect(source).toContain('/auth/signup/account?plan=');
+    expect(source).toContain('/auth/signup/credentials?plan=');
     expect(source).not.toMatch(/missing_account[\s\S]{0,800}\/auth\/onboarding/);
   });
 
@@ -129,7 +127,7 @@ describe('Contract: authenticated session handoff from landing plan selection', 
     for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
       expect(source).toContain(`/billing/subscription?plan=${plan}`);
       expect(source).not.toContain(`/auth/onboarding?plan=${plan}`);
-      expect(source).not.toContain(`/auth/signup/account?plan=${plan}`);
+      expect(source).not.toContain(`/auth/signup/credentials?plan=${plan}`);
     }
     expect(source).not.toContain('&returnTo=/dashboard/inicio');
     expect(source).toMatch(/preapproval|subscription/i);
@@ -146,7 +144,7 @@ describe('Contract: same-origin subscription start endpoint', () => {
     expect(source).toMatch(/return\s+redirect\(/);
   });
 
-  it('defines a POST handler that forwards auth and starts an existing-user subscription without pending signup PII', async () => {
+  it('defines a POST handler that forwards auth and returns init_point JSON', async () => {
     const source = await loadSource(SUBSCRIPTION_START_API_PATH);
 
     expect(source).toMatch(/export\s+const\s+POST\s*:\s*APIRoute/);
@@ -155,9 +153,7 @@ describe('Contract: same-origin subscription start endpoint', () => {
     expect(source).toContain('jsonResponse({ init_point: result.initPoint })');
     expect(source).toContain('body: JSON.stringify({');
     expect(source).toContain('plan_code: plan,');
-    expect(source).toContain('mode: "existing_user"');
-    expect(source).not.toMatch(/pendingSignupIntent|pending_signup_intent|protected_pending_signup_intent|pending_signup/i);
-    expect(source).not.toContain('email,');
+    expect(source).toContain('email,');
     expect(source).toContain('Idempotency-Key');
   });
 

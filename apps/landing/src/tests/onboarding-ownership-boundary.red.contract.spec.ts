@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 
@@ -18,7 +18,7 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 }
 
 describe('RED contract: landing owns signup onboarding boundary', () => {
-  it('FREE credential signup continues to landing-owned onboarding and never redirects to dashboard /auth/onboarding', async () => {
+  it('FREE access signup continues to landing-owned same-runtime rubro step and never redirects to dashboard /auth/onboarding', async () => {
     const controllerSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const freeBranch = sliceBetween(controllerSource, 'if (!isPaidPlan) {', 'return;\n    }');
 
@@ -26,8 +26,9 @@ describe('RED contract: landing owns signup onboarding boundary', () => {
     expect(freeBranch).not.toContain('/auth/onboarding');
     expect(freeBranch).not.toContain('PUBLIC_DASHBOARD_URL');
     expect(freeBranch).not.toContain('dashboardOrigin');
-    expect(freeBranch).toMatch(/landing.*onboarding|\/auth\/signup\/onboarding|signupResult\.redirectTo/i);
-    expect(freeBranch).toMatch(/modal|welcome|login|auth\/login/i);
+    expect(freeBranch).toMatch(/showFreeRubroStep|attachFreeRubroFinalizer/i);
+    expect(controllerSource).toMatch(/freeSignupWelcomeModal|welcome|auth\/login/i);
+    expect(freeBranch).not.toMatch(/window\.location\.href|location\.assign/);
   });
 
   it('FREE signup completion page does not build dashboard onboarding as a fallback route', async () => {

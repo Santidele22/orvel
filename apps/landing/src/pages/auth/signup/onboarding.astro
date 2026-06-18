@@ -28,10 +28,6 @@ import Layout from '../../../layouts/Layout.astro';
           FINALIZAR CONFIGURACIÓN
         </button>
       </form>
-
-      <a id="loginLink" href="/auth/login" class="mt-4 inline-flex w-full items-center justify-center rounded-full border border-primary/40 px-6 py-3 text-xs font-bold uppercase tracking-widest text-primary">
-        Ir al login
-      </a>
     </section>
   </main>
 
@@ -51,7 +47,7 @@ import Layout from '../../../layouts/Layout.astro';
         Tu cuenta y configuración inicial ya están listas. Iniciá sesión para empezar a organizar tus turnos con Orvel.
       </p>
       <a id="accountCreatedContinue" href="/auth/login" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-secondary">
-        Ir al login
+        Iniciar sesión
       </a>
     </section>
   </div>
@@ -140,8 +136,20 @@ import Layout from '../../../layouts/Layout.astro';
     const safeLoginUrl = sanitizeLoginUrl(params.get('loginUrl'));
     const onboardingSource = params.get('source');
     const normalizedOnboardingSource = onboardingSource === 'subscription' ? 'subscription' : 'signup';
-    const loginLink = document.getElementById('loginLink') as HTMLAnchorElement | null;
-    if (loginLink) loginLink.href = safeLoginUrl;
+    const backendConfirmationFailureMessage = 'Guardamos tu selección en este navegador, pero no pudimos confirmar la configuración. Iniciá sesión para continuar y retomar la configuración.';
+    const buildOnboardingResumeLoginUrl = () => {
+      const loginUrl = new URL('/auth/login', window.location.origin);
+      const resumeUrl = new URL(window.location.pathname, window.location.origin);
+      const resumeParams = new URLSearchParams(window.location.search);
+      resumeParams.set('resume', 'onboarding');
+      resumeParams.set('source', normalizedOnboardingSource);
+      resumeUrl.search = resumeParams.toString();
+      loginUrl.searchParams.set('returnTo', `${resumeUrl.pathname}${resumeUrl.search}`);
+      loginUrl.searchParams.set('resume', 'onboarding');
+      loginUrl.searchParams.set('source', normalizedOnboardingSource);
+      return `${loginUrl.pathname}${loginUrl.search}`;
+    };
+    const loginLink = null as HTMLAnchorElement | null;
     const continueLink = document.getElementById('accountCreatedContinue') as HTMLAnchorElement | null;
     if (continueLink) continueLink.href = safeLoginUrl;
 
@@ -160,10 +168,38 @@ import Layout from '../../../layouts/Layout.astro';
       if (normalized === 'MEDIUM') return 'GROWTH';
       return ['FREE', 'STARTED', 'GROWTH', 'PRO'].includes(normalized ?? '') ? normalized : 'FREE';
     };
+    const currentPlan = normalizePlanCode(params.get('plan'));
+    const isFreeSignupOnboarding = normalizedOnboardingSource === 'signup' && currentPlan === 'FREE';
+    const FREE_SIGNUP_HANDOFF_STORAGE_KEYS = [
+      SIGNUP_STORAGE_KEYS.plan,
+      SIGNUP_STORAGE_KEYS.billing,
+      SIGNUP_STORAGE_KEYS.pendingSignupIntent,
+      SIGNUP_STORAGE_KEYS.tipoNegocio,
+      'orvel.signup.selectedRubros'
+    ] as const;
+    const clearFreeSignupHandoffStorage = () => {
+      for (const key of FREE_SIGNUP_HANDOFF_STORAGE_KEYS) {
+        sessionStorage.removeItem(key);
+      }
+    };
+    if (continueLink && isFreeSignupOnboarding) {
+      continueLink.addEventListener('click', clearFreeSignupHandoffStorage);
+    }
     const readStringField = (value: unknown, key: string) => {
       if (!value || typeof value !== 'object') return '';
       const field = (value as Record<string, unknown>)[key];
       return typeof field === 'string' ? field.trim() : '';
+    };
+    const readProtectedPendingSignupIntent = () => {
+      try {
+        const raw = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.email_encrypted === 'string' && typeof parsed?.email_hmac === 'string') return parsed;
+      } catch {
+        // Invalid or tampered handoff; finalization will ask the user to restart.
+      }
+      return null;
     };
     const syncOnboardingMetadata = async (selectedRubros: string[]) => {
       if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) return { synced: false, reason: 'missing_config' };
@@ -174,7 +210,7 @@ import Layout from '../../../layouts/Layout.astro';
       );
       const { data } = await client.auth.getSession();
       const email = data.session?.user?.email;
-      if (!data.session?.access_token || !email) return { synced: false, reason: 'missing_session' };
+      if (!data.session?.access_token || !email) return { synced: false, reason: 'missing_session', loginUrl: buildOnboardingResumeLoginUrl() };
       const primaryType = normalizeBusinessType(selectedRubros[0] ?? 'otro');
       const businessName = typeof data.session.user.user_metadata?.negocioNombre === 'string'
         ? data.session.user.user_metadata.negocioNombre
@@ -200,6 +236,9 @@ import Layout from '../../../layouts/Layout.astro';
       markSignupOnboardingCompleted({ email, selectedRubros });
       return { synced: true };
     };
+    const completeFreeSignupFromOnboarding = async (_selectedRubros: string[]) => {
+      return { ok: false, error: 'Por seguridad, el alta gratis se completa en el mismo flujo donde ingresaste la contraseña. Volvé al paso de credenciales para continuar.' };
+    };
 
     const form = document.getElementById('completeForm') as HTMLFormElement | null;
     const errorEl = document.getElementById('onboardingError');
@@ -221,7 +260,25 @@ import Layout from '../../../layouts/Layout.astro';
       }
       if (errorEl) errorEl.classList.add('hidden');
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, normalizeBusinessType(selectedRubros[0] ?? 'otro'));
+      // syncOnboardingMetadata(selectedRubros) remains the session-backed path below.
       sessionStorage.setItem('orvel.signup.selectedRubros', JSON.stringify(selectedRubros));
+
+      if (isFreeSignupOnboarding) {
+        const signupResult = await completeFreeSignupFromOnboarding(selectedRubros).catch(() => ({ ok: false, error: 'No pudimos crear tu cuenta. Reintentá en unos segundos.' }));
+        if (signupResult.ok) {
+          showAccountCreatedModal();
+          return;
+        }
+        if (errorEl) {
+          errorEl.textContent = signupResult.error || 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        }
+        return;
+      }
 
       const result = await syncOnboardingMetadata(selectedRubros).catch(() => ({ synced: false, reason: 'update_failed' }));
       if (result.synced) {
@@ -229,8 +286,20 @@ import Layout from '../../../layouts/Layout.astro';
         return;
       }
 
+      if (result.reason === 'missing_session' && errorEl) {
+        const loginUrl = 'loginUrl' in result && typeof result.loginUrl === 'string' ? result.loginUrl : buildOnboardingResumeLoginUrl();
+        if (loginLink) loginLink.href = loginUrl;
+        errorEl.textContent = 'Guardamos tu categoría en este navegador. Para confirmarla, iniciá sesión y vas a volver a esta pantalla para retomar el onboarding.';
+        errorEl.classList.remove('hidden');
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'FINALIZAR CONFIGURACIÓN';
+        }
+        return;
+      }
+
       if (!result.synced && errorEl) {
-        errorEl.textContent = 'Guardamos tu selección en este navegador, pero no pudimos confirmarla con backend. Iniciá sesión para continuar y retomar la configuración.';
+        errorEl.textContent = backendConfirmationFailureMessage;
         errorEl.classList.remove('hidden');
       }
       if (button) {

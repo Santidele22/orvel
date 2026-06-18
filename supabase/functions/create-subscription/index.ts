@@ -77,23 +77,6 @@ interface SubscriptionRequest {
   card_token_id?: string;
   billing_period?: string;
   mode?: string;
-  account_first_intent?: {
-    email_encrypted?: string;
-    email_hmac?: string;
-    first_name_encrypted?: string;
-    first_name_hmac?: string;
-    last_name_encrypted?: string;
-    last_name_hmac?: string;
-    business_name_encrypted?: string;
-    business_name_hmac?: string;
-    phone_encrypted?: string;
-    phone_hmac?: string;
-    pii_crypto_version?: string;
-    business_type?: string;
-    selected_business_types?: string[];
-    plan_code?: string;
-    billing_period?: string;
-  } | null;
   pending_signup_intent?: {
     email_encrypted?: string;
     email_hmac?: string;
@@ -191,18 +174,15 @@ function normalizeBillingCadence(
     : "monthly";
 }
 
-async function verifyOptionalProtectedAccountFirstField(
+async function verifyOptionalProtectedPendingSignupField(
   field: string,
   encryptedValue: unknown,
   hmacValue: unknown,
 ): Promise<void> {
-  const hasEncrypted = typeof encryptedValue === "string" &&
-    encryptedValue.trim().length > 0;
+  const hasEncrypted = typeof encryptedValue === "string" && encryptedValue.trim().length > 0;
   const hasHmac = typeof hmacValue === "string" && hmacValue.trim().length > 0;
   if (!hasEncrypted && !hasHmac) return;
-  if (!hasEncrypted || !hasHmac) {
-    throw new Error("account_first_pii_pair_incomplete");
-  }
+  if (!hasEncrypted || !hasHmac) throw new Error("pending_signup_pii_pair_incomplete");
   await verifyPendingSignupPiiField(field, encryptedValue, hmacValue);
 }
 
@@ -290,7 +270,7 @@ Deno.serve(async (req) => {
     }
 
     // =============================================================================
-    // 2. VERIFY USER AUTHENTICATION (Optional for anonymous account-first)
+    // 2. VERIFY USER AUTHENTICATION (Optional for anonymous pending signup)
     // =============================================================================
     const authHeader = req.headers.get("Authorization");
     let user = null;
@@ -366,25 +346,18 @@ Deno.serve(async (req) => {
     // 3. PARSE AND VALIDATE REQUEST
     // =============================================================================
     const { plan_code, tier } = body;
-    const accountFirstIntent =
-      body.mode === "account_first_intent" || body.account_first_intent
-        ? body.account_first_intent || {}
-        : null;
     const pendingSignupIntent =
       body.mode === "pending_signup_intent" || body.pending_signup_intent
         ? body.pending_signup_intent || {}
         : null;
     const requestedCadence = normalizeBillingCadence(
       body.cadence || body.billing_period ||
-        accountFirstIntent?.billing_period ||
         pendingSignupIntent?.billing_period,
     );
-    const accountFirstBusinessType = sanitizeIntentText(
-      accountFirstIntent?.business_type || pendingSignupIntent?.business_type ||
-        body.business_type,
+    const pendingSignupBusinessType = sanitizeIntentText(
+      pendingSignupIntent?.business_type || body.business_type,
       80,
     );
-    const isAccountFirstIntent = !business && !!accountFirstIntent;
     const isPendingSignupIntent = !business && !!pendingSignupIntent;
 
     let effectivePlanCode: string | null = typeof plan_code === "string"
@@ -638,10 +611,10 @@ Deno.serve(async (req) => {
     // Calculate billing dates
     const now = new Date();
 
-    let accountFirstRecord:
+    let pendingSignupRecord:
       | { id: string; external_reference: string | null }
       | null = null;
-    let accountFirstEmail: string | null = null;
+    let pendingSignupEmail: string | null = null;
 
     if (isPendingSignupIntent) {
       const pendingSignupEmailHmac = sanitizeIntentText(
@@ -653,29 +626,29 @@ Deno.serve(async (req) => {
         4096,
       );
       try {
-        accountFirstEmail = pendingSignupEmailEncrypted
+        pendingSignupEmail = pendingSignupEmailEncrypted
           ? await verifyPendingSignupPiiField(
             "email",
             pendingSignupEmailEncrypted,
             pendingSignupEmailHmac,
           )
           : null;
-        await verifyOptionalProtectedAccountFirstField(
+        await verifyOptionalProtectedPendingSignupField(
           "first_name",
           pendingSignupIntent?.first_name_encrypted,
           pendingSignupIntent?.first_name_hmac,
         );
-        await verifyOptionalProtectedAccountFirstField(
+        await verifyOptionalProtectedPendingSignupField(
           "last_name",
           pendingSignupIntent?.last_name_encrypted,
           pendingSignupIntent?.last_name_hmac,
         );
-        await verifyOptionalProtectedAccountFirstField(
+        await verifyOptionalProtectedPendingSignupField(
           "business_name",
           pendingSignupIntent?.business_name_encrypted,
           pendingSignupIntent?.business_name_hmac,
         );
-        await verifyOptionalProtectedAccountFirstField(
+        await verifyOptionalProtectedPendingSignupField(
           "phone",
           pendingSignupIntent?.phone_encrypted,
           pendingSignupIntent?.phone_hmac,
@@ -693,7 +666,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (!pendingSignupEmailHmac || !accountFirstEmail) {
+      if (!pendingSignupEmailHmac || !pendingSignupEmail) {
         return new Response(
           JSON.stringify({
             error: "PENDING_SIGNUP_EMAIL_REQUIRED",
@@ -714,47 +687,22 @@ Deno.serve(async (req) => {
       const intentPayload = {
         email_encrypted: pendingSignupEmailEncrypted,
         email_hmac: pendingSignupEmailHmac,
-        first_name_encrypted: sanitizeIntentText(
-          pendingSignupIntent?.first_name_encrypted,
-          4096,
-        ),
-        first_name_hmac: sanitizeIntentText(
-          pendingSignupIntent?.first_name_hmac,
-          512,
-        ),
-        last_name_encrypted: sanitizeIntentText(
-          pendingSignupIntent?.last_name_encrypted,
-          4096,
-        ),
-        last_name_hmac: sanitizeIntentText(
-          pendingSignupIntent?.last_name_hmac,
-          512,
-        ),
-        business_name_encrypted: sanitizeIntentText(
-          pendingSignupIntent?.business_name_encrypted,
-          4096,
-        ),
-        business_name_hmac: sanitizeIntentText(
-          pendingSignupIntent?.business_name_hmac,
-          512,
-        ),
-        phone_encrypted: sanitizeIntentText(
-          pendingSignupIntent?.phone_encrypted,
-          4096,
-        ),
+        first_name_encrypted: sanitizeIntentText(pendingSignupIntent?.first_name_encrypted, 4096),
+        first_name_hmac: sanitizeIntentText(pendingSignupIntent?.first_name_hmac, 512),
+        last_name_encrypted: sanitizeIntentText(pendingSignupIntent?.last_name_encrypted, 4096),
+        last_name_hmac: sanitizeIntentText(pendingSignupIntent?.last_name_hmac, 512),
+        business_name_encrypted: sanitizeIntentText(pendingSignupIntent?.business_name_encrypted, 4096),
+        business_name_hmac: sanitizeIntentText(pendingSignupIntent?.business_name_hmac, 512),
+        phone_encrypted: sanitizeIntentText(pendingSignupIntent?.phone_encrypted, 4096),
         phone_hmac: sanitizeIntentText(pendingSignupIntent?.phone_hmac, 512),
-        pii_crypto_version:
-          sanitizeIntentText(pendingSignupIntent?.pii_crypto_version, 80) ||
-          "pending_signup_pii_v1",
-        business_type: accountFirstBusinessType,
+        pii_crypto_version: sanitizeIntentText(pendingSignupIntent?.pii_crypto_version, 80) || "pending_signup_pii_v1",
+        business_type: pendingSignupBusinessType,
         selected_business_types:
           Array.isArray(pendingSignupIntent?.selected_business_types)
             ? pendingSignupIntent.selected_business_types.map((item) =>
               sanitizeIntentText(item, 80)
             ).filter(Boolean)
-            : accountFirstBusinessType
-            ? [accountFirstBusinessType]
-            : [],
+            : pendingSignupBusinessType ? [pendingSignupBusinessType] : [],
         plan_code: plan.code,
         billing_period: requestedCadence,
         status: "created",
@@ -772,7 +720,7 @@ Deno.serve(async (req) => {
         : { data: null };
 
       if (existingIntent) {
-        accountFirstRecord = existingIntent;
+        pendingSignupRecord = existingIntent;
       } else {
         const { data: insertedIntent, error: intentError } = await supabaseAdmin
           .from("pending_signup_intents")
@@ -792,162 +740,11 @@ Deno.serve(async (req) => {
             },
           );
         }
-        accountFirstRecord = insertedIntent;
-      }
-    } else if (isAccountFirstIntent) {
-      const accountFirstEmailHmac = sanitizeIntentText(
-        accountFirstIntent?.email_hmac,
-        512,
-      );
-      const accountFirstEmailEncrypted = sanitizeIntentText(
-        accountFirstIntent?.email_encrypted,
-        4096,
-      );
-      try {
-        accountFirstEmail = accountFirstEmailEncrypted
-          ? await verifyPendingSignupPiiField(
-            "email",
-            accountFirstEmailEncrypted,
-            accountFirstEmailHmac,
-          )
-          : null;
-        await verifyOptionalProtectedAccountFirstField(
-          "first_name",
-          accountFirstIntent?.first_name_encrypted,
-          accountFirstIntent?.first_name_hmac,
-        );
-        await verifyOptionalProtectedAccountFirstField(
-          "last_name",
-          accountFirstIntent?.last_name_encrypted,
-          accountFirstIntent?.last_name_hmac,
-        );
-        await verifyOptionalProtectedAccountFirstField(
-          "business_name",
-          accountFirstIntent?.business_name_encrypted,
-          accountFirstIntent?.business_name_hmac,
-        );
-        await verifyOptionalProtectedAccountFirstField(
-          "phone",
-          accountFirstIntent?.phone_encrypted,
-          accountFirstIntent?.phone_hmac,
-        );
-      } catch {
-        return new Response(
-          JSON.stringify({
-            error: "ACCOUNT_FIRST_PII_INVALID",
-            message: "Account-first protected data is invalid",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      if (!accountFirstEmailHmac || !accountFirstEmail) {
-        return new Response(
-          JSON.stringify({
-            error: "ACCOUNT_FIRST_EMAIL_REQUIRED",
-            message: "Account-first intent requires protected email",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      const idempotencyHash = idempotencyKey
-        ? await sha256Text(
-          `account-first:${accountFirstEmailHmac}:${canonicalPlanCode}:${idempotencyKey}`,
-        )
-        : null;
-      const intentPayload = {
-        email_encrypted: accountFirstEmailEncrypted,
-        email_hmac: accountFirstEmailHmac,
-        first_name_encrypted: sanitizeIntentText(
-          accountFirstIntent?.first_name_encrypted,
-          4096,
-        ),
-        first_name_hmac: sanitizeIntentText(
-          accountFirstIntent?.first_name_hmac,
-          512,
-        ),
-        last_name_encrypted: sanitizeIntentText(
-          accountFirstIntent?.last_name_encrypted,
-          4096,
-        ),
-        last_name_hmac: sanitizeIntentText(
-          accountFirstIntent?.last_name_hmac,
-          512,
-        ),
-        business_name_encrypted: sanitizeIntentText(
-          accountFirstIntent?.business_name_encrypted,
-          4096,
-        ),
-        business_name_hmac: sanitizeIntentText(
-          accountFirstIntent?.business_name_hmac,
-          512,
-        ),
-        phone_encrypted: sanitizeIntentText(
-          accountFirstIntent?.phone_encrypted,
-          4096,
-        ),
-        phone_hmac: sanitizeIntentText(accountFirstIntent?.phone_hmac, 512),
-        pii_crypto_version:
-          sanitizeIntentText(accountFirstIntent?.pii_crypto_version, 80) ||
-          "account_first_pii_v1",
-        business_type: accountFirstBusinessType,
-        selected_business_types:
-          Array.isArray(accountFirstIntent?.selected_business_types)
-            ? accountFirstIntent.selected_business_types.map((item) =>
-              sanitizeIntentText(item, 80)
-            ).filter(Boolean)
-            : accountFirstBusinessType
-            ? [accountFirstBusinessType]
-            : [],
-        plan_code: plan.code,
-        billing_period: requestedCadence,
-        status: "created",
-        provider: "mercado_pago",
-        idempotency_key_hash: idempotencyHash,
-        expires_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
-      };
-
-      const { data: existingIntent } = idempotencyHash
-        ? await supabaseAdmin
-          .from("account_first_intents")
-          .select("id, external_reference")
-          .eq("idempotency_key_hash", idempotencyHash)
-          .maybeSingle()
-        : { data: null };
-
-      if (existingIntent) {
-        accountFirstRecord = existingIntent;
-      } else {
-        const { data: insertedIntent, error: intentError } = await supabaseAdmin
-          .from("account_first_intents")
-          .insert(intentPayload)
-          .select("id, external_reference")
-          .single();
-
-        if (intentError || !insertedIntent) {
-          return new Response(
-            JSON.stringify({
-              error: "ACCOUNT_FIRST_INTENT_FAILED",
-              message: "No se pudo preparar el alta paga",
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-        accountFirstRecord = insertedIntent;
+        pendingSignupRecord = insertedIntent;
       }
     }
 
-    if (!business && !accountFirstRecord) {
+    if (!business && !pendingSignupRecord) {
       return new Response(
         JSON.stringify({
           error: "BUSINESS_REQUIRED",
@@ -961,10 +758,10 @@ Deno.serve(async (req) => {
     }
 
     const rolloutDecision = evaluatePreapprovalPlanRollout({
-      tenantId: business?.owner_id || accountFirstRecord?.id ||
-        "account_first",
-      userId: user?.id || business?.owner_id || accountFirstRecord?.id ||
-        "account_first",
+      tenantId: business?.owner_id || pendingSignupRecord?.id ||
+        "pending_signup",
+      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
+        "pending_signup",
       environment: (Deno.env.get("DENO_ENV") as
         | "development"
         | "staging"
@@ -974,10 +771,10 @@ Deno.serve(async (req) => {
 
     if (!rolloutDecision.allowed) {
       recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || accountFirstRecord?.id ||
-          "account_first",
-        userId: user?.id || business?.owner_id || accountFirstRecord?.id ||
-          "account_first",
+        tenantId: business?.owner_id || pendingSignupRecord?.id ||
+          "pending_signup",
+        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
+          "pending_signup",
         rolloutPercent: rolloutDecision.rolloutPercent,
         rolloutBucket: rolloutDecision.bucket,
         result: "blocked",
@@ -1002,8 +799,8 @@ Deno.serve(async (req) => {
     }
 
     const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
-    const idempotencyScope = business?.owner_id || accountFirstRecord?.id ||
-      "account_first";
+    const idempotencyScope = business?.owner_id || pendingSignupRecord?.id ||
+      "pending_signup";
     const idempotencySuffix = idempotencyKey
       ? await sha256Text(
         `idem:${idempotencyScope}:${plan.code}:${idempotencyKey}`,
@@ -1016,52 +813,15 @@ Deno.serve(async (req) => {
       now.getTime() + 30 * 60 * 1000,
     );
 
-    if (accountFirstRecord) {
-      if (isPendingSignupIntent) {
-        const { error: pendingIntentUpdateError } = await supabaseAdmin
-          .from("pending_signup_intents")
-          .update({
-            external_reference: externalReference,
-            status: "created",
-            updated_at: now.toISOString(),
-          })
-          .eq("id", accountFirstRecord.id);
-        if (pendingIntentUpdateError) {
-          return new Response(
-            JSON.stringify({
-              error: "PENDING_SIGNUP_INTENT_UPDATE_FAILED",
-              message: "No se pudo preparar el alta paga",
-              correlation_id: correlationId,
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-            },
-          );
-        }
-      } else {
-        const { error: accountFirstIntentUpdateError } = await supabaseAdmin
-          .from("account_first_intents")
-          .update({
-            external_reference: externalReference,
-            status: "created",
-            updated_at: now.toISOString(),
-          })
-          .eq("id", accountFirstRecord.id);
-        if (accountFirstIntentUpdateError) {
-          return new Response(
-            JSON.stringify({
-              error: "ACCOUNT_FIRST_INTENT_UPDATE_FAILED",
-              message: "No se pudo preparar el alta paga",
-              correlation_id: correlationId,
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-            },
-          );
-        }
-      }
+    if (pendingSignupRecord) {
+      await supabaseAdmin
+        .from("pending_signup_intents")
+        .update({
+          external_reference: externalReference,
+          status: "created",
+          updated_at: now.toISOString(),
+        })
+        .eq("id", pendingSignupRecord.id);
     }
 
     const { data: subscriptionSession, error: subscriptionSessionError } =
@@ -1084,12 +844,7 @@ Deno.serve(async (req) => {
           token_hash: await sha256Text(subscriptionSessionToken),
           expires_at: subscriptionSessionExpiresAt.toISOString(),
           created_by: user?.id || business?.owner_id || null,
-          account_first_intent_id: isAccountFirstIntent
-            ? accountFirstRecord?.id || null
-            : null,
-          pending_signup_intent_id: isPendingSignupIntent
-            ? accountFirstRecord?.id || null
-            : null,
+          pending_signup_intent_id: pendingSignupRecord?.id || null,
         })
         .select("id, external_reference")
         .single();
@@ -1135,7 +890,7 @@ Deno.serve(async (req) => {
     }
 
     // Build MP preapproval request
-    const payerEmail = user?.email || accountFirstEmail;
+    const payerEmail = user?.email || pendingSignupEmail;
     if (!payerEmail) {
       return new Response(
         JSON.stringify({
@@ -1198,10 +953,10 @@ Deno.serve(async (req) => {
         mpResponse.status,
       );
       recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || accountFirstRecord?.id ||
-          "account_first",
-        userId: user?.id || business?.owner_id || accountFirstRecord?.id ||
-          "account_first",
+        tenantId: business?.owner_id || pendingSignupRecord?.id ||
+          "pending_signup",
+        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
+          "pending_signup",
         rolloutPercent: rolloutDecision.rolloutPercent,
         rolloutBucket: rolloutDecision.bucket,
         result: "error",
@@ -1250,7 +1005,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { error: checkoutSessionProviderUpdateError } = await supabaseAdmin
+    await supabaseAdmin
       .from("billing_checkout_sessions")
       .update({
         provider_preference_id: mpData.id,
@@ -1260,68 +1015,17 @@ Deno.serve(async (req) => {
         status: "provider_created",
       })
       .eq("id", subscriptionSession.id);
-    if (checkoutSessionProviderUpdateError) {
-      return new Response(
-        JSON.stringify({
-          error: "SUBSCRIPTION_SESSION_UPDATE_FAILED",
-          message: "Error al actualizar sesión segura de suscripción",
-          correlation_id: correlationId,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-        },
-      );
-    }
 
-    if (accountFirstRecord) {
-      if (isPendingSignupIntent) {
-        const { error: pendingProviderUpdateError } = await supabaseAdmin
-          .from("pending_signup_intents")
-          .update({
-            provider_subscription_id: mpData.id,
-            external_reference: externalReference,
-            status: "provider_created",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", accountFirstRecord.id);
-        if (pendingProviderUpdateError) {
-          return new Response(
-            JSON.stringify({
-              error: "PENDING_SIGNUP_PROVIDER_UPDATE_FAILED",
-              message: "No se pudo vincular el alta paga con Mercado Pago",
-              correlation_id: correlationId,
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-            },
-          );
-        }
-      } else {
-        const { error: accountFirstProviderUpdateError } = await supabaseAdmin
-          .from("account_first_intents")
-          .update({
-            provider_subscription_id: mpData.id,
-            external_reference: externalReference,
-            status: "provider_created",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", accountFirstRecord.id);
-        if (accountFirstProviderUpdateError) {
-          return new Response(
-            JSON.stringify({
-              error: "ACCOUNT_FIRST_PROVIDER_UPDATE_FAILED",
-              message: "No se pudo vincular el alta paga con Mercado Pago",
-              correlation_id: correlationId,
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-            },
-          );
-        }
-      }
+    if (pendingSignupRecord) {
+      await supabaseAdmin
+        .from("pending_signup_intents")
+        .update({
+          provider_subscription_id: mpData.id,
+          external_reference: externalReference,
+          status: "provider_created",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", pendingSignupRecord.id);
     }
 
     // =============================================================================
@@ -1329,70 +1033,27 @@ Deno.serve(async (req) => {
     // =============================================================================
     let subscriptionId = null;
     if (business) {
-      const subscriptionPayload = {
-        business_id: business.id,
-        tenant_id: business.owner_id,
-        plan_code: plan.code,
-        status: "pending",
-        subscription_status: "pending",
-        period_start: now.toISOString(),
-        period_end: null, // Will be set when MP confirms payment
-        current_period_start: now.toISOString(),
-        current_period_end: null,
-        provider: "mercado_pago",
-        provider_subscription_id: mpData.id,
-        provider_plan_id: mpData.preapproval_plan_id ||
-          mpData.preapproval_plan?.id || null,
-        mp_preapproval_id: mpData.id,
-        mp_external_reference: externalReference,
-        mp_preapproval_status: mpData.status || "pending",
-        mp_preapproval_plan_id: mpData.preapproval_plan_id ||
-          mpData.preapproval_plan?.id || null,
-        start_date: now.toISOString(),
-        updated_at: now.toISOString(),
-      };
-
-      const {
-        data: existingPendingSubscription,
-        error: existingPendingSubscriptionError,
-      } = await supabaseAdmin
+      const { data: subscription, error: subError } = await supabaseAdmin
         .from("business_subscriptions")
-        .select("id")
-        .eq("business_id", business.id)
-        .in("status", ["pending", "created", "pending_payment"])
-        .is("provider_subscription_id", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingPendingSubscriptionError) {
-        return new Response(
-          JSON.stringify({
-            error: "SUBSCRIPTION_LOOKUP_FAILED",
-            message: "Error al buscar suscripción pendiente",
-            correlation_id: correlationId,
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-          },
-        );
-      }
-
-      const subscriptionWrite = existingPendingSubscription?.id
-        ? await supabaseAdmin
-          .from("business_subscriptions")
-          .update(subscriptionPayload)
-          .eq("id", existingPendingSubscription.id)
-          .select()
-          .single()
-        : await supabaseAdmin
-          .from("business_subscriptions")
-          .insert(subscriptionPayload)
-          .select()
-          .single();
-
-      const { data: subscription, error: subError } = subscriptionWrite;
+        .insert({
+          business_id: business.id,
+          tenant_id: business.owner_id,
+          plan_code: plan.code,
+          status: "pending",
+          period_start: now.toISOString(),
+          period_end: null, // Will be set when MP confirms payment
+          current_period_start: now.toISOString(),
+          current_period_end: null,
+          provider: "mercado_pago",
+          provider_subscription_id: mpData.id,
+          provider_plan_id: mpData.preapproval_plan_id ||
+            mpData.preapproval_plan?.id || null,
+          mp_preapproval_id: mpData.id,
+          mp_preapproval_status: mpData.status || "pending",
+          start_date: now.toISOString(),
+        })
+        .select()
+        .single();
 
       if (subError) {
         console.error("Subscription insert error:", subError);
@@ -1422,10 +1083,10 @@ Deno.serve(async (req) => {
       : mpData.init_point;
 
     recordPreapprovalCreateMetric({
-      tenantId: business?.owner_id || accountFirstRecord?.id ||
-        "account_first",
-      userId: user?.id || business?.owner_id || accountFirstRecord?.id ||
-        "account_first",
+      tenantId: business?.owner_id || pendingSignupRecord?.id ||
+        "pending_signup",
+      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
+        "pending_signup",
       rolloutPercent: rolloutDecision.rolloutPercent,
       rolloutBucket: rolloutDecision.bucket,
       result: "success",
@@ -1441,11 +1102,7 @@ Deno.serve(async (req) => {
         subscription: {
           id: subscriptionId,
           plan_code: plan.code,
-          status: business
-            ? "pending"
-            : isPendingSignupIntent
-            ? "pending_signup_intent"
-            : "account_first_intent",
+          status: business ? "pending" : "pending_signup_intent",
           mp_preapproval_id: mpData.id,
           external_reference: externalReference,
         },

@@ -26,7 +26,7 @@ describe('Contract: landing pricing and signup navigation hotfix', () => {
 
   it('uses deterministic signup back anchors and never javascript history navigation', () => {
     const signupPlan = source('src/pages/auth/signup/plan.astro');
-    const signupCredentials = source('src/pages/auth/signup/account.astro');
+    const signupCredentials = source('src/pages/auth/signup/credentials.astro');
     const combined = `${signupPlan}\n${signupCredentials}`;
 
     expect(combined).not.toMatch(/javascript:history\.back\(|history\.back\(|window\.history\.back\(/);
@@ -36,7 +36,7 @@ describe('Contract: landing pricing and signup navigation hotfix', () => {
 
   it('signup back flow eventually reaches home instead of looping credentials and plan', () => {
     const signupPlan = source('src/pages/auth/signup/plan.astro');
-    const signupCredentials = source('src/pages/auth/signup/account.astro');
+    const signupCredentials = source('src/pages/auth/signup/credentials.astro');
 
     expect(signupCredentials).toMatch(/id=["']backLink["'][^>]+href=["']\/auth\/signup\/plan["']/i);
     expect(signupPlan).toMatch(/href=["']\/["']/);

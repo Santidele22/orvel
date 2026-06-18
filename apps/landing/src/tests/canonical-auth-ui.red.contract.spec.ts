@@ -61,7 +61,7 @@ describe('RED: canonical landing auth UI contract', () => {
 
   it('never persists password values in browser storage from user-facing auth pages', () => {
     const loginPage = source('src/pages/auth/login.astro');
-    const signupCredentialsPage = source('src/pages/auth/signup/account.astro');
+    const signupCredentialsPage = source('src/pages/auth/signup/credentials.astro');
     const authPageSources = `${loginPage}\n${signupCredentialsPage}`;
 
     expect(authPageSources).not.toMatch(/(?:sessionStorage|localStorage)\.setItem\([^)]*(?:password|confirmPassword|contraseñ)/i);

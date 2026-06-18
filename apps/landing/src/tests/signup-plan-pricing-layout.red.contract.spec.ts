@@ -62,7 +62,7 @@ describe('RED contract: signup plan page reuses public pricing layout', () => {
       expect(effectiveSignupPlanSource).toContain(expected);
     }
 
-    expect(effectiveSignupPlanSource).toContain('/auth/signup/account?plan=');
+    expect(effectiveSignupPlanSource).toContain('/auth/signup/credentials?plan=');
     expect(effectiveSignupPlanSource).not.toMatch(/checkout|Comprar ahora/i);
     expect(effectiveSignupPlanSource).not.toMatch(/Hasta\s+(?:[2-9]|\d{2,})\s+(?:locales|sucursales)/i);
     expect(effectiveSignupPlanSource).not.toMatch(/M[úu]ltiples\s+(?:locales|sucursales)/i);

@@ -1,4 +1,5 @@
 const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder();
 const CRYPTO_VERSION = 'pending_signup_pii_v1';
 const ENCRYPTION_ENV = 'PENDING_SIGNUP_ENCRYPTION_KEY_B64';
 const HMAC_ENV = 'PENDING_SIGNUP_HMAC_KEY_B64';
@@ -26,10 +27,10 @@ function getSecret(name: string): string {
   return value;
 }
 
-async function getEncryptionKey(): Promise<CryptoKey> {
+async function getEncryptionKey(usages: KeyUsage[] = ['encrypt']): Promise<CryptoKey> {
   const bytes = base64ToBytes(getSecret(ENCRYPTION_ENV));
   if (bytes.byteLength !== 32) throw new Error(`${ENCRYPTION_ENV}_invalid_length`);
-  return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt']);
+  return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, usages);
 }
 
 async function getHmacKey(): Promise<CryptoKey> {
@@ -58,7 +59,7 @@ async function protectField(field: string, value: unknown) {
   crypto.getRandomValues(iv);
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
-    await getEncryptionKey(),
+    await getEncryptionKey(['encrypt']),
     TEXT_ENCODER.encode(normalized),
   );
   const signature = await crypto.subtle.sign(
@@ -90,5 +91,44 @@ export async function protectPendingSignupPii(values: Record<string, unknown>) {
     business_name_encrypted: businessName.encrypted,
     business_name_hmac: businessName.hmac,
     pii_crypto_version: CRYPTO_VERSION,
+  };
+}
+
+async function verifyFieldHmac(field: string, plaintext: string, expectedHmac: unknown): Promise<void> {
+  if (typeof expectedHmac !== 'string' || !expectedHmac.trim()) throw new Error(`${field}_hmac_missing`);
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    await getHmacKey(),
+    TEXT_ENCODER.encode(`${field}:${plaintext}`),
+  );
+  const actual = bytesToBase64(new Uint8Array(signature));
+  if (actual !== expectedHmac) throw new Error(`${field}_hmac_mismatch`);
+}
+
+async function unprotectField(field: string, encrypted: unknown, hmac: unknown): Promise<string> {
+  if (typeof encrypted !== 'string' || !encrypted.trim()) throw new Error(`${field}_encrypted_missing`);
+  const payload = JSON.parse(encrypted) as { v?: unknown; alg?: unknown; iv?: unknown; ct?: unknown };
+  if (payload.v !== CRYPTO_VERSION || payload.alg !== 'AES-GCM' || typeof payload.iv !== 'string' || typeof payload.ct !== 'string') {
+    throw new Error(`${field}_encrypted_invalid`);
+  }
+
+  const plaintextBytes = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(payload.iv) },
+    await getEncryptionKey(['decrypt']),
+    base64ToBytes(payload.ct),
+  );
+  const plaintext = TEXT_DECODER.decode(plaintextBytes).trim();
+  if (!plaintext) throw new Error(`${field}_plaintext_missing`);
+  await verifyFieldHmac(field, plaintext, hmac);
+  return plaintext;
+}
+
+export async function unprotectPendingSignupPii(values: Record<string, unknown>) {
+  return {
+    email: await unprotectField('email', values.email_encrypted, values.email_hmac),
+    first_name: await unprotectField('first_name', values.first_name_encrypted, values.first_name_hmac),
+    last_name: await unprotectField('last_name', values.last_name_encrypted, values.last_name_hmac),
+    phone: await unprotectField('phone', values.phone_encrypted, values.phone_hmac),
+    business_name: await unprotectField('business_name', values.business_name_encrypted, values.business_name_hmac),
   };
 }
