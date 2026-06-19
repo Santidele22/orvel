@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const LANDING_INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
 const PLAN_PAGE_PATH = new URL('../pages/auth/signup/plan.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
@@ -32,8 +32,8 @@ describe('Contract: simplified launch signup flow', () => {
     ].join('\n');
 
     expect(landingSignupSources).not.toContain('/auth/signup/business-type');
-    expect(landingSignupSources).not.toMatch(/name=["'](?:rubro|business_type|service_type|tipoNegocio)["']/i);
-    expect(landingSignupSources).not.toMatch(/Seleccion[aá].*(categor[ií]as|rubro|servicio|tipo de negocio)/i);
+    expect(landingSignupSources).not.toMatch(/name=["'](?:business_type|service_type|tipoNegocio)["']/i);
+    expect(landingSignupSources).not.toMatch(/\/auth\/signup\/(?:business-type|service-type)|name=["']service_type["']/i);
   });
 
   it('paid pending signup payload treats business_type as optional legacy data and only requires email before payment', async () => {
@@ -41,8 +41,9 @@ describe('Contract: simplified launch signup flow', () => {
     const createSubscriptionSource = await loadSource(CREATE_SUBSCRIPTION_FN_PATH);
 
     expect(startApiSource).toMatch(/pendingSignupIntent|pending_signup_intent|pending_signup/i);
-    expect(startApiSource).toContain('email,');
-    expect(startApiSource).toMatch(/business_type:\s*businessType/);
+    expect(startApiSource).toMatch(/email_encrypted:\s*pendingSignupIntent\.email_encrypted/);
+    expect(startApiSource).toMatch(/email_hmac:\s*pendingSignupIntent\.email_hmac/);
+    expect(startApiSource).toMatch(/business_type:\s*(effectiveBusinessType|pendingSignupIntent\.business_type)/);
     expect(createSubscriptionSource).not.toMatch(/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/);
     expect(createSubscriptionSource).not.toContain('PENDING_SIGNUP_BUSINESS_REQUIRED');
   });
@@ -61,9 +62,9 @@ describe('Contract: simplified launch signup flow', () => {
     const subscriptionSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(subscriptionSource).toMatch(/materialized|account_materialized/i);
-    // Approved/materialized paid accounts continue through landing-owned onboarding first.
-    expect(subscriptionSource).toContain('/auth/signup/onboarding');
-    expect(subscriptionSource).toContain("onboardingUrl.searchParams.set('source', 'subscription')");
+    // Approved/materialized paid accounts use a landing-owned login handoff; raw MP params remain UX hints only.
+    expect(subscriptionSource).toContain("new URL('/auth/login', window.location.origin)");
+    expect(subscriptionSource).toContain("loginUrl.searchParams.set('source', 'subscription')");
     expect(subscriptionSource).not.toMatch(/materialized[\s\S]{0,1200}\/dashboard\/inicio/);
   });
 });

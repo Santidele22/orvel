@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
-const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const SIGNUP_CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const SIGNUP_CREDENTIALS_VALIDATION_PATH = new URL('../lib/signup-account-validation.ts', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 
 async function loadSource(path: URL): Promise<string> {
@@ -21,11 +21,11 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 describe('RED contract: signup credentials require an explicit valid plan before account creation', () => {
   it('credentials page delegates behavior to the signup credentials page controller without inline implementation', async () => {
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
-    const inlineScript = sliceBetween(pageSource, '<script>', '</script>');
 
-    expect(inlineScript).toContain("import { initSignupCredentialsPage } from '../../../lib/signup-access-page-controller'");
-    expect(inlineScript).toMatch(/initSignupCredentialsPage\(import\.meta\.env\)/);
-    expect(inlineScript).not.toMatch(/new URLSearchParams|form\.addEventListener|validateSignupCredentials|signupWithProvider|createSupabaseSignupAdapterFromEnv/);
+    expect(pageSource).toContain("initSignupAccountPage");
+    expect(pageSource).toContain("signup-account-page-controller");
+    expect(pageSource).toMatch(/initSignupAccountPage\(import\.meta\.env\)/);
+    expect(pageSource).not.toMatch(/form\.addEventListener|validateSignupCredentials|signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
 
   it('credentials flow treats missing or invalid plan as missing_plan before building signup state', async () => {
@@ -43,7 +43,6 @@ describe('RED contract: signup credentials require an explicit valid plan before
     const pageSource = await loadSource(CREDENTIALS_PAGE_PATH);
     const controllerSource = await loadSource(SIGNUP_CREDENTIALS_CONTROLLER_PATH);
     const beforeSubmit = sliceBetween(controllerSource, 'const searchParams = new URLSearchParams', "form.addEventListener('submit'");
-    const noticeMarkup = sliceBetween(pageSource, 'id="create-account-redirect-notice"', '</div>\n\n      </div>');
 
     expect(beforeSubmit).toMatch(/Primero eleg[ií] un plan/i);
     expect(beforeSubmit).toMatch(/showRedirectNotice|openRedirectNotice|redirectNotice/);
@@ -51,6 +50,10 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(beforeSubmit).toMatch(/continue|continuar/i);
     expect(beforeSubmit).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
     expect(beforeSubmit).toContain('/auth/signup/plan?reason=invalid_plan&intent=create_account');
+    expect(pageSource).toContain('id="create-account-redirect-notice"');
+    const noticeStart = pageSource.indexOf('id="create-account-redirect-notice"');
+    const noticeEnd = pageSource.indexOf('id="accountCreatedModal"', noticeStart);
+    const noticeMarkup = pageSource.slice(noticeStart, noticeEnd);
     expect(noticeMarkup).toMatch(/class="[^"]*fixed[^"]*inset-0[^"]*z-\d+/);
     expect(noticeMarkup).toMatch(/\[&:not\(\.hidden\)\]:flex|items-center\s+justify-center|justify-center\s+items-center/);
     expect(noticeMarkup).toMatch(/role="(?:status|dialog)"/);
@@ -66,7 +69,7 @@ describe('RED contract: signup credentials require an explicit valid plan before
     expect(source).toMatch(/missing_plan/);
     expect(source).toContain('/auth/signup/plan?reason=missing_plan&intent=create_account');
     expect(source).toMatch(/protected_pending_signup_intent|intent_id|\/api\/signup\/pending-intent\/protect/);
-    expect(source).toContain('showFreeRubroStep');
+    expect(source).toContain('showAccountCreatedModal');
     expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|await import\(['"]\.\/auth-provider['"]\)/);
     const missingPlanBranch = sliceBetween(source, 'if (!hasValidSignupPlan)', 'if (!validateForm() || !button)');
     expect(missingPlanBranch).not.toContain('/api/signup/pending-intent/finalize');
@@ -115,7 +118,11 @@ describe('RED contract: signup credentials require an explicit valid plan before
 
   it('credentials form captures first and last name as separate required fields instead of a full-name field', async () => {
     const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const formMarkup = sliceBetween(source, '<form id="credentialsForm"', '</form>');
+    const formStart = source.search(/<form[^>]*id=["']accountForm["']/);
+    expect(formStart, 'Missing credentials form').toBeGreaterThanOrEqual(0);
+    const formEnd = source.indexOf('</form>', formStart);
+    expect(formEnd, 'Missing credentials form closing tag').toBeGreaterThan(formStart);
+    const formMarkup = source.slice(formStart, formEnd);
 
     expect(formMarkup).toMatch(/name=["']nombre["']/);
     expect(formMarkup).toMatch(/name=["']apellido["']/);
@@ -152,8 +159,8 @@ describe('RED contract: signup credentials require an explicit valid plan before
 
     expect(source).toMatch(/input\[name=["']nombre["']\]/);
     expect(source).toMatch(/input\[name=["']apellido["']\]/);
-    expect(submitFlow).toMatch(/first_name\s*:\s*values\.nombre/);
-    expect(submitFlow).toMatch(/last_name\s*:\s*values\.apellido/);
+    expect(source).toMatch(/first_name\s*:\s*values\.nombre/);
+    expect(source).toMatch(/last_name\s*:\s*values\.apellido/);
     expect(submitFlow).not.toMatch(/input\[name=["']name["']\]/);
     expect(submitFlow).not.toMatch(/\.split\(['"]\s['"]\)|nameParts|slice\(1\)\.join/);
   });

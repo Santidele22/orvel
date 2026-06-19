@@ -18,7 +18,7 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 }
 
 describe('RED contract: landing owns signup onboarding boundary', () => {
-  it('FREE access signup continues to landing-owned same-runtime rubro step and never redirects to dashboard /auth/onboarding', async () => {
+  it('FREE access signup creates immediately and never redirects to dashboard /auth/onboarding', async () => {
     const controllerSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const freeBranch = sliceBetween(controllerSource, 'if (!isPaidPlan) {', 'return;\n    }');
 
@@ -26,7 +26,8 @@ describe('RED contract: landing owns signup onboarding boundary', () => {
     expect(freeBranch).not.toContain('/auth/onboarding');
     expect(freeBranch).not.toContain('PUBLIC_DASHBOARD_URL');
     expect(freeBranch).not.toContain('dashboardOrigin');
-    expect(freeBranch).toMatch(/showFreeRubroStep|attachFreeRubroFinalizer/i);
+    expect(freeBranch).toMatch(/createAndfinalizeFreeSignup|finalizeFreeSignup/i);
+    expect(freeBranch).not.toMatch(/showFreeRubroStep|attachFreeRubroFinalizer/i);
     expect(controllerSource).toMatch(/freeSignupWelcomeModal|welcome|auth\/login/i);
     expect(freeBranch).not.toMatch(/window\.location\.href|location\.assign/);
   });
@@ -37,7 +38,7 @@ describe('RED contract: landing owns signup onboarding boundary', () => {
     expect(completeSource).not.toContain('buildDashboardOnboardingUrl');
     expect(completeSource).not.toContain('/auth/onboarding');
     expect(completeSource).not.toContain('PUBLIC_DASHBOARD_URL');
-    expect(completeSource).toMatch(/\/auth\/signup\/credentials|\/auth\/signup\/onboarding/i);
+    expect(completeSource).toMatch(/\/auth\/signup\/credentials|\/auth\/login/i);
   });
 
   it('Mercado Pago return params are UX hints only and cannot complete onboarding/payment without backend state', async () => {

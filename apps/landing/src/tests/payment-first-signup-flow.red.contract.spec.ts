@@ -47,7 +47,9 @@ describe('RED contract: payment-first signup happy path', () => {
     const combined = `${subscriptionSource}\n${startSource}`;
 
     expect(combined).toMatch(/pendingSignupIntent|pending_signup_intent|protected_pending_signup_intent/i);
-    expect(startSource).toMatch(/mode\s*[:=]\s*["']pending_signup_intent["']/);
+    expect(startSource).toMatch(/type\s+SubscriptionMode\s*=\s*["']pending_signup_intent["']\s*\|\s*["']existing_user["']/);
+    expect(startSource).toMatch(/const\s+mode\s*:\s*SubscriptionMode\s*=\s*pendingSignupIntent\s*\?\s*["']pending_signup_intent["']\s*:\s*["']existing_user["']/);
+    expect(startSource).toMatch(/\bmode\s*,/);
     expect(startSource).toMatch(/pending_signup_intent\s*:/);
     expect(startSource, 'payment-first start must not use account-first intent/session fields').not.toMatch(/account_first|accountFirst/i);
     expect(startSource, 'pending signup payment start must not map missing business as an existing-user auth failure').not.toMatch(

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const ACCESS_PAGE = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
-const ACCESS_CONTROLLER = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
-const ACCESS_VALIDATION = new URL('../lib/signup-credentials-validation.ts', import.meta.url);
+const ACCESS_PAGE = new URL('../pages/auth/signup/account.astro', import.meta.url);
+const ACCESS_CONTROLLER = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
+const ACCESS_VALIDATION = new URL('../lib/signup-account-validation.ts', import.meta.url);
 
 async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -20,7 +20,7 @@ function sliceBetween(sourceText: string, startMarker: string, endMarker?: strin
 describe('contract: landing signup access phone + same-runtime continuation flow', () => {
   it('renders Argentina phone as required area code and local number fields, not one legacy phone field', async () => {
     const credentialsSource = await source(ACCESS_PAGE);
-    const formMarkup = sliceBetween(credentialsSource, '<form id="credentialsForm"', '</form>');
+    const formMarkup = sliceBetween(credentialsSource, '<form id="accountForm"', '</form>');
 
     expect(formMarkup).toMatch(/name=["']telefonoCaracteristica["'][\s\S]*required/i);
     expect(formMarkup).toMatch(/name=["']telefonoNumero["'][\s\S]*required/i);
@@ -32,7 +32,7 @@ describe('contract: landing signup access phone + same-runtime continuation flow
   it('keeps Continue disabled until every required credentials field is complete and valid', async () => {
     const credentialsSource = await source(ACCESS_PAGE);
     const controllerSource = await source(ACCESS_CONTROLLER);
-    const formMarkup = sliceBetween(credentialsSource, '<form id="credentialsForm"', '</form>');
+    const formMarkup = sliceBetween(credentialsSource, '<form id="accountForm"', '</form>');
     const validationScript = sliceBetween(controllerSource, 'const validators = {', "form.addEventListener('submit'");
 
     expect(formMarkup).toMatch(/<button[^>]+type=["']submit["'][^>]+disabled/i);
@@ -65,23 +65,23 @@ describe('contract: landing signup access phone + same-runtime continuation flow
     expect(controllerSource).toMatch(/normalizeArgentinaPhone|buildArgentinaPhone|normalizedPhone/i);
     expect(controllerSource).toMatch(/telefonoCaracteristica/);
     expect(controllerSource).toMatch(/telefonoNumero/);
-    expect(freeSignupBranch).toMatch(/showFreeRubroStep\(\{[\s\S]*normalizedPhone:\s*values\.normalizedPhone[\s\S]*\}\)/);
-    expect(freeSignupBranch).toMatch(/password:\s*values\.password/);
+    expect(freeSignupBranch).toMatch(/createAccountAndBusiness\(accountBusinessPayload\)/);
+    expect(controllerSource).toMatch(/telefono:\s*values\.normalizedPhone/);
+    expect(controllerSource).toMatch(/password:\s*values\.password/);
     expect(freeSignupBranch).not.toMatch(/createProtectedPendingSignupIntent|pendingSignupIntent|window\.location\.href/);
     expect(freeSignupBranch).not.toMatch(/telefonoCaracteristica|telefonoNumero/);
     expect(freeSignupBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
 
-  it('FREE final rubro submit visibly finalizes or surfaces errors without storing the password', async () => {
+  it('FREE submit visibly finalizes immediately or surfaces errors without storing the password', async () => {
     const controllerSource = await source(ACCESS_CONTROLLER);
-    const finalizer = sliceBetween(controllerSource, 'rubroForm.addEventListener', '\n    });\n  };');
+    const finalizer = sliceBetween(controllerSource, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
-    expect(finalizer).toMatch(/createProtectedPendingSignupIntent\(\{[\s\S]*phone:\s*freeSignupDraft\.normalizedPhone[\s\S]*\}\)/);
-    expect(finalizer).toMatch(/finalizeFreeSignup\(\{[\s\S]*password:\s*freeSignupDraft\.password[\s\S]*businessType:\s*normalizeBusinessType\(selected\)/);
-    expect(finalizer).toMatch(/freeSignupWelcomeModal/);
+    expect(finalizer).toMatch(/createAccountAndBusiness\(accountBusinessPayload\)/);
+    expect(finalizer).toMatch(/showAccountCreatedModal\(\)/);
     expect(finalizer).toMatch(/catch\s*(?:\(|\{)/);
     expect(finalizer).toMatch(/button\.disabled\s*=\s*false/);
-    expect(finalizer).toMatch(/freeSignupRubroError|errorEl/);
+    expect(finalizer).toMatch(/signupError|errorEl|showExistingAccountModal/);
     expect(finalizer).not.toMatch(/sessionStorage\.setItem\([\s\S]*password|window\.location\.href/);
   });
 });

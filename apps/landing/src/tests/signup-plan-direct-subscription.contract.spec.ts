@@ -153,7 +153,8 @@ describe('Contract: same-origin subscription start endpoint', () => {
     expect(source).toContain('jsonResponse({ init_point: result.initPoint })');
     expect(source).toContain('body: JSON.stringify({');
     expect(source).toContain('plan_code: plan,');
-    expect(source).toContain('email,');
+    expect(source).toContain('pending_signup_intent:');
+    expect(source).not.toMatch(/\bemail\s*,/);
     expect(source).toContain('Idempotency-Key');
   });
 

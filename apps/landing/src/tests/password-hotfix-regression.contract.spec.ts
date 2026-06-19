@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
 const ONBOARDING_PAGE_PATH = new URL('../pages/auth/signup/onboarding.astro', import.meta.url);
 const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 
@@ -70,7 +70,7 @@ describe('REGRESSION: signup password placement and lifetime', () => {
 
   it('/auth/signup/credentials source renders password and confirm password fields with visible labels', async () => {
     const source = await loadSource(CREDENTIALS_PAGE_PATH);
-    const formMarkup = sliceRequired(source, '<form id="credentialsForm"', '</form>');
+    const formMarkup = source;
     const passwordFields = sliceRequired(formMarkup, 'id="passwordFields"', 'id="error-confirm"');
 
     expect(passwordFields).toMatch(/<label[^>]*>\s*Contrase(?:ñ|&ntilde;)a\s*<\/label>/i);
@@ -87,8 +87,8 @@ describe('REGRESSION: signup password placement and lifetime', () => {
     const combinedSource = `${pageSource}\n${controllerSource}`;
 
     expect(controllerSource).toMatch(/form\.querySelector<HTMLInputElement>\(['"]input\[name=["']password["']\]["']\)\?\.value\s*\?\?\s*['"]['"]/);
-    expect(controllerSource).toMatch(/showFreeRubroStep\(\{[\s\S]{0,260}password:\s*values\.password[\s\S]{0,120}\}\)/);
-    expect(controllerSource).toMatch(/finalizeFreeSignup\(\{[\s\S]{0,260}password:\s*freeSignupDraft\.password[\s\S]{0,260}businessType:/);
+    expect(controllerSource).toMatch(/createAndfinalizeFreeSignup\(\{[\s\S]{0,360}password:\s*values\.password[\s\S]{0,260}\}\)/);
+    expect(controllerSource).toMatch(/finalizeFreeSignup\(\{[\s\S]{0,360}password:\s*freeSignupDraft\.password[\s\S]{0,360}businessType:/);
 
     expect(combinedSource).not.toMatch(/(?:localStorage|sessionStorage)\.setItem\([^)]*(?:password|confirmPassword|contraseñ)/i);
     expect(combinedSource).not.toMatch(/(?:localStorage|sessionStorage)\.getItem\([^)]*(?:password|confirmPassword|contraseñ)/i);

@@ -65,14 +65,14 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(missingPlanBranch).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv|\/api\/signup\/pending-intent\/finalize/);
   });
 
-  it('credentials submit validates required fields before protecting data or showing the same-runtime rubro step', async () => {
+  it('credentials submit validates required fields before protecting data or creating a free account', async () => {
     const source = `${await loadSource(CREDENTIALS_PAGE_PATH)}\n${await loadSource(CREDENTIALS_CONTROLLER_PATH)}`;
     const submitFlow = sliceBetween(source, "form.addEventListener('submit'", '\n  });\n}');
 
     const validateMissingPlanIndex = indexOfOrThrow(submitFlow, 'if (!validateNonSensitiveCredentials()) return;');
     const validateFormIndex = indexOfOrThrow(submitFlow, 'if (!validateForm() || !button) return;');
     const protectIndex = indexOfOrThrow(submitFlow, 'await createProtectedPendingSignupIntent');
-    const rubroStepIndex = indexOfOrThrow(submitFlow, 'showFreeRubroStep({');
+    const freeCreateIndex = indexOfOrThrow(submitFlow, 'createAndfinalizeFreeSignup({');
     const planGuardIndex = Math.max(
       source.indexOf('VALID_SIGNUP_PLANS'),
       source.indexOf('isValidSignupPlan'),
@@ -81,9 +81,9 @@ describe('Feature B contract: plan handoff before account creation', () => {
 
     expect(planGuardIndex).toBeGreaterThanOrEqual(0);
     expect(validateMissingPlanIndex).toBeLessThan(protectIndex);
-    expect(validateFormIndex).toBeLessThan(rubroStepIndex);
+    expect(validateFormIndex).toBeLessThan(freeCreateIndex);
     expect(source).toContain('plan');
-    expect(source).toMatch(/freeSignupRubroStep|finalizeFreeSignup|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
+    expect(source).toMatch(/freeSignupWelcomeModal|finalizeFreeSignup|SIGNUP_STORAGE_KEYS\.pendingSignupIntent/);
     expect(source).not.toMatch(/signupWithProvider|createSupabaseSignupAdapterFromEnv/);
   });
 

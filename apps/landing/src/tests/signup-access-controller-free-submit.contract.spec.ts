@@ -29,19 +29,6 @@ function dispatchCredentialsSubmit() {
   expect(submitEvent.defaultPrevented).toBe(true);
 }
 
-function dispatchRubroSubmit(value = 'peluqueria') {
-  const selected = document.querySelector<HTMLInputElement>(`#freeSignupRubroForm input[name="rubro"][value="${value}"]`);
-  expect(selected).toBeInstanceOf(HTMLInputElement);
-  selected!.checked = true;
-  const form = document.getElementById('freeSignupRubroForm');
-  expect(form).toBeInstanceOf(HTMLFormElement);
-  const submitEvent = typeof SubmitEvent === 'function'
-    ? new SubmitEvent('submit', { bubbles: true, cancelable: true })
-    : new Event('submit', { bubbles: true, cancelable: true });
-  form?.dispatchEvent(submitEvent);
-  expect(submitEvent.defaultPrevented).toBe(true);
-}
-
 function renderCredentialsForm() {
   document.body.innerHTML = `
     <form id="credentialsForm">
@@ -96,7 +83,7 @@ describe('contract: FREE signup access same-runtime finalization', () => {
     vi.clearAllMocks();
   });
 
-  it('valid FREE access submit keeps password in memory and reveals rubro step without navigation or storage', async () => {
+  it('valid FREE access submit protects data, creates the account immediately, and shows welcome/login without navigation', async () => {
     const { initSignupCredentialsPage } = await loadController();
     initSignupCredentialsPage({
       PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
@@ -107,11 +94,10 @@ describe('contract: FREE signup access same-runtime finalization', () => {
     dispatchCredentialsSubmit();
 
     await vi.waitFor(() => {
-      expect(document.getElementById('freeSignupRubroStep')?.classList.contains('hidden')).toBe(false);
-      expect(document.getElementById('credentialsForm')?.classList.contains('hidden')).toBe(true);
+      expect(document.getElementById('freeSignupWelcomeModal')?.classList.contains('flex')).toBe(true);
     });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(window.location.href).toBe('http://localhost:3000/auth/signup/credentials?plan=FREE&billing=monthly');
     expect(sessionStorage.getItem('orvel.signup.plan')).toBe('FREE');
     expect(sessionStorage.getItem('orvel.signup.billing')).toBe('monthly');
@@ -121,9 +107,31 @@ describe('contract: FREE signup access same-runtime finalization', () => {
     expect(JSON.stringify(sessionStorage)).not.toContain('ana@example.com');
     expect(JSON.stringify(sessionStorage)).not.toContain('+54294667161');
     expect(JSON.stringify(sessionStorage)).not.toContain('password-segura-123');
+    const finalizeBody = JSON.parse(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1][1]?.body));
+    expect(finalizeBody).toMatchObject({
+      pending_signup_intent: protectedIntent,
+      password: 'password-segura-123',
+      business_type: 'otro',
+      plan_code: 'FREE',
+      return_to: '/auth/login'
+    });
+    expect(JSON.stringify((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1])).not.toContain('password-segura-123');
+    expect(document.getElementById('freeSignupWelcomeLogin')?.getAttribute('href')).toBe('/auth/login');
+    expect(sessionStorage.getItem('orvel.signup.pending_signup_intent')).toBeNull();
+    expect(JSON.stringify(sessionStorage)).not.toContain('password-segura-123');
   });
 
-  it('final rubro submit protects non-password data, finalizes with password+rubro, then shows welcome/login', async () => {
+  it('shows the duplicate account modal when FREE finalization reports an existing email', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/signup/pending-intent/protect') {
+        return new Response(JSON.stringify({ protected_pending_signup_intent: protectedIntent }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/api/signup/pending-intent/finalize') {
+        return new Response(JSON.stringify({ ok: false, error: 'EMAIL_ALREADY_REGISTERED' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ ok: false }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }));
     const { initSignupCredentialsPage } = await loadController();
     initSignupCredentialsPage({
       PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
@@ -132,25 +140,12 @@ describe('contract: FREE signup access same-runtime finalization', () => {
     });
 
     dispatchCredentialsSubmit();
-    await vi.waitFor(() => expect(document.getElementById('freeSignupRubroStep')?.classList.contains('hidden')).toBe(false));
-    dispatchRubroSubmit('peluqueria');
 
     await vi.waitFor(() => {
-      expect(document.getElementById('freeSignupWelcomeModal')?.classList.contains('flex')).toBe(true);
+      expect(document.getElementById('existingAccountModal')?.classList.contains('flex')).toBe(true);
     });
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    const finalizeBody = JSON.parse(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1][1]?.body));
-    expect(finalizeBody).toMatchObject({
-      pending_signup_intent: protectedIntent,
-      password: 'password-segura-123',
-      business_type: 'peluqueria',
-      plan_code: 'FREE',
-      return_to: '/auth/login'
-    });
-    expect(JSON.stringify((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1])).not.toContain('password-segura-123');
-    expect(document.getElementById('freeSignupWelcomeLogin')?.getAttribute('href')).toBe('/auth/login');
-    expect(sessionStorage.getItem('orvel.signup.pending_signup_intent')).toBeNull();
-    expect(JSON.stringify(sessionStorage)).not.toContain('password-segura-123');
+    expect(document.getElementById('existingAccountLogin')?.getAttribute('href')).toBe('/auth/login');
+    expect(document.getElementById('freeSignupWelcomeModal')?.classList.contains('flex')).not.toBe(true);
   });
 });
