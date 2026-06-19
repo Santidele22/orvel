@@ -17,15 +17,26 @@ function sliceBetween(sourceText: string, startMarker: string, endMarker?: strin
   return sourceText.slice(start, end);
 }
 
-describe('RED contract: pending signup duplicate protection is deterministic and recoverable', () => {
-  it('protect endpoint returns PENDING_SIGNUP_ALREADY_EXISTS as a recoverable 409 with clear non-generic message', async () => {
+describe('RED contract: pending signup duplicate protection is deterministic and non-enumerating', () => {
+  it('protect endpoint keeps existing-account and pending-signup duplicate public responses indistinguishable', async () => {
     const apiSource = await source(PROTECT_API);
-    const duplicateMessage = sliceBetween(apiSource, 'PENDING_SIGNUP_ALREADY_EXISTS', 'pending_signup_required_fields');
+    const publicConflict = sliceBetween(apiSource, 'PUBLIC_DUPLICATE_PROTECTION_CONFLICT', 'pending_signup_required_fields');
 
-    expect(apiSource).toMatch(/PENDING_SIGNUP_ALREADY_EXISTS[\s\S]*409/);
-    expect(apiSource).toMatch(/recoverable\s*:\s*true|recovery_action|recoveryHref|restart/i);
-    expect(duplicateMessage).toMatch(/pendiente|alta paga|continuar|reintent|reinici/i);
-    expect(duplicateMessage).not.toMatch(/No pudimos proteger tus datos para iniciar el pago/i);
+    expect(apiSource).toMatch(/EMAIL_ALREADY_REGISTERED[\s\S]*PENDING_SIGNUP_ALREADY_EXISTS|PENDING_SIGNUP_ALREADY_EXISTS[\s\S]*EMAIL_ALREADY_REGISTERED/);
+    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*409/);
+    expect(publicConflict).toMatch(/solicitud|alta|revisá|continuar|correo/i);
+    expect(publicConflict).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i);
+    expect(publicConflict).not.toMatch(/recovery_action|existing|pendiente|pending|already/i);
+  });
+
+  it('protect endpoint never exposes internal duplicate codes or state-specific recovery actions publicly', async () => {
+    const apiSource = await source(PROTECT_API);
+    const responseBody = sliceBetween(apiSource, 'return jsonResponse({', '}, status);');
+
+    expect(responseBody).toMatch(/error:\s*publicCode/);
+    expect(responseBody).toMatch(/message:\s*publicMessage/);
+    expect(responseBody).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS/);
+    expect(responseBody).not.toMatch(/recovery_action|recoverable|restart_or_retry_existing_pending_signup/);
   });
 
   it('paid signup form maps PENDING_SIGNUP_ALREADY_EXISTS to a clear restart/retry path instead of generic protect failure', async () => {
@@ -44,9 +55,31 @@ describe('RED contract: pending signup duplicate protection is deterministic and
 
     expect(serverSource).toMatch(/23505|unique_violation|email_hmac_unique|isPendingSignupEmailHmacUniqueViolation/i);
     expect(serverSource).toMatch(/reuseStalePendingSignupHandoff|stale|expired|superseded|PENDING_SIGNUP_ALREADY_EXISTS/i);
-    expect(apiSource).toMatch(/PENDING_SIGNUP_ALREADY_EXISTS[\s\S]*409/);
+    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*409/);
     expect(apiSource).toMatch(/console\.(?:warn|error)\([\s\S]*(?:code|status|constraint)[\s\S]*\)/i);
     expect(apiSource).not.toMatch(/console\.(?:warn|error)\([\s\S]*(?:email|body|payload|request\.json)[\s\S]*\)/i);
+  });
+
+  it('stale intent reuse is atomic and rechecks stale-safe status, email_hmac, and provider-active fields in the update', async () => {
+    const serverSource = await source(HANDOFF_SERVER);
+    const reuseFunction = sliceBetween(serverSource, 'async function reuseStalePendingSignupHandoff', '\n}\n\nexport async function createPendingSignupHandoff');
+
+    expect(reuseFunction).toMatch(/\.update\(payload\)[\s\S]*\.eq\(['"]id['"],\s*existing\.data\.id\)[\s\S]*\.eq\(['"]email_hmac['"],\s*emailHmac\)/);
+    expect(reuseFunction).toMatch(/\.eq\(['"]provider['"],\s*['"]mercado_pago['"]\)/);
+    expect(reuseFunction).toMatch(/\.is\(['"]external_reference['"],\s*null\)[\s\S]*\.is\(['"]provider_subscription_id['"],\s*null\)/);
+    expect(reuseFunction).toMatch(/\.is\(['"]user_id['"],\s*null\)[\s\S]*\.is\(['"]business_id['"],\s*null\)[\s\S]*\.is\(['"]materialized_at['"],\s*null\)/);
+    expect(reuseFunction).toMatch(/\.or\([\s\S]*status\.in\.\(expired,failed\)[\s\S]*and\(status\.eq\.created,expires_at\.lte\./);
+    expect(reuseFunction).toMatch(/\.select\(['"]id['"]\)[\s\S]*\.maybeSingle\(\)/);
+    expect(reuseFunction).toMatch(/if \(!update\.data\) throw new Error\(['"]PENDING_SIGNUP_ALREADY_EXISTS['"]\)/);
+  });
+
+  it('provider-created or provider-active rows are not considered reusable stale intents', async () => {
+    const serverSource = await source(HANDOFF_SERVER);
+    const reuseFunction = sliceBetween(serverSource, 'async function reuseStalePendingSignupHandoff', '\n}\n\nexport async function createPendingSignupHandoff');
+
+    expect(reuseFunction).not.toMatch(/status === ['"]provider_created['"]/);
+    expect(reuseFunction).not.toMatch(/status\.eq\.provider_created|provider_created/);
+    expect(reuseFunction).toMatch(/external_reference|provider_subscription_id/);
   });
 
   it('paid signup still creates no account or business before approved payment and fresh handoff returns reference plus HttpOnly cookie', async () => {

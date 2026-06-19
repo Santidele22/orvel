@@ -178,14 +178,25 @@ async function reuseStalePendingSignupHandoff(
   const status = typeof existing.data.status === 'string' ? existing.data.status : '';
   const expiresAt = typeof existing.data.expires_at === 'string' ? existing.data.expires_at : '';
   const isReusableStaleIntent = status === 'expired' || status === 'failed' ||
-    ((status === 'created' || status === 'provider_created') && Boolean(expiresAt) && expiresAt <= nowIso);
+    (status === 'created' && Boolean(expiresAt) && expiresAt <= nowIso);
   if (!isReusableStaleIntent) throw new Error('PENDING_SIGNUP_ALREADY_EXISTS');
 
   const update = await supabaseAdmin
     .from('pending_signup_intents')
     .update(payload)
-    .eq('id', existing.data.id);
+    .eq('id', existing.data.id)
+    .eq('email_hmac', emailHmac)
+    .eq('provider', 'mercado_pago')
+    .is('external_reference', null)
+    .is('provider_subscription_id', null)
+    .is('user_id', null)
+    .is('business_id', null)
+    .is('materialized_at', null)
+    .or(`status.in.(expired,failed),and(status.eq.created,expires_at.lte.${nowIso})`)
+    .select('id')
+    .maybeSingle();
   if (update.error) throw update.error;
+  if (!update.data) throw new Error('PENDING_SIGNUP_ALREADY_EXISTS');
   return true;
 }
 
