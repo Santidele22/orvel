@@ -190,6 +190,11 @@ import Layout from '../../layouts/Layout.astro';
     ORVEL_SUPABASE_AUTH_STORAGE_KEY
   } from '../../lib/supabase-auth-adapter';
   import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
+  import {
+    buildPendingSignupIntentPayload,
+    getSubscriptionStartReadiness,
+    SUBSCRIPTION_RECOVERY_ERRORS
+  } from '../../lib/subscription-page-controller';
 
   if (typeof window !== 'undefined') {
     const plans = {
@@ -251,10 +256,13 @@ import Layout from '../../layouts/Layout.astro';
       business_required: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
       BUSINESS_REQUIRED: 'Primero necesitás terminar la configuración inicial de Orvel antes de activar la suscripción.',
       pending_signup_intent_business_required: 'No pudimos preparar tu alta paga. Volvé al formulario para revisar los datos antes de pagar.',
+      pending_signup_missing: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
       PENDING_SIGNUP_EMAIL_REQUIRED: 'Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.',
       pending_signup_email_required: 'Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.',
       PENDING_SIGNUP_PII_INVALID: 'No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.',
       pending_signup_pii_invalid: 'No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.',
+      PENDING_SIGNUP_ALREADY_EXISTS: 'Ya hay un alta paga pendiente para este email. Volvé al formulario si necesitás regenerar el intento.',
+      pending_signup_already_exists: 'Ya hay un alta paga pendiente para este email. Volvé al formulario si necesitás regenerar el intento.',
       EMAIL_ALREADY_REGISTERED: 'Este email ya tiene una cuenta en Orvel. Iniciá sesión para continuar.',
       email_already_registered: 'Este email ya tiene una cuenta en Orvel. Iniciá sesión para continuar.',
       email_required: 'Completá tus datos de contacto para continuar.',
@@ -482,6 +490,12 @@ import Layout from '../../layouts/Layout.astro';
     const initSubscriptionBtn = document.getElementById('subscriptionContinueBtn');
     if (initSubscriptionBtn) {
       initSubscriptionBtn.addEventListener('click', async () => {
+        const recoveryHref = (initSubscriptionBtn as HTMLButtonElement).dataset.recoveryHref;
+        if (recoveryHref) {
+          window.location.href = recoveryHref;
+          return;
+        }
+
         if (errorContainer) {
           errorContainer.textContent = '';
           errorContainer.classList.add('hidden');
@@ -494,13 +508,32 @@ import Layout from '../../layouts/Layout.astro';
           initSubscriptionBtn.setAttribute('disabled', 'true');
 
           const token = await getSubscriptionAccessToken();
+          const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
+          const pendingSignupIntent = readPendingSignupIntent();
+          const pendingSignupPayload = buildPendingSignupIntentPayload(pendingSignupIntent);
+          const readiness = getSubscriptionStartReadiness({
+            plan,
+            billing,
+            pendingSignupIntent,
+            accessToken: token,
+          });
+
+          if (!readiness.ok) {
+            sessionStorage.removeItem(subscriptionAttemptKey);
+            sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
+            showSubscriptionError(readiness.code);
+            setUiState('retry');
+            if (btnText) btnText.textContent = 'Volver al formulario';
+            (initSubscriptionBtn as HTMLButtonElement).dataset.recoveryHref = readiness.recoveryHref;
+            initSubscriptionBtn.removeAttribute('disabled');
+            return;
+          }
+
+          delete (initSubscriptionBtn as HTMLButtonElement).dataset.recoveryHref;
           const headers: Record<string, string> = {
             'Content-Type': 'application/json'
           };
           if (token) headers.Authorization = `Bearer ${token}`;
-
-          const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
-            const pendingSignupIntent = readPendingSignupIntent();
 
           const response = await fetch('/api/subscriptions/start', {
             method: 'POST',
@@ -512,23 +545,23 @@ import Layout from '../../layouts/Layout.astro';
               cadence: billing,
               idempotencyKey: buildIdempotencyKey(),
               businessType,
-              ...(pendingSignupIntent ? {
+              ...(pendingSignupPayload ? {
                 pending_signup_intent: {
-                  email_encrypted: pendingSignupIntent.email_encrypted,
-                  email_hmac: pendingSignupIntent.email_hmac,
-                  first_name_encrypted: pendingSignupIntent.first_name_encrypted,
-                  first_name_hmac: pendingSignupIntent.first_name_hmac,
-                  last_name_encrypted: pendingSignupIntent.last_name_encrypted,
-                  last_name_hmac: pendingSignupIntent.last_name_hmac,
-                  phone_encrypted: pendingSignupIntent.phone_encrypted,
-                  phone_hmac: pendingSignupIntent.phone_hmac,
-                  business_name_encrypted: pendingSignupIntent.business_name_encrypted,
-                  business_name_hmac: pendingSignupIntent.business_name_hmac,
-                  pii_crypto_version: pendingSignupIntent.pii_crypto_version,
-                  plan_code: pendingSignupIntent.plan_code,
-                  billing_period: pendingSignupIntent.billing_period,
-                  business_type: pendingSignupIntent.business_type,
-                  selected_business_types: pendingSignupIntent.selected_business_types
+                  email_encrypted: pendingSignupPayload.email_encrypted,
+                  email_hmac: pendingSignupPayload.email_hmac,
+                  first_name_encrypted: pendingSignupPayload.first_name_encrypted,
+                  first_name_hmac: pendingSignupPayload.first_name_hmac,
+                  last_name_encrypted: pendingSignupPayload.last_name_encrypted,
+                  last_name_hmac: pendingSignupPayload.last_name_hmac,
+                  phone_encrypted: pendingSignupPayload.phone_encrypted,
+                  phone_hmac: pendingSignupPayload.phone_hmac,
+                  business_name_encrypted: pendingSignupPayload.business_name_encrypted,
+                  business_name_hmac: pendingSignupPayload.business_name_hmac,
+                  pii_crypto_version: pendingSignupPayload.pii_crypto_version,
+                  plan_code: pendingSignupPayload.plan_code,
+                  billing_period: pendingSignupPayload.billing_period,
+                  business_type: pendingSignupPayload.business_type,
+                  selected_business_types: pendingSignupPayload.selected_business_types
                 }
               } : {})
             })
