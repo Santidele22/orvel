@@ -46,6 +46,10 @@ type FreeSignupDraft = {
 };
 
 const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
+const isExistingAccountError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : `${error ?? ''}`;
+  return /signup_existing|EMAIL_EXISTS|EMAIL_ALREADY_REGISTERED|already\s+(?:registered|exists)|email.*registrad[oa]/i.test(message);
+};
 
 export function initSignupCredentialsPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
@@ -212,6 +216,44 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     }
     return result;
   };
+  const createAndfinalizeFreeSignup = async (values: { email: string; firstName: string; lastName: string; businessName: string; phone: string; password: string }) => {
+    const protectedSignup = await createProtectedPendingSignupIntent({
+      email: values.email,
+      first_name: values.firstName,
+      last_name: values.lastName,
+      business_name: values.businessName,
+      phone: values.phone
+    });
+    return finalizeFreeSignup({
+      protectedSignupIntent: protectedSignup,
+      password: values.password,
+      businessType: normalizeBusinessType('otro')
+    });
+  };
+  const showExistingAccountModal = () => {
+    let existingAccountModal = document.getElementById('existingAccountModal');
+    if (!existingAccountModal) {
+      existingAccountModal = document.createElement('div');
+      existingAccountModal.id = 'existingAccountModal';
+      existingAccountModal.className = 'fixed inset-0 z-50 hidden items-center justify-center overflow-hidden bg-black/60 px-6';
+      existingAccountModal.setAttribute('role', 'dialog');
+      existingAccountModal.setAttribute('aria-modal', 'true');
+      existingAccountModal.setAttribute('aria-labelledby', 'existingAccountModalTitle');
+      existingAccountModal.setAttribute('aria-describedby', 'existingAccountModalDescription');
+      existingAccountModal.innerHTML = `
+        <section class="relative w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 text-center shadow-2xl">
+          <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary">Cuenta existente</p>
+          <h2 id="existingAccountModalTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">Este email ya está registrado</h2>
+          <p id="existingAccountModalDescription" class="mt-3 text-sm leading-6 text-text-secondary">Encontramos una cuenta existente con ese correo. Iniciá sesión para continuar con Orvel.</p>
+          <a id="existingAccountLogin" href="/auth/login" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-widest text-slate-900">Iniciar sesión</a>
+        </section>
+      `;
+      document.body.appendChild(existingAccountModal);
+    }
+    existingAccountModal.classList.remove('hidden');
+    existingAccountModal.classList.add('flex');
+    document.getElementById('existingAccountModalTitle')?.focus();
+  };
   const ensureFreeRubroStep = () => {
     let section = document.getElementById('freeSignupRubroStep') as HTMLElement | null;
     if (section) return section;
@@ -351,21 +393,20 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     if (!hasValidSignupPlan) {
       planSelectionRedirectUrl = missingPlanRedirectUrl;
       if (!validateNonSensitiveCredentials()) return;
-      try {
-        if (button) {
-          button.disabled = true;
-          button.textContent = 'Protegiendo datos...';
-        }
-        const protectedSignup = await createProtectedPendingSignupIntent({
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Protegiendo datos...';
+      }
+      await createProtectedPendingSignupIntent({
           email: values.email,
           first_name: values.nombre,
           last_name: values.apellido,
           business_name: values.negocioNombre,
           phone: values.normalizedPhone
-        });
+        }).then((protectedSignup) => {
         sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(protectedSignup));
         redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
-      } catch {
+      }).catch(() => {
         if (button) {
           button.disabled = false;
           button.textContent = 'Continuar';
@@ -374,7 +415,7 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
           errorEl.textContent = 'No pudimos proteger tus datos. Reintentá en unos segundos.';
           errorEl.classList.remove('hidden');
         }
-      }
+      });
       return;
     }
 
@@ -385,17 +426,33 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
     if (!isPaidPlan) {
-      showFreeRubroStep({
-        nombre: values.nombre,
-        apellido: values.apellido,
-        negocioNombre: values.negocioNombre,
-        email: values.email,
-        password: values.password,
-        normalizedPhone: values.normalizedPhone
+      button.textContent = 'Creando cuenta...';
+      await createAndfinalizeFreeSignup({
+          email: values.email,
+          firstName: values.nombre,
+          lastName: values.apellido,
+          businessName: values.negocioNombre,
+          phone: values.normalizedPhone,
+          password: values.password
+        }).then(() => {
+        const modal = document.getElementById('freeSignupWelcomeModal') ?? ensureFreeRubroStep().querySelector('#freeSignupWelcomeModal');
+        modal?.classList.remove('hidden');
+        modal?.classList.add('flex');
+        document.getElementById('freeSignupWelcomeTitle')?.focus();
+      }).catch((error) => {
+        if (isExistingAccountError(error)) {
+          button.disabled = false;
+          button.textContent = 'Continuar';
+          showExistingAccountModal();
+          return;
+        }
+        button.disabled = false;
+        button.textContent = 'Continuar';
+        if (errorEl) {
+          errorEl.textContent = 'No pudimos crear tu cuenta. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
       });
-      attachFreeRubroFinalizer();
-      button.disabled = false;
-      button.textContent = 'Continuar';
       return;
     }
 
@@ -413,7 +470,13 @@ export function initSignupCredentialsPage(env: SignupEnv): void {
         billing_period: billing
       }));
       window.location.href = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup`;
-    } catch {
+    } catch (error) {
+      if (isExistingAccountError(error)) {
+        button.disabled = false;
+        button.textContent = 'Continuar';
+        showExistingAccountModal();
+        return;
+      }
       button.disabled = false;
       button.textContent = 'Continuar';
       if (errorEl) {

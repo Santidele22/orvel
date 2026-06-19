@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
-const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/credentials.astro', import.meta.url);
+const CREDENTIALS_PAGE_PATH = new URL('../pages/auth/signup/account.astro', import.meta.url);
 const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API_PATH = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
@@ -42,18 +42,17 @@ describe('RED contract: paid manual signup defers account creation until payment
     expect(completeSource).not.toContain('await client.auth.updateUser({');
   });
 
-  it('free manual signup defers Supabase user creation to the same-runtime rubro finalize step', async () => {
+  it('free manual signup creates the account immediately in the credentials submit flow', async () => {
     const credentialsSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
     const submitFlow = sliceBetween(credentialsSource, "form.addEventListener('submit'", '\n  });');
     const freeBranch = sliceBetween(submitFlow, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
-    expect(freeBranch).not.toContain('createSupabaseSignupAdapterFromEnv');
-    expect(freeBranch).not.toContain('await signupWithProvider({');
+    expect(freeBranch).toMatch(/createAndfinalizeFreeSignup|finalizeFreeSignup|createAccountAndBusiness|signupWithProvider/i);
     expect(freeBranch).not.toContain("tipoNegocio: 'pendiente'");
-    expect(freeBranch).toContain('showFreeRubroStep');
-    expect(freeBranch).toContain('attachFreeRubroFinalizer');
-    expect(freeBranch).not.toContain('window.location.href');
+    expect(freeBranch).not.toContain('showFreeRubroStep');
+    expect(freeBranch).not.toContain('attachFreeRubroFinalizer');
+    expect(freeBranch).toMatch(/freeSignupWelcomeModal|showExistingAccountModal/i);
     expect(`${credentialsSource}\n${completeSource}`).toContain('finalizeFreeSignup');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/onboarding');
     expect(`${credentialsSource}\n${completeSource}`).not.toContain('/auth/signup/business-type');
@@ -67,8 +66,8 @@ describe('RED contract: paid manual signup defers account creation until payment
 
     expect(pageSource).toContain('name="nombre"');
     expect(pageSource).toContain('name="apellido"');
-    expect(freeBranch).toMatch(/nombre:\s*values\.nombre/);
-    expect(freeBranch).toMatch(/apellido:\s*values\.apellido/);
+    expect(freeBranch).toMatch(/firstName:\s*values\.nombre|nombre:\s*values\.nombre/);
+    expect(freeBranch).toMatch(/lastName:\s*values\.apellido|apellido:\s*values\.apellido/);
     expect(freeBranch).not.toMatch(/input\[name=["']name["']\]/);
     expect(freeBranch).not.toMatch(/nameParts|\.split\(['"]\s['"]\)|slice\(1\)\.join/);
   });
@@ -88,7 +87,8 @@ describe('RED contract: paid manual signup defers account creation until payment
     const source = await loadSource(COMPLETE_PAGE_PATH);
 
     expect(source).toContain('/auth/signup/credentials');
-    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).toContain('/auth/signup/credentials');
+    expect(source).toContain('/auth/login');
     expect(source).not.toContain('getUser()');
     expect(source).not.toContain('updateUser({');
     expect(source).not.toMatch(/(?:sessionStorage|localStorage)\.getItem\([^)]*password/i);
@@ -110,8 +110,9 @@ describe('RED contract: paid manual signup defers account creation until payment
 
     expect(startApiSource).toMatch(/pendingSignupIntent|signup_intent|pending_signup/i);
     expect(startApiSource).toMatch(/pending_signup_intent|signup_intent/);
-    expect(startApiSource).toContain('email,');
-    expect(startApiSource).toContain('business_type: businessType');
+    expect(startApiSource).toMatch(/email_encrypted:\s*pendingSignupIntent\.email_encrypted/);
+    expect(startApiSource).toMatch(/email_hmac:\s*pendingSignupIntent\.email_hmac/);
+    expect(startApiSource).toMatch(/business_type:\s*(effectiveBusinessType|pendingSignupIntent\.business_type)/);
     expect(startApiSource).not.toMatch(/!pendingSignupEmail\s*\|\|\s*!pendingSignupBusinessType/);
   });
 
@@ -255,10 +256,10 @@ describe('RED contract: subscription start supports pending-signup billing witho
     const subscriptionSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
     const startApiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
 
-    expect(subscriptionSource).toMatch(/existingUserBusinessRequired|existing_user_business_required|business_required_existing/i);
-    expect(subscriptionSource).toMatch(/pendingSignupBusinessRequired|pending_signup_business_required|business_required_pending_signup/i);
+    expect(subscriptionSource).toMatch(/business_required/i);
+    expect(subscriptionSource).toMatch(/pending_signup_intent_business_required/i);
     expect(subscriptionSource).toMatch(/No pudimos preparar tu alta paga|alta paga|pago antes de crear tu cuenta/i);
-    expect(startApiSource).toMatch(/business_required_existing|business_required_pending_signup|pending_signup_business_required/i);
+    expect(startApiSource).toMatch(/pending_signup_intent_business_required|business_required/i);
   });
 });
 

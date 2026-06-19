@@ -92,8 +92,10 @@ describe('RED Contract: subscription return normalization handoff from landing',
   it('treats source=subscription as UX context only and does not trust it for auth, payment verification, or entitlement grant', async () => {
     const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
 
-    expect(source).toContain('/auth/signup/onboarding');
-    expect(source).toContain("onboardingUrl.searchParams.set('source', 'subscription')");
+    expect(source).toContain('buildSubscriptionLoginHandoffUrl');
+    expect(source).toContain("new URL('/auth/login', window.location.origin)");
+    expect(source).toContain("loginUrl.searchParams.set('source', 'subscription')");
+    expect(source).toContain('accountMaterialized');
 
     expect(source).not.toContain('signupWithProvider');
     expect(source).not.toContain('createSupabaseSignupAdapterFromEnv');

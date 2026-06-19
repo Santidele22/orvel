@@ -25,13 +25,13 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
   });
 
   it('keeps signup credentials validation Zod-backed and framework-agnostic', () => {
-    const validationModule = source('src/lib/signup-credentials-validation.ts');
-    const credentialsPage = source('src/pages/auth/signup/credentials.astro');
+    const validationModule = source('src/lib/signup-account-validation.ts');
+    const credentialsPage = source('src/pages/auth/signup/account.astro');
 
     expect(validationModule).toMatch(/from ['"]zod['"]/);
     expect(validationModule).toMatch(/z\.object\(/);
     expect(validationModule).toMatch(/safeParse\(/);
-    expect(credentialsPage).toContain("from '../../../lib/signup-credentials-validation'");
+    expect(credentialsPage).toContain("signup-account-validation");
     expect(validationModule).not.toMatch(/\b(window|document|HTMLElement|HTMLFormElement|Astro)\b/);
     expect(validationModule).not.toMatch(/\.astro['"]/);
   });
@@ -41,7 +41,7 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
     const authPages = [
       source('src/pages/auth/login.astro'),
       source('src/pages/auth/signup/plan.astro'),
-      source('src/pages/auth/signup/credentials.astro'),
+      source('src/pages/auth/signup/account.astro'),
       source('src/pages/auth/signup/complete.astro')
     ];
 
@@ -70,12 +70,12 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
 
   it('keeps auth page inline scripts thin by delegating page behavior to testable modules', () => {
     const loginPage = source('src/pages/auth/login.astro');
-    const credentialsPage = source('src/pages/auth/signup/credentials.astro');
+    const credentialsPage = source('src/pages/auth/signup/account.astro');
     const loginScripts = inlineScriptBlocks(loginPage).join('\n');
     const credentialsScripts = inlineScriptBlocks(credentialsPage).join('\n');
 
     expect(loginPage).toContain("from '../../lib/login-page-controller'");
-    expect(credentialsPage).toContain("from '../../../lib/signup-access-page-controller'");
+    expect(credentialsPage).toContain("from '../../../lib/signup-account-page-controller'");
     expect(loginScripts.length).toBeLessThan(2500);
     expect(credentialsScripts.length).toBeLessThan(5000);
     expect(credentialsScripts).not.toMatch(/const\s+createProtectedPendingSignupIntent\s*=|form\.addEventListener\(['"]submit['"]/);

@@ -81,7 +81,8 @@ describe('Contract: canonical landing auth and dashboard handoff', () => {
     expect(fallbackHandoff.pathname).toBe('/auth/signup/plan');
     expect(fallbackHandoff.pathname).not.toBe('/dashboard/auth');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
-    expect(source).toContain('/auth/signup/onboarding');
+    expect(source).toContain('/auth/signup/credentials');
+    expect(source).toContain('/auth/login');
     expect(source).not.toContain("new URL('/auth/onboarding', dashboardOrigin)");
     expect(source).toContain('plan=${encodeURIComponent(plan)}');
     expect(source).toContain('billing=${encodeURIComponent(billing)}');

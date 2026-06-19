@@ -23,6 +23,21 @@ Deno.test(
 );
 
 Deno.test(
+  "create-subscription auth stays strict for legacy account-first signup mode",
+  () => {
+    const shouldValidate = shouldValidateCreateSubscriptionAuthorization({
+      authHeader: "Bearer iVmqV0OH1g-malformed-token",
+      requestBody: {
+        mode: "account_first_signup",
+      },
+      supabaseAnonKey: "anon-key",
+    });
+
+    assertEquals(shouldValidate, true);
+  },
+);
+
+Deno.test(
   "create-subscription auth remains strict for existing-user mode with invalid Authorization",
   () => {
     const shouldValidate = shouldValidateCreateSubscriptionAuthorization({
