@@ -368,6 +368,7 @@ Deno.serve(async (req) => {
     let accountFirstIntentRecord:
       | { id: string; external_reference: string | null; business_id: string; user_id: string; plan_code: string; billing_period: string }
       | null = null;
+    let accountFirstPayerEmail: string | null = null;
 
     let effectivePlanCode: string | null = typeof plan_code === "string"
       ? plan_code
@@ -815,6 +816,24 @@ Deno.serve(async (req) => {
 
       accountFirstIntentRecord = accountFirstIntent;
       business = accountFirstBusiness;
+
+      const { data: accountFirstUser, error: accountFirstUserError } =
+        await supabaseAdmin.auth.admin.getUserById(accountFirstIntent.user_id);
+
+      if (accountFirstUserError || !accountFirstUser?.user?.email) {
+        return new Response(
+          JSON.stringify({
+            error: "ACCOUNT_FIRST_EMAIL_REQUIRED",
+            message: "No se pudo validar el email del alta paga creada antes del pago",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      accountFirstPayerEmail = accountFirstUser.user.email;
     }
 
     if (!business && !pendingSignupRecord) {
@@ -974,7 +993,7 @@ Deno.serve(async (req) => {
     }
 
     // Build MP preapproval request
-    const payerEmail = user?.email || pendingSignupEmail;
+    const payerEmail = user?.email || accountFirstPayerEmail || pendingSignupEmail;
     if (!payerEmail) {
       return new Response(
         JSON.stringify({
