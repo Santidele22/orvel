@@ -172,7 +172,8 @@ export async function resolvePendingSignupHandoff(request: Request, pendingSignu
   if (error || !data) return null;
 
   const cookieBinding = getCookieValue(request);
-  if (cookieBinding && data.handoff_binding_hash && await sha256Text(cookieBinding) !== data.handoff_binding_hash) return null;
+  if (!data.handoff_binding_hash || !cookieBinding) return null;
+  if (await sha256Text(cookieBinding) !== data.handoff_binding_hash) return null;
 
   return {
     pendingSignupReference: reference,

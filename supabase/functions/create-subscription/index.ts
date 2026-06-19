@@ -628,18 +628,28 @@ Deno.serve(async (req) => {
     let pendingSignupRecord:
       | { id: string; external_reference: string | null }
       | null = null;
+    let referencedPendingIntent:
+      | {
+        id: string;
+        external_reference: string | null;
+        email_hmac: string | null;
+        plan_code: string | null;
+        billing_period: string | null;
+      }
+      | null = null;
     let pendingSignupEmail: string | null = null;
 
     if (isPendingSignupIntent) {
-      const { data: referencedPendingIntent } = pendingSignupReference
+      const { data: referencedPendingIntentData } = pendingSignupReference
         ? await supabaseAdmin
           .from("pending_signup_intents")
-          .select("id, external_reference")
+          .select("id, external_reference, email_hmac, plan_code, billing_period")
           .eq("handoff_reference", pendingSignupReference)
           .in("status", ["created", "provider_created"])
           .gt("expires_at", now.toISOString())
           .maybeSingle()
         : { data: null };
+      referencedPendingIntent = referencedPendingIntentData || null;
       if (pendingSignupReference && !referencedPendingIntent) {
         return new Response(
           JSON.stringify({
@@ -706,6 +716,26 @@ Deno.serve(async (req) => {
           JSON.stringify({
             error: "PENDING_SIGNUP_EMAIL_REQUIRED",
             message: "Pending signup intent requires protected email",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      if (
+        referencedPendingIntent &&
+        (
+          referencedPendingIntent.email_hmac !== pendingSignupEmailHmac ||
+          normalizeCanonicalPlanCode(referencedPendingIntent.plan_code || "") !== canonicalPlanCode ||
+          normalizeBillingCadence(referencedPendingIntent.billing_period) !== requestedCadence
+        )
+      ) {
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_REFERENCE_MISMATCH",
+            message: "Pending signup reference does not match the protected intent",
           }),
           {
             status: 400,
