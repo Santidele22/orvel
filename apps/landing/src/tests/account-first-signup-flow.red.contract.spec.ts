@@ -175,6 +175,59 @@ describe('RED contract: account-first signup creates the account/business before
     expect(createSubscriptionSource).toMatch(/user\?\.email\s*\|\|\s*accountFirstPayerEmail\s*\|\|\s*pendingSignupEmail/);
   });
 
+  it('payment-pending account-first signup can start Mercado Pago without dashboard_ready onboarding', async () => {
+    const subscriptionSource = await source(SUBSCRIPTION_PAGE);
+    const subscriptionStartSource = await source(SUBSCRIPTION_START_API);
+    const createSubscriptionSource = await source(CREATE_SUBSCRIPTION_FUNCTION);
+    const accountCreationSource = await source(CREATE_ACCOUNT_BUSINESS_API);
+
+    expect(accountCreationSource).toMatch(/onboardingStep\s*=\s*isPaidPlan\s*\?\s*["']payment_pending["']/);
+    expect(accountCreationSource, 'paid account-first signup must not mark dashboard_ready before payment activation').not.toMatch(
+      /current_step\s*:\s*["']dashboard_ready["']|dashboard_ready_at\s*:/,
+    );
+
+    expect(subscriptionSource).toMatch(/accountFirstSession|account_first_session/);
+    expect(subscriptionStartSource).toMatch(/const mode = accountFirstSession \? ["']account_first_signup["'] : ["']existing_user["']/);
+    expect(subscriptionStartSource).toMatch(/account_first_signup[\s\S]{0,900}account_first_session/);
+    expect(createSubscriptionSource).toMatch(/mode\s*===\s*["']account_first_signup["']/);
+    expect(createSubscriptionSource).toMatch(/\.in\(["']status["'],\s*\[[\s\S]*["']created["'][\s\S]*["']provider_created["'][\s\S]*\]\)/);
+    expect(createSubscriptionSource, 'account-first MP start must not require dashboard_ready/onboarding completion before creating MP preapproval').not.toMatch(
+      /dashboard_ready|dashboard_ready_at|current_step\s*===\s*["']dashboard_ready["']|current_step\s*:\s*["']dashboard_ready["']/,
+    );
+  });
+
+  it('/api/subscriptions/start sends account_first_session to create-subscription and preserves account-first BUSINESS_REQUIRED mapping', async () => {
+    const subscriptionStartSource = await source(SUBSCRIPTION_START_API);
+
+    const requestBody = sliceBetween(subscriptionStartSource, 'body: JSON.stringify({', '\n      }),');
+    expect(requestBody).toContain('mode');
+    expect(requestBody).toContain('account_first_intent_id');
+    expect(requestBody).toContain('account_first_session');
+    expect(subscriptionStartSource).toMatch(/const mode = accountFirstSession \? ["']account_first_signup["'] : ["']existing_user["']/);
+
+    const fallbackMapper = sliceBetween(subscriptionStartSource, 'function fallbackReason', '\n}\n\nexport const GET');
+    expect(fallbackMapper, 'raw BUSINESS_REQUIRED must not be normalized to existing-user copy when account-first context is present').toMatch(
+      /account_first_signup|accountFirstSession|ACCOUNT_FIRST_BUSINESS_REQUIRED/,
+    );
+    expect(fallbackMapper).not.toMatch(/if \(code === ["']BUSINESS_REQUIRED["']\) return ["']business_required_existing["']/);
+  });
+
+  it('create-subscription accepts account_first_session business for payment_pending and does not require onboarding/dashboard_ready', async () => {
+    const createSubscriptionSource = await source(CREATE_SUBSCRIPTION_FUNCTION);
+    const accountFirstSection = sliceBetween(createSubscriptionSource, 'if (isAccountFirstSignup)', 'if (!business && !pendingSignupRecord)');
+
+    expect(accountFirstSection).toMatch(/account_first_intents/);
+    expect(accountFirstSection).toMatch(/idempotency_key_hash/);
+    expect(accountFirstSection).toMatch(/\.in\(["']status["'],\s*\[[\s\S]*["']created["'][\s\S]*["']provider_created["'][\s\S]*\]\)/);
+    expect(accountFirstSection).toMatch(/businesses[\s\S]{0,500}owner_id/);
+    expect(accountFirstSection).not.toMatch(/dashboard_ready|dashboard_ready_at|onboardingCompleted|current_step\s*===\s*["']dashboard_ready["']/);
+
+    const businessRequiredIndex = createSubscriptionSource.indexOf('error: "BUSINESS_REQUIRED"', createSubscriptionSource.indexOf('// 5. CREATE MERCADO PAGO PREAPPROVAL'));
+    const accountFirstIndex = createSubscriptionSource.indexOf('if (isAccountFirstSignup)');
+    expect(accountFirstIndex).toBeGreaterThanOrEqual(0);
+    expect(businessRequiredIndex, 'BUSINESS_REQUIRED must be checked only after account-first business resolution').toBeGreaterThan(accountFirstIndex);
+  });
+
   it('welcome modal is the only login handoff gate and login navigation happens after the explicit welcome action', async () => {
     const credentialsPageSource = await source(SIGNUP_CREDENTIALS_PAGE);
     const controllerSource = await source(SIGNUP_CREDENTIALS_CONTROLLER);

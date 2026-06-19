@@ -257,6 +257,43 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
   });
 
+  it('keeps account-first paid users blocked from dashboard while payment is still pending', async () => {
+    const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+
+    supabaseAuthClientMock.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'supabase-token-payment-pending',
+          user: {
+            id: 'supabase-user-payment-pending',
+            email: 'pending@orvel.app',
+            user_metadata: {
+              plan: 'GROWTH',
+              tipoNegocio: 'peluqueria',
+              onboardingCompleted: false,
+              current_step: 'payment_pending'
+            }
+          }
+        }
+      },
+      error: null
+    });
+    supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
+      data: {
+        dashboard_ready: false,
+        selected_plan_code: 'GROWTH',
+        business_type: 'peluqueria',
+        current_step: 'payment_pending'
+      },
+      error: null
+    });
+
+    await expect(canAccessDashboardAsync()).resolves.toEqual({
+      allowed: false,
+      redirectTo: 'https://orvel.pro/auth/signup/onboarding?onboarding_required=true&returnTo=%2Fdashboard'
+    });
+  });
+
   it('security regression: Supabase onboarding cannot complete from localStorage business type selection alone', async () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/app/features/onboarding/pages/signup-business-types-step.page.ts'),

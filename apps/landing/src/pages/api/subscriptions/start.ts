@@ -62,6 +62,8 @@ type AccountFirstSession = {
   account_first_session: string;
 };
 
+type SubscriptionMode = "account_first_signup" | "existing_user";
+
 async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, accountFirstSession?: AccountFirstSession | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
@@ -137,6 +139,9 @@ async function startSubscription(request: Request, plan: string | null, idempote
         if (typeof errorData?.message === "string" && errorData.message) {
           message = errorData.message;
         }
+        if (code === "BUSINESS_REQUIRED" && mode === "account_first_signup") {
+          code = "ACCOUNT_FIRST_BUSINESS_REQUIRED";
+        }
         if (CONTRACT_VALIDATION_MESSAGES[code]) {
           message = CONTRACT_VALIDATION_MESSAGES[code];
         }
@@ -170,8 +175,12 @@ async function startSubscription(request: Request, plan: string | null, idempote
   }
 }
 
-function fallbackReason(code: string): string {
-  if (code === "BUSINESS_REQUIRED") return "business_required_existing";
+function fallbackReason(code: string, mode: SubscriptionMode = "existing_user"): string {
+  if (code === "BUSINESS_REQUIRED") {
+    return mode === "account_first_signup"
+      ? "business_required_account_first_signup"
+      : "business_required_existing";
+  }
   if (code === "ACCOUNT_FIRST_BUSINESS_REQUIRED") return "business_required_account_first_signup";
   if (code === "EMAIL_REQUIRED") return "email_required";
   return code.toLowerCase();
