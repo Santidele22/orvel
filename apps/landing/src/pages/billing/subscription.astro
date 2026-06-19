@@ -192,6 +192,7 @@ import Layout from '../../layouts/Layout.astro';
   import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
   import {
     buildPendingSignupIntentPayload,
+    getInitialSubscriptionPageRecovery,
     getSubscriptionStartReadiness,
     SUBSCRIPTION_RECOVERY_ERRORS
   } from '../../lib/subscription-page-controller';
@@ -300,12 +301,12 @@ import Layout from '../../layouts/Layout.astro';
 
     const statusContainer = document.getElementById('subscriptionStatus');
     const stateBadge = document.getElementById('planStateBadge');
-    let currentUiState: 'pending' | 'failed' | 'cancelled' | 'retry' = 'pending';
+    let currentUiState: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery' = 'pending';
     let pollingIntervalId: number | null = null;
     let pollingAttempts = 0;
     const MAX_POLLING_ATTEMPTS = 15;
     const TERMINAL_NON_SUCCESS_STATES = new Set(['failed', 'cancelled']);
-    const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry') => {
+    const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery') => {
       if (!statusContainer || !stateBadge) return;
       if (TERMINAL_NON_SUCCESS_STATES.has(currentUiState) && state === 'pending') return;
       currentUiState = state;
@@ -323,6 +324,11 @@ import Layout from '../../layouts/Layout.astro';
       if (state === 'cancelled') {
         stateBadge.textContent = 'Pago cancelado';
         statusContainer.textContent = 'Estado: cancelaste el flujo de pago. Podés retomarlo desde este paso.';
+        return;
+      }
+      if (state === 'recovery') {
+        stateBadge.textContent = 'Datos protegidos requeridos';
+        statusContainer.textContent = 'Estado: necesitamos recuperar los datos protegidos de tu alta antes de iniciar el pago.';
         return;
       }
       stateBadge.textContent = 'Reintento disponible';
@@ -428,6 +434,31 @@ import Layout from '../../layouts/Layout.astro';
       return generated;
     };
 
+    const configureSignupRecoveryCta = (recoveryHref: string) => {
+      if (!continueBtn) return;
+      const btnText = continueBtn.querySelector('span');
+      if (btnText) btnText.textContent = 'Volver al formulario';
+      continueBtn.dataset.recoveryHref = recoveryHref;
+      continueBtn.removeAttribute('disabled');
+    };
+
+    const initialRecovery = normalizedSubscriptionError
+      ? null
+      : getInitialSubscriptionPageRecovery({
+        plan,
+        billing,
+        signupIntent: params.get('signup_intent'),
+        pendingSignupIntent: readPendingSignupIntent(),
+      });
+
+    if (initialRecovery) {
+      sessionStorage.removeItem(subscriptionAttemptKey);
+      showSubscriptionError(initialRecovery.code);
+      setUiState('recovery');
+      configureSignupRecoveryCta(initialRecovery.recoveryHref);
+      setSubscriptionButtonDisabled(false);
+    }
+
     const pollSubscriptionStatus = async () => {
       if (!subscriptionSessionId) return;
       if (TERMINAL_NON_SUCCESS_STATES.has(currentUiState)) {
@@ -522,10 +553,8 @@ import Layout from '../../layouts/Layout.astro';
             sessionStorage.removeItem(subscriptionAttemptKey);
             sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent);
             showSubscriptionError(readiness.code);
-            setUiState('retry');
-            if (btnText) btnText.textContent = 'Volver al formulario';
-            (initSubscriptionBtn as HTMLButtonElement).dataset.recoveryHref = readiness.recoveryHref;
-            initSubscriptionBtn.removeAttribute('disabled');
+            setUiState('recovery');
+            configureSignupRecoveryCta(readiness.recoveryHref);
             return;
           }
 
