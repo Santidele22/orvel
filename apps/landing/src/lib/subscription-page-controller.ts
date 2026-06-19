@@ -13,6 +13,12 @@ export type SubscriptionStartReadiness =
   | { ok: true; mode: 'free' | 'pending_signup_intent' | 'existing_user' }
   | { ok: false; code: keyof typeof SUBSCRIPTION_RECOVERY_ERRORS; message: string; recoveryHref: string };
 
+export type InitialSubscriptionPageRecovery = {
+  code: keyof typeof SUBSCRIPTION_RECOVERY_ERRORS;
+  message: string;
+  recoveryHref: string;
+} | null;
+
 function asNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
@@ -40,6 +46,31 @@ export function buildPendingSignupRecoveryHref(plan: SubscriptionPlan, billing?:
   const normalizedPlan = typeof plan === 'string' && plan.trim() ? plan.trim().toUpperCase() : 'STARTER';
   const normalizedBilling = normalizeSubscriptionBilling(billing);
   return `/auth/signup/credentials?plan=${encodeURIComponent(normalizedPlan)}&billing=${encodeURIComponent(normalizedBilling)}&resume=credentials_first`;
+}
+
+export function getInitialSubscriptionPageRecovery({
+  plan,
+  billing,
+  signupIntent,
+  pendingSignupIntent,
+}: {
+  plan: SubscriptionPlan;
+  billing?: string | null;
+  signupIntent?: string | null;
+  pendingSignupIntent: PendingSignupIntentLike;
+}): InitialSubscriptionPageRecovery {
+  const normalizedPlan = typeof plan === 'string' ? plan.trim().toUpperCase() : '';
+  const normalizedSignupIntent = signupIntent?.trim().toLowerCase();
+
+  if (normalizedPlan === 'FREE') return null;
+  if (normalizedSignupIntent !== 'pending_signup') return null;
+  if (hasProtectedPendingSignupIntent(pendingSignupIntent)) return null;
+
+  return {
+    code: 'pending_signup_missing',
+    message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
+    recoveryHref: buildPendingSignupRecoveryHref(normalizedPlan || 'STARTER', billing),
+  };
 }
 
 export function getSubscriptionStartReadiness({
