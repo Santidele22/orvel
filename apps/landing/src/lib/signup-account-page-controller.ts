@@ -29,6 +29,12 @@ const isExistingAccountError = (error: unknown) => {
   const message = error instanceof Error ? error.message : `${error ?? ''}`;
   return /signup_existing|EMAIL_EXISTS|EMAIL_ALREADY_REGISTERED|already\s+(?:registered|exists)|email.*registrad[oa]/i.test(message);
 };
+const isPendingSignupAlreadyExistsError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : `${error ?? ''}`;
+  return /PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i.test(message);
+};
+
+const PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE = 'Ya hay un alta paga pendiente para este email. Podés continuar con el pago pendiente si ya lo abriste, o reiniciar el alta en unos minutos.';
 
 export function initSignupAccountPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
@@ -299,13 +305,15 @@ export function initSignupAccountPage(env: SignupEnv): void {
         sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(protectedSignup));
         sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, normalizeBusinessType(values.rubro || 'otro'));
         redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
-      }).catch(() => {
+      }).catch((error) => {
         if (button) {
           button.disabled = false;
           button.textContent = 'Continuar';
         }
         if (errorEl) {
-          errorEl.textContent = 'No pudimos proteger tus datos. Reintentá en unos segundos.';
+          errorEl.textContent = isPendingSignupAlreadyExistsError(error)
+            ? PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE
+            : 'No pudimos proteger tus datos. Reintentá en unos segundos.';
           errorEl.classList.remove('hidden');
         }
       });
@@ -375,7 +383,9 @@ export function initSignupAccountPage(env: SignupEnv): void {
         return;
       }
       if (errorEl) {
-        errorEl.textContent = 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
+        errorEl.textContent = isPendingSignupAlreadyExistsError(error)
+          ? PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE
+          : 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
         errorEl.classList.remove('hidden');
       }
     }

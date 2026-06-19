@@ -7,6 +7,7 @@ const HANDOFF_MAX_AGE_SECONDS = 30 * 60;
 
 type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
 type SignupPlan = 'STARTER' | 'GROWTH' | 'PRO';
+type PendingSignupStatus = 'created' | 'provider_created' | 'approved' | 'materializing' | 'materialized' | 'failed' | 'expired';
 
 type HandoffInput = {
   email: unknown;
@@ -28,6 +29,30 @@ export type PendingSignupHandoff = {
 export type ResolvedPendingSignupHandoff = {
   pendingSignupReference: string;
   pendingSignupIntent: Record<string, unknown>;
+};
+
+type PendingSignupWritePayload = {
+  email_encrypted?: string | null;
+  email_hmac?: string | null;
+  first_name_encrypted?: string | null;
+  first_name_hmac?: string | null;
+  last_name_encrypted?: string | null;
+  last_name_hmac?: string | null;
+  business_name_encrypted?: string | null;
+  business_name_hmac?: string | null;
+  phone_encrypted?: string | null;
+  phone_hmac?: string | null;
+  pii_crypto_version?: string | null;
+  business_type: string;
+  selected_business_types: string[];
+  plan_code: SignupPlan;
+  billing_period: BillingPeriod;
+  status: PendingSignupStatus;
+  provider: 'mercado_pago';
+  handoff_reference: string;
+  handoff_binding_hash: string;
+  handoff_created_at: string;
+  expires_at: string;
 };
 
 function cleanText(value: unknown, maxLength: number): string | null {
@@ -63,6 +88,13 @@ function createOpaqueToken(prefix: string): string {
 async function sha256Text(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function isPendingSignupEmailHmacUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; constraint?: unknown; message?: unknown; details?: unknown };
+  const combined = `${candidate.constraint ?? ''} ${candidate.message ?? ''} ${candidate.details ?? ''}`;
+  return candidate.code === '23505' && /pending_signup_intents_email_hmac_unique_idx|email_hmac/i.test(combined);
 }
 
 function getSupabaseAdmin() {
@@ -104,6 +136,70 @@ function buildSetCookie(request: Request, binding: string): string {
   return `${cookieName}=${encodeURIComponent(binding)}; Path=/; Max-Age=${HANDOFF_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
 }
 
+function buildPendingSignupWritePayload(params: {
+  protectedFields: Awaited<ReturnType<typeof protectPendingSignupPii>>;
+  businessType: string;
+  planCode: SignupPlan;
+  billingPeriod: BillingPeriod;
+  pendingSignupReference: string;
+  browserBindingHash: string;
+  now: Date;
+}): PendingSignupWritePayload {
+  return {
+    ...params.protectedFields,
+    business_type: params.businessType,
+    selected_business_types: [params.businessType],
+    plan_code: params.planCode,
+    billing_period: params.billingPeriod,
+    status: 'created',
+    provider: 'mercado_pago',
+    handoff_reference: params.pendingSignupReference,
+    handoff_binding_hash: params.browserBindingHash,
+    handoff_created_at: params.now.toISOString(),
+    expires_at: new Date(params.now.getTime() + HANDOFF_MAX_AGE_SECONDS * 1000).toISOString(),
+  };
+}
+
+async function reuseStalePendingSignupHandoff(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  emailHmac: string,
+  payload: PendingSignupWritePayload,
+): Promise<boolean> {
+  const nowIso = new Date().toISOString();
+  const existing = await supabaseAdmin
+    .from('pending_signup_intents')
+    .select('id,status,expires_at')
+    .eq('email_hmac', emailHmac)
+    .limit(1)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+  if (!existing.data) return false;
+
+  const status = typeof existing.data.status === 'string' ? existing.data.status : '';
+  const expiresAt = typeof existing.data.expires_at === 'string' ? existing.data.expires_at : '';
+  const isReusableStaleIntent = status === 'expired' || status === 'failed' ||
+    (status === 'created' && Boolean(expiresAt) && expiresAt <= nowIso);
+  if (!isReusableStaleIntent) throw new Error('PENDING_SIGNUP_ALREADY_EXISTS');
+
+  const update = await supabaseAdmin
+    .from('pending_signup_intents')
+    .update(payload)
+    .eq('id', existing.data.id)
+    .eq('email_hmac', emailHmac)
+    .eq('provider', 'mercado_pago')
+    .is('external_reference', null)
+    .is('provider_subscription_id', null)
+    .is('user_id', null)
+    .is('business_id', null)
+    .is('materialized_at', null)
+    .or(`status.in.(expired,failed),and(status.eq.created,expires_at.lte.${nowIso})`)
+    .select('id')
+    .maybeSingle();
+  if (update.error) throw update.error;
+  if (!update.data) throw new Error('PENDING_SIGNUP_ALREADY_EXISTS');
+  return true;
+}
+
 export async function createPendingSignupHandoff(request: Request, input: HandoffInput): Promise<PendingSignupHandoff> {
   const email = cleanText(input.email, 320)?.toLowerCase();
   const planCode = normalizePlan(input.plan_code);
@@ -138,20 +234,22 @@ export async function createPendingSignupHandoff(request: Request, input: Handof
 
   const pendingSignupReference = createOpaqueToken('psh');
   const browserBinding = createOpaqueToken('psb');
-  const { error } = await supabaseAdmin.from('pending_signup_intents').insert({
-    ...protectedFields,
-    business_type: businessType,
-    selected_business_types: [businessType],
-    plan_code: planCode,
-    billing_period: billingPeriod,
-    status: 'created',
-    provider: 'mercado_pago',
-    handoff_reference: pendingSignupReference,
-    handoff_binding_hash: await sha256Text(browserBinding),
-    handoff_created_at: now.toISOString(),
-    expires_at: new Date(now.getTime() + HANDOFF_MAX_AGE_SECONDS * 1000).toISOString(),
+  const payload = buildPendingSignupWritePayload({
+    protectedFields,
+    businessType,
+    planCode,
+    billingPeriod,
+    pendingSignupReference,
+    browserBindingHash: await sha256Text(browserBinding),
+    now,
   });
-  if (error) throw error;
+
+  const staleIntentReused = await reuseStalePendingSignupHandoff(supabaseAdmin, protectedFields.email_hmac, payload);
+  if (!staleIntentReused) {
+    const { error } = await supabaseAdmin.from('pending_signup_intents').insert(payload);
+    if (isPendingSignupEmailHmacUniqueViolation(error)) throw new Error('PENDING_SIGNUP_ALREADY_EXISTS');
+    if (error) throw error;
+  }
 
   const redirectUrl = `/billing/subscription?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billingPeriod)}&signup_intent=pending_signup&pending_signup_reference=${encodeURIComponent(pendingSignupReference)}`;
   return { pendingSignupReference, redirectUrl, setCookie: buildSetCookie(request, browserBinding) };

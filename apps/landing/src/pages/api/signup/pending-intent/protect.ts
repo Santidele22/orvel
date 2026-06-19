@@ -17,12 +17,27 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+const DUPLICATE_PROTECTION_ERROR_CODES = new Set(['EMAIL_ALREADY_REGISTERED', 'PENDING_SIGNUP_ALREADY_EXISTS']);
+
+const PUBLIC_DUPLICATE_PROTECTION_CONFLICT = {
+  error: 'signup_protection_conflict',
+  message: 'No pudimos continuar esta solicitud de alta con ese correo. Revisá el correo ingresado o continuá desde el acceso habitual de Orvel.',
+};
+
 const ERROR_MESSAGES: Record<string, string> = {
-  EMAIL_ALREADY_REGISTERED: 'Este email ya tiene una cuenta en Orvel. Iniciá sesión para continuar.',
-  PENDING_SIGNUP_ALREADY_EXISTS: 'Ya hay un alta paga pendiente para este email. Volvé al formulario si necesitás regenerar el intento.',
   pending_signup_required_fields: 'Faltan datos obligatorios para preparar el alta paga.',
   pending_signup_email_required: 'Necesitamos proteger tu email antes de iniciar el pago.',
 };
+
+function getErrorCode(error: unknown): string {
+  return error instanceof Error ? error.message : 'pending_signup_protection_failed';
+}
+
+function getErrorConstraint(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const constraint = (error as { constraint?: unknown }).constraint;
+  return typeof constraint === 'string' ? constraint.slice(0, 120) : undefined;
+}
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -50,8 +65,17 @@ export const POST: APIRoute = async ({ request }) => {
       },
     });
   } catch (error) {
-    const code = error instanceof Error ? error.message : 'pending_signup_protection_failed';
-    const status = code === 'EMAIL_ALREADY_REGISTERED' || code === 'PENDING_SIGNUP_ALREADY_EXISTS' ? 409 : code === 'pending_signup_required_fields' ? 400 : 500;
-    return jsonResponse({ error: code, message: ERROR_MESSAGES[code] || 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.' }, status);
+    const code = getErrorCode(error);
+    const isDuplicateProtectionConflict = DUPLICATE_PROTECTION_ERROR_CODES.has(code);
+    const status = isDuplicateProtectionConflict ? 409 : code === 'pending_signup_required_fields' ? 400 : 500;
+    const publicCode = isDuplicateProtectionConflict ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.error : code;
+    const publicMessage = isDuplicateProtectionConflict
+      ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.message
+      : ERROR_MESSAGES[code] || 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
+    console.warn('pending_signup_protect_failed', { code, status, constraint: getErrorConstraint(error) });
+    return jsonResponse({
+      error: publicCode,
+      message: publicMessage,
+    }, status);
   }
 };
