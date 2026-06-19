@@ -15,6 +15,7 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('BUSINESS_REQUIRED');
     expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
     expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(source).toContain('EMAIL_ALREADY_REGISTERED');
     expect(source).toContain('EMAIL_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_REQUIRED');
     expect(source).toContain('PLAN_MAPPING_INVALID');
@@ -50,6 +51,7 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('BUSINESS_REQUIRED');
     expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
     expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
+    expect(source).toContain('EMAIL_ALREADY_REGISTERED');
     expect(source).toContain('EMAIL_REQUIRED');
   });
 
@@ -66,6 +68,14 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(pageSource).toMatch(/No pudimos validar tus datos protegidos|Volvé al formulario/i);
     expect(pageSource).not.toMatch(/PENDING_SIGNUP_EMAIL_REQUIRED['"]:\s*['"][^'"]*PENDING_SIGNUP_EMAIL_REQUIRED/);
     expect(pageSource).not.toMatch(/PENDING_SIGNUP_PII_INVALID['"]:\s*['"][^'"]*PENDING_SIGNUP_PII_INVALID/);
+  });
+
+  it('maps duplicate paid signup email response to existing-account copy instead of the generic subscription error', async () => {
+    const pageSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
+
+    expect(pageSource).toContain('EMAIL_ALREADY_REGISTERED');
+    expect(pageSource).toMatch(/EMAIL_ALREADY_REGISTERED:\s*'Este email ya tiene una cuenta en Orvel\. Iniciá sesión para continuar\.'/);
+    expect(pageSource).not.toMatch(/EMAIL_ALREADY_REGISTERED:\s*'No pudimos iniciar la suscripción/);
   });
 });
 
