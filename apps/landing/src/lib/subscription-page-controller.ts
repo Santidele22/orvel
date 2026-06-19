@@ -8,6 +8,7 @@ type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
 type SubscriptionPlan = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO' | string;
 
 export type PendingSignupIntentLike = Record<string, unknown> | null | undefined;
+export type PendingSignupReferenceLike = string | null | undefined;
 
 export type SubscriptionStartReadiness =
   | { ok: true; mode: 'free' | 'pending_signup_intent' | 'existing_user' }
@@ -53,17 +54,20 @@ export function getInitialSubscriptionPageRecovery({
   billing,
   signupIntent,
   pendingSignupIntent,
+  pendingSignupReference,
 }: {
   plan: SubscriptionPlan;
   billing?: string | null;
   signupIntent?: string | null;
   pendingSignupIntent: PendingSignupIntentLike;
+  pendingSignupReference?: PendingSignupReferenceLike;
 }): InitialSubscriptionPageRecovery {
   const normalizedPlan = typeof plan === 'string' ? plan.trim().toUpperCase() : '';
   const normalizedSignupIntent = signupIntent?.trim().toLowerCase();
 
   if (normalizedPlan === 'FREE') return null;
   if (normalizedSignupIntent !== 'pending_signup') return null;
+  if (asNonEmptyString(pendingSignupReference)) return null;
   if (hasProtectedPendingSignupIntent(pendingSignupIntent)) return null;
 
   return {
@@ -77,15 +81,18 @@ export function getSubscriptionStartReadiness({
   plan,
   billing,
   pendingSignupIntent,
+  pendingSignupReference,
   accessToken,
 }: {
   plan: SubscriptionPlan;
   billing?: string | null;
   pendingSignupIntent: PendingSignupIntentLike;
+  pendingSignupReference?: PendingSignupReferenceLike;
   accessToken: unknown;
 }): SubscriptionStartReadiness {
   const normalizedPlan = typeof plan === 'string' ? plan.trim().toUpperCase() : '';
   if (normalizedPlan === 'FREE') return { ok: true, mode: 'free' };
+  if (asNonEmptyString(pendingSignupReference)) return { ok: true, mode: 'pending_signup_intent' };
   if (hasProtectedPendingSignupIntent(pendingSignupIntent)) return { ok: true, mode: 'pending_signup_intent' };
   if (isJwtShapedAccessToken(accessToken)) return { ok: true, mode: 'existing_user' };
 

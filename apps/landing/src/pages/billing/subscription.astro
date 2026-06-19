@@ -191,7 +191,6 @@ import Layout from '../../layouts/Layout.astro';
   } from '../../lib/supabase-auth-adapter';
   import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
   import {
-    buildPendingSignupIntentPayload,
     getInitialSubscriptionPageRecovery,
     getSubscriptionStartReadiness,
     SUBSCRIPTION_RECOVERY_ERRORS
@@ -236,6 +235,7 @@ import Layout from '../../layouts/Layout.astro';
       return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
     };
     const billing = normalizeBillingPeriod(params.get('billing') || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.billing));
+    const pendingSignupReference = params.get('pending_signup_reference') || params.get('pending_signup_token') || params.get('intent_reference') || params.get('intent_token');
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
     // Update plan details in UI
@@ -448,7 +448,8 @@ import Layout from '../../layouts/Layout.astro';
         plan,
         billing,
         signupIntent: params.get('signup_intent'),
-        pendingSignupIntent: readPendingSignupIntent(),
+        pendingSignupReference,
+        pendingSignupIntent: pendingSignupReference ? null : readPendingSignupIntent(),
       });
 
     if (initialRecovery) {
@@ -541,11 +542,11 @@ import Layout from '../../layouts/Layout.astro';
           const token = await getSubscriptionAccessToken();
           const businessType = sessionStorage.getItem(SIGNUP_STORAGE_KEYS.tipoNegocio);
           const pendingSignupIntent = readPendingSignupIntent();
-          const pendingSignupPayload = buildPendingSignupIntentPayload(pendingSignupIntent);
           const readiness = getSubscriptionStartReadiness({
             plan,
             billing,
             pendingSignupIntent,
+            pendingSignupReference,
             accessToken: token,
           });
 
@@ -574,25 +575,26 @@ import Layout from '../../layouts/Layout.astro';
               cadence: billing,
               idempotencyKey: buildIdempotencyKey(),
               businessType,
-              ...(pendingSignupPayload ? {
+              ...((pendingSignupReference || pendingSignupIntent) ? {
                 pending_signup_intent: {
-                  email_encrypted: pendingSignupPayload.email_encrypted,
-                  email_hmac: pendingSignupPayload.email_hmac,
-                  first_name_encrypted: pendingSignupPayload.first_name_encrypted,
-                  first_name_hmac: pendingSignupPayload.first_name_hmac,
-                  last_name_encrypted: pendingSignupPayload.last_name_encrypted,
-                  last_name_hmac: pendingSignupPayload.last_name_hmac,
-                  phone_encrypted: pendingSignupPayload.phone_encrypted,
-                  phone_hmac: pendingSignupPayload.phone_hmac,
-                  business_name_encrypted: pendingSignupPayload.business_name_encrypted,
-                  business_name_hmac: pendingSignupPayload.business_name_hmac,
-                  pii_crypto_version: pendingSignupPayload.pii_crypto_version,
-                  plan_code: pendingSignupPayload.plan_code,
-                  billing_period: pendingSignupPayload.billing_period,
-                  business_type: pendingSignupPayload.business_type,
-                  selected_business_types: pendingSignupPayload.selected_business_types
+                  email_encrypted: pendingSignupIntent?.email_encrypted,
+                  email_hmac: pendingSignupIntent?.email_hmac,
+                  first_name_encrypted: pendingSignupIntent?.first_name_encrypted,
+                  first_name_hmac: pendingSignupIntent?.first_name_hmac,
+                  last_name_encrypted: pendingSignupIntent?.last_name_encrypted,
+                  last_name_hmac: pendingSignupIntent?.last_name_hmac,
+                  phone_encrypted: pendingSignupIntent?.phone_encrypted,
+                  phone_hmac: pendingSignupIntent?.phone_hmac,
+                  business_name_encrypted: pendingSignupIntent?.business_name_encrypted,
+                  business_name_hmac: pendingSignupIntent?.business_name_hmac,
+                  pii_crypto_version: pendingSignupIntent?.pii_crypto_version,
+                  plan_code: pendingSignupIntent?.plan_code,
+                  billing_period: pendingSignupIntent?.billing_period,
+                  business_type: pendingSignupIntent?.business_type,
+                  selected_business_types: pendingSignupIntent?.selected_business_types
                 }
-              } : {})
+              } : {}),
+              pending_signup_reference: pendingSignupReference,
             })
           });
           

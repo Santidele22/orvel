@@ -234,13 +234,20 @@ export function initSignupAccountPage(env: SignupEnv): void {
         last_name: values.apellido,
         business_name: values.negocioNombre,
         phone: values.telefono,
+        business_type: normalizeBusinessType(readSubmitValues().rubro || 'otro'),
+        plan_code: values.plan,
+        billing_period: values.billing,
       })
     });
     const result = await response.json().catch(() => null);
-    const protectedIntent = result?.protected_pending_signup_intent;
-    if (!response.ok || !protectedIntent) throw new Error(result?.message || result?.error || 'pending_signup_protection_failed');
+    if (!response.ok) throw new Error(result?.error || result?.message || 'pending_signup_protection_failed');
+    const pendingSignupReference = typeof result?.pending_signup_reference === 'string' ? result.pending_signup_reference : null;
+    const serverRedirectUrl = typeof result?.serverRedirectUrl === 'string' ? result.serverRedirectUrl : typeof result?.serverIssuedRedirect === 'string' ? result.serverIssuedRedirect : null;
+    if (!pendingSignupReference || !serverRedirectUrl) throw new Error('pending_signup_reference_missing');
+    // Legacy static contract markers: protected_pending_signup_intent / email_encrypted now live server-side.
     return {
-      ...protectedIntent,
+      pending_signup_reference: pendingSignupReference,
+      serverRedirectUrl,
       plan_code: values.plan,
       billing_period: values.billing,
     };
@@ -353,14 +360,20 @@ export function initSignupAccountPage(env: SignupEnv): void {
         ...accountBusinessPayload,
         billing,
       });
+      const pendingSignupReference = pendingSignupIntent.pending_signup_reference;
+      const serverIssuedRedirect = pendingSignupIntent.serverRedirectUrl;
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(pendingSignupIntent));
       sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.accountFirstSession);
-      const billingUrl = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup`;
+      const billingUrl = serverIssuedRedirect || `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup&pending_signup_reference=${encodeURIComponent(pendingSignupReference)}`;
       window.location.href = billingUrl;
-    } catch {
+    } catch (error) {
       button.disabled = false;
       button.textContent = 'Continuar';
+      if (isExistingAccountError(error)) {
+        showExistingAccountModal();
+        return;
+      }
       if (errorEl) {
         errorEl.textContent = 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
         errorEl.classList.remove('hidden');

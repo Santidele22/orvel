@@ -78,6 +78,10 @@ interface SubscriptionRequest {
   card_token_id?: string;
   billing_period?: string;
   mode?: string;
+  pending_signup_reference?: string;
+  pending_signup_token?: string;
+  intent_reference?: string;
+  intent_token?: string;
   pending_signup_intent?: {
     email_encrypted?: string;
     email_hmac?: string;
@@ -163,6 +167,11 @@ function sanitizeIntentText(value: unknown, maxLength = 160): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.replace(/[\r\n\t]+/g, " ").trim();
   return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
+function sanitizePendingSignupReference(value: unknown): string | null {
+  const reference = sanitizeIntentText(value, 180);
+  return reference && /^psh_[A-Za-z0-9_-]{32,}$/.test(reference) ? reference : null;
 }
 
 function normalizeBillingCadence(
@@ -351,6 +360,10 @@ Deno.serve(async (req) => {
       body.mode === "pending_signup_intent" || body.pending_signup_intent
         ? body.pending_signup_intent || {}
         : null;
+    const pendingSignupReference = sanitizePendingSignupReference(
+      body.pending_signup_reference || body.pending_signup_token ||
+        body.intent_reference || body.intent_token,
+    );
     const requestedCadence = normalizeBillingCadence(
       body.cadence || body.billing_period ||
         pendingSignupIntent?.billing_period,
@@ -618,6 +631,27 @@ Deno.serve(async (req) => {
     let pendingSignupEmail: string | null = null;
 
     if (isPendingSignupIntent) {
+      const { data: referencedPendingIntent } = pendingSignupReference
+        ? await supabaseAdmin
+          .from("pending_signup_intents")
+          .select("id, external_reference")
+          .eq("handoff_reference", pendingSignupReference)
+          .in("status", ["created", "provider_created"])
+          .gt("expires_at", now.toISOString())
+          .maybeSingle()
+        : { data: null };
+      if (pendingSignupReference && !referencedPendingIntent) {
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_REFERENCE_INVALID",
+            message: "No se encontró el alta paga pendiente",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
       const pendingSignupEmailHmac = sanitizeIntentText(
         pendingSignupIntent?.email_hmac,
         512,
@@ -743,12 +777,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { data: duplicatePendingIntent } = await supabaseAdmin
+      let duplicatePendingIntentQuery = supabaseAdmin
         .from("pending_signup_intents")
         .select("id")
         .eq("email_hmac", pendingSignupEmailHmac)
         .in("status", ["created", "provider_created", "approved", "materializing"])
-        .gt("expires_at", now.toISOString())
+        .gt("expires_at", now.toISOString());
+      if (referencedPendingIntent?.id) {
+        duplicatePendingIntentQuery = duplicatePendingIntentQuery.neq("id", referencedPendingIntent.id);
+      }
+      const { data: duplicatePendingIntent } = await duplicatePendingIntentQuery
         .limit(1)
         .maybeSingle();
 
@@ -773,7 +811,9 @@ Deno.serve(async (req) => {
           .maybeSingle()
         : { data: null };
 
-      if (existingIntent) {
+      if (referencedPendingIntent) {
+        pendingSignupRecord = referencedPendingIntent;
+      } else if (existingIntent) {
         pendingSignupRecord = existingIntent;
       } else {
         const { data: insertedIntent, error: intentError } = await supabaseAdmin
