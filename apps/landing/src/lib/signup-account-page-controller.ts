@@ -31,10 +31,10 @@ const isExistingAccountError = (error: unknown) => {
 };
 const isPendingSignupAlreadyExistsError = (error: unknown) => {
   const message = error instanceof Error ? error.message : `${error ?? ''}`;
-  return /PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i.test(message);
+  return /signup_protection_conflict|PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i.test(message);
 };
 
-const PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE = 'Ya hay un alta paga pendiente para este email. Podés continuar con el pago pendiente si ya lo abriste, o reiniciar el alta en unos minutos.';
+const SIGNUP_PROTECTION_CONFLICT_MESSAGE = 'No pudimos continuar el alta con ese correo. Probá con otro email, esperá unos minutos si ya iniciaste el pago, o contactá a soporte.';
 
 export function initSignupAccountPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
@@ -312,7 +312,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
         }
         if (errorEl) {
           errorEl.textContent = isPendingSignupAlreadyExistsError(error)
-            ? PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE
+            ? SIGNUP_PROTECTION_CONFLICT_MESSAGE
             : 'No pudimos proteger tus datos. Reintentá en unos segundos.';
           errorEl.classList.remove('hidden');
         }
@@ -384,7 +384,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
       }
       if (errorEl) {
         errorEl.textContent = isPendingSignupAlreadyExistsError(error)
-          ? PENDING_SIGNUP_ALREADY_EXISTS_MESSAGE
+          ? SIGNUP_PROTECTION_CONFLICT_MESSAGE
           : 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
         errorEl.classList.remove('hidden');
       }
