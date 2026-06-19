@@ -49,6 +49,10 @@ function renderCredentialsForm() {
   `;
 }
 
+function getSubmitButton() {
+  return document.querySelector<HTMLButtonElement>('#accountForm button[type="submit"]');
+}
+
 describe('RED contract: FREE signup credentials controller submission', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -144,5 +148,86 @@ describe('RED contract: FREE signup credentials controller submission', () => {
       expect(submitButton?.textContent).toBe('Continuar');
     });
     expect(signupError?.textContent).not.toBe('No pudimos crear tu cuenta. Reintentá en unos segundos.');
+  });
+});
+
+describe('RED contract: paid signup credentials controller protection conflicts', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+    vi.resetModules();
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/auth/signup/account?plan=STARTER&billing=monthly');
+    sessionStorage.clear();
+    renderCredentialsForm();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    sessionStorage.clear();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('maps public signup_protection_conflict to actionable non-enumerating copy and recovers the submit button', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: 'signup_protection_conflict',
+      message: 'No pudimos continuar esta solicitud de alta con ese correo. Revisá el correo ingresado o continuá desde el acceso habitual de Orvel.'
+    }), { status: 409, headers: { 'Content-Type': 'application/json' } }));
+
+    const { initSignupAccountPage } = await loadController();
+    initSignupAccountPage({
+      PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
+      PUBLIC_SUPABASE_URL: 'https://supabase.test',
+      PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
+    });
+
+    dispatchCredentialsSubmit();
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const signupError = document.getElementById('signupError');
+    const submitButton = getSubmitButton();
+    await vi.waitFor(() => {
+      expect(signupError?.classList.contains('hidden')).toBe(false);
+      expect(signupError?.textContent).toMatch(/otro email|unos minutos|soporte/i);
+      expect(submitButton?.disabled).toBe(false);
+      expect(submitButton?.textContent).toBe('Continuar');
+    });
+    expect(signupError?.textContent).not.toContain('No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.');
+    expect(signupError?.textContent).not.toMatch(/signup_protection_conflict|EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS/i);
+  });
+
+  it('redirects fresh paid signup with the server pending_signup_reference without creating account/business before payment', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      pending_signup_reference: 'pending_ref_123',
+      serverRedirectUrl: '/billing/subscription?plan=STARTER&billing=monthly&signup_intent=pending_signup&pending_signup_reference=pending_ref_123'
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const { initSignupAccountPage } = await loadController();
+    initSignupAccountPage({
+      PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
+      PUBLIC_SUPABASE_URL: 'https://supabase.test',
+      PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
+    });
+
+    dispatchCredentialsSubmit();
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith('/api/signup/pending-intent/protect', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/signup/create-account-business', expect.anything());
+
+    await vi.waitFor(() => {
+      const protectedIntent = JSON.parse(sessionStorage.getItem('orvel.signup.pending_signup_intent') || '{}');
+      expect(protectedIntent.pending_signup_reference).toBe('pending_ref_123');
+      expect(protectedIntent.serverRedirectUrl).toContain('pending_signup_reference=pending_ref_123');
+    });
   });
 });
