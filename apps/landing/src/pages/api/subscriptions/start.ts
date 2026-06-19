@@ -15,6 +15,7 @@ const CONTRACT_VALIDATION_MESSAGES: Record<string, string> = {
   PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para suscripción.",
   PENDING_SIGNUP_EMAIL_REQUIRED: "Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.",
   PENDING_SIGNUP_PII_INVALID: "No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.",
+  EMAIL_ALREADY_REGISTERED: "Este email ya tiene una cuenta en Orvel. Iniciá sesión para continuar.",
 };
 
 function normalizePlan(rawPlan: string | null): string | null {
