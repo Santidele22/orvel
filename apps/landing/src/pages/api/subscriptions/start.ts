@@ -1,6 +1,10 @@
 import type { APIRoute } from "astro";
 
 import { appendSupabaseAuthorizationHeader } from "../../../lib/supabaseAuthorization";
+import { resolvePendingSignupHandoff } from "../../../lib/server/pending-signup-handoff";
+
+// Paid signup handoff is bound by the protect endpoint with Set-Cookie: HttpOnly; SameSite=Lax
+// (Secure + __Host- on HTTPS). This API validates the opaque pending_signup_reference server-side.
 
 const ALLOWED_PLANS = new Set(["STARTER", "GROWTH", "PRO"]);
 const FALLBACK_PATH = "/billing/subscription";
@@ -119,7 +123,7 @@ function validatePendingSignupIntent(intent: PendingSignupIntent | null): Subscr
   return null;
 }
 
-async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, pendingSignupIntent?: PendingSignupIntent | null): Promise<SubscriptionResult> {
+async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, browserPendingSignupIntent?: PendingSignupIntent | null, pendingSignupReference?: string | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -161,6 +165,18 @@ async function startSubscription(request: Request, plan: string | null, idempote
 
   try {
     const effectiveBusinessType = businessType || null;
+    const resolvedPendingSignup = pendingSignupReference
+      ? await resolvePendingSignupHandoff(request, pendingSignupReference)
+      : null;
+    if (pendingSignupReference && !resolvedPendingSignup) {
+      return {
+        ok: false,
+        status: 400,
+        code: "pending_signup_missing",
+        message: "No encontramos los datos protegidos de tu alta paga. Volvé al formulario para recuperar el intento y reintentá el pago.",
+      };
+    }
+    const pendingSignupIntent = (resolvedPendingSignup?.pendingSignupIntent as PendingSignupIntent | undefined) || browserPendingSignupIntent || null;
     const pendingSignupValidation = validatePendingSignupIntent(pendingSignupIntent);
     if (pendingSignupValidation) return pendingSignupValidation;
     const mode: SubscriptionMode = pendingSignupIntent ? "pending_signup_intent" : "existing_user";
@@ -174,8 +190,7 @@ async function startSubscription(request: Request, plan: string | null, idempote
         billing_period: normalizeBillingPeriod(billingPeriod),
         business_type: effectiveBusinessType,
         mode,
-        ...(pendingSignupIntent ? {
-          pending_signup_intent: {
+        pending_signup_intent: pendingSignupIntent ? {
             email_encrypted: pendingSignupIntent.email_encrypted,
             email_hmac: pendingSignupIntent.email_hmac,
             first_name_encrypted: pendingSignupIntent.first_name_encrypted,
@@ -191,8 +206,8 @@ async function startSubscription(request: Request, plan: string | null, idempote
             billing_period: pendingSignupIntent.billing_period,
             business_type: pendingSignupIntent.business_type,
             selected_business_types: pendingSignupIntent.selected_business_types,
-          },
-        } : {}),
+        } : undefined,
+        pending_signup_reference: resolvedPendingSignup?.pendingSignupReference,
       }),
     });
 
@@ -285,11 +300,16 @@ export const POST: APIRoute = async ({ request }) => {
     const pendingSignupIntent = body?.pending_signup_intent && typeof body.pending_signup_intent === "object"
       ? body.pending_signup_intent as PendingSignupIntent
       : null;
+    const pendingSignupReference = typeof body?.pending_signup_reference === "string" ? body.pending_signup_reference.trim()
+      : typeof body?.pending_signup_token === "string" ? body.pending_signup_token.trim()
+        : typeof body?.intent_reference === "string" ? body.intent_reference.trim()
+          : typeof body?.intent_token === "string" ? body.intent_token.trim()
+            : null;
     const billingPeriod = typeof body?.billing === "string" ? body.billing.trim()
       : typeof body?.billing_period === "string" ? body.billing_period.trim()
         : typeof body?.cadence === "string" ? body.cadence.trim()
           : null;
-    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod, pendingSignupIntent);
+    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod, pendingSignupIntent, pendingSignupReference);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });
