@@ -1,8 +1,6 @@
 type CreateSubscriptionRequestBody = {
   mode?: unknown;
   pending_signup_intent?: unknown;
-  account_first_intent_id?: unknown;
-  account_first_session?: unknown;
 };
 
 export function getBearerToken(authHeader: string): string {
@@ -21,11 +19,6 @@ export function isPendingSignupAuthOptional(
   requestBody: CreateSubscriptionRequestBody,
 ): boolean {
   if (requestBody.mode === "pending_signup_intent") return true;
-  if (
-    requestBody.mode === "account_first_signup" &&
-    typeof requestBody.account_first_intent_id === "string" &&
-    typeof requestBody.account_first_session === "string"
-  ) return true;
   if (requestBody.mode === "existing_user") return false;
 
   return requestBody.pending_signup_intent !== null &&

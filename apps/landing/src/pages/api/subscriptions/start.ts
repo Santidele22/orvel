@@ -13,6 +13,8 @@ const CONTRACT_VALIDATION_MESSAGES: Record<string, string> = {
   PLAN_MAPPING_REQUIRED: "Falta configurar la relación del plan seleccionado. Reintentá en unos minutos.",
   PLAN_MAPPING_INVALID: "El plan seleccionado no está correctamente configurado. Contactá soporte.",
   PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para suscripción.",
+  PENDING_SIGNUP_EMAIL_REQUIRED: "Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.",
+  PENDING_SIGNUP_PII_INVALID: "No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.",
 };
 
 function normalizePlan(rawPlan: string | null): string | null {
@@ -57,14 +59,66 @@ function normalizeIdempotencyKey(...candidates: Array<string | null | undefined>
   return null;
 }
 
-type AccountFirstSession = {
-  account_first_intent_id: string;
-  account_first_session: string;
+type PendingSignupIntent = {
+  email_encrypted?: string;
+  email_hmac?: string;
+  first_name_encrypted?: string;
+  first_name_hmac?: string;
+  last_name_encrypted?: string;
+  last_name_hmac?: string;
+  phone_encrypted?: string;
+  phone_hmac?: string;
+  business_name_encrypted?: string;
+  business_name_hmac?: string;
+  pii_crypto_version?: string;
+  plan_code?: string;
+  billing_period?: string;
+  business_type?: string;
+  selected_business_types?: unknown;
 };
+type SubscriptionMode = "pending_signup_intent" | "existing_user";
 
-type SubscriptionMode = "account_first_signup" | "existing_user";
+function hasString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
-async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, accountFirstSession?: AccountFirstSession | null): Promise<SubscriptionResult> {
+function validatePendingSignupIntent(intent: PendingSignupIntent | null): SubscriptionResult | null {
+  if (!intent) return null;
+
+  if (intent.email_encrypted === undefined && intent.email_hmac === undefined) {
+    return {
+      ok: false,
+      status: 400,
+      code: "pending_signup_email_required",
+      message: CONTRACT_VALIDATION_MESSAGES.PENDING_SIGNUP_EMAIL_REQUIRED,
+    };
+  }
+
+  const protectedPairs: Array<[keyof PendingSignupIntent, keyof PendingSignupIntent]> = [
+    ["email_encrypted", "email_hmac"],
+    ["first_name_encrypted", "first_name_hmac"],
+    ["last_name_encrypted", "last_name_hmac"],
+    ["phone_encrypted", "phone_hmac"],
+    ["business_name_encrypted", "business_name_hmac"],
+  ];
+
+  for (const [encryptedKey, hmacKey] of protectedPairs) {
+    const encrypted = intent[encryptedKey];
+    const hmac = intent[hmacKey];
+    if ((encrypted !== undefined && !hasString(encrypted)) || (hmac !== undefined && !hasString(hmac)) || Boolean(encrypted) !== Boolean(hmac)) {
+      return {
+        ok: false,
+        status: 400,
+        code: "pending_signup_pii_invalid",
+        message: CONTRACT_VALIDATION_MESSAGES.PENDING_SIGNUP_PII_INVALID,
+      };
+    }
+  }
+
+  return null;
+}
+
+async function startSubscription(request: Request, plan: string | null, idempotencyKey?: string | null, cardToken?: string | null, businessType?: string | null, billingPeriod?: string | null, pendingSignupIntent?: PendingSignupIntent | null): Promise<SubscriptionResult> {
   if (!plan || !ALLOWED_PLANS.has(plan)) {
     return {
       ok: false,
@@ -106,7 +160,9 @@ async function startSubscription(request: Request, plan: string | null, idempote
 
   try {
     const effectiveBusinessType = businessType || null;
-    const mode = accountFirstSession ? "account_first_signup" : "existing_user";
+    const pendingSignupValidation = validatePendingSignupIntent(pendingSignupIntent);
+    if (pendingSignupValidation) return pendingSignupValidation;
+    const mode: SubscriptionMode = pendingSignupIntent ? "pending_signup_intent" : "existing_user";
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",
       headers,
@@ -117,9 +173,24 @@ async function startSubscription(request: Request, plan: string | null, idempote
         billing_period: normalizeBillingPeriod(billingPeriod),
         business_type: effectiveBusinessType,
         mode,
-        ...(accountFirstSession ? {
-          account_first_intent_id: accountFirstSession.account_first_intent_id,
-          account_first_session: accountFirstSession.account_first_session,
+        ...(pendingSignupIntent ? {
+          pending_signup_intent: {
+            email_encrypted: pendingSignupIntent.email_encrypted,
+            email_hmac: pendingSignupIntent.email_hmac,
+            first_name_encrypted: pendingSignupIntent.first_name_encrypted,
+            first_name_hmac: pendingSignupIntent.first_name_hmac,
+            last_name_encrypted: pendingSignupIntent.last_name_encrypted,
+            last_name_hmac: pendingSignupIntent.last_name_hmac,
+            phone_encrypted: pendingSignupIntent.phone_encrypted,
+            phone_hmac: pendingSignupIntent.phone_hmac,
+            business_name_encrypted: pendingSignupIntent.business_name_encrypted,
+            business_name_hmac: pendingSignupIntent.business_name_hmac,
+            pii_crypto_version: pendingSignupIntent.pii_crypto_version,
+            plan_code: pendingSignupIntent.plan_code,
+            billing_period: pendingSignupIntent.billing_period,
+            business_type: pendingSignupIntent.business_type,
+            selected_business_types: pendingSignupIntent.selected_business_types,
+          },
         } : {}),
       }),
     });
@@ -138,9 +209,6 @@ async function startSubscription(request: Request, plan: string | null, idempote
         }
         if (typeof errorData?.message === "string" && errorData.message) {
           message = errorData.message;
-        }
-        if (code === "BUSINESS_REQUIRED" && mode === "account_first_signup") {
-          code = "ACCOUNT_FIRST_BUSINESS_REQUIRED";
         }
         if (CONTRACT_VALIDATION_MESSAGES[code]) {
           message = CONTRACT_VALIDATION_MESSAGES[code];
@@ -177,11 +245,8 @@ async function startSubscription(request: Request, plan: string | null, idempote
 
 function fallbackReason(code: string, mode: SubscriptionMode = "existing_user"): string {
   if (code === "BUSINESS_REQUIRED") {
-    return mode === "account_first_signup"
-      ? "business_required_account_first_signup"
-      : "business_required_existing";
+    return mode === "pending_signup_intent" ? "pending_signup_intent_business_required" : "business_required";
   }
-  if (code === "ACCOUNT_FIRST_BUSINESS_REQUIRED") return "business_required_account_first_signup";
   if (code === "EMAIL_REQUIRED") return "email_required";
   return code.toLowerCase();
 }
@@ -216,23 +281,14 @@ export const POST: APIRoute = async ({ request }) => {
       request.headers.get("x-idempotency-key"),
     );
     const businessType = typeof body?.businessType === "string" ? body.businessType.trim() : null;
-    const accountFirst = body?.account_first && typeof body.account_first === "object"
-      ? body.account_first as Record<string, unknown>
+    const pendingSignupIntent = body?.pending_signup_intent && typeof body.pending_signup_intent === "object"
+      ? body.pending_signup_intent as PendingSignupIntent
       : null;
     const billingPeriod = typeof body?.billing === "string" ? body.billing.trim()
       : typeof body?.billing_period === "string" ? body.billing_period.trim()
         : typeof body?.cadence === "string" ? body.cadence.trim()
           : null;
-    const accountFirstIntentId = typeof accountFirst?.account_first_intent_id === "string"
-      ? accountFirst.account_first_intent_id.trim()
-      : null;
-    const accountFirstSession = typeof accountFirst?.account_first_session === "string"
-      ? accountFirst.account_first_session.trim()
-      : null;
-    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod, accountFirstIntentId && accountFirstSession ? {
-      account_first_intent_id: accountFirstIntentId,
-      account_first_session: accountFirstSession,
-    } : null);
+    const result = await startSubscription(request, normalizePlan(rawPlan), idempotencyKey, null, businessType, billingPeriod, pendingSignupIntent);
 
     if (result.ok) {
       return jsonResponse({ init_point: result.initPoint });

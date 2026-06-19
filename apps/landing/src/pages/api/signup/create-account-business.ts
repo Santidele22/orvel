@@ -96,6 +96,17 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para crear la cuenta y el negocio." }, 400);
   }
 
+  if (plan !== "FREE") {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "paid_signup_requires_payment_first",
+        message: "Los planes pagos deben iniciar por pending-intent y pago antes de crear la cuenta.",
+      },
+      409,
+    );
+  }
+
   const idempotencyKey = getCanonicalIdempotencyKey(request);
   if (await isRateLimited(request, email, idempotencyKey)) {
     return jsonResponse({ error: "RATE_LIMIT_EXCEEDED", message: "Demasiados intentos. Reintentá en unos minutos." }, 429);
@@ -111,26 +122,12 @@ export const POST: APIRoute = async ({ request }) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const isPaidPlan = plan !== "FREE";
-  const subscriptionStatus = isPaidPlan ? "pending_payment" : "active";
-  const onboardingStep = isPaidPlan ? "payment_pending" : "welcome_login";
+  const subscriptionStatus = "active";
+  const onboardingStep = "welcome_login";
   let createdUserId: string | null = null;
   let createdBusinessId: string | null = null;
-  let createdAccountFirstIntentId: string | null = null;
 
   async function cleanupProvisioning(): Promise<void> {
-    if (createdAccountFirstIntentId) {
-      const { error: intentCleanupError } = await supabaseAdmin
-        .from("account_first_intents")
-        .delete()
-        .eq("id", createdAccountFirstIntentId);
-      if (intentCleanupError) {
-        console.warn("signup_cleanup_account_first_intent_failed", {
-          intent_id: createdAccountFirstIntentId,
-          error: intentCleanupError.message,
-        });
-      }
-    }
     if (createdBusinessId) {
       const { error: businessCleanupError } = await supabaseAdmin
         .from("businesses")
@@ -254,46 +251,10 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: "subscription_state_failed", message: "No pudimos preparar el estado de suscripción." }, 502);
   }
 
-  let accountFirstIntentId: string | null = null;
-  let accountFirstSession: string | null = null;
-  if (isPaidPlan) {
-    accountFirstSession = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
-    const { data: accountFirstIntent, error: accountFirstIntentError } = await supabaseAdmin
-      .from("account_first_intents")
-      .insert({
-        user_id: userId,
-        business_id: businessId,
-        business_type: businessType,
-        selected_business_types: [businessType],
-        plan_code: plan,
-        billing_period: "monthly",
-        status: "created",
-        provider: "mercado_pago",
-        idempotency_key_hash: await sha256Text(accountFirstSession),
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      })
-      .select("id")
-      .single();
-
-    if (accountFirstIntentError || !accountFirstIntent?.id) {
-      await cleanupProvisioning();
-      return jsonResponse({ error: "account_first_intent_failed", message: "No pudimos preparar el inicio de pago." }, 502);
-    }
-
-    accountFirstIntentId = accountFirstIntent.id;
-    createdAccountFirstIntentId = accountFirstIntent.id;
-  }
-
   return jsonResponse({
     ok: true,
     business_type: businessType,
     plan,
     subscription_status: subscriptionStatus,
-    ...(accountFirstIntentId && accountFirstSession
-      ? {
-        account_first_intent_id: accountFirstIntentId,
-        account_first_session: accountFirstSession,
-      }
-      : {}),
   });
 };

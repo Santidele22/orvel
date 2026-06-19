@@ -24,6 +24,11 @@ const normalizeBillingPeriod = (raw: string | null) => {
 };
 const isValidSignupPlan = (rawPlan: string | null) =>
   VALID_SIGNUP_PLANS.includes(normalizeSignupPlan(rawPlan) as typeof VALID_SIGNUP_PLANS[number]);
+const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
+const isExistingAccountError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : `${error ?? ''}`;
+  return /signup_existing|EMAIL_EXISTS|EMAIL_ALREADY_REGISTERED|already\s+(?:registered|exists)|email.*registrad[oa]/i.test(message);
+};
 
 export function initSignupAccountPage(env: SignupEnv): void {
   if (typeof window === 'undefined') return;
@@ -178,6 +183,30 @@ export function initSignupAccountPage(env: SignupEnv): void {
     document.getElementById('accountCreatedModalTitle')?.focus();
     buttonReset('Continuar');
   };
+  const showExistingAccountModal = () => {
+    let existingAccountModal = document.getElementById('existingAccountModal');
+    if (!existingAccountModal) {
+      existingAccountModal = document.createElement('div');
+      existingAccountModal.id = 'existingAccountModal';
+      existingAccountModal.className = 'fixed inset-0 z-50 hidden items-center justify-center overflow-hidden bg-black/60 px-6';
+      existingAccountModal.setAttribute('role', 'dialog');
+      existingAccountModal.setAttribute('aria-modal', 'true');
+      existingAccountModal.setAttribute('aria-labelledby', 'existingAccountModalTitle');
+      existingAccountModal.setAttribute('aria-describedby', 'existingAccountModalDescription');
+      existingAccountModal.innerHTML = `
+        <section class="relative w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 text-center shadow-2xl">
+          <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary">Cuenta existente</p>
+          <h2 id="existingAccountModalTitle" tabindex="-1" class="font-headline text-2xl font-black tracking-tighter text-text-primary">Este email ya está registrado</h2>
+          <p id="existingAccountModalDescription" class="mt-3 text-sm leading-6 text-text-secondary">Encontramos una cuenta existente con ese correo. Iniciá sesión para continuar con Orvel.</p>
+          <a id="existingAccountLogin" href="/auth/login" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-widest text-slate-900">Iniciar sesión</a>
+        </section>
+      `;
+      document.body.appendChild(existingAccountModal);
+    }
+    existingAccountModal.classList.remove('hidden');
+    existingAccountModal.classList.add('flex');
+    document.getElementById('existingAccountModalTitle')?.focus();
+  };
   const buttonReset = (label: string) => {
     const button = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     if (button) {
@@ -194,6 +223,27 @@ export function initSignupAccountPage(env: SignupEnv): void {
     const result = await response.json().catch(() => null);
     if (!response.ok || !result?.ok) throw new Error(result?.message || 'create_account_business_failed');
     return result;
+  };
+  const createProtectedPendingSignupIntent = async (values: { email: string; nombre: string; apellido: string; negocioNombre: string; telefono: string; plan: string; billing: string }) => {
+    const response = await fetch('/api/signup/pending-intent/protect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: values.email,
+        first_name: values.nombre,
+        last_name: values.apellido,
+        business_name: values.negocioNombre,
+        phone: values.telefono,
+      })
+    });
+    const result = await response.json().catch(() => null);
+    const protectedIntent = result?.protected_pending_signup_intent;
+    if (!response.ok || !protectedIntent) throw new Error(result?.message || result?.error || 'pending_signup_protection_failed');
+    return {
+      ...protectedIntent,
+      plan_code: values.plan,
+      billing_period: values.billing,
+    };
   };
   const readSubmitValues = () => {
     const values = readSignupAccountValues();
@@ -229,7 +279,29 @@ export function initSignupAccountPage(env: SignupEnv): void {
     if (!hasValidSignupPlan) {
       planSelectionRedirectUrl = missingPlanRedirectUrl;
       if (!validateNonSensitiveCredentials()) return;
-      redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Protegiendo datos...';
+      }
+      await createProtectedPendingSignupIntent({
+        ...values,
+        telefono: values.normalizedPhone,
+        plan: '',
+        billing,
+      }).then((protectedSignup) => {
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(protectedSignup));
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, normalizeBusinessType(values.rubro || 'otro'));
+        redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
+      }).catch(() => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Continuar';
+        }
+        if (errorEl) {
+          errorEl.textContent = 'No pudimos proteger tus datos. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+      });
       return;
     }
 
@@ -254,6 +326,12 @@ export function initSignupAccountPage(env: SignupEnv): void {
       button.textContent = 'Creando cuenta...';
       const accountResult = await createAccountAndBusiness(accountBusinessPayload).catch((error) => ({ ok: false, error }));
       if (!accountResult.ok) {
+        if (isExistingAccountError(accountResult.error)) {
+          button.disabled = false;
+          button.textContent = 'Continuar';
+          showExistingAccountModal();
+          return;
+        }
         const accountErrorMessage = accountResult.error instanceof Error
           ? accountResult.error.message
           : 'No pudimos crear tu cuenta y negocio. Reintentá en unos segundos.';
@@ -271,21 +349,20 @@ export function initSignupAccountPage(env: SignupEnv): void {
     }
 
     try {
-      const accountResult = await createAccountAndBusiness(accountBusinessPayload);
+      const pendingSignupIntent = await createProtectedPendingSignupIntent({
+        ...accountBusinessPayload,
+        billing,
+      });
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
-      if (accountResult?.account_first_intent_id && accountResult?.account_first_session) {
-        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.accountFirstSession, JSON.stringify({
-          account_first_intent_id: accountResult.account_first_intent_id,
-          account_first_session: accountResult.account_first_session
-        }));
-      }
-      const billingUrl = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_business_created=1`;
+      sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(pendingSignupIntent));
+      sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.accountFirstSession);
+      const billingUrl = `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup`;
       window.location.href = billingUrl;
     } catch {
       button.disabled = false;
       button.textContent = 'Continuar';
       if (errorEl) {
-        errorEl.textContent = 'No pudimos crear tu cuenta y negocio para iniciar el pago. Reintentá en unos segundos.';
+        errorEl.textContent = 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
         errorEl.classList.remove('hidden');
       }
     }

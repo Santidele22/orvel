@@ -48,7 +48,7 @@ import Layout from '../../../layouts/Layout.astro';
     if (backBtn) backBtn.href = credentialsUrl;
     const returnTo = isPaidPlan
       ? `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}`
-      : `/auth/signup/onboarding?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&account_created_modal=welcome_login`;
+      : `/auth/login?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&source=free_signup`;
 
     const readProtectedPendingSignupIntent = () => {
       try {
