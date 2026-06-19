@@ -22,6 +22,7 @@ import {
   getBearerToken,
   shouldValidateCreateSubscriptionAuthorization,
 } from "../_shared/create-subscription-auth.ts";
+import { findAuthUserByEmail } from "../_shared/auth-duplicate-email.ts";
 import { verifyPendingSignupPiiField } from "../_shared/pending-signup-pii.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -711,13 +712,10 @@ Deno.serve(async (req) => {
         expires_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
       };
 
-      const { data: duplicateUser, error: duplicateUserError } = await supabaseAdmin
-        .schema("auth")
-        .from("users")
-        .select("id")
-        .ilike("email", pendingSignupEmail)
-        .limit(1)
-        .maybeSingle();
+      const { user: duplicateUser, error: duplicateUserError } = await findAuthUserByEmail(
+        supabaseAdmin,
+        pendingSignupEmail,
+      );
 
       if (duplicateUserError) {
         return new Response(
