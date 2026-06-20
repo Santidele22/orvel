@@ -2,17 +2,10 @@ export interface BusinessWelcomeEmailData {
   business: { name: string; ownerName: string };
   dashboardUrl: string;
   supportContact: string;
-  firstLoginUrl?: string;
-  setPasswordUrl?: string;
 }
 
 export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { subject: string; html: string } {
-  const firstAccessUrl = data.setPasswordUrl || data.firstLoginUrl;
-  const ctaUrl = firstAccessUrl || data.dashboardUrl;
-  const ctaLabel = firstAccessUrl ? "Configurar contraseña e ingresar" : "Entrar al dashboard";
-  const ctaIntro = firstAccessUrl
-    ? "Para hacer tu primer ingreso, configurá tu contraseña con este enlace seguro."
-    : "Podés entrar al dashboard para empezar a configurar tus turnos.";
+  const dashboardUrl = safeAbsoluteHttpUrl(data.dashboardUrl);
 
   return {
     subject: `Bienvenida a Orvel, ${data.business.name}`,
@@ -24,10 +17,9 @@ export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { su
             <section style="background:#fffaf5;border:1px solid #ead8c7;border-radius:24px;padding:32px;">
               <p style="letter-spacing:.18em;text-transform:uppercase;color:#9a6b43;font-size:12px;">Orvel</p>
               <h1 style="margin:0 0 16px;font-size:30px;">Bienvenida, ${escapeHtml(data.business.ownerName)}</h1>
-              <p>${escapeHtml(data.business.name)} ya tiene su espacio listo para gestionar turnos con una experiencia cálida y premium.</p>
-              <p>${escapeHtml(ctaIntro)}</p>
+              <p>${escapeHtml(data.business.name)} ya tiene su espacio listo para gestionar turnos con Orvel.</p>
               <p style="margin:28px 0;">
-                <a href="${escapeAttribute(ctaUrl)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">${escapeHtml(ctaLabel)}</a>
+                <a href="${escapeAttribute(dashboardUrl)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">Entrar al dashboard</a>
               </p>
               <p>Si necesitás ayuda, estamos en ${escapeHtml(data.supportContact)}.</p>
             </section>
@@ -38,9 +30,17 @@ export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { su
   };
 }
 
+function safeAbsoluteHttpUrl(value: string): string {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '#';
+  } catch {
+    return '#';
+  }
+}
+
 function escapeHtml(value: string): string {
-  if (!value) return '';
-  return value
+  return (value || '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')

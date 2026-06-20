@@ -181,6 +181,38 @@ import Layout from '../../layouts/Layout.astro';
 
     </div>
   </main>
+
+  <div
+    id="subscriptionWelcomeModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-bg-primary/85 px-4 py-8 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="subscriptionWelcomeTitle"
+    aria-describedby="subscriptionWelcomeDescription"
+  >
+    <section class="w-full max-w-lg rounded-2xl border border-success/30 bg-bg-secondary p-6 text-center shadow-2xl shadow-success/10 sm:p-8">
+      <div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success" aria-hidden="true">
+        <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-success">Cuenta lista</p>
+      <h2 id="subscriptionWelcomeTitle" class="font-headline text-3xl font-black tracking-tight text-white" tabindex="-1">
+        ¡Bienvenida a Orvel!
+      </h2>
+      <p id="subscriptionWelcomeDescription" class="mt-4 text-sm leading-relaxed text-text-secondary">
+        Tu pago fue aprobado y Orvel ya dejó tu cuenta preparada. Iniciá sesión para entrar al dashboard y continuar con la configuración.
+      </p>
+      <a
+        id="subscriptionWelcomeLogin"
+        href="/auth/login"
+        class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-primary to-primary-light px-5 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:shadow-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary sm:w-auto"
+      >
+        Ir a iniciar sesión
+      </a>
+    </section>
+  </div>
 </Layout>
 
 <script>
@@ -301,12 +333,12 @@ import Layout from '../../layouts/Layout.astro';
 
     const statusContainer = document.getElementById('subscriptionStatus');
     const stateBadge = document.getElementById('planStateBadge');
-    let currentUiState: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery' = 'pending';
+    let currentUiState: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery' | 'welcome' = 'pending';
     let pollingIntervalId: number | null = null;
     let pollingAttempts = 0;
     const MAX_POLLING_ATTEMPTS = 15;
-    const TERMINAL_NON_SUCCESS_STATES = new Set(['failed', 'cancelled']);
-    const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery') => {
+    const TERMINAL_NON_SUCCESS_STATES = new Set(['failed', 'cancelled', 'welcome']);
+    const setUiState = (state: 'pending' | 'failed' | 'cancelled' | 'retry' | 'recovery' | 'welcome') => {
       if (!statusContainer || !stateBadge) return;
       if (TERMINAL_NON_SUCCESS_STATES.has(currentUiState) && state === 'pending') return;
       currentUiState = state;
@@ -331,8 +363,25 @@ import Layout from '../../layouts/Layout.astro';
         statusContainer.textContent = 'Estado: necesitamos recuperar los datos protegidos de tu alta antes de iniciar el pago.';
         return;
       }
+      if (state === 'welcome') {
+        stateBadge.textContent = 'Cuenta lista';
+        statusContainer.textContent = 'Estado: tu cuenta está lista. Iniciá sesión para continuar.';
+        return;
+      }
       stateBadge.textContent = 'Reintento disponible';
       statusContainer.textContent = 'Estado: hubo un problema temporal. Reintentá iniciar la suscripción.';
+    };
+
+    const showSubscriptionWelcome = (handoffUrl: string) => {
+      const modal = document.getElementById('subscriptionWelcomeModal');
+      const title = document.getElementById('subscriptionWelcomeTitle');
+      const loginLink = document.getElementById('subscriptionWelcomeLogin') as HTMLAnchorElement | null;
+      if (loginLink) loginLink.href = handoffUrl;
+      modal?.classList.remove('hidden');
+      modal?.setAttribute('aria-hidden', 'false');
+      continueBtn?.setAttribute('disabled', 'true');
+      continueBtn?.classList.add('opacity-50', 'cursor-not-allowed');
+      window.setTimeout(() => title?.focus(), 0);
     };
 
     const showSubscriptionError = (codeOrMessage: string) => {
@@ -489,7 +538,8 @@ import Layout from '../../layouts/Layout.astro';
           stopSubscriptionPolling();
           sessionStorage.removeItem(subscriptionAttemptKey);
           const handoffUrl = buildSubscriptionLoginHandoffUrl();
-          window.location.href = handoffUrl;
+          setUiState('welcome');
+          showSubscriptionWelcome(handoffUrl);
           return;
         }
 

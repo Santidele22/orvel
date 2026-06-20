@@ -40,9 +40,22 @@ async function postCreateAccountBusiness(body: unknown): Promise<Response> {
 function createFreeSignupSupabaseMock() {
   const createUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-free-1' } }, error: null });
   const deleteUser = vi.fn();
+  const welcomeOutboxMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+  const welcomeOutboxInsert = vi.fn().mockResolvedValue({ error: null });
   const tableCalls: string[] = [];
   const from = vi.fn((table: string) => {
     tableCalls.push(table);
+    if (table === 'notification_email_outbox') {
+      const selectQuery = {
+        eq: vi.fn(() => selectQuery),
+        maybeSingle: welcomeOutboxMaybeSingle,
+      };
+      return {
+        select: vi.fn(() => selectQuery),
+        insert: welcomeOutboxInsert,
+        delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
+      };
+    }
     if (table === 'businesses') {
       return {
         insert: vi.fn().mockResolvedValue({ error: null }),
@@ -66,7 +79,7 @@ function createFreeSignupSupabaseMock() {
     from,
   };
 
-  return { client, createUser, from, tableCalls };
+  return { client, createUser, from, tableCalls, welcomeOutboxInsert, welcomeOutboxMaybeSingle };
 }
 
 describe('legacy create-account-business boundary', () => {
@@ -108,8 +121,18 @@ describe('legacy create-account-business boundary', () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({ ok: true, business_type: 'peluqueria', plan: 'FREE', subscription_status: 'active' });
     expect(supabase.createUser).toHaveBeenCalledTimes(1);
-    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions']));
+    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions', 'notification_email_outbox']));
     expect(supabase.tableCalls).not.toContain('account_first_intents');
+    expect(supabase.welcomeOutboxMaybeSingle).toHaveBeenCalledTimes(1);
+    expect(supabase.welcomeOutboxInsert).toHaveBeenCalledWith({
+      business_id: expect.any(String),
+      to_email: 'ada@example.test',
+      template_key: 'business_welcome',
+      payload: {
+        business_name: 'Ada Studio',
+        owner_name: 'Ada',
+      },
+    });
   });
 
   it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {

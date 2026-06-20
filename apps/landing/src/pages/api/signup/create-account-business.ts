@@ -251,6 +251,30 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: "subscription_state_failed", message: "No pudimos preparar el estado de suscripción." }, 502);
   }
 
+  const { data: existingWelcomeEmail } = await supabaseAdmin
+    .from("notification_email_outbox")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("template_key", "business_welcome")
+    .maybeSingle();
+
+  if (!existingWelcomeEmail) {
+    const { error: welcomeEmailError } = await supabaseAdmin.from("notification_email_outbox").insert({
+      business_id: businessId,
+      to_email: email,
+      template_key: "business_welcome",
+      payload: {
+        business_name: businessName,
+        owner_name: firstName,
+      },
+    });
+
+    if (welcomeEmailError) {
+      await cleanupProvisioning();
+      return jsonResponse({ error: "welcome_email_enqueue_failed", message: "No pudimos preparar el email de bienvenida." }, 502);
+    }
+  }
+
   return jsonResponse({
     ok: true,
     business_type: businessType,

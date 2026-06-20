@@ -90,11 +90,13 @@ describe('Contract: subscription status and UI guardrails', () => {
     expect(source).toContain("setUiState('pending')");
   });
 
-  it('redirects only on approved/active status from polling', async () => {
+  it('shows welcome/login handoff on approved/active status from polling', async () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(source).toContain("normalizedStatus === 'approved' || normalizedStatus === 'active'");
-    expect(source).toContain('window.location.href = handoffUrl');
+    expect(source).toContain("setUiState('welcome')");
+    expect(source).toContain('showSubscriptionWelcome(handoffUrl)');
+    expect(source).not.toContain('window.location.href = handoffUrl');
   });
 
   it('renders non-active UI states for failed/cancelled and preserves retry path', async () => {
