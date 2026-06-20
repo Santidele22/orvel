@@ -46,37 +46,3 @@ export async function sendNotification(input: SendNotificationInput): Promise<Se
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
-
-/**
- * Alternatively, calls the Edge Function directly.
- * This is useful if the DB trigger is not working or if you want immediate feedback.
- */
-export async function sendNotificationDirect(input: SendNotificationInput): Promise<SendNotificationResult> {
-  const supabase = createSupabaseClient();
-
-  try {
-    const { data, error } = await supabase.functions.invoke('process-email-outbox', {
-      body: {
-        type: 'DIRECT_SEND',
-        record: {
-          to_email: input.to,
-          subject: input.subject,
-          html: input.html,
-          business_id: input.businessId,
-          booking_id: input.bookingId,
-          template_key: input.templateKey,
-        }
-      }
-    });
-
-    if (error) {
-      console.error('[NotificationSender] Error calling Edge Function:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.error('[NotificationSender] Unexpected error calling Edge Function:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
-  }
-}

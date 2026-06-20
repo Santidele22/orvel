@@ -40,17 +40,16 @@
       "apps/dashboard": {
         "packageJson": {
           "dependencies": [
-            "npm:@angular/build@^21.2.7",
-            "npm:@angular/cli@^21.2.7",
-            "npm:@angular/common@^21.2.0",
-            "npm:@angular/compiler-cli@^21.2.0",
-            "npm:@angular/compiler@^21.2.0",
-            "npm:@angular/core@^21.2.0",
-            "npm:@angular/forms@^21.2.0",
-            "npm:@angular/platform-browser@^21.2.0",
-            "npm:@angular/router@^21.2.0",
-            "npm:@sendgrid/mail@^8.1.6",
-            "npm:@supabase/supabase-js@^2.104.0",
+            "npm:@angular/build@^21.2.15",
+            "npm:@angular/cli@^21.2.15",
+            "npm:@angular/common@^21.2.17",
+            "npm:@angular/compiler-cli@^21.2.17",
+            "npm:@angular/compiler@^21.2.17",
+            "npm:@angular/core@^21.2.17",
+            "npm:@angular/forms@^21.2.17",
+            "npm:@angular/platform-browser@^21.2.17",
+            "npm:@angular/router@^21.2.17",
+            "npm:@supabase/supabase-js@^2.108.2",
             "npm:@testing-library/dom@^10.4.1",
             "npm:@types/canvas-confetti@^1.9.0",
             "npm:@types/node@^25.6.0",
@@ -71,14 +70,18 @@
       "apps/landing": {
         "packageJson": {
           "dependencies": [
-            "npm:@astrojs/vercel@^10.0.6",
-            "npm:@supabase/supabase-js@^2.104.0",
+            "npm:@astrojs/svelte@^8.1.2",
+            "npm:@astrojs/vercel@^10.0.8",
+            "npm:@fontsource-variable/onest@^5.2.11",
+            "npm:@supabase/supabase-js@^2.108.2",
             "npm:@tailwindcss/vite@^4.2.2",
-            "npm:astro@^6.1.8",
+            "npm:astro@^6.4.7",
             "npm:jsdom@^29.0.2",
             "npm:remixicon@^4.9.1",
+            "npm:svelte@^5.56.3",
             "npm:tailwindcss@^4.2.2",
-            "npm:vitest@^4.1.4"
+            "npm:vitest@^4.1.4",
+            "npm:zod@^4.4.3"
           ]
         }
       }

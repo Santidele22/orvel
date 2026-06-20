@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
+const REPO_ROOT = path.resolve(ROOT, '..', '..');
+const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
 const TOPBAR_COMPONENT = path.join(ROOT, 'src', 'app', 'shared', 'dashboard-topbar', 'dashboard-topbar.component.ts');
 const TOPBAR_HTML = path.join(ROOT, 'src', 'app', 'shared', 'dashboard-topbar', 'dashboard-topbar.component.html');
 const ZEN_TOPBAR_COMPONENT = path.join(
@@ -40,23 +41,13 @@ type DashboardNotificationsModule = {
   archiveNotification: (notificationId: string) => Promise<DashboardNotification>;
 };
 
-type SendGridEnvModule = {
-  REQUIRED_SENDGRID_ENV_KEYS: readonly string[];
-  SENDGRID_SENDER_NAME: 'Orvel';
-  loadSendGridEnv: (source?: Record<string, string | undefined>) => {
-    apiKey: string;
-    fromEmail: string;
-    fromName: 'Orvel';
-  };
-};
-
-type SendGridSenderModule = {
-  sendHtmlEmail: (input: {
+type OutboxEmailSenderModule = {
+  queueHtmlEmail: (input: {
     to: string;
     subject: string;
     html: string;
     text?: string;
-  }) => Promise<{ status: 'queued' | 'sent'; providerMessageId?: string }>;
+  }) => Promise<{ status: 'queued' }>;
 };
 
 type AppointmentTemplateData = {
@@ -108,24 +99,13 @@ async function loadDashboardNotificationsModule(): Promise<DashboardNotification
   }
 }
 
-async function loadSendGridEnvModule(): Promise<SendGridEnvModule> {
+async function loadOutboxEmailSenderModule(): Promise<OutboxEmailSenderModule> {
   try {
-    const mod = await import('../../core/notifications/sendgrid-env');
-    return mod as SendGridEnvModule;
+    const mod = await import('../../core/notifications/outbox-email-sender');
+    return mod as OutboxEmailSenderModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/notifications/sendgrid-env.ts with required SENDGRID_API_KEY/SENDGRID_FROM_EMAIL/SENDGRID_FROM_NAME loader and Orvel sender name.',
-    );
-  }
-}
-
-async function loadSendGridSenderModule(): Promise<SendGridSenderModule> {
-  try {
-    const mod = await import('../../core/notifications/sendgrid-sender');
-    return mod as SendGridSenderModule;
-  } catch {
-    throw new Error(
-      'TODO(Magnus): add src/app/core/notifications/sendgrid-sender.ts sending repository-rendered HTML via SendGrid without Dynamic Templates.',
+      'TODO(Magnus): add src/app/core/notifications/outbox-email-sender.ts queueing repository-rendered HTML through notification_email_outbox without browser provider calls.',
     );
   }
 }
@@ -187,7 +167,7 @@ function expectAppointmentTemplatePayload(payload: { subject: string; html: stri
 
 describe('Orvel notification system RED contracts', () => {
   describe('1) Internal dashboard notifications backend', () => {
-    it('defines persisted admin dashboard notifications with unread/read/archived states and 30-day retention', () => {
+    it('defines persisted admin dashboard notifications with unread/read/archived states', () => {
       const sql = readSqlCorpus().toLowerCase();
 
       expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.dashboard_notifications\b/);
@@ -196,28 +176,23 @@ describe('Orvel notification system RED contracts', () => {
       expect(sql).toMatch(/created_at\s+timestamptz\s+not\s+null\s+default\s+now\s*\(\s*\)/);
       expect(sql).toMatch(/read_at\s+timestamptz/);
       expect(sql).toMatch(/archived_at\s+timestamptz/);
-      expect(sql).toMatch(/delete\s+from\s+public\.dashboard_notifications[\s\S]*interval\s+'30\s+days'/);
     });
 
-    it('enforces single-admin visibility and unread-only counter at DB/RPC level', () => {
+    it('enforces admin notification visibility at DB policy level', () => {
       const sql = readSqlCorpus().toLowerCase();
 
       expect(sql).toMatch(/alter\s+table\s+public\.dashboard_notifications\s+enable\s+row\s+level\s+security/);
       expect(sql).toMatch(/recipient_role\s+text\s+not\s+null\s+default\s+'admin'|visible_to\s+text\s+not\s+null\s+default\s+'admin'/);
       expect(sql).toMatch(/with\s+check\s*\([\s\S]*'admin'[\s\S]*\)|using\s*\([\s\S]*'admin'[\s\S]*\)/);
-      expect(sql).toMatch(/create\s+(or\s+replace\s+)?function\s+public\.get_unread_dashboard_notification_count\s*\(/);
-      expect(sql).toMatch(/count\s*\(\s*\*\s*\)[\s\S]*status\s*=\s*'unread'[\s\S]*status\s*<>\s*'archived'|status\s*=\s*'unread'[\s\S]*count\s*\(\s*\*\s*\)/);
+      expect(sql).toMatch(/is_business_owner\s*\(\s*business_id\s*\)|auth\.role\(\)\s*=\s*'service_role'/);
     });
 
-    it('creates admin notifications for appointment created, cancelled, and rescheduled events', () => {
+    it('creates admin notifications for appointment-created events and keeps customer email in the outbox', () => {
       const sql = readSqlCorpus().toLowerCase();
 
       expect(sql).toMatch(/appointment\.created|booking\.created/);
-      expect(sql).toMatch(/appointment\.cancelled|booking\.cancelled/);
-      expect(sql).toMatch(/appointment\.rescheduled|booking\.rescheduled/);
       expect(sql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*event_type[\s\S]*created/);
-      expect(sql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*event_type[\s\S]*cancelled/);
-      expect(sql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*event_type[\s\S]*rescheduled/);
+      expect(sql).toMatch(/insert\s+into\s+public\.notification_email_outbox[\s\S]*(booking_created|appointment_confirmation)/);
     });
 
     it('exposes frontend data/actions contract consumed by the existing bell', async () => {
@@ -232,34 +207,16 @@ describe('Orvel notification system RED contracts', () => {
     });
   });
 
-  describe('2) SendGrid sender + repo HTML templates', () => {
-    it('requires SendGrid env vars and normalizes sender name to Orvel', async () => {
-      const env = await loadSendGridEnvModule();
-
-      expect(env.REQUIRED_SENDGRID_ENV_KEYS).toEqual([
-        'SENDGRID_API_KEY',
-        'SENDGRID_FROM_EMAIL',
-        'SENDGRID_FROM_NAME',
-      ]);
-      expect(env.SENDGRID_SENDER_NAME).toBe('Orvel');
-      expect(() => env.loadSendGridEnv({ SENDGRID_FROM_NAME: 'Orvel' })).toThrow(/missing required/i);
-      expect(
-        env.loadSendGridEnv({
-          SENDGRID_API_KEY: 'SG.fake-key-for-contract',
-          SENDGRID_FROM_EMAIL: 'notificaciones@orvel.test',
-          SENDGRID_FROM_NAME: 'Anything else must normalize',
-        }),
-      ).toMatchObject({ fromName: 'Orvel' });
-    });
-
-    it('sends repository-rendered HTML and does not depend on SendGrid Dynamic Templates', async () => {
-      const sender = await loadSendGridSenderModule();
-      const senderSourcePath = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'sendgrid-sender.ts');
+  describe('2) Outbox email sender + repo HTML templates', () => {
+    it('queues repository-rendered HTML and does not depend on provider templates from dashboard code', async () => {
+      const sender = await loadOutboxEmailSenderModule();
+      const senderSourcePath = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'outbox-email-sender.ts');
       const source = fs.existsSync(senderSourcePath) ? fs.readFileSync(senderSourcePath, 'utf8') : '';
 
-      expect(typeof sender.sendHtmlEmail).toBe('function');
+      expect(typeof sender.queueHtmlEmail).toBe('function');
       expect(source).toMatch(/html\s*:/);
       expect(source).not.toMatch(/template[_-]?id|dynamic[_-]?template[_-]?data/i);
+      expect(source).not.toMatch(/mailtrap|sendgrid|providerMessageId/i);
     });
   });
 

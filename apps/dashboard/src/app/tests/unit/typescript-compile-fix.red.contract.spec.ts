@@ -5,12 +5,23 @@ import path from 'node:path';
 const ROOT = process.cwd();
 
 const ACCOUNT_PLAN_POLICY_PATH = path.join(ROOT, 'src', 'app', 'core', 'accounts', 'account-plan-policy.ts');
-const SENDGRID_ENV_PATH = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'sendgrid-env.ts');
+const NOTIFICATION_SENDER_PATH = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'notification-sender.ts');
 const CREATE_SUBSCRIPTION_API_PATH = path.join(
   ROOT,
   'src',
   'app',
   'core',
+  'payments',
+  'subscriptions',
+  'create-subscription.api.ts'
+);
+const CREATE_SUBSCRIPTION_IMPLEMENTATION_PATH = path.join(
+  ROOT,
+  'src',
+  'app',
+  'features',
+  'billing',
+  'data-access',
   'payments',
   'subscriptions',
   'create-subscription.api.ts'
@@ -26,22 +37,27 @@ describe('TypeScript compile-fix RED contracts (type-safe handling only)', () =>
     const source = readSource(ACCOUNT_PLAN_POLICY_PATH);
 
     expect(source).not.toMatch(/PREMIUM_MAX_SALONS\[planCode\]/);
-    expect(source).toMatch(/Exclude<PlanCode,\s*'FREE'\s*\|\s*'BASIC'\s*\|\s*'MEDIUM'>/);
+    expect(source).toMatch(/resolvePlanCodeFromCatalog/);
+    expect(source).toMatch(/getPlanEntitlementsFromCatalog/);
+    expect(source).not.toMatch(/Exclude<PlanCode/);
   });
 
-  it('sendgrid env loader must read index-signature env keys with bracket notation', () => {
-    const source = readSource(SENDGRID_ENV_PATH);
+  it('dashboard notification sender must queue outbox rows without provider secrets', () => {
+    const source = readSource(NOTIFICATION_SENDER_PATH);
 
-    expect(source).toMatch(/source\[['"]SENDGRID_API_KEY['"]\]/);
-    expect(source).toMatch(/source\[['"]SENDGRID_FROM_EMAIL['"]\]/);
-    expect(source).not.toMatch(/source\.SENDGRID_API_KEY/);
-    expect(source).not.toMatch(/source\.SENDGRID_FROM_EMAIL/);
+    expect(source).toMatch(/notification_email_outbox/);
+    expect(source).toMatch(/to_email/);
+    expect(source).not.toMatch(/SENDGRID_API_KEY|MAILTRAP_TOKEN|MAILTRAP_API_KEY|apiKey\s*:/);
   });
 
   it('createSubscription must narrow response union before reading server error code', () => {
-    const source = readSource(CREATE_SUBSCRIPTION_API_PATH);
+    const entrypoint = readSource(CREATE_SUBSCRIPTION_API_PATH);
+    const source = entrypoint.includes('export * from')
+      ? readSource(CREATE_SUBSCRIPTION_IMPLEMENTATION_PATH)
+      : entrypoint;
 
     expect(source).not.toMatch(/payload\?\.error/);
-    expect(source).toMatch(/'error'\s+in\s+payload|payload\s*&&\s*!payload\.success/);
+    expect(source).toMatch(/isCreateSubscriptionSuccess\(payload\)/);
+    expect(source).toMatch(/failurePayload\?\.error/);
   });
 });

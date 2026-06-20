@@ -2,9 +2,32 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = process.cwd();
-const REAL_GATEWAY_PATH = path.join(ROOT, 'src', 'app', 'core', 'api', 'supabase-booking', 'real-gateway.ts');
-const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
+const CWD = process.cwd();
+
+function findRepoRoot(startDir: string): string {
+  let currentDir = path.resolve(startDir);
+
+  while (true) {
+    if (
+      fs.existsSync(path.join(currentDir, 'supabase', 'migrations')) &&
+      fs.existsSync(path.join(currentDir, 'apps', 'dashboard'))
+    ) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error(`Unable to locate Orvel repo root from ${startDir}`);
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+const REPO_ROOT = findRepoRoot(CWD);
+const DASHBOARD_ROOT = path.join(REPO_ROOT, 'apps', 'dashboard');
+const REAL_GATEWAY_PATH = path.join(DASHBOARD_ROOT, 'src', 'app', 'core', 'api', 'supabase-booking', 'real-gateway.ts');
+const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
 
 function readRealGatewaySource(): string {
   expect(fs.existsSync(REAL_GATEWAY_PATH), `Missing real appointment gateway: ${REAL_GATEWAY_PATH}`).toBe(true);
@@ -34,12 +57,12 @@ function gatewayMethodSource(methodName: string, nextMethodName: string): string
 }
 
 function expectCustomerEmailPath(source: string, templateNames: RegExp, recipientPath: RegExp): void {
-  const hasSendPath = /sendHtmlEmail\s*\(/.test(source) && templateNames.test(source) && recipientPath.test(source);
+  const hasSendPath = /queueHtmlEmail\s*\(|sendHtmlEmail\s*\(/.test(source) && templateNames.test(source) && recipientPath.test(source);
   const hasOutboxPath = /notification_email_outbox/.test(source) && /template_key/.test(source) && templateNames.test(source);
 
   expect(
     hasSendPath || hasOutboxPath,
-    'Expected the real appointment flow to enqueue notification_email_outbox or send repository-rendered SendGrid email to the customer.',
+    'Expected the real appointment flow to enqueue notification_email_outbox or queue repository-rendered email to the customer.',
   ).toBe(true);
 }
 
@@ -87,6 +110,7 @@ describe('Orvel REAL appointment flows notification wiring RED contracts', () =>
     const sql = readSqlCorpus().toLowerCase();
 
     expect(sql).toMatch(/auth\.role\(\)\s*<>\s*'service_role'|auth\.role\(\)\s*=\s*'service_role'/);
+    expect(sql).toMatch(/revoke\s+execute\s+on\s+function\s+public\.enqueue_appointment_reminders_24h\s*\(\s*\)\s+from\s+public/);
     expect(sql).toMatch(/revoke\s+execute\s+on\s+function\s+public\.enqueue_appointment_reminders_24h[\s\S]*from\s+anon/);
     expect(sql).toMatch(/revoke\s+execute\s+on\s+function\s+public\.enqueue_appointment_reminders_24h[\s\S]*from\s+authenticated/);
     expect(sql).toMatch(/grant\s+execute\s+on\s+function\s+public\.enqueue_appointment_reminders_24h[\s\S]*to\s+service_role/);
