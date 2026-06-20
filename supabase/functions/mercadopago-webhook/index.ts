@@ -12,12 +12,38 @@ import {
 import { recordWebhookProcessMetric } from "../_shared/mp-rollout-observability.ts";
 import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription-guards.ts";
 import { parseBillingSessionReference } from "../_shared/mp-subscription-session-reference.ts";
+import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 import { decryptPendingSignupPiiField } from "../_shared/pending-signup-pii.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const PAYMENT_WEBHOOK_EVENTS_TABLE = "payment_webhook_events";
 const rateLimitStore = new Map<string, number[]>();
+
+function buildPaidSignupFirstLoginRedirectUrl(): string {
+  return buildDashboardUrl("auth/callback");
+}
+
+async function generateSetPasswordLink(
+  supabaseAdmin: SupabaseClient,
+  email: string,
+): Promise<string> {
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: {
+      redirectTo: buildPaidSignupFirstLoginRedirectUrl(),
+    },
+  });
+
+  const actionLink = data?.properties?.action_link;
+
+  if (error || !actionLink) {
+    throw new Error("pending_signup_action_link_generate_failed");
+  }
+
+  return actionLink;
+}
 
 function getClientIp(req: Request): string {
   return (
@@ -113,6 +139,101 @@ async function materializeAccountFirst(
 
   if (error) return null;
   return typeof data === "string" ? data : null;
+}
+
+async function findPendingSignupIntentForSubscription(
+  supabaseAdmin: SupabaseClient,
+  providerSubscriptionId: string,
+): Promise<Record<string, unknown> | null> {
+  const { data: intent } = await supabaseAdmin
+    .from("pending_signup_intents")
+    .select("*")
+    .eq("provider", "mercado_pago")
+    .eq("provider_subscription_id", providerSubscriptionId)
+    .in("status", ["materializing", "materialized"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return intent as Record<string, unknown> | null;
+}
+
+async function ensurePaidSignupWelcomeBootstrap(
+  supabaseAdmin: SupabaseClient,
+  params: {
+    businessId: string;
+    providerSubscriptionId: string;
+    pendingSignupIntentId?: string;
+  },
+): Promise<boolean> {
+  const { data: existingWelcomeEmail } = await supabaseAdmin
+    .from("notification_email_outbox")
+    .select("id")
+    .eq("business_id", params.businessId)
+    .eq("template_key", "business_welcome")
+    .maybeSingle();
+
+  if (existingWelcomeEmail) return true;
+
+  const { data: intentById } = params.pendingSignupIntentId
+    ? await supabaseAdmin
+      .from("pending_signup_intents")
+      .select("*")
+      .eq("id", params.pendingSignupIntentId)
+      .eq("provider", "mercado_pago")
+      .eq("provider_subscription_id", params.providerSubscriptionId)
+      .maybeSingle()
+    : { data: null };
+  const intent = (intentById as Record<string, unknown> | null) ||
+    await findPendingSignupIntentForSubscription(
+      supabaseAdmin,
+      params.providerSubscriptionId,
+    );
+
+  if (!intent) return false;
+
+  const decryptedEmail = await decryptPendingSignupPiiField(
+    intent.email_encrypted as string | null,
+  );
+  const decryptedFirstName = await decryptPendingSignupPiiField(
+    intent.first_name_encrypted as string | null,
+  );
+  const decryptedBusinessName = await decryptPendingSignupPiiField(
+    intent.business_name_encrypted as string | null,
+  );
+
+  if (!decryptedEmail) throw new Error("pending_signup_email_decrypt_failed");
+
+  const setPasswordUrl = await generateSetPasswordLink(
+    supabaseAdmin,
+    decryptedEmail,
+  );
+
+  const { data: welcomeBootstrapSatisfied, error: welcomeEmailError } = await supabaseAdmin
+    .rpc("ensure_business_welcome_outbox", {
+      p_business_id: params.businessId,
+      p_to_email: decryptedEmail,
+      p_payload: {
+        business_name: decryptedBusinessName || "Mi Negocio",
+        owner_name: decryptedFirstName || "Propietario",
+        set_password_url: setPasswordUrl,
+      },
+    });
+
+  if (welcomeEmailError) {
+    throw welcomeEmailError;
+  }
+
+  if (welcomeBootstrapSatisfied === true) return true;
+
+  const { data: verifiedWelcomeEmail } = await supabaseAdmin
+    .from("notification_email_outbox")
+    .select("id")
+    .eq("business_id", params.businessId)
+    .eq("template_key", "business_welcome")
+    .maybeSingle();
+
+  return Boolean(verifiedWelcomeEmail);
 }
 
 async function materializePendingSignup(
@@ -246,6 +367,19 @@ async function materializePendingSignup(
       new Error("pending_signup_subscription_create_failed");
   }
 
+  const welcomeBootstrapSatisfied = await ensurePaidSignupWelcomeBootstrap(
+    supabaseAdmin,
+    {
+      businessId: business.id,
+      providerSubscriptionId: params.providerSubscriptionId,
+      pendingSignupIntentId: intent.id,
+    },
+  );
+
+  if (!welcomeBootstrapSatisfied) {
+    throw new Error("pending_signup_welcome_bootstrap_missing");
+  }
+
   await supabaseAdmin
     .from("pending_signup_intents")
     .update({
@@ -257,24 +391,6 @@ async function materializePendingSignup(
     })
     .eq("id", intent.id)
     .eq("status", "materializing");
-
-  const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
-    type: "magiclink",
-    email: decryptedEmail,
-  });
-
-  const actionLink = magicLink?.properties?.action_link;
-  await supabaseAdmin.from("notification_email_outbox").insert({
-    business_id: business.id,
-    to_email: decryptedEmail,
-    template_key: "paid_signup_magic_link",
-    payload: {
-      subject: "Activá tu cuenta de Orvel",
-      html: actionLink
-        ? `<p>Tu pago fue aprobado. Ingresá a Orvel con este enlace seguro:</p><p><a href="${actionLink}">Entrar a Orvel</a></p>`
-        : `<p>Tu pago fue aprobado. Ingresá a Orvel desde la pantalla de login para recibir tu enlace mágico.</p>`,
-    },
-  });
 
   return subscription;
 }
@@ -1049,6 +1165,48 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );
+      }
+
+      const shouldEnsurePaidSignupWelcomeBootstrap = webhookPaymentApproved;
+      if (shouldEnsurePaidSignupWelcomeBootstrap) {
+        const paidSignupProviderSubscriptionId = subscription.provider_subscription_id ||
+          lookupResourceId;
+        const pendingSignupIntent = await findPendingSignupIntentForSubscription(
+          supabaseAdmin,
+          paidSignupProviderSubscriptionId,
+        );
+
+        if (pendingSignupIntent) {
+          // Verify notification_email_outbox has business_welcome before processed.
+          const welcomeBootstrapSatisfied = await ensurePaidSignupWelcomeBootstrap(
+            supabaseAdmin,
+            {
+              businessId: subscription.business_id,
+              providerSubscriptionId: paidSignupProviderSubscriptionId,
+              pendingSignupIntentId: String(pendingSignupIntent.id),
+            },
+          );
+
+          if (!welcomeBootstrapSatisfied) {
+            await supabaseAdmin.rpc("mark_payment_webhook_event_state", {
+              p_provider: provider,
+              p_provider_event_id: providerEventId,
+              p_state: "failed",
+              p_failure_reason: "pending_signup_welcome_bootstrap_missing",
+            });
+            return new Response(
+              JSON.stringify({
+                error: "PENDING_SIGNUP_WELCOME_BOOTSTRAP_MISSING",
+                message:
+                  "Paid signup welcome bootstrap is not complete; webhook will retry",
+              }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
+            );
+          }
+        }
       }
 
       const { error: updateError } = await supabaseAdmin.rpc(

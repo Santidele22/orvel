@@ -2,9 +2,18 @@ export interface BusinessWelcomeEmailData {
   business: { name: string; ownerName: string };
   dashboardUrl: string;
   supportContact: string;
+  firstLoginUrl?: string;
+  setPasswordUrl?: string;
 }
 
 export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { subject: string; html: string } {
+  const firstAccessUrl = data.setPasswordUrl || data.firstLoginUrl;
+  const ctaUrl = firstAccessUrl || data.dashboardUrl;
+  const ctaLabel = firstAccessUrl ? "Configurar contraseña e ingresar" : "Entrar al dashboard";
+  const ctaIntro = firstAccessUrl
+    ? "Para hacer tu primer ingreso, configurá tu contraseña con este enlace seguro."
+    : "Podés entrar al dashboard para empezar a configurar tus turnos.";
+
   return {
     subject: `Bienvenida a Orvel, ${data.business.name}`,
     html: `
@@ -16,8 +25,9 @@ export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { su
               <p style="letter-spacing:.18em;text-transform:uppercase;color:#9a6b43;font-size:12px;">Orvel</p>
               <h1 style="margin:0 0 16px;font-size:30px;">Bienvenida, ${escapeHtml(data.business.ownerName)}</h1>
               <p>${escapeHtml(data.business.name)} ya tiene su espacio listo para gestionar turnos con una experiencia cálida y premium.</p>
+              <p>${escapeHtml(ctaIntro)}</p>
               <p style="margin:28px 0;">
-                <a href="${escapeAttribute(data.dashboardUrl)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">Entrar al dashboard</a>
+                <a href="${escapeAttribute(ctaUrl)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">${escapeHtml(ctaLabel)}</a>
               </p>
               <p>Si necesitás ayuda, estamos en ${escapeHtml(data.supportContact)}.</p>
             </section>

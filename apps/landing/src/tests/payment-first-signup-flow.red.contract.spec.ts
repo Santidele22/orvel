@@ -94,6 +94,26 @@ describe('RED contract: payment-first signup happy path', () => {
     );
   });
 
+  it('paid approved signup shows a welcome/login state after backend materialization instead of silently redirecting', async () => {
+    const subscriptionSource = await source(SUBSCRIPTION_PAGE);
+
+    const materializedBranch = sliceBetween(
+      subscriptionSource,
+      "if (normalizedStatus === 'approved' || normalizedStatus === 'active' || accountMaterialized)",
+      "if (normalizedStatus === 'rejected' || normalizedStatus === 'failed')",
+    );
+
+    expect(subscriptionSource, 'paid signup must render an explicit welcome modal/state for approved materialized accounts').toMatch(
+      /paidSignupWelcomeModal|subscriptionWelcomeModal|accountCreatedModal|welcome_login|Bienvenida|¡Bienvenida a Orvel!/i,
+    );
+    expect(materializedBranch, 'approved paid signup must set/show welcome UI before login handoff').toMatch(
+      /setUiState\(['"]welcome['"]\)|show(?:Paid|Subscription)?Welcome|paidSignupWelcomeModal|subscriptionWelcomeModal|accountCreatedModal/i,
+    );
+    expect(materializedBranch, 'approved paid signup must not silently redirect to login before a welcome state is visible').not.toMatch(
+      /window\.location\.href\s*=\s*handoffUrl\s*;\s*return\s*;/,
+    );
+  });
+
   it('legacy onboarding can remain as compatibility but is not the signup happy path', async () => {
     const onboardingSource = await source(LEGACY_ONBOARDING_PAGE);
     const controllerSource = await source(SIGNUP_CREDENTIALS_CONTROLLER);
