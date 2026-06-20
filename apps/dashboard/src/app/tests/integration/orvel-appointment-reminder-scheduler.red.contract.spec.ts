@@ -2,11 +2,37 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = process.cwd();
-const REPO_ROOT = path.resolve(ROOT, '..');
-const SUPABASE_DIR = path.join(ROOT, 'supabase');
+const CWD = process.cwd();
+
+function findRepoRoot(startDir: string): string {
+  let currentDir = path.resolve(startDir);
+
+  while (true) {
+    if (
+      fs.existsSync(path.join(currentDir, 'supabase', 'functions')) &&
+      fs.existsSync(path.join(currentDir, 'apps', 'dashboard'))
+    ) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error(`Unable to locate Orvel repo root from ${startDir}`);
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+const REPO_ROOT = findRepoRoot(CWD);
+const DASHBOARD_ROOT = path.join(REPO_ROOT, 'apps', 'dashboard');
+const SUPABASE_DIR = path.join(REPO_ROOT, 'supabase');
 const FUNCTIONS_DIR = path.join(SUPABASE_DIR, 'functions');
-const WORKFLOWS_DIR = path.join(REPO_ROOT, '.github', 'workflows');
+const WORKFLOWS_DIRS = [
+  path.join(REPO_ROOT, '.github', 'workflows'),
+  path.join(DASHBOARD_ROOT, '.github', 'workflows'),
+];
+const SCRIPT_DIRS = [path.join(REPO_ROOT, 'scripts'), path.join(DASHBOARD_ROOT, 'scripts')];
 
 const REMINDER_ENTRYPOINT_NAMES = [
   'appointment-reminders-24h',
@@ -55,15 +81,19 @@ function configAndAutomationCandidates(): EntrypointCandidate[] {
     .map((filePath) => ({ filePath, source: readFileIfExists(filePath) }))
     .filter((candidate): candidate is { filePath: string; source: string } => candidate.source !== null);
 
-  const workflowFiles = listFilesRecursive(WORKFLOWS_DIR, (filePath) => /\.(ya?ml)$/.test(filePath)).map((filePath) => ({
-    filePath,
-    source: fs.readFileSync(filePath, 'utf8'),
-  }));
+  const workflowFiles = WORKFLOWS_DIRS.flatMap((workflowDir) =>
+    listFilesRecursive(workflowDir, (filePath) => /\.(ya?ml)$/.test(filePath)).map((filePath) => ({
+      filePath,
+      source: fs.readFileSync(filePath, 'utf8'),
+    })),
+  );
 
-  const scriptFiles = listFilesRecursive(path.join(ROOT, 'scripts'), (filePath) => /\.(mjs|js|ts|sh)$/.test(filePath)).map((filePath) => ({
-    filePath,
-    source: fs.readFileSync(filePath, 'utf8'),
-  }));
+  const scriptFiles = SCRIPT_DIRS.flatMap((scriptDir) =>
+    listFilesRecursive(scriptDir, (filePath) => /\.(mjs|js|ts|sh)$/.test(filePath)).map((filePath) => ({
+      filePath,
+      source: fs.readFileSync(filePath, 'utf8'),
+    })),
+  );
 
   return [
     ...configFiles.map((candidate) => ({ kind: 'scheduled-config' as const, ...candidate })),
@@ -82,14 +112,14 @@ function expectEntrypointSource(): string {
   const candidates = reminderEntrypointCandidates();
 
   expect(
-    candidates.map((candidate) => path.relative(ROOT, candidate.filePath)),
+    candidates.map((candidate) => path.relative(CWD, candidate.filePath)),
     'Expected a secure Edge Function or scheduled entrypoint dedicated to invoking enqueue_appointment_reminders_24h.',
   ).not.toHaveLength(0);
 
   const rpcInvoker = candidates.find((candidate) => /enqueue_appointment_reminders_24h/.test(candidate.source));
 
   expect(
-    rpcInvoker ? path.relative(ROOT, rpcInvoker.filePath) : null,
+    rpcInvoker ? path.relative(CWD, rpcInvoker.filePath) : null,
     'Expected the reminder scheduler entrypoint to invoke the restricted enqueue_appointment_reminders_24h RPC.',
   ).not.toBeNull();
 
@@ -134,11 +164,13 @@ describe('Orvel 24h appointment reminder scheduler RED contracts', () => {
     const edgeFunctions = edgeFunctionCandidates();
 
     expect(
-      edgeFunctions.map((candidate) => path.relative(ROOT, candidate.filePath)),
+      edgeFunctions.map((candidate) => path.relative(CWD, candidate.filePath)),
       'Expected an Edge Function scheduler for 24h appointment reminders or an explicit non-Edge scheduled entrypoint contract.',
     ).not.toHaveLength(0);
 
-    const workflowSources = listFilesRecursive(WORKFLOWS_DIR, (filePath) => /\.(ya?ml)$/.test(filePath))
+    const workflowSources = WORKFLOWS_DIRS.flatMap((workflowDir) =>
+      listFilesRecursive(workflowDir, (filePath) => /\.(ya?ml)$/.test(filePath)),
+    )
       .map((filePath) => fs.readFileSync(filePath, 'utf8'))
       .join('\n\n');
 
