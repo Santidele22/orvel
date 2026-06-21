@@ -27,18 +27,18 @@ export function resolveAppOrigin(
   }
 }
 
-export function buildDashboardUrl(path = ""): string {
+export function buildDashboardUrl(path = "", configuredUrl?: string | null): string {
   const appOrigin = resolveAppOrigin(
-    Deno.env.get("FRONTEND_URL") || Deno.env.get("APP_BASE_URL"),
+    configuredUrl ?? (Deno.env.get("FRONTEND_URL") || Deno.env.get("APP_BASE_URL")),
   );
   const cleanPath = path ? `/${path.replace(/^\/+/, "")}` : "";
 
   return `${trimTrailingSlash(appOrigin)}/dashboard${cleanPath}`;
 }
 
-export function buildAppUrl(path = ""): string {
+export function buildAppUrl(path = "", configuredUrl?: string | null): string {
   const appOrigin = resolveAppOrigin(
-    Deno.env.get("FRONTEND_URL") || Deno.env.get("APP_BASE_URL"),
+    configuredUrl ?? (Deno.env.get("FRONTEND_URL") || Deno.env.get("APP_BASE_URL")),
   );
   const cleanPath = path ? `/${path.replace(/^\/+/, "")}` : "";
 

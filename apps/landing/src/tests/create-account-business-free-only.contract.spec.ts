@@ -38,48 +38,41 @@ async function postCreateAccountBusiness(body: unknown): Promise<Response> {
 }
 
 function createFreeSignupSupabaseMock() {
-  const createUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-free-1' } }, error: null });
-  const deleteUser = vi.fn();
-  const welcomeOutboxMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-  const welcomeOutboxInsert = vi.fn().mockResolvedValue({ error: null });
+  const confirmationInsert = vi.fn().mockResolvedValue({ error: null });
+  const confirmationOutboxInsert = vi.fn().mockResolvedValue({ error: null });
+  const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
   const tableCalls: string[] = [];
+  const emptyMaybeSingleChain = () => {
+    const chain = {
+      eq: vi.fn(() => chain),
+      is: vi.fn(() => chain),
+      gt: vi.fn(() => chain),
+      limit: vi.fn(() => chain),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    return chain;
+  };
   const from = vi.fn((table: string) => {
     tableCalls.push(table);
+    if (table === 'signup_email_confirmations') {
+      return {
+        insert: confirmationInsert,
+        select: vi.fn(() => emptyMaybeSingleChain()),
+        update: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnThis() }),
+      };
+    }
     if (table === 'notification_email_outbox') {
-      const selectQuery = {
-        eq: vi.fn(() => selectQuery),
-        maybeSingle: welcomeOutboxMaybeSingle,
-      };
-      return {
-        select: vi.fn(() => selectQuery),
-        insert: welcomeOutboxInsert,
-        delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
-      };
+      return { insert: confirmationOutboxInsert };
     }
-    if (table === 'businesses') {
-      return {
-        insert: vi.fn().mockResolvedValue({ error: null }),
-        delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
-      };
-    }
-    if (table === 'account_first_intents') {
-      return {
-        insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { id: 'unexpected-paid-intent' }, error: null }) })) })),
-        delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
-      };
-    }
-    return {
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-      delete: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
-    };
+    return { insert: vi.fn().mockResolvedValue({ error: null }) };
   });
 
   const client = {
-    auth: { admin: { createUser, deleteUser } },
     from,
+    rpc,
   };
 
-  return { client, createUser, from, tableCalls, welcomeOutboxInsert, welcomeOutboxMaybeSingle };
+  return { client, from, tableCalls, confirmationInsert, confirmationOutboxInsert };
 }
 
 describe('legacy create-account-business boundary', () => {
@@ -87,10 +80,12 @@ describe('legacy create-account-business boundary', () => {
     createClientMock.mockReset();
     vi.stubEnv('SUPABASE_URL', 'https://supabase.example.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role-key');
+    vi.stubEnv('PENDING_SIGNUP_ENCRYPTION_KEY_B64', 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=');
+    vi.stubEnv('PENDING_SIGNUP_HMAC_KEY_B64', 'YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=');
   });
 
   it.each(['STARTER', 'GROWTH', 'PRO', 'BASIC', 'MEDIUM', 'STARTED'])(
-    'rejects paid plan %s before creating auth, business, subscription, or account-first intent state',
+    'returns a generic confirmation-first response for paid plan %s without legacy provisioning',
     async (plan) => {
       const supabase = createFreeSignupSupabaseMock();
       createClientMock.mockReturnValue(supabase.client);
@@ -98,39 +93,42 @@ describe('legacy create-account-business boundary', () => {
       const response = await postCreateAccountBusiness(validPayload(plan));
       const body = await response.json();
 
-      expect(response.status).toBe(409);
-      expect(body).toEqual({
-        ok: false,
-        error: 'paid_signup_requires_payment_first',
-        message: 'Los planes pagos deben iniciar por pending-intent y pago antes de crear la cuenta.',
-      });
+      expect(response.status).toBe(202);
+      expect(body).toEqual({ ok: true, status: 'signup_confirmation_requested' });
       expect(createClientMock).not.toHaveBeenCalled();
-      expect(supabase.createUser).not.toHaveBeenCalled();
       expect(supabase.from).not.toHaveBeenCalled();
       expect(supabase.tableCalls).not.toEqual(expect.arrayContaining(['businesses', 'business_subscriptions', 'account_first_intents']));
     },
   );
 
-  it('preserves FREE immediate account and business creation without account-first intent state', async () => {
+  it('FREE signup creates confirmation intent and outbox without immediate account/business provisioning', async () => {
     const supabase = createFreeSignupSupabaseMock();
     createClientMock.mockReturnValue(supabase.client);
 
     const response = await postCreateAccountBusiness(validPayload('FREE'));
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body).toEqual({ ok: true, business_type: 'peluqueria', plan: 'FREE', subscription_status: 'active' });
-    expect(supabase.createUser).toHaveBeenCalledTimes(1);
-    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions', 'notification_email_outbox']));
-    expect(supabase.tableCalls).not.toContain('account_first_intents');
-    expect(supabase.welcomeOutboxMaybeSingle).toHaveBeenCalledTimes(1);
-    expect(supabase.welcomeOutboxInsert).toHaveBeenCalledWith({
-      business_id: expect.any(String),
+    expect(response.status).toBe(202);
+    expect(body).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['signup_email_confirmations', 'notification_email_outbox']));
+    expect(supabase.tableCalls).not.toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions', 'account_first_intents']));
+    expect(supabase.confirmationInsert).toHaveBeenCalledWith(expect.objectContaining({
+      purpose: 'free_signup',
+      plan_code: 'FREE',
+      token_hash: expect.any(String),
+      email_hmac: expect.any(String),
+      protected_metadata: expect.objectContaining({ business_type: 'peluqueria' }),
+      email_encrypted: expect.any(String),
+      business_name_encrypted: expect.any(String),
+    }));
+    expect(supabase.confirmationOutboxInsert).toHaveBeenCalledWith({
       to_email: 'ada@example.test',
-      template_key: 'business_welcome',
+      template_key: 'signup_email_confirmation',
       payload: {
+        confirmation_url: expect.stringContaining('/api/signup/confirm-email?token='),
         business_name: 'Ada Studio',
         owner_name: 'Ada',
+        plan_code: 'FREE',
       },
     });
   });

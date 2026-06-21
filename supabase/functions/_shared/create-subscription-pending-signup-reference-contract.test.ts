@@ -7,7 +7,7 @@ Deno.test("create-subscription verifies a pending signup reference against the p
 
   assertStringIncludes(
     source,
-    ".select(\"id, external_reference, email_hmac, plan_code, billing_period\")",
+    ".select(\"id, external_reference, email_hmac, plan_code, billing_period, confirmation_status, email_confirmed_at\")",
     "referenced pending signup lookup must load identity fields, not only id/external_reference",
   );
   assertStringIncludes(

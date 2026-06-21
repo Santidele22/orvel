@@ -17,6 +17,16 @@ export interface EmailPayload {
 
 type AppointmentEmailKind = 'confirmation' | 'reminder' | 'cancellation' | 'reschedule';
 
+const ORVEL_EMAIL_PALETTE = {
+  black: '#0A0A0A',
+  panel: '#121212',
+  text: '#F1F5F9',
+  muted: '#94A3B8',
+  violet: '#7C3AED',
+  violetDark: '#6D28D9',
+  violetSoft: '#A78BFA',
+};
+
 export function formatArgentinaAppointmentDate(date: Date): string {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--/--/----';
 
@@ -56,11 +66,11 @@ function renderAppointmentEmail(
     html: `
       <!doctype html>
       <html lang="es-AR">
-        <body style="margin:0;background:#f7f0e8;color:#2b2118;font-family:Arial,sans-serif;">
+        <body style="margin:0;background:${ORVEL_EMAIL_PALETTE.black};color:${ORVEL_EMAIL_PALETTE.text};font-family:Arial,sans-serif;">
           <main style="max-width:640px;margin:0 auto;padding:32px;">
-            <section style="background:#fffaf5;border-radius:24px;padding:32px;border:1px solid #ead8c7;">
-              <p style="letter-spacing:.18em;text-transform:uppercase;color:#9a6b43;font-size:12px;">Orvel</p>
-              <h1 style="font-size:28px;margin:0 0 12px;">${copy.heading}</h1>
+            <section style="background:${ORVEL_EMAIL_PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${ORVEL_EMAIL_PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${ORVEL_EMAIL_PALETTE.violetSoft};font-size:12px;">Orvel</p>
+              <h1 style="font-size:28px;margin:0 0 12px;color:${ORVEL_EMAIL_PALETTE.text};">${copy.heading}</h1>
               <p>Hola ${escapeHtml(data.customer.name)}, ${copy.intro}</p>
               <ul style="line-height:1.8;padding-left:18px;">
                 <li><strong>Negocio:</strong> ${escapeHtml(data.business.name)}</li>
@@ -73,9 +83,9 @@ function renderAppointmentEmail(
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
               <p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_EMAIL_PALETTE.violet};color:${ORVEL_EMAIL_PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
               </p>
-              <p style="font-size:14px;color:#6b5b50;">
+              <p style="font-size:14px;color:${ORVEL_EMAIL_PALETTE.muted};">
                 También podés <a href="${escapeAttribute(cancelLink)}">cancelar</a> o
                 <a href="${escapeAttribute(rescheduleLink)}">reprogramar</a> tu turno.
               </p>

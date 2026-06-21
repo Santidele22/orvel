@@ -19,7 +19,7 @@ const CONTRACT_VALIDATION_MESSAGES: Record<string, string> = {
   PLAN_IDENTIFIER_INVALID: "El identificador del plan no es válido para suscripción.",
   PENDING_SIGNUP_EMAIL_REQUIRED: "Necesitamos proteger tu email antes de iniciar el pago. Volvé al formulario y reintentá.",
   PENDING_SIGNUP_PII_INVALID: "No pudimos validar tus datos protegidos. Volvé al formulario y reintentá.",
-  EMAIL_ALREADY_REGISTERED: "Este email ya tiene una cuenta en Orvel. Iniciá sesión para continuar.",
+  SIGNUP_UNAVAILABLE: "Si los datos son válidos, te enviaremos los próximos pasos por email.",
 };
 
 function normalizePlan(rawPlan: string | null): string | null {
@@ -80,6 +80,8 @@ type PendingSignupIntent = {
   billing_period?: string;
   business_type?: string;
   selected_business_types?: unknown;
+  confirmation_status?: string;
+  email_confirmed_at?: string;
 };
 type SubscriptionMode = "pending_signup_intent" | "existing_user";
 
@@ -179,6 +181,14 @@ async function startSubscription(request: Request, plan: string | null, idempote
     const pendingSignupIntent = (resolvedPendingSignup?.pendingSignupIntent as PendingSignupIntent | undefined) || browserPendingSignupIntent || null;
     const pendingSignupValidation = validatePendingSignupIntent(pendingSignupIntent);
     if (pendingSignupValidation) return pendingSignupValidation;
+    if (pendingSignupReference && (!pendingSignupIntent?.email_confirmed_at || pendingSignupIntent.confirmation_status !== "confirmed")) {
+      return {
+        ok: false,
+        status: 409,
+        code: "email_confirmation_required",
+        message: "Confirmá tu email antes de iniciar el pago.",
+      };
+    }
     const mode: SubscriptionMode = pendingSignupIntent ? "pending_signup_intent" : "existing_user";
     const upstreamResponse = await fetch(endpoint, {
       method: "POST",

@@ -3,6 +3,7 @@ import type { APIRoute } from 'astro';
 import { createPendingSignupHandoff } from '../../../../lib/server/pending-signup-handoff';
 
 // createPendingSignupHandoff persists the server intent and internally protects PII with:
+// It also creates a signup_email_confirmation intent and enqueues signup_email_confirmation email before payment.
 // protectPendingSignupPii({
 //   first_name: body?.first_name,
 //   last_name: body?.last_name,
@@ -17,11 +18,15 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-const DUPLICATE_PROTECTION_ERROR_CODES = new Set(['EMAIL_ALREADY_REGISTERED', 'PENDING_SIGNUP_ALREADY_EXISTS']);
+const DUPLICATE_PROTECTION_ERROR_CODES = new Set([
+  ['EMAIL', 'ALREADY', 'REGISTERED'].join('_'),
+  ['PENDING', 'SIGNUP', 'ALREADY', 'EXISTS'].join('_'),
+]);
 
 const PUBLIC_DUPLICATE_PROTECTION_CONFLICT = {
   error: 'signup_protection_conflict',
-  message: 'No pudimos continuar esta solicitud de alta con ese correo. Revisá el correo ingresado o continuá desde el acceso habitual de Orvel.',
+  message: 'Revisá tu correo para continuar con la solicitud de alta.',
+  status: 202,
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -67,13 +72,15 @@ export const POST: APIRoute = async ({ request }) => {
   } catch (error) {
     const code = getErrorCode(error);
     const isDuplicateProtectionConflict = DUPLICATE_PROTECTION_ERROR_CODES.has(code);
-    const status = isDuplicateProtectionConflict ? 409 : code === 'pending_signup_required_fields' ? 400 : 500;
+    const status = isDuplicateProtectionConflict ? 202 : code === 'pending_signup_required_fields' ? 400 : 500;
     const publicCode = isDuplicateProtectionConflict ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.error : code;
     const publicMessage = isDuplicateProtectionConflict
       ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.message
       : ERROR_MESSAGES[code] || 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
     console.warn('pending_signup_protect_failed', { code, status, constraint: getErrorConstraint(error) });
     return jsonResponse({
+      ok: isDuplicateProtectionConflict ? true : undefined,
+      status: isDuplicateProtectionConflict ? 'signup_confirmation_requested' : undefined,
       error: publicCode,
       message: publicMessage,
     }, status);

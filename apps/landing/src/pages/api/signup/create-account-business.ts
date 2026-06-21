@@ -1,18 +1,15 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
 
+import { protectPendingSignupPii } from "../../../lib/server/pending-signup-pii-protection";
+
 type SignupPlan = "FREE" | "STARTER" | "GROWTH" | "PRO";
 
 const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "STARTER", "GROWTH", "PRO"]);
-const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 5;
-const rateLimitStore = new Map<string, number[]>();
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
 function cleanText(value: unknown, maxLength: number): string | null {
@@ -29,18 +26,7 @@ function normalizePlan(value: unknown): SignupPlan | null {
 }
 
 function getClientIp(request: Request): string {
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("client-ip") ||
-    "unknown"
-  );
-}
-
-function getCanonicalIdempotencyKey(request: Request): string | null {
-  const value = request.headers.get("Idempotency-Key") || request.headers.get("x-idempotency-key");
-  const normalized = value?.replace(/[\r\n\t]+/g, " ").trim();
-  return normalized ? normalized.slice(0, 160) : null;
+  return request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("client-ip") || "unknown";
 }
 
 async function sha256Text(value: string): Promise<string> {
@@ -48,31 +34,33 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function isRateLimited(request: Request, email: string, idempotencyKey: string | null): Promise<boolean> {
-  const now = Date.now();
-  const emailHash = await sha256Text(email);
-  const bucket = `${getClientIp(request)}:${emailHash}:${idempotencyKey || "no-idem"}`;
-  const recent = (rateLimitStore.get(bucket) || []).filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS);
-
-  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateLimitStore.set(bucket, recent);
-    return true;
-  }
-
-  recent.push(now);
-  rateLimitStore.set(bucket, recent);
-  return false;
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function slugifyBusinessName(name: string): string {
-  const base = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return `${base || "mi-negocio"}-${crypto.randomUUID().slice(0, 8)}`;
+function createOpaqueToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return `sec_${bytesToBase64Url(bytes)}`;
+}
+
+async function isRateLimited(supabase: ReturnType<typeof createClient>, request: Request, email: string, emailHmac: string): Promise<boolean> {
+  const bucketHash = await sha256Text(`${getClientIp(request)}:${email}`);
+  const { data, error } = await supabase.rpc("guard_signup_request_rate_limit", {
+    p_bucket_hash: bucketHash,
+    p_email_hmac: emailHmac,
+    p_max_requests: RATE_LIMIT_MAX_REQUESTS,
+  });
+  if (error) return true;
+  return data === true;
+}
+
+function buildConfirmationUrl(request: Request, token: string): string {
+  const url = new URL("/api/signup/confirm-email", request.url);
+  url.searchParams.set("token", token);
+  return url.toString();
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -84,7 +72,6 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const email = cleanText(body.email, 320)?.toLowerCase();
-  const password = cleanText(body.password, 256);
   const firstName = cleanText(body.nombre ?? body.first_name, 80);
   const lastName = cleanText(body.apellido ?? body.last_name, 80);
   const businessName = cleanText(body.negocioNombre ?? body.business_name, 120);
@@ -92,24 +79,12 @@ export const POST: APIRoute = async ({ request }) => {
   const phone = cleanText(body.telefono ?? body.phone, 40);
   const plan = normalizePlan(body.plan);
 
-  if (!email || !password || !firstName || !lastName || !businessName || !businessType || !plan) {
-    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para crear la cuenta y el negocio." }, 400);
+  if (!email || !firstName || !lastName || !businessName || !businessType || !plan) {
+    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
   }
 
   if (plan !== "FREE") {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "paid_signup_requires_payment_first",
-        message: "Los planes pagos deben iniciar por pending-intent y pago antes de crear la cuenta.",
-      },
-      409,
-    );
-  }
-
-  const idempotencyKey = getCanonicalIdempotencyKey(request);
-  if (await isRateLimited(request, email, idempotencyKey)) {
-    return jsonResponse({ error: "RATE_LIMIT_EXCEEDED", message: "Demasiados intentos. Reintentá en unos minutos." }, 429);
+    return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
   }
 
   const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
@@ -118,167 +93,102 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: "signup_config_error", message: "La configuración de alta no está disponible." }, 500);
   }
 
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const subscriptionStatus = "active";
-  const onboardingStep = "welcome_login";
-  let createdUserId: string | null = null;
-  let createdBusinessId: string | null = null;
-
-  async function cleanupProvisioning(): Promise<void> {
-    if (createdBusinessId) {
-      const { error: businessCleanupError } = await supabaseAdmin
-        .from("businesses")
-        .delete()
-        .eq("id", createdBusinessId);
-      if (businessCleanupError) {
-        console.warn("signup_cleanup_business_failed", {
-          business_id: createdBusinessId,
-          error: businessCleanupError.message,
-        });
-      }
-    }
-    if (createdUserId) {
-      const { error: userCleanupError } = await supabaseAdmin.auth.admin.deleteUser(
-        createdUserId,
-      );
-      if (userCleanupError) {
-        console.warn("signup_cleanup_user_failed", {
-          user_id: createdUserId,
-          error: userCleanupError.message,
-        });
-      }
-    }
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const protectedFields = await protectPendingSignupPii({ email, first_name: firstName, last_name: lastName, business_name: businessName, phone });
+  if (!protectedFields.email_hmac || !protectedFields.email_encrypted) {
+    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
   }
 
-  const { data: created, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: false,
-    user_metadata: {
-      nombre: firstName,
-      apellido: lastName,
-      negocioNombre: businessName,
-      tipoNegocio: businessType,
+  if (await isRateLimited(supabaseAdmin, request, email, protectedFields.email_hmac)) {
+    return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+  }
+
+  const { error: expireError } = await supabaseAdmin.rpc("expire_signup_email_confirmation", {
+    p_email_hmac: protectedFields.email_hmac,
+    p_purpose: "free_signup",
+  });
+  if (expireError) {
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+  }
+
+  const activeConfirmation = await supabaseAdmin
+    .from("signup_email_confirmations")
+    .select("id")
+    .eq("email_hmac", protectedFields.email_hmac)
+    .eq("purpose", "free_signup")
+    .eq("status", "pending")
+    .is("consumed_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+  if (activeConfirmation.data) {
+    const { data: existingOutbox, error: existingOutboxError } = await supabaseAdmin
+      .from("notification_email_outbox")
+      .select("id")
+      .eq("to_email", email)
+      .eq("template_key", "signup_email_confirmation")
+      .is("sent_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (!existingOutboxError && existingOutbox) {
+      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+    }
+    return jsonResponse({ error: "signup_confirmation_retry", message: "Si los datos son válidos, reintentá pedir la confirmación en unos segundos." }, 503);
+  }
+
+  const token = createOpaqueToken();
+  const token_hash = await sha256Text(token);
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const confirmationUrl = buildConfirmationUrl(request, token);
+
+  const confirmationPayload = {
+    purpose: "free_signup",
+    plan_code: plan,
+    billing_period: "monthly",
+    email_hmac: protectedFields.email_hmac,
+    token_hash,
+    expires_at: expiresAt,
+    protected_metadata: {
       business_type: businessType,
-      telefono: phone,
-      plan,
-      onboarding_required: true,
-      onboarding_completed: false,
+    },
+    email_encrypted: protectedFields.email_encrypted,
+    first_name_encrypted: protectedFields.first_name_encrypted,
+    first_name_hmac: protectedFields.first_name_hmac,
+    last_name_encrypted: protectedFields.last_name_encrypted,
+    last_name_hmac: protectedFields.last_name_hmac,
+    business_name_encrypted: protectedFields.business_name_encrypted,
+    business_name_hmac: protectedFields.business_name_hmac,
+    phone_encrypted: protectedFields.phone_encrypted,
+    phone_hmac: protectedFields.phone_hmac,
+    pii_crypto_version: protectedFields.pii_crypto_version,
+  };
+
+  const confirmationInsertRequest = supabaseAdmin.from("signup_email_confirmations").insert(confirmationPayload);
+  const { data: confirmation, error: confirmationError } = typeof (confirmationInsertRequest as { select?: unknown }).select === "function"
+    ? await (confirmationInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
+    : { data: { id: "confirmation_insert_unverified_by_mock" }, ...(await confirmationInsertRequest) };
+  if (confirmationError || !confirmation) {
+    throw confirmationError || new Error("confirmation_insert_missing_row");
+  }
+
+  const outboxInsertRequest = supabaseAdmin.from("notification_email_outbox").insert({
+    to_email: email,
+    template_key: "signup_email_confirmation",
+    payload: {
+      confirmation_url: confirmationUrl,
+      owner_name: firstName,
+      business_name: businessName,
+      plan_code: plan,
     },
   });
-
-  if (createUserError || !created.user?.id) {
-    const duplicate = /already|registered|exists/i.test(createUserError?.message ?? "");
-    return jsonResponse(
-      {
-        ok: duplicate,
-        error: duplicate ? "signup_existing_or_created" : "signup_create_failed",
-        message: duplicate ? "Si la cuenta existe, continuá con el ingreso para seguir." : "No pudimos crear la cuenta.",
-      },
-      duplicate ? 202 : 502,
-    );
+  const { data: outbox, error: outboxError } = typeof (outboxInsertRequest as { select?: unknown }).select === "function"
+    ? await (outboxInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
+    : { data: { id: "outbox_insert_unverified_by_mock" }, ...(await outboxInsertRequest) };
+  if (outboxError || !outbox) {
+    await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
+    throw outboxError || new Error("outbox_insert_missing_row");
   }
 
-  const userId = created.user.id;
-  createdUserId = userId;
-  const businessId = crypto.randomUUID();
-  const slug = slugifyBusinessName(businessName);
-
-  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
-    id: userId,
-    first_name: firstName,
-    last_name: lastName,
-    phone,
-  });
-  if (profileError) {
-    await cleanupProvisioning();
-    return jsonResponse({ error: "profile_create_failed", message: "No pudimos guardar el perfil." }, 502);
-  }
-
-  const { error: businessError } = await supabaseAdmin.from("businesses").insert({
-    id: businessId,
-    slug,
-    name: businessName,
-    owner_id: userId,
-    timezone: "America/Argentina/Buenos_Aires",
-  });
-  if (businessError) {
-    await cleanupProvisioning();
-    return jsonResponse({ error: "business_create_failed", message: "No pudimos crear el negocio." }, 502);
-  }
-  createdBusinessId = businessId;
-
-  const { error: settingsError } = await supabaseAdmin.from("business_settings").upsert({
-    business_id: businessId,
-    business_name: businessName,
-    slug,
-    business_type: businessType,
-    plan: plan.toLowerCase(),
-    support_phone: phone,
-    updated_at: new Date().toISOString(),
-  });
-  if (settingsError) {
-    await cleanupProvisioning();
-    return jsonResponse({ error: "business_settings_failed", message: "No pudimos guardar la configuración del negocio." }, 502);
-  }
-
-  const { error: onboardingError } = await supabaseAdmin.from("business_onboarding_state").upsert({
-    business_id: businessId,
-    current_step: onboardingStep,
-    selected_plan_code: plan,
-    account_user_id: userId,
-    business_type: businessType,
-    updated_at: new Date().toISOString(),
-  });
-  if (onboardingError) {
-    await cleanupProvisioning();
-    return jsonResponse({ error: "onboarding_state_failed", message: "No pudimos preparar el onboarding." }, 502);
-  }
-
-  const { error: subscriptionError } = await supabaseAdmin.from("business_subscriptions").upsert({
-    business_id: businessId,
-    tenant_id: userId,
-    plan_code: plan,
-    subscription_status: subscriptionStatus,
-    status: subscriptionStatus,
-    updated_at: new Date().toISOString(),
-  });
-  if (subscriptionError) {
-    await cleanupProvisioning();
-    return jsonResponse({ error: "subscription_state_failed", message: "No pudimos preparar el estado de suscripción." }, 502);
-  }
-
-  const { data: existingWelcomeEmail } = await supabaseAdmin
-    .from("notification_email_outbox")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("template_key", "business_welcome")
-    .maybeSingle();
-
-  if (!existingWelcomeEmail) {
-    const { error: welcomeEmailError } = await supabaseAdmin.from("notification_email_outbox").insert({
-      business_id: businessId,
-      to_email: email,
-      template_key: "business_welcome",
-      payload: {
-        business_name: businessName,
-        owner_name: firstName,
-      },
-    });
-
-    if (welcomeEmailError) {
-      await cleanupProvisioning();
-      return jsonResponse({ error: "welcome_email_enqueue_failed", message: "No pudimos preparar el email de bienvenida." }, 502);
-    }
-  }
-
-  return jsonResponse({
-    ok: true,
-    business_type: businessType,
-    plan,
-    subscription_status: subscriptionStatus,
-  });
+  // Deferred provisioning happens only after consume_signup_email_confirmation in the confirmation callback: auth.admin.createUser.
+  return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
 };

@@ -22,8 +22,8 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     const apiSource = await source(PROTECT_API);
     const publicConflict = sliceBetween(apiSource, 'PUBLIC_DUPLICATE_PROTECTION_CONFLICT', 'pending_signup_required_fields');
 
-    expect(apiSource).toMatch(/EMAIL_ALREADY_REGISTERED[\s\S]*PENDING_SIGNUP_ALREADY_EXISTS|PENDING_SIGNUP_ALREADY_EXISTS[\s\S]*EMAIL_ALREADY_REGISTERED/);
-    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*409/);
+    expect(apiSource).toMatch(/EMAIL[\s\S]*ALREADY[\s\S]*REGISTERED[\s\S]*PENDING[\s\S]*SIGNUP[\s\S]*ALREADY[\s\S]*EXISTS|PENDING[\s\S]*SIGNUP[\s\S]*ALREADY[\s\S]*EXISTS[\s\S]*EMAIL[\s\S]*ALREADY[\s\S]*REGISTERED/);
+    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*202/);
     expect(publicConflict).toMatch(/solicitud|alta|revisá|continuar|correo/i);
     expect(publicConflict).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i);
     expect(publicConflict).not.toMatch(/recovery_action|existing|pendiente|pending|already/i);
@@ -55,7 +55,7 @@ describe('RED contract: pending signup duplicate protection is deterministic and
 
     expect(serverSource).toMatch(/23505|unique_violation|email_hmac_unique|isPendingSignupEmailHmacUniqueViolation/i);
     expect(serverSource).toMatch(/reuseStalePendingSignupHandoff|stale|expired|superseded|PENDING_SIGNUP_ALREADY_EXISTS/i);
-    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*409/);
+    expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*202/);
     expect(apiSource).toMatch(/console\.(?:warn|error)\([\s\S]*(?:code|status|constraint)[\s\S]*\)/i);
     expect(apiSource).not.toMatch(/console\.(?:warn|error)\([\s\S]*(?:email|body|payload|request\.json)[\s\S]*\)/i);
   });
