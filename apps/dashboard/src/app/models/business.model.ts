@@ -28,7 +28,8 @@ export interface BusinessSettings {
   whatsapp?: string;
   instagram?: string;
   supportEmail?: string;
-  plan?: 'basic' | 'zen' | 'pro';
+  businessType?: string;
+  plan?: 'basic' | 'zen' | 'pro' | string;
   cancelationGracePeriod?: number;
   autoConfirm?: boolean;
   maxAdvanceDays?: number;

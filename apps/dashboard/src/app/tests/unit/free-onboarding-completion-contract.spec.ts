@@ -83,7 +83,12 @@ describe('free onboarding completion contract', () => {
       { onConflict: 'id' }
     );
     expect(supabaseMocks.settingsUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ business_id: 'user-free-1', business_name: 'Studio Free', plan: 'free' }),
+      expect.objectContaining({
+        business_id: 'user-free-1',
+        business_name: 'Studio Free',
+        business_type: 'peluqueria',
+        plan: 'free'
+      }),
       { onConflict: 'business_id' }
     );
     expect(supabaseMocks.updateUser).toHaveBeenCalledWith({

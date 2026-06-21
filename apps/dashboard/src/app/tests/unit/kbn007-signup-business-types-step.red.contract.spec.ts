@@ -729,12 +729,10 @@ describe('KBN-007.9 - Navigation based on plan', () => {
     expect(component).toMatch(/dashboard|home|principal/i);
   });
 
-  it('KBN-007.9.2 @RED - paid plans show optional extra-branch modal after persistence, not billing redirect', async () => {
+  it('KBN-007.9.2 @RED - paid plans hide the branch add-on prompt and continue to welcome', async () => {
     const { component } = readBusinessTypesStepSources();
 
-    // Simplified onboarding: paid plans can skip the branch add-on and continue to welcome.
-    expect(component).toMatch(/showPaidAddonModal|extra Branch|extra-branch/i);
-    expect(component.indexOf('persistMandatoryOnboarding')).toBeLessThan(component.indexOf('showPaidAddonModal = true'));
+    expect(component).not.toMatch(/showPaidAddonModal\s*=\s*true|extra Branch|extra-branch/i);
     expect(component).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
   });
 
@@ -753,10 +751,10 @@ describe('KBN-007.10 - Back navigation', () => {
     expect(typeof component.goBack).toBe('function');
   });
 
-  it('KBN-007.10.2 @RED - template has back button', async () => {
+  it('KBN-007.10.2 @RED - template has safe dashboard exit button', async () => {
     const { html } = readBusinessTypesStepSources();
 
-    expect(html).toMatch(/Volver|Atrás|Atras|Retroceder/i);
+    expect(html).toMatch(/Ir al dashboard/i);
   });
 
   it('KBN-007.10.3 @RED - back button has (click) binding to goBack()', async () => {
@@ -765,11 +763,11 @@ describe('KBN-007.10 - Back navigation', () => {
     expect(html).toMatch(/\(click\)=.*goBack/i);
   });
 
-  it('KBN-007.10.4 @RED - goBack navigates to credentials step (Step 2)', async () => {
+  it('KBN-007.10.4 @RED - goBack exits safely to dashboard instead of reopening legacy credentials', async () => {
     const { component }: { component: string } = readBusinessTypesStepSources();
 
-    // Should route back to credentials step
-    expect(component).toMatch(/signup-credentials|step-2|credenciales/i);
+    expect(component).toMatch(/goBack\(\)[\s\S]*navigateByUrl\(['"]\/dashboard\/inicio['"]\)/i);
+    expect(component).not.toMatch(/goBack\(\)[\s\S]*signup-credentials|goBack\(\)[\s\S]*credenciales/i);
   });
 });
 

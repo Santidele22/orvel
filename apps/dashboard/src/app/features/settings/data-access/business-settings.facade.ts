@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { AuthService } from '../../../services/auth.service';
 import { isAllowedOnboardingBusinessType } from '../../onboarding/data-access/business-type-defaults';
+import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 
 export type WeekdayKey =
   | 'monday'
@@ -80,9 +81,6 @@ type BusinessSettingsSupabaseRow = {
   whatsapp?: string;
   instagram?: string;
   support_email?: string;
-
-  // Subscription
-  plan?: 'basic' | 'zen' | 'pro';
 
   // Booking Policies
   cancelation_grace_period?: number;
@@ -326,7 +324,6 @@ export class BusinessSettingsFacade {
           whatsapp: persistedLocal.whatsapp,
           instagram: persistedLocal.instagram,
           support_email: persistedLocal.supportEmail,
-          plan: persistedLocal.plan,
           capacity: persistedLocal.capacity >= 1 ? persistedLocal.capacity : 1,
           cancelation_grace_period: persistedLocal.cancelationGracePeriod,
           auto_confirm: persistedLocal.autoConfirm,
@@ -579,7 +576,7 @@ export class BusinessSettingsFacade {
       whatsapp: row.whatsapp ?? '',
       instagram: row.instagram ?? '',
       supportEmail: row.support_email ?? '',
-      plan: row.plan ?? 'zen',
+      plan: this.resolveDisplayPlan(),
       cancelationGracePeriod: row.cancelation_grace_period ?? 24,
       autoConfirm: row.auto_confirm ?? true,
       maxAdvanceDays: row.max_advance_days ?? 90,
@@ -596,6 +593,24 @@ export class BusinessSettingsFacade {
       
       updatedAt: String(row.updated_at ?? new Date().toISOString())
     };
+  }
+
+  private resolveDisplayPlan(): 'basic' | 'zen' | 'pro' {
+    const authPlan = String(this.authService.user()?.plan ?? '').trim().toUpperCase();
+    if (authPlan === 'STARTER' || authPlan === 'BASIC') return 'basic';
+    if (authPlan === 'PRO') return 'pro';
+    if (authPlan === 'GROWTH' || authPlan === 'MEDIUM') return 'zen';
+
+    if (typeof localStorage !== 'undefined') {
+      const localPlan = readPlanSelection({
+        getItem: (key: string) => localStorage.getItem(key === ONBOARDING_PLAN_STORAGE_KEY ? key : ONBOARDING_PLAN_STORAGE_KEY)
+      });
+      if (localPlan === 'STARTER') return 'basic';
+      if (localPlan === 'PRO') return 'pro';
+      if (localPlan === 'GROWTH') return 'zen';
+    }
+
+    return 'zen';
   }
 
   private buildDefaultState(): BusinessSettingsState {

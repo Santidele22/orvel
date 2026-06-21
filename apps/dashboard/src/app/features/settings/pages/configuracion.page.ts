@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BusinessService } from '../data-access/business.service';
-import type { BusinessSettingsState } from '../data-access/business-settings.facade';
 import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import {
   getVisibleTemplates,
@@ -50,6 +49,9 @@ export class ConfiguracionPage {
     coverUrl: [''],
     brandColor: ['#2F7D6B'],
 
+    // Business Identity
+    businessType: [''],
+
     // Contact Info
     whatsapp: [''],
     instagram: [''],
@@ -61,7 +63,7 @@ export class ConfiguracionPage {
     phone: [''],
 
     // Subscription
-    plan: ['zen' as 'basic' | 'zen' | 'pro'],
+    plan: ['zen' as string],
 
     // Booking Policies
     cancelationGracePeriod: [24, [Validators.min(0)]],
@@ -89,7 +91,7 @@ export class ConfiguracionPage {
   });
 
   readonly publicBookingUrl = computed(() => {
-    const slug = this.savedState()?.slug?.trim() || this.facade.settings()?.slug?.trim();
+    const slug = this.publicBookingSlug();
     if (!slug) {
       return 'Link de reservas no disponible';
     }
@@ -97,16 +99,48 @@ export class ConfiguracionPage {
     return `${window.location.origin}/booking/${slug}`;
   });
 
-  readonly hasPublicBookingUrl = computed(() => Boolean(this.savedState()?.slug?.trim() || this.facade.settings()?.slug?.trim()));
+  readonly hasPublicBookingUrl = computed(() => Boolean(this.publicBookingSlug()));
 
   readonly urlCopied = signal(false);
+  readonly urlCopyFailed = signal(false);
+  private hydratedUserId: string | null = null;
 
-  copyBookingUrl(): void {
-    if (!this.hasPublicBookingUrl()) return;
+  constructor() {
+    effect(() => {
+      const userId = this.authService.user()?.id;
+      if (userId) {
+        void this.hydrateBusinessSettings(userId);
+      }
+    });
+  }
 
-    navigator.clipboard.writeText(this.publicBookingUrl());
-    this.urlCopied.set(true);
-    setTimeout(() => this.urlCopied.set(false), 2000);
+  async copyBookingUrl(): Promise<void> {
+    this.urlCopyFailed.set(false);
+    if (!this.hasPublicBookingUrl() || !navigator.clipboard?.writeText) {
+      this.urlCopyFailed.set(true);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.publicBookingUrl());
+      this.urlCopied.set(true);
+      setTimeout(() => this.urlCopied.set(false), 2000);
+    } catch {
+      this.urlCopied.set(false);
+      this.urlCopyFailed.set(true);
+    }
+  }
+
+  openPublicBookingPortal(event: MouseEvent): void {
+    if (!this.hasPublicBookingUrl()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
+  private publicBookingSlug(): string {
+    const slug = this.savedState()?.slug?.trim() || this.facade.settings()?.slug?.trim() || '';
+    return slug && slug !== 'id-pendiente' ? slug : '';
   }
 
   get isZen() { return this.themeService.activeTheme() === 'zen'; }
@@ -242,6 +276,7 @@ export class ConfiguracionPage {
 
     this.settingsForm.patchValue({
       businessName: saved.businessName,
+      businessType: saved.businessType ?? '',
       bufferMinutes: saved.bufferMinutes,
       minNoticeMinutes: saved.minNoticeMinutes,
       slotIntervalMinutes: saved.slotIntervalMinutes,
@@ -249,6 +284,10 @@ export class ConfiguracionPage {
       firstName: saved.firstName,
       lastName: saved.lastName,
       phone: saved.phone,
+      whatsapp: saved.whatsapp,
+      instagram: saved.instagram,
+      supportEmail: saved.supportEmail,
+      plan: saved.plan,
       capacity: saved.capacity ?? 1
     });
   }
@@ -372,6 +411,7 @@ export class ConfiguracionPage {
         whatsapp: values.whatsapp,
         instagram: values.instagram,
         supportEmail: values.supportEmail,
+        businessType: values.businessType,
         plan: values.plan,
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
@@ -433,41 +473,62 @@ export class ConfiguracionPage {
   }
 
   private async loadDefaults(): Promise<void> {
-    // Si la sesión no está lista, esperar un momento (evita carrera crítica)
-    if (!this.authService.user()) {
-       await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
     const user = this.authService.user();
     if (user) {
-      try {
-        await this.facade.loadFromSupabase(user.id);
-      } catch (error) {
-        console.error('Error loading settings from Supabase:', error);
-      }
+      await this.hydrateBusinessSettings(user.id);
+      return;
+    }
+
+    this.patchDefaultSettings();
+    this.loading.set(false);
+  }
+
+  private async hydrateBusinessSettings(userId: string): Promise<void> {
+    if (this.hydratedUserId === userId && this.facade.getSnapshot()) {
+      return;
+    }
+
+    this.hydratedUserId = userId;
+
+    try {
+      this.loading.set(true);
+      await this.facade.loadFromSupabase(userId);
+    } catch (error) {
+      console.error('Error loading settings from Supabase:', error);
     }
 
     const saved = this.facade.getSnapshot();
-    const defaultHours = this.facade.getDefaultWorkingHours();
 
-    if (saved && saved.slug && saved.slug !== 'id-pendiente') {
+    if (saved) {
       console.log('[Configuracion] Patching form with saved settings:', saved.businessName);
       this.settingsForm.patchValue(saved);
       this.savedState.set(saved);
     } else {
-      // Prioridad: Metadatos reales del usuario desde el registro (Día 0)
-      console.log('[Configuracion] No saved settings, using defaults');
-      this.settingsForm.patchValue({
-        businessName: user?.negocioNombre?.trim() ?? '',
-        bufferMinutes: 15,
-        minNoticeMinutes: 120,
-        slotIntervalMinutes: 30,
-        capacity: 1,
-        workingHours: defaultHours
-      } as any);
+      this.patchDefaultSettings();
       this.savedState.set(null);
     }
-    
+
     this.loading.set(false);
+  }
+
+  private patchDefaultSettings(): void {
+    const user = this.authService.user();
+    const defaultHours = this.facade.getDefaultWorkingHours();
+
+    // Prioridad: Metadatos reales del usuario desde el registro (Día 0)
+    console.log('[Configuracion] No saved settings, using defaults');
+    this.settingsForm.patchValue({
+      businessName: user?.negocioNombre?.trim() ?? '',
+      businessType: user?.tipoNegocio ?? '',
+      firstName: user?.nombre ?? '',
+      lastName: user?.apellido ?? '',
+      phone: user?.telefono ?? '',
+      plan: user?.plan || 'free',
+      bufferMinutes: 15,
+      minNoticeMinutes: 120,
+      slotIntervalMinutes: 30,
+      capacity: 1,
+      workingHours: defaultHours
+    } as any);
   }
 }

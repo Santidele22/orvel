@@ -26,10 +26,12 @@ export class ConfiguracionZenThemeComponent {
   get activeSettingsTab() { return this.ctx.activeSettingsTab; }
   get settingsTabs() { return this.ctx.settingsTabs; }
   get urlCopied() { return this.ctx.urlCopied; }
+  get urlCopyFailed() { return this.ctx.urlCopyFailed; }
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }
   copyBookingUrl(): void { this.ctx.copyBookingUrl(); }
+  openPublicBookingPortal(event: MouseEvent): void { this.ctx.openPublicBookingPortal(event); }
   planDisplayLabel(): string { return this.ctx.planDisplayLabel(); }
 
   onSubmit(): void { this.ctx.onSubmit(); }

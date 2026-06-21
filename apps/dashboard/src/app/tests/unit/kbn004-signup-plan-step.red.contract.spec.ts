@@ -174,11 +174,11 @@ describe('KBN-004.1 - UI renders paid plan options', () => {
     expect(proPlan!.maxRubros).toBeGreaterThanOrEqual(5);
   });
 
-  it('KBN-004.1.4 @RED - onboarding copy does not advertise 3/10 locales included', async () => {
+  it('KBN-004.1.4 @RED - onboarding copy does not advertise hidden branch add-ons or 3/10 locales included', async () => {
     const { html } = readPlanStepSources();
 
     expect(html).toMatch(/1[\s\S]{0,80}local incluido/i);
-    expect(html).toMatch(/Multi-sucursal|Sucursales adicionales/i);
+    expect(html).not.toMatch(/Multi-sucursal|Sucursales adicionales|add-on/i);
     expect(html).not.toMatch(/3\s*locales|10\s*locales/i);
   });
 });
@@ -391,12 +391,12 @@ describe('KBN-004.8 - Back navigation', () => {
 });
 
 describe('KBN-004.9 - Edge cases', () => {
-  it('KBN-004.9.1 - storage handles corrupted/unknown plan codes gracefully', async () => {
+  it('KBN-004.9.1 - storage handles corrupted/unknown plan codes without inventing a plan', async () => {
     const { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } =
       await loadOnboardingPlanStorageModule();
     const corruptedStorage = createMemoryStorage({ [ONBOARDING_PLAN_STORAGE_KEY]: '{bad-json' });
 
-    expect(readPlanSelection(corruptedStorage)).toBe('FREE');
+    expect(readPlanSelection(corruptedStorage)).toBeNull();
   });
 
   it('KBN-004.9.2 @RED - selecting same plan twice is idempotent', async () => {

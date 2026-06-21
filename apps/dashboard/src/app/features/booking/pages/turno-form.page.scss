@@ -4,7 +4,7 @@
 }
 
 .turno-form-container {
-  @apply max-w-zen-content mx-auto p-zen-section bg-surface rounded-zen-card shadow-lg border border-border;
+  @apply max-w-zen-content mx-auto p-zen-section bg-surface/90 rounded-zen-card shadow-lg border border-white/10;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
@@ -38,12 +38,12 @@
 }
 
 .form-control {
-  @apply p-zen-lg px-zen-xl border border-border rounded-zen-md text-text-primary bg-bg transition-all;
+  @apply p-zen-lg px-zen-xl border border-white/10 rounded-zen-md text-text-primary bg-bg-primary transition-all;
   font-family: var(--body-font);
 }
 
 .form-control:focus {
-  @apply outline-none border-primary bg-surface;
+  @apply outline-none border-primary bg-bg-secondary;
   box-shadow: 0 0 0 var(--zen-space-xs) color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
@@ -83,7 +83,7 @@ textarea.form-control {
 .btn-primary:disabled { @apply opacity-50 cursor-not-allowed; }
 
 .btn-secondary {
-  @apply bg-surface-muted text-text-primary no-underline;
+  @apply bg-bg-secondary border border-white/10 text-text-primary no-underline;
 }
 
 .spinner-sm {

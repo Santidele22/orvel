@@ -6,13 +6,9 @@ import {
   CreateSubscriptionError,
   type CreateSubscriptionResult
 } from '../data-access/payments/subscriptions/create-subscription.api';
-import { getMultiBranchAddOnFallback, type BillingAddOnViewModel } from '../data-access/landing-plans-source.api';
 
 export const BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE =
   'Los pagos online no están disponibles en este momento. Contactá soporte para activar tu plan.';
-
-export const BILLING_MULTI_BRANCH_ADD_ON_SAFE_CTA =
-  'Para activar sucursales adicionales escribinos a soporte. No iniciamos un checkout automático hasta que la activación esté conectada.';
 
 const BILLING_SUBSCRIPTION_GENERIC_ERROR_MESSAGE =
   'No pudimos iniciar el pago. Reintentá en unos minutos o contactá soporte.';
@@ -53,20 +49,12 @@ export class BillingSubscriptionPage {
     return normalizePlanCode(this.storage?.getItem(ONBOARDING_PLAN_STORAGE_KEY)) as PlanCode;
   }
 
-  multiBranchAddOn(): BillingAddOnViewModel {
-    return getMultiBranchAddOnFallback();
-  }
-
   formatMonthlyPrice(priceMonthlyCents: number): string {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
       maximumFractionDigits: 0
     }).format(priceMonthlyCents / 100);
-  }
-
-  multiBranchAddOnCta(): string {
-    return BILLING_MULTI_BRANCH_ADD_ON_SAFE_CTA;
   }
 
   async startSubscription(): Promise<void> {
