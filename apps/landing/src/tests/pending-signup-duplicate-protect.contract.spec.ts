@@ -26,17 +26,16 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     expect(apiSource).toMatch(/PUBLIC_DUPLICATE_PROTECTION_CONFLICT[\s\S]*202/);
     expect(publicConflict).toMatch(/solicitud|alta|revisá|continuar|correo/i);
     expect(publicConflict).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS|pending_signup_already_exists/i);
-    expect(publicConflict).not.toMatch(/recovery_action|existing|pendiente|pending|already/i);
+    expect(publicConflict).not.toMatch(/recovery_action|existing|pendiente|already/i);
   });
 
   it('protect endpoint never exposes internal duplicate codes or state-specific recovery actions publicly', async () => {
     const apiSource = await source(PROTECT_API);
-    const responseBody = sliceBetween(apiSource, 'return jsonResponse({', '}, status);');
+    const duplicateResponse = sliceBetween(apiSource, 'if (isDuplicateProtectionConflict)', 'const status =');
 
-    expect(responseBody).toMatch(/error:\s*publicCode/);
-    expect(responseBody).toMatch(/message:\s*publicMessage/);
-    expect(responseBody).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS/);
-    expect(responseBody).not.toMatch(/recovery_action|recoverable|restart_or_retry_existing_pending_signup/);
+    expect(duplicateResponse).toMatch(/jsonResponse\(PUBLIC_DUPLICATE_PROTECTION_CONFLICT,\s*202\)/);
+    expect(duplicateResponse).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS/);
+    expect(duplicateResponse).not.toMatch(/error\s*:|recovery_action|recoverable|restart_or_retry_existing_pending_signup/);
   });
 
   it('paid signup form maps PENDING_SIGNUP_ALREADY_EXISTS to a clear restart/retry path instead of generic protect failure', async () => {
@@ -82,7 +81,7 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     expect(reuseFunction).toMatch(/external_reference|provider_subscription_id/);
   });
 
-  it('paid signup still creates no account or business before approved payment and fresh handoff returns reference plus HttpOnly cookie', async () => {
+  it('paid signup still creates no account or business before approved payment and pre-confirm protect does not return reference or cookie', async () => {
     const controllerSource = await source(SIGNUP_CONTROLLER);
     const serverSource = await source(HANDOFF_SERVER);
     const apiSource = await source(PROTECT_API);
@@ -94,7 +93,7 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     expect(paidBranch).not.toMatch(/from\(['"]businesses['"]\)|create_business|insert\([\s\S]*business/i);
     expect(serverSource).toMatch(/pendingSignupReference|handoff_reference|createOpaqueToken\('psh'\)/);
     expect(serverSource).toMatch(/HttpOnly|Set-Cookie|SameSite=Lax/);
-    expect(apiSource).toMatch(/pending_signup_reference[\s\S]*serverRedirectUrl|serverRedirectUrl[\s\S]*pending_signup_reference/);
-    expect(apiSource).toMatch(/Set-Cookie/);
+    const preConfirmProtectSuccess = sliceBetween(apiSource, 'await createPendingSignupHandoff', '} catch (error)');
+    expect(preConfirmProtectSuccess).not.toMatch(/pending_signup_reference|serverRedirectUrl|Set-Cookie/);
   });
 });

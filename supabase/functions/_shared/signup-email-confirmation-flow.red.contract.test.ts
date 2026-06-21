@@ -135,7 +135,7 @@ Deno.test("RED FREE complete materialization contract: RPC reports zero-row upda
   const sql = await readAllSqlMigrations();
   const body = latestFunctionBody(sql, "complete_signup_email_materialization");
   const landingSource = await readText(new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url));
-  const finalSuccessIndex = landingSource.search(/return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']welcome["']/i);
+  const finalSuccessIndex = landingSource.search(/return\s+htmlResponse\s*\(\s*\{\s*status\s*:\s*["']materialized["'][\s\S]{0,260}(?:Ingresar a Orvel|inici[áa]\s+sesi[oó]n|auth\/login)/i);
   const finalCompleteIndex = landingSource.search(/complete_signup_email_materialization[\s\S]{0,220}p_status\s*:\s*["']materialized["']/i);
   const finalSlice = finalCompleteIndex >= 0 && finalSuccessIndex > finalCompleteIndex
     ? landingSource.slice(finalCompleteIndex, finalSuccessIndex)
@@ -150,10 +150,10 @@ Deno.test("RED FREE complete materialization contract: RPC reports zero-row upda
     "complete_signup_email_materialization must detect that exactly one materializing confirmation row was updated",
   );
   assert(finalCompleteIndex > 0, "Guard must inspect final materialized RPC call in confirm-email endpoint");
-  assert(finalSuccessIndex > finalCompleteIndex, "Guard must inspect public welcome success after materialized RPC");
+  assert(finalSuccessIndex > finalCompleteIndex, "Guard must inspect public success HTML/login CTA after materialized RPC");
   assert(
     /const\s*\{[\s\S]{0,120}(?:error|data|count)[\s\S]{0,120}\}\s*=\s*await|if\s*\([\s\S]{0,180}(?:materializationError|completeError|error|!\s*data|count\s*!==\s*1|!\s*updated)/i.test(finalSlice),
-    "confirm-email must check complete_signup_email_materialization result before returning public welcome success",
+    "confirm-email must check complete_signup_email_materialization result before returning public success HTML/login CTA",
   );
 });
 
@@ -192,35 +192,41 @@ Deno.test("RED FREE expiration SQL contract: expire_signup_email_confirmation re
   );
 });
 
-Deno.test("RED FREE duplicate auth user contract: untrusted confirmation metadata cannot adopt or mutate existing accounts", async () => {
-  const source = await readText(new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url));
-  const createUserIndex = source.search(/auth\.admin\.createUser/);
-  const firstProfileMutationIndex = source.search(/\.from\(["']profiles["']\)[\s\S]{0,120}\.upsert|\.from\(["']businesses["']\)[\s\S]{0,120}\.(?:insert|upsert)|\.from\(["']business_settings["']\)[\s\S]{0,120}\.upsert/i);
-  const beforeCreateUser = createUserIndex > 0 ? source.slice(0, createUserIndex) : "";
-  const duplicateBranch = /if\s*\(\s*isDuplicateUserError\([\s\S]*?\n\s*}\s*\n\s*if\s*\(\s*!userId\s*\)/i.exec(source)?.[0] ?? "";
-  const beforeMutation = firstProfileMutationIndex > 0 ? source.slice(0, firstProfileMutationIndex) : "";
+Deno.test("RED FREE duplicate auth user contract: auth-first signup binds the created user before confirm materialization", async () => {
+  const signupSource = await readText(new URL("../../../apps/landing/src/pages/api/signup/create-account-business.ts", import.meta.url));
+  const confirmSource = await readText(new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url));
+  const createUserIndex = signupSource.search(/auth\.admin\.createUser/);
+  const confirmationInsertIndex = signupSource.search(/\.from\(["']signup_email_confirmations["']\)[\s\S]{0,120}\.insert\(confirmationPayload\)/i);
+  const confirmationPayload = /const\s+confirmationPayload\s*=\s*\{[\s\S]*?\n\s*\};/.exec(signupSource)?.[0] ?? "";
+  const duplicateBranch = /if\s*\(\s*isDuplicateUserError\([\s\S]*?\n\s*}\s*\n\s*return\s+jsonResponse/i.exec(signupSource)?.[0] ?? "";
+  const firstProfileMutationIndex = confirmSource.search(/\.from\(["']profiles["']\)[\s\S]{0,120}\.upsert|\.from\(["']businesses["']\)[\s\S]{0,120}\.(?:insert|upsert)|\.from\(["']business_settings["']\)[\s\S]{0,120}\.upsert/i);
+  const beforeMutation = firstProfileMutationIndex > 0 ? confirmSource.slice(0, firstProfileMutationIndex) : "";
 
-  assert(createUserIndex > 0, "Guard must inspect auth user creation in confirm-email endpoint");
-  assert(firstProfileMutationIndex > createUserIndex, "Guard must inspect profile/business mutation after auth user creation");
+  assert(createUserIndex > 0, "Guard must inspect auth user creation in signup request endpoint");
+  assert(confirmationInsertIndex > createUserIndex, "Guard must inspect confirmation insert after signup-created auth user");
   assert(
-    !/findAuthUserByEmail|listUsers|getUserByEmail|existing(?:Auth)?User/i.test(beforeCreateUser),
-    "FREE confirmation must not pre-adopt an existing auth user by email before createUser; existing-account duplicate must fail closed/generic",
+    !/auth\.admin\.createUser|generateLink/i.test(confirmSource),
+    "Confirm route must not create an auth user or generate login/welcome action links; auth user creation happens during signup request",
   );
   assert(
-    /created_user_id|trusted_user_id|bound_user_id|materialization_user_id/i.test(beforeCreateUser),
-    "FREE retries may resume only from a trusted user id bound by this confirmation/materialization flow, not by email lookup",
+    !/findAuthUserByEmail|listUsers|getUserByEmail|existing(?:Auth)?User/i.test(signupSource.slice(0, createUserIndex)),
+    "FREE signup must not pre-adopt an existing auth user by email before createUser; existing-account duplicate must fail closed/generic",
+  );
+  assert(
+    /created_user_id\s*:\s*authUserId|trusted_user_id|bound_user_id|materialization_user_id/i.test(confirmationPayload),
+    "FREE confirmation rows must bind the signup-created trusted user id, not rely on email lookup during confirmation",
   );
   assert(
     !/findAuthUserByEmail|listUsers|getUserByEmail|existing(?:Auth)?User|adopt/i.test(duplicateBranch),
-    "Duplicate createUser handling must not adopt the existing auth user and then mutate profile/business/settings/onboarding/subscription/welcome from unauth metadata",
+    "Duplicate createUser handling must not adopt the existing auth user and later mutate profile/business/settings/onboarding/subscription/welcome from unauth metadata",
   );
   assert(
-    /createdUser\.user\.id|created\.user\.id|created_user_id|trusted_user_id|bound_user_id/i.test(beforeMutation),
-    "Profile/business mutations must be gated on a newly created or previously trusted/bound user id from the same signup intent",
+    /metadata\.created_user_id|created_user_id|trustedUserId|bound_user_id/i.test(beforeMutation),
+    "Confirm route profile/business mutations must be gated on the trusted/bound user id from the same signup intent",
   );
   assert(
-    /deleteUser\s*\(|cleanupJustCreatedAuthUser|createdUserId/i.test(beforeMutation),
-    "If durable confirmation user_id binding fails after createUser, the just-created auth user must be cleaned up before retry",
+    /deleteUser\s*\(|cleanupCreatedAuthUser|createdUserId|authUserId/i.test(signupSource.slice(confirmationInsertIndex)),
+    "If durable confirmation user_id binding fails after signup createUser, the just-created auth user must be cleaned up before retry",
   );
 });
 

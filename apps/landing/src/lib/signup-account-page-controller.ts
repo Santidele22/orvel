@@ -247,6 +247,14 @@ export function initSignupAccountPage(env: SignupEnv): void {
     });
     const result = await response.json().catch(() => null);
     if (!response.ok) throw new Error(result?.error || result?.message || 'pending_signup_protection_failed');
+    if (result?.ok && result?.status === 'signup_confirmation_requested') {
+      return {
+        pending_signup_reference: null,
+        serverRedirectUrl: null,
+        plan_code: values.plan,
+        billing_period: values.billing,
+      };
+    }
     const pendingSignupReference = typeof result?.pending_signup_reference === 'string' ? result.pending_signup_reference : null;
     const serverRedirectUrl = typeof result?.serverRedirectUrl === 'string' ? result.serverRedirectUrl : typeof result?.serverIssuedRedirect === 'string' ? result.serverIssuedRedirect : null;
     if (!pendingSignupReference || !serverRedirectUrl) throw new Error('pending_signup_reference_missing');
@@ -373,6 +381,10 @@ export function initSignupAccountPage(env: SignupEnv): void {
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(pendingSignupIntent));
       sessionStorage.removeItem(SIGNUP_STORAGE_KEYS.accountFirstSession);
+      if (!pendingSignupReference || !serverIssuedRedirect) {
+        showAccountCreatedModal();
+        return;
+      }
       const billingUrl = serverIssuedRedirect || `/billing/subscription?plan=${encodeURIComponent(plan)}&billing=${encodeURIComponent(billing)}&signup_intent=pending_signup&pending_signup_reference=${encodeURIComponent(pendingSignupReference)}`;
       window.location.href = billingUrl;
     } catch (error) {

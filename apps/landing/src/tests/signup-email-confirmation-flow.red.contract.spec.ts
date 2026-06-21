@@ -35,22 +35,29 @@ function migrationsDefineBusinessIsActive(migrations: string): boolean {
 }
 
 describe('RED signup email confirmation flow contract', () => {
-  it('FREE signup request creates a confirmation intent/outbox first and does not provision immediately', async () => {
+  it('FREE signup request creates the Supabase Auth user with the canonical password before confirmation intent/outbox', async () => {
     const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
-    const beforeFirstProvisioning = sliceBefore(source, /auth\.admin\.createUser|\.from\(["']businesses["']\)|\.from\(["']business_subscriptions["']\)/);
+    const authCreateIndex = source.search(/auth\.admin\.createUser\s*\(/);
+    const confirmationInsertIndex = source.search(/\.from\(["']signup_email_confirmations["']\)[\s\S]{0,180}\.insert\(/);
+    const outboxInsertIndex = source.search(/\.from\(["']notification_email_outbox["']\)[\s\S]{0,180}\.insert\(/);
+    const authCreateSlice = authCreateIndex >= 0 ? source.slice(authCreateIndex, authCreateIndex + 900) : '';
 
-    expect(beforeFirstProvisioning).toMatch(/signup_email_confirmation|signup_email_confirmations|confirmation_intent|email_confirmation/i);
-    expect(beforeFirstProvisioning).toMatch(/notification_email_outbox|enqueue|insert\(/i);
-    expect(beforeFirstProvisioning).toMatch(/template_key\s*:\s*["']signup_email_confirmation["']|signup_email_confirmation/i);
-    expect(beforeFirstProvisioning).not.toMatch(/auth\.admin\.createUser|\.from\(["']businesses["']\)|\.from\(["']business_subscriptions["']\)|template_key\s*:\s*["']business_welcome["']/i);
+    expect(authCreateIndex, 'signup must create Supabase Auth user during the signup request, not during confirm').toBeGreaterThan(0);
+    expect(confirmationInsertIndex, 'signup must still create a confirmation intent').toBeGreaterThan(authCreateIndex);
+    expect(outboxInsertIndex, 'signup must enqueue only the email-confirmation email after auth user creation').toBeGreaterThan(confirmationInsertIndex);
+    expect(authCreateSlice, 'password is the canonical credential and must be passed only to Supabase Auth signup/createUser').toMatch(/password\s*:\s*(?:password|body\.password|cleanPassword|validated\.password|payload\.password)/i);
+    expect(authCreateSlice).toMatch(/email_confirm\s*:\s*false|email_confirm\s*:\s*undefined|confirm/i);
+    expect(source.slice(0, confirmationInsertIndex)).not.toMatch(/\.from\(["']businesses["']\)|\.from\(["']business_subscriptions["']\)|template_key\s*:\s*["']business_welcome["']/i);
   });
 
-  it('pending confirmation request path never stores plaintext password, credential fields, raw token, or sensitive logs', async () => {
+  it('pending confirmation request path never stores plaintext/reversible password, credential fields, raw token, or sensitive logs outside Supabase Auth', async () => {
     const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
+    const confirmationPayloadSlice = source.match(/const\s+confirmationPayload\s*=\s*\{[\s\S]*?\n\s*\};/i)?.[0] ?? source;
     const pendingSlice = source.slice(0, source.search(/return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true/i));
 
     expect(pendingSlice).toMatch(/token_hash|hashToken|sha256Text|crypto\.subtle\.digest/i);
-    expect(pendingSlice).not.toMatch(/password\s*[:,]|plain(?:text)?_password|credential|raw_token|console\.(?:log|warn|error)\([\s\S]*(?:email|password|token)/i);
+    expect(confirmationPayloadSlice).not.toMatch(/password|plain(?:text)?_password|credential|raw_token/i);
+    expect(pendingSlice).not.toMatch(/plain(?:text)?_password|raw_token|console\.(?:log|warn|error)\([\s\S]*(?:email|password|token)/i);
   });
 
   it('FREE public responses are generic for request/resend/existing-email cases', async () => {
@@ -81,6 +88,14 @@ describe('RED signup email confirmation flow contract', () => {
     expect(outboxSlice).toMatch(/throw|rollback|delete\(\)|status\s*:\s*["']failed|existing[\s\S]{0,160}(?:notification_email_outbox|outbox)/i);
   });
 
+  it('FREE confirm endpoint does not create/reset credentials or enqueue second welcome/password email after confirmation', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+
+    expect(source, 'auth user must already exist from signup request; confirm only materializes domain rows').not.toMatch(/auth\.admin\.createUser\s*\(/i);
+    expect(source, 'password remains canonical from signup; confirmation must not generate recovery/reset/change-password links').not.toMatch(/auth\.admin\.generateLink|type\s*:\s*["']recovery["']|set_password_url|reset|change-password/i);
+    expect(source, 'email confirmation must not enqueue business_welcome or any second post-confirmation email').not.toMatch(/template_key\s*:\s*["']business_welcome["']|welcomeOutbox|notification_email_outbox[\s\S]{0,260}insert/i);
+  });
+
   it('FREE confirm endpoint uses the RPC confirmation_id contract when completing materialization', async () => {
     const source = await readSource(CONFIRM_EMAIL_API);
     const completeCalls = Array.from(source.matchAll(/complete_signup_email_materialization[\s\S]{0,180}/gi)).map((match) => match[0]).join('\n');
@@ -91,20 +106,17 @@ describe('RED signup email confirmation flow contract', () => {
     expect(completeCalls).not.toMatch(/p_confirmation_id\s*:\s*confirmation\.id\b/i);
   });
 
-  it('FREE materialization fails closed instead of adopting an unrelated existing auth user by email', async () => {
+  it('FREE materialization uses only the trusted signup-created auth user id and fails closed instead of adopting by email', async () => {
     const source = await readSource(CONFIRM_EMAIL_API);
     const createUserIndex = source.search(/auth\.admin\.createUser/);
     const materializedIndex = source.search(/complete_signup_email_materialization[\s\S]{0,160}p_status\s*:\s*["']materialized["']/i);
-    const beforeCreateUser = createUserIndex > 0 ? source.slice(0, createUserIndex) : '';
     const beforeMaterialized = materializedIndex > 0 ? source.slice(0, materializedIndex) : '';
-    const duplicateBranch = source.match(/if\s*\(\s*isDuplicateUserError\([\s\S]*?\n\s*}\s*\n\s*if\s*\(\s*!userId\s*\)/i)?.[0] ?? '';
 
-    expect(createUserIndex, 'FREE confirm endpoint must be inspectable at auth user creation').toBeGreaterThan(0);
-    expect(beforeCreateUser, 'unauthenticated confirmation metadata must not be used to pre-adopt an existing auth user by email').not.toMatch(/listUsers|getUserByEmail|findAuthUserByEmail|existing(?:Auth)?User/i);
-    expect(beforeCreateUser, 'retry may resume only from a trusted bound user id recorded by the same confirmation/materialization flow').toMatch(/created_user_id|trusted_user_id|bound_user_id|materialization_user_id/i);
-    expect(duplicateBranch || source, 'duplicate auth creation must fail closed/cancel/retry from trusted state, not adopt the pre-existing auth user').not.toMatch(/findAuthUserByEmail|listUsers|getUserByEmail|existing(?:Auth)?User|adopt/i);
-    expect(source, 'duplicate user errors must be handled with a generic fail-closed/no-op status before profile/business mutation').toMatch(/already\s*(?:registered|exists)|duplicate|23505|EMAIL_ALREADY_REGISTERED|user_already_exists/i);
-    expect(beforeMaterialized, 'newly-created auth users must be cleaned up if durable confirmation user_id binding fails').toMatch(/deleteUser\s*\(|cleanupJustCreatedAuthUser|createdUserId/i);
+    expect(createUserIndex, 'auth user creation moved to signup request; this legacy confirm-time creation marker must be absent').toBe(-1);
+    expect(beforeMaterialized, 'confirmation payload/RPC result must carry the trusted auth user id created at signup in protected metadata').toMatch(/created_user_id|trusted_user_id|bound_user_id|materialization_user_id|user_id/i);
+    expect(beforeMaterialized, 'application code must not depend on a signup_email_confirmations.auth_user_id column that migrations/RPC do not define').not.toMatch(/auth_user_id/i);
+    expect(beforeMaterialized, 'unauthenticated confirmation metadata must not be used to pre-adopt an existing auth user by email').not.toMatch(/listUsers|getUserByEmail|findAuthUserByEmail|existing(?:Auth)?User|adopt/i);
+    expect(source, 'missing trusted auth user id must fail closed with a generic materialization error before profile/business mutation').toMatch(/signup_materialize_failed|confirmation_metadata_invalid|missing(?:Trusted)?User|auth_user_id/i);
     expect(source).toMatch(/failed_materialization|cancelled|confirmation_invalid_or_expired|signup_materialize_failed|already_materialized/i);
     expect(beforeMaterialized).toMatch(/business_settings[\s\S]{0,200}(?:error|data)|(?:settingsError|settingsResult)/i);
     expect(beforeMaterialized).toMatch(/business_onboarding_state[\s\S]{0,200}(?:error|data)|(?:onboardingError|onboardingResult)/i);
@@ -113,19 +125,23 @@ describe('RED signup email confirmation flow contract', () => {
     expect(beforeMaterialized).toMatch(/if\s*\([\s\S]{0,220}(?:settingsError|onboardingError|subscriptionError|welcomeError|welcomeOutboxError|!\s*settings|!\s*onboarding|!\s*subscription|!\s*welcome)/i);
   });
 
-  it('FREE materialization RPC/update results are checked before public welcome success', async () => {
+  it('FREE materialization RPC/update results are checked before public HTML success UX', async () => {
     const source = await readSource(CONFIRM_EMAIL_API);
     const markHelper = source.match(/async\s+function\s+markMaterialization[\s\S]*?\n}\n/i)?.[0] ?? '';
-    const successIndex = source.search(/return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']welcome["']/i);
+    const htmlHelper = source.match(/function\s+htmlResponse[\s\S]*?\n}\n/i)?.[0] ?? '';
+    const successIndex = source.search(/return\s+htmlResponse\s*\(\s*\{\s*status\s*:\s*["']materialized["']/i);
     const finalMaterializedIndex = source.search(/complete_signup_email_materialization[\s\S]{0,220}p_status\s*:\s*["']materialized["']/i);
     const finalSlice = finalMaterializedIndex >= 0 && successIndex > finalMaterializedIndex ? source.slice(finalMaterializedIndex, successIndex) : '';
 
     expect(markHelper, 'markMaterialization helper must be inspectable').toMatch(/complete_signup_email_materialization/i);
     expect(markHelper, 'markMaterialization must capture RPC errors/data/count instead of fire-and-forget').toMatch(/const\s*\{[\s\S]{0,120}(?:error|data|count)[\s\S]{0,120}\}\s*=\s*await\s+supabaseAdmin\.rpc/i);
     expect(markHelper, 'failed/materialized status updates must throw or return failure when the RPC did not update one row').toMatch(/if\s*\([\s\S]{0,180}(?:materializationError|completeError|error|!\s*data|count\s*!==\s*1|!\s*updated)/i);
-    expect(finalMaterializedIndex, 'final materialized RPC must run before public welcome success').toBeGreaterThan(0);
-    expect(successIndex, 'public welcome success must be inspectable').toBeGreaterThan(finalMaterializedIndex);
+    expect(finalMaterializedIndex, 'final materialized RPC must run before public HTML success').toBeGreaterThan(0);
+    expect(successIndex, 'public HTML success must be inspectable').toBeGreaterThan(finalMaterializedIndex);
     expect(finalSlice, 'final materialized RPC result must be checked before public success').toMatch(/const\s*\{[\s\S]{0,120}(?:error|data|count)[\s\S]{0,120}\}\s*=\s*await|if\s*\([\s\S]{0,160}(?:materializationError|completeError|error|!\s*data|count\s*!==\s*1|!\s*updated)/i);
+    expect(htmlHelper, 'success UX must be an HTML response, not raw JSON').toMatch(/text\/html|<!doctype html|<main/i);
+    expect(htmlHelper, 'success UX must include a login CTA for confirmed accounts').toMatch(/<a[\s\S]{0,120}href=|loginUrl|auth\/login|Ingresar|Iniciar sesi[oó]n/i);
+    expect(source, 'browser-facing confirmation route must not expose raw JSON response bodies').not.toMatch(/return\s+jsonResponse\s*\(/i);
   });
 
   it('FREE confirm endpoint does not insert businesses.is_active unless migrations define that column', async () => {
@@ -165,6 +181,14 @@ describe('RED signup email confirmation flow contract', () => {
     expect(source).toMatch(/notification_email_outbox/i);
   });
 
+  it('confirm-email browser route returns Orvel-friendly HTML UX with a login CTA instead of raw JSON', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+
+    expect(source).toMatch(/text\/html|<!doctype html|<main|login|Ingresar|Iniciar sesi[oó]n|auth\/login/i);
+    expect(source, 'browser-facing confirmation route must not expose raw JSON response bodies').not.toMatch(/return\s+jsonResponse\s*\(/i);
+    expect(source).toMatch(/already_materialized|materialized|email_confirmed|confirmaci[oó]n/i);
+  });
+
   it('PAID signup start requires a verified email confirmation before server-side Mercado Pago checkout creation', async () => {
     const protectSource = await readSource(PENDING_SIGNUP_PROTECT_API);
     const startSource = await readSource(SUBSCRIPTION_START_API);
@@ -182,5 +206,16 @@ describe('RED signup email confirmation flow contract', () => {
 
     expect(combined).toMatch(/signup_confirmation_requested|confirmation_requested|accepted|ok\s*:\s*true/i);
     expect(combined).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS|PENDING_SIGNUP_REFERENCE_INVALID|Este email ya tiene una cuenta|Ya existe un alta paga pendiente/i);
+  });
+
+  it('PAID protect endpoint uses the same accepted public body for fresh and duplicate/pending cases, without redirect or cookie before email proof', async () => {
+    const protectSource = await readSource(PENDING_SIGNUP_PROTECT_API);
+    const successSlice = protectSource.slice(protectSource.indexOf('await createPendingSignupHandoff'), protectSource.indexOf('} catch (error)'));
+    const duplicateSlice = protectSource.slice(protectSource.indexOf('if (isDuplicateProtectionConflict)'), protectSource.indexOf('const status ='));
+
+    expect(successSlice).toMatch(/jsonResponse\(PUBLIC_SIGNUP_CONFIRMATION_REQUESTED,\s*202\)/);
+    expect(successSlice).not.toMatch(/pending_signup_reference|serverRedirectUrl|serverIssuedRedirect|Set-Cookie/);
+    expect(duplicateSlice).toMatch(/jsonResponse\(PUBLIC_DUPLICATE_PROTECTION_CONFLICT,\s*202\)/);
+    expect(duplicateSlice).not.toMatch(/pending_signup_reference|serverRedirectUrl|serverIssuedRedirect|Set-Cookie|error\s*:/);
   });
 });
