@@ -129,6 +129,19 @@ async function markMaterialization(supabaseAdmin: ReturnType<typeof createClient
   }
 }
 
+function trustedUserIdFromMetadata(confirmation: Record<string, unknown>): string | null {
+  const metadata = (confirmation.protected_metadata && typeof confirmation.protected_metadata === "object" ? confirmation.protected_metadata : {}) as Record<string, unknown>;
+  return typeof metadata.created_user_id === "string" && metadata.created_user_id.trim() ? metadata.created_user_id : null;
+}
+
+async function confirmTrustedAuthUserEmail(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<void> {
+  const { data: authConfirmData, error: authConfirmError } = await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
+  const authConfirmedUser = authConfirmData?.user;
+  if (authConfirmError || !authConfirmedUser || authConfirmedUser.id !== userId) {
+    throw authConfirmError || new Error("signup_auth_email_confirmation_failed");
+  }
+}
+
 export const GET: APIRoute = async ({ request }) => {
   const token = cleanToken(new URL(request.url).searchParams.get("token"));
   if (!token) return htmlResponse({ status: "failed", title: "Confirmación inválida", message: "El enlace no es válido o está incompleto. Pedí un nuevo correo de confirmación desde Orvel." }, 400);
@@ -150,7 +163,16 @@ export const GET: APIRoute = async ({ request }) => {
       .in("status", ["failed_materialization", "materialized"])
       .maybeSingle();
     if (retryable.data?.status === "materialized") {
-        return htmlResponse({ status: "already_materialized", title: "Tu email ya estaba confirmado", message: "La cuenta ya está lista. Podés iniciar sesión con la contraseña que elegiste al registrarte." });
+      const trustedUserId = trustedUserIdFromMetadata(retryable.data as Record<string, unknown>);
+      if (!trustedUserId) {
+        return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no está vinculada a una cuenta creada por Orvel. Pedí un nuevo enlace.", detail: "signup_materialize_failed" }, 502);
+      }
+      try {
+        await confirmTrustedAuthUserEmail(supabaseAdmin, trustedUserId);
+      } catch {
+        return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu acceso. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
+      }
+      return htmlResponse({ status: "already_materialized", title: "Tu email ya estaba confirmado", message: "La cuenta ya está lista. Podés iniciar sesión con la contraseña que elegiste al registrarte." });
     }
     if (retryable.data?.status === "failed_materialization") {
       await supabaseAdmin.from("signup_email_confirmations").update({ status: "materializing", updated_at: new Date().toISOString() }).eq("id", retryable.data.id).eq("status", "failed_materialization");
@@ -196,6 +218,13 @@ export const GET: APIRoute = async ({ request }) => {
   if (!userId) {
     await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
     return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no está vinculada a una cuenta creada por Orvel. Pedí un nuevo enlace.", detail: "signup_materialize_failed" }, 502);
+  }
+
+  try {
+    await confirmTrustedAuthUserEmail(supabaseAdmin, userId);
+  } catch {
+    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
+    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu acceso. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
   }
 
   const { data: existingBusiness } = await supabaseAdmin.from("businesses").select("id, slug").eq("owner_id", userId).limit(1).maybeSingle();

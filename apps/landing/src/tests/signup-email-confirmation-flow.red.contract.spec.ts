@@ -96,6 +96,19 @@ describe('RED signup email confirmation flow contract', () => {
     expect(source, 'email confirmation must not enqueue business_welcome or any second post-confirmation email').not.toMatch(/template_key\s*:\s*["']business_welcome["']|welcomeOutbox|notification_email_outbox[\s\S]{0,260}insert/i);
   });
 
+  it('FREE confirm endpoint marks the trusted signup-created Auth user email confirmed and checks the admin result before success', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+    const successIndex = source.search(/return\s+htmlResponse\s*\(\s*\{\s*status\s*:\s*["']materialized["']/i);
+    const authConfirmIndex = source.search(/auth\.admin\.updateUserById\s*\(\s*(?:userId|trustedUserId|metadata\.created_user_id)/i);
+    const beforeSuccess = authConfirmIndex >= 0 && successIndex > authConfirmIndex ? source.slice(authConfirmIndex, successIndex) : '';
+
+    expect(authConfirmIndex, 'confirm must update only the trusted created_user_id Auth row instead of adopting by email').toBeGreaterThan(0);
+    expect(beforeSuccess, 'Auth email confirmation update must request Supabase email_confirm without storing/changing password').toMatch(/email_confirm\s*:\s*true/i);
+    expect(beforeSuccess).not.toMatch(/password\s*:|generateLink|recovery|reset|change-password/i);
+    expect(beforeSuccess, 'updateUserById result must be checked before public login CTA/success').toMatch(/const\s*\{[\s\S]{0,140}(?:error|data)[\s\S]{0,140}\}\s*=\s*await\s+supabaseAdmin\.auth\.admin\.updateUserById|if\s*\([\s\S]{0,180}(?:authConfirmError|emailConfirmError|!\s*authConfirmedUser|!\s*confirmedAuthUser)/i);
+    expect(beforeSuccess, 'failed Auth confirmation must prevent false success and mark/retry materialization failure').toMatch(/failed_materialization|signup_materialize_failed/i);
+  });
+
   it('FREE confirm endpoint uses the RPC confirmation_id contract when completing materialization', async () => {
     const source = await readSource(CONFIRM_EMAIL_API);
     const completeCalls = Array.from(source.matchAll(/complete_signup_email_materialization[\s\S]{0,180}/gi)).map((match) => match[0]).join('\n');
