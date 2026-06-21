@@ -138,6 +138,35 @@ describe('RED signup email confirmation flow contract', () => {
     expect(beforeMaterialized).toMatch(/if\s*\([\s\S]{0,220}(?:settingsError|onboardingError|subscriptionError|welcomeError|welcomeOutboxError|!\s*settings|!\s*onboarding|!\s*subscription|!\s*welcome)/i);
   });
 
+  it('FREE materialization marks onboarding dashboard-ready with captured business type and account user', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+    const onboardingUpsert = source.match(/\.from\(["']business_onboarding_state["']\)[\s\S]{0,260}\.upsert\(\s*\{[\s\S]{0,520}?\}\s*\)/i)?.[0] ?? '';
+
+    expect(onboardingUpsert, 'business_onboarding_state upsert must be inspectable').toMatch(/business_onboarding_state/i);
+    expect(onboardingUpsert).toMatch(/current_step\s*:\s*["']dashboard_ready["']/i);
+    expect(onboardingUpsert).toMatch(/dashboard_ready_at\s*:/i);
+    expect(onboardingUpsert).toMatch(/selected_plan_code\s*:\s*["']FREE["']/i);
+    expect(onboardingUpsert).toMatch(/account_user_id\s*:\s*userId/i);
+    expect(onboardingUpsert).toMatch(/business_type\s*:\s*businessType/i);
+    expect(onboardingUpsert).not.toMatch(/current_step\s*:\s*["']welcome_login["']/i);
+  });
+
+  it('FREE materialization updates trusted auth metadata as onboarding complete with business identity', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+    const materializedIndex = source.search(/complete_signup_email_materialization[\s\S]{0,220}p_status\s*:\s*["']materialized["']/i);
+    const beforeMaterialized = materializedIndex > 0 ? source.slice(0, materializedIndex) : source;
+
+    expect(beforeMaterialized).toMatch(/auth\.admin\.updateUserById\s*\(\s*(?:userId|input\.userId)[\s\S]{0,900}user_metadata/i);
+    expect(beforeMaterialized).toMatch(/onboardingCompleted\s*:\s*true/i);
+    expect(beforeMaterialized).toMatch(/onboarding_completed\s*:\s*true/i);
+    expect(beforeMaterialized).toMatch(/onboarding_required\s*:\s*false/i);
+    expect(beforeMaterialized).toMatch(/business_type\s*:\s*(?:businessType|input\.businessType)/i);
+    expect(beforeMaterialized).toMatch(/tipoNegocio\s*:\s*(?:businessType|input\.businessType)/i);
+    expect(beforeMaterialized).toMatch(/business_id\s*:\s*(?:businessId|input\.businessId)/i);
+    expect(beforeMaterialized).toMatch(/business_name\s*:\s*(?:businessName|input\.businessName)/i);
+    expect(beforeMaterialized).toMatch(/business_slug\s*:\s*(?:businessSlug|input\.businessSlug)/i);
+  });
+
   it('FREE materialization RPC/update results are checked before public HTML success UX', async () => {
     const source = await readSource(CONFIRM_EMAIL_API);
     const markHelper = source.match(/async\s+function\s+markMaterialization[\s\S]*?\n}\n/i)?.[0] ?? '';

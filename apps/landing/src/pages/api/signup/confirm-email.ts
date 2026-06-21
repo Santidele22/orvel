@@ -142,6 +142,29 @@ async function confirmTrustedAuthUserEmail(supabaseAdmin: ReturnType<typeof crea
   }
 }
 
+async function markTrustedAuthUserOnboardingComplete(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  input: { userId: string; businessId: string; businessName: string; businessSlug: string; businessType: string },
+): Promise<void> {
+  const { data: authMetadataData, error: authMetadataError } = await supabaseAdmin.auth.admin.updateUserById(input.userId, {
+    user_metadata: {
+      onboardingCompleted: true,
+      onboarding_completed: true,
+      onboarding_required: false,
+      business_type: input.businessType,
+      tipoNegocio: input.businessType,
+      business_id: input.businessId,
+      business_name: input.businessName,
+      business_slug: input.businessSlug,
+      negocioNombre: input.businessName,
+    },
+  });
+  const authMetadataUser = authMetadataData?.user;
+  if (authMetadataError || !authMetadataUser || authMetadataUser.id !== input.userId) {
+    throw authMetadataError || new Error("signup_auth_metadata_update_failed");
+  }
+}
+
 export const GET: APIRoute = async ({ request }) => {
   const token = cleanToken(new URL(request.url).searchParams.get("token"));
   if (!token) return htmlResponse({ status: "failed", title: "Confirmación inválida", message: "El enlace no es válido o está incompleto. Pedí un nuevo correo de confirmación desde Orvel." }, 400);
@@ -230,6 +253,7 @@ export const GET: APIRoute = async ({ request }) => {
   const { data: existingBusiness } = await supabaseAdmin.from("businesses").select("id, slug").eq("owner_id", userId).limit(1).maybeSingle();
   const businessId = existingBusiness?.id || crypto.randomUUID();
   const slug = slugifyBusinessName(businessName);
+  const businessSlug = existingBusiness?.slug || slug;
   await supabaseAdmin.from("profiles").upsert({ id: userId, first_name: firstName, last_name: lastName, phone });
   const { error: businessError } = existingBusiness ? { error: null } : await supabaseAdmin.from("businesses").insert({ id: businessId, slug, name: businessName, owner_id: userId, timezone: "America/Argentina/Buenos_Aires" });
   if (businessError) {
@@ -237,13 +261,21 @@ export const GET: APIRoute = async ({ request }) => {
     return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos preparar tu negocio. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
   }
 
-  const { data: settings, error: settingsError } = await supabaseAdmin.from("business_settings").upsert({ business_id: businessId, business_name: businessName, slug: existingBusiness?.slug || slug, business_type: businessType, plan: "free", support_phone: phone, updated_at: new Date().toISOString() }).select("business_id").single();
-  const { data: onboarding, error: onboardingError } = await supabaseAdmin.from("business_onboarding_state").upsert({ business_id: businessId, current_step: "welcome_login", selected_plan_code: "FREE", account_user_id: userId, business_type: businessType, updated_at: new Date().toISOString() }).select("business_id").single();
+  const dashboardReadyAt = new Date().toISOString();
+  const { data: settings, error: settingsError } = await supabaseAdmin.from("business_settings").upsert({ business_id: businessId, business_name: businessName, slug: businessSlug, business_type: businessType, plan: "free", support_phone: phone, updated_at: dashboardReadyAt }).select("business_id").single();
+  const { data: onboarding, error: onboardingError } = await supabaseAdmin.from("business_onboarding_state").upsert({ business_id: businessId, current_step: "dashboard_ready", dashboard_ready_at: dashboardReadyAt, selected_plan_code: "FREE", account_user_id: userId, business_type: businessType, updated_at: dashboardReadyAt }).select("business_id").single();
   const { data: subscription, error: subscriptionError } = await supabaseAdmin.from("business_subscriptions").upsert({ business_id: businessId, tenant_id: userId, plan_code: "FREE", subscription_status: "active", status: "active", updated_at: new Date().toISOString() }).select("business_id").single();
   const welcomeResult = { data: true };
   const welcomeError = null;
 
   if (settingsError || onboardingError || subscriptionError || welcomeError || !settings || !onboarding || !subscription || !welcomeResult.data) {
+    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
+    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos dejar lista tu cuenta. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
+  }
+
+  try {
+    await markTrustedAuthUserOnboardingComplete(supabaseAdmin, { userId, businessId, businessName, businessSlug, businessType });
+  } catch {
     await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
     return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos dejar lista tu cuenta. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
   }
