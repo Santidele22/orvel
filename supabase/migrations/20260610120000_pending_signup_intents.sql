@@ -76,17 +76,24 @@ BEGIN
 
   UPDATE public.pending_signup_intents psi
   SET status = 'materializing',
+      provider_subscription_id = COALESCE(psi.provider_subscription_id, normalized_provider_subscription_id),
+      external_reference = COALESCE(psi.external_reference, normalized_reference),
       updated_at = now()
   FROM public.billing_checkout_sessions bcs
   WHERE psi.id = bcs.pending_signup_intent_id
     AND psi.provider = 'mercado_pago'
-    AND psi.external_reference = normalized_reference
-    AND psi.provider_subscription_id = normalized_provider_subscription_id
-    AND psi.status IN ('created', 'provider_created', 'approved')
+    AND (psi.external_reference = normalized_reference OR psi.external_reference IS NULL)
+    AND (psi.provider_subscription_id = normalized_provider_subscription_id OR psi.provider_subscription_id IS NULL)
+    AND psi.status IN ('created', 'provider_created', 'approved', 'failed')
     AND psi.expires_at > now()
     AND psi.materialized_at IS NULL
-    AND psi.user_id IS NULL
     AND psi.business_id IS NULL
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.business_subscriptions bs
+      WHERE bs.provider = 'mercado_pago'
+        AND bs.provider_subscription_id = normalized_provider_subscription_id
+    )
     AND bcs.external_reference = normalized_reference
     AND bcs.provider = 'mercado_pago'
     AND bcs.pending_signup_intent_id = psi.id
@@ -94,6 +101,12 @@ BEGIN
     AND bcs.expected_currency = p_currency
     AND bcs.expires_at > now()
     AND (bcs.used_at IS NULL OR bcs.provider_resource_id = normalized_provider_subscription_id OR bcs.provider_preference_id = normalized_provider_subscription_id)
+    AND (
+      psi.status <> 'failed' OR
+      psi.provider_subscription_id = normalized_provider_subscription_id OR
+      bcs.provider_resource_id = normalized_provider_subscription_id OR
+      bcs.provider_preference_id = normalized_provider_subscription_id
+    )
   RETURNING psi.id INTO intent_id;
 
   IF intent_id IS NULL THEN

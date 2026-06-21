@@ -85,6 +85,12 @@ function createOpaqueToken(prefix: string): string {
   return `${prefix}_${bytesToBase64Url(bytes)}`;
 }
 
+function buildConfirmationUrl(request: Request, token: string): string {
+  const url = new URL('/api/signup/confirm-email', request.url);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
 async function sha256Text(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -251,6 +257,55 @@ export async function createPendingSignupHandoff(request: Request, input: Handof
     if (error) throw error;
   }
 
+  const confirmationToken = createOpaqueToken('sec');
+  const confirmationUrl = buildConfirmationUrl(request, confirmationToken);
+  await supabaseAdmin.rpc('expire_signup_email_confirmation', {
+    p_email_hmac: protectedFields.email_hmac,
+    p_purpose: 'paid_signup',
+  });
+  const confirmationInsert = await supabaseAdmin.from('signup_email_confirmations').insert({
+    purpose: 'paid_signup',
+    plan_code: planCode,
+    billing_period: billingPeriod,
+    email_hmac: protectedFields.email_hmac,
+    token_hash: await sha256Text(confirmationToken),
+    pending_signup_reference: pendingSignupReference,
+    expires_at: new Date(now.getTime() + HANDOFF_MAX_AGE_SECONDS * 1000).toISOString(),
+    protected_metadata: {},
+  });
+  if (confirmationInsert.error) {
+    await supabaseAdmin
+      .from('pending_signup_intents')
+      .update({ status: 'failed', updated_at: new Date().toISOString() })
+      .eq('handoff_reference', pendingSignupReference)
+      .in('status', ['created', 'provider_created']);
+    throw confirmationInsert.error;
+  }
+
+  const confirmationEmailInsert = await supabaseAdmin.from('notification_email_outbox').insert({
+    to_email: email,
+    template_key: 'signup_email_confirmation',
+    payload: {
+      confirmation_url: confirmationUrl,
+      owner_name: cleanText(input.first_name, 80),
+      business_name: cleanText(input.business_name, 120),
+      plan_code: planCode,
+    },
+  });
+  if (confirmationEmailInsert.error) {
+    await supabaseAdmin
+      .from('signup_email_confirmations')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('pending_signup_reference', pendingSignupReference)
+      .eq('status', 'pending');
+    await supabaseAdmin
+      .from('pending_signup_intents')
+      .update({ status: 'failed', updated_at: new Date().toISOString() })
+      .eq('handoff_reference', pendingSignupReference)
+      .in('status', ['created', 'provider_created']);
+    throw confirmationEmailInsert.error;
+  }
+
   const redirectUrl = `/billing/subscription?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billingPeriod)}&signup_intent=pending_signup&pending_signup_reference=${encodeURIComponent(pendingSignupReference)}`;
   return { pendingSignupReference, redirectUrl, setCookie: buildSetCookie(request, browserBinding) };
 }
@@ -262,7 +317,7 @@ export async function resolvePendingSignupHandoff(request: Request, pendingSignu
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from('pending_signup_intents')
-    .select('email_encrypted,email_hmac,first_name_encrypted,first_name_hmac,last_name_encrypted,last_name_hmac,phone_encrypted,phone_hmac,business_name_encrypted,business_name_hmac,pii_crypto_version,plan_code,billing_period,business_type,selected_business_types,handoff_binding_hash')
+    .select('email_encrypted,email_hmac,first_name_encrypted,first_name_hmac,last_name_encrypted,last_name_hmac,phone_encrypted,phone_hmac,business_name_encrypted,business_name_hmac,pii_crypto_version,plan_code,billing_period,business_type,selected_business_types,handoff_binding_hash,confirmation_status,email_confirmed_at')
     .eq('handoff_reference', reference)
     .in('status', ['created', 'provider_created'])
     .gt('expires_at', new Date().toISOString())
@@ -291,6 +346,8 @@ export async function resolvePendingSignupHandoff(request: Request, pendingSignu
       billing_period: data.billing_period,
       business_type: data.business_type,
       selected_business_types: data.selected_business_types,
+      confirmation_status: data.confirmation_status,
+      email_confirmed_at: data.email_confirmed_at,
     },
   };
 }

@@ -635,6 +635,8 @@ Deno.serve(async (req) => {
         email_hmac: string | null;
         plan_code: string | null;
         billing_period: string | null;
+        confirmation_status: string | null;
+        email_confirmed_at: string | null;
       }
       | null = null;
     let pendingSignupEmail: string | null = null;
@@ -643,7 +645,7 @@ Deno.serve(async (req) => {
       const { data: referencedPendingIntentData } = pendingSignupReference
         ? await supabaseAdmin
           .from("pending_signup_intents")
-          .select("id, external_reference, email_hmac, plan_code, billing_period")
+          .select("id, external_reference, email_hmac, plan_code, billing_period, confirmation_status, email_confirmed_at")
           .eq("handoff_reference", pendingSignupReference)
           .in("status", ["created", "provider_created"])
           .gt("expires_at", now.toISOString())
@@ -719,6 +721,23 @@ Deno.serve(async (req) => {
           }),
           {
             status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      if (
+        !referencedPendingIntent ||
+        referencedPendingIntent.confirmation_status !== "confirmed" ||
+        !referencedPendingIntent.email_confirmed_at
+      ) {
+        return new Response(
+          JSON.stringify({
+            error: "EMAIL_CONFIRMATION_REQUIRED",
+            message: "Email confirmation is required before Mercado Pago preapproval",
+          }),
+          {
+            status: 409,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );
@@ -938,14 +957,29 @@ Deno.serve(async (req) => {
     );
 
     if (pendingSignupRecord) {
-      await supabaseAdmin
-        .from("pending_signup_intents")
-        .update({
-          external_reference: externalReference,
-          status: "created",
-          updated_at: now.toISOString(),
-        })
-        .eq("id", pendingSignupRecord.id);
+    const { data: updatedPendingExternalReference, error: pendingExternalReferenceUpdateError } = await supabaseAdmin
+      .from("pending_signup_intents")
+      .update({
+        external_reference: externalReference,
+        status: "created",
+        updated_at: now.toISOString(),
+      })
+        .eq("id", pendingSignupRecord.id)
+        .select("id")
+        .single();
+      if (pendingExternalReferenceUpdateError || !updatedPendingExternalReference) {
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_SESSION_BIND_FAILED",
+            message: "No se pudo persistir la sesión de pago. Reintentá en unos segundos.",
+            correlation_id: correlationId,
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
+          },
+        );
+      }
     }
     const { data: subscriptionSession, error: subscriptionSessionError } =
       await supabaseAdmin
@@ -1128,7 +1162,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    await supabaseAdmin
+    const { data: updatedCheckoutSession, error: billingSessionUpdateError } = await supabaseAdmin
       .from("billing_checkout_sessions")
       .update({
         provider_preference_id: mpData.id,
@@ -1137,10 +1171,27 @@ Deno.serve(async (req) => {
           mpData.preapproval_plan?.id || null,
         status: "provider_created",
       })
-      .eq("id", subscriptionSession.id);
+      .eq("id", subscriptionSession.id)
+      .select("id")
+      .single();
+
+    const checkoutSessionUpdateCount = updatedCheckoutSession ? 1 : 0;
+    if (billingSessionUpdateError || !updatedCheckoutSession || checkoutSessionUpdateCount !== 1) {
+      return new Response(
+        JSON.stringify({
+          error: "SUBSCRIPTION_SESSION_PROVIDER_UPDATE_FAILED",
+          message: "No se pudo confirmar localmente la sesión de pago. Reintentá en unos segundos.",
+          correlation_id: correlationId,
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
+        },
+      );
+    }
 
     if (pendingSignupRecord) {
-      await supabaseAdmin
+      const { data: updatedPendingSignup, error: pendingSignupUpdateError } = await supabaseAdmin
         .from("pending_signup_intents")
         .update({
           provider_subscription_id: mpData.id,
@@ -1148,7 +1199,23 @@ Deno.serve(async (req) => {
           status: "provider_created",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", pendingSignupRecord.id);
+        .eq("id", pendingSignupRecord.id)
+        .select("id")
+        .single();
+      const pendingSignupUpdateCount = updatedPendingSignup ? 1 : 0;
+      if (pendingSignupUpdateError || !updatedPendingSignup || pendingSignupUpdateCount !== 1) {
+        return new Response(
+          JSON.stringify({
+            error: "PENDING_SIGNUP_PROVIDER_UPDATE_FAILED",
+            message: "No se pudo confirmar localmente el alta paga. Reintentá en unos segundos.",
+            correlation_id: correlationId,
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
+          },
+        );
+      }
     }
 
     // =============================================================================

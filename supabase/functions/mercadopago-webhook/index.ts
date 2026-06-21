@@ -150,7 +150,7 @@ async function findPendingSignupIntentForSubscription(
     .select("*")
     .eq("provider", "mercado_pago")
     .eq("provider_subscription_id", providerSubscriptionId)
-    .in("status", ["materializing", "materialized"])
+    .in("status", ["failed", "approved", "materializing", "materialized"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -236,6 +236,31 @@ async function ensurePaidSignupWelcomeBootstrap(
   return Boolean(verifiedWelcomeEmail);
 }
 
+async function markPendingSignupIntentFailed(
+  supabaseAdmin: SupabaseClient,
+  pendingSignupIntentId: string,
+): Promise<void> {
+  await supabaseAdmin
+    .from("pending_signup_intents")
+    .update({ status: "failed", updated_at: new Date().toISOString() })
+      .eq("id", pendingSignupIntentId)
+      .in("status", ["materializing", "approved", "failed"]);
+}
+
+async function cleanupJustCreatedPendingSignupAuthUser(
+  supabaseAdmin: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  try {
+    await supabaseAdmin.auth.admin.deleteUser(userId);
+  } catch (error) {
+    console.error("Failed to clean up unbound paid signup auth user", {
+      user_id: userId,
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
 async function materializePendingSignup(
   supabaseAdmin: SupabaseClient,
   params: {
@@ -258,51 +283,68 @@ async function materializePendingSignup(
 > {
   const { data: intent } = await supabaseAdmin
     .from("pending_signup_intents")
-    .select("*")
+    .update({ status: "materializing", updated_at: new Date().toISOString() })
     .eq("id", params.pendingSignupIntentId)
     .eq("provider", "mercado_pago")
     .eq("provider_subscription_id", params.providerSubscriptionId)
-    .eq("status", "materializing")
+    .in("status", ["approved", "materializing", "failed"])
+    .select("*")
     .maybeSingle();
 
   if (!intent) return null;
 
-  const decryptedEmail = await decryptPendingSignupPiiField(intent.email_encrypted);
-  const decryptedFirstName = await decryptPendingSignupPiiField(intent.first_name_encrypted);
-  const decryptedLastName = await decryptPendingSignupPiiField(intent.last_name_encrypted);
-  const decryptedPhone = await decryptPendingSignupPiiField(intent.phone_encrypted);
-  const decryptedBusinessName = await decryptPendingSignupPiiField(intent.business_name_encrypted);
+  try {
+    const decryptedEmail = await decryptPendingSignupPiiField(intent.email_encrypted);
+    const decryptedFirstName = await decryptPendingSignupPiiField(intent.first_name_encrypted);
+    const decryptedLastName = await decryptPendingSignupPiiField(intent.last_name_encrypted);
+    const decryptedPhone = await decryptPendingSignupPiiField(intent.phone_encrypted);
+    const decryptedBusinessName = await decryptPendingSignupPiiField(intent.business_name_encrypted);
 
-  if (!decryptedEmail) {
-    await supabaseAdmin
-      .from("pending_signup_intents")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("id", intent.id);
-    throw new Error("pending_signup_email_decrypt_failed");
-  }
+    if (!decryptedEmail) {
+      throw new Error("pending_signup_email_decrypt_failed");
+    }
 
-  const { data: createdUser, error: createUserError } = await supabaseAdmin.auth
-    .admin.createUser({
-      email: decryptedEmail,
-      email_confirm: true,
-      user_metadata: {
-        first_name: decryptedFirstName,
-        last_name: decryptedLastName,
-        phone: decryptedPhone,
-        plan: intent.plan_code,
-        onboarding_required: true,
-        onboarding_completed: false,
-        onboardingCompleted: false,
-        source: "paid_signup_payment_approved",
-      },
-    });
+    const bound_user_id = typeof intent.user_id === "string" && intent.user_id ? intent.user_id : null;
+    let userId = bound_user_id;
+    if (!userId) {
+    const { data: createdUser, error: createUserError } = await supabaseAdmin.auth
+      .admin.createUser({
+        email: decryptedEmail,
+        email_confirm: true,
+        user_metadata: {
+          first_name: decryptedFirstName,
+          last_name: decryptedLastName,
+          phone: decryptedPhone,
+          plan: intent.plan_code,
+          onboarding_required: true,
+          onboarding_completed: false,
+          onboardingCompleted: false,
+          source: "paid_signup_payment_approved",
+        },
+      });
 
-  if (createUserError || !createdUser.user) {
-    await supabaseAdmin
-      .from("pending_signup_intents")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("id", intent.id);
-    throw createUserError || new Error("pending_signup_user_create_failed");
+    if (createUserError || !createdUser.user) {
+      const duplicate = /23505|duplicate|already\s*(?:exists|registered)|user_already_exists|EMAIL_ALREADY_REGISTERED/i.test(String(createUserError?.message || createUserError));
+      if (duplicate) {
+        throw new Error("EMAIL_ALREADY_REGISTERED");
+      }
+      throw createUserError || new Error("pending_signup_user_create_failed");
+    } else {
+      const createdUserId = createdUser.user.id;
+      const { data: boundIntent, error: boundIntentError } = await supabaseAdmin
+        .from("pending_signup_intents")
+        .update({ user_id: createdUserId, updated_at: new Date().toISOString() })
+        .eq("id", intent.id)
+        .eq("status", "materializing")
+        .is("user_id", null)
+        .select("id,user_id")
+        .single();
+      if (boundIntentError || !boundIntent) {
+        await cleanupJustCreatedPendingSignupAuthUser(supabaseAdmin, createdUserId);
+        throw boundIntentError || new Error("pending_signup_user_bind_failed");
+      }
+      userId = createdUserId;
+    }
   }
 
   const slugBase = String(decryptedBusinessName || "mi-negocio")
@@ -313,36 +355,56 @@ async function materializePendingSignup(
     .replace(/^-|-$/g, "") || "mi-negocio";
   const slug = `${slugBase}-${String(intent.id).slice(0, 8)}`;
 
-  const { data: business, error: businessError } = await supabaseAdmin
+  const { data: existingBusiness } = await supabaseAdmin
     .from("businesses")
-    .insert({
-      name: decryptedBusinessName || "Mi Negocio",
-      slug,
-      owner_id: createdUser.user.id,
-      timezone: "America/Argentina/Buenos_Aires",
-      is_active: true,
-    })
     .select("id, owner_id")
-    .single();
+    .eq("owner_id", userId)
+    .limit(1)
+    .maybeSingle();
+  const { data: business, error: businessError } = existingBusiness
+    ? { data: existingBusiness, error: null }
+    : await supabaseAdmin
+      .from("businesses")
+      .insert({
+        name: decryptedBusinessName || "Mi Negocio",
+        slug,
+        owner_id: userId,
+        timezone: "America/Argentina/Buenos_Aires",
+        is_active: true,
+      })
+      .select("id, owner_id")
+      .single();
 
   if (businessError || !business) {
     throw businessError || new Error("pending_signup_business_create_failed");
   }
 
-  await supabaseAdmin.from("business_onboarding_state").upsert({
+  const { data: onboardingState, error: onboardingError } = await supabaseAdmin.from("business_onboarding_state").upsert({
     business_id: business.id,
     current_step: "onboarding_required",
     selected_plan_code: intent.plan_code,
-    account_user_id: createdUser.user.id,
+    account_user_id: userId,
     business_type: intent.business_type,
     updated_at: new Date().toISOString(),
-  });
+  }).select("business_id").single();
 
-  const { data: subscription, error: subscriptionError } = await supabaseAdmin
+  if (onboardingError || !onboardingState) {
+    throw onboardingError || new Error("pending_signup_onboarding_upsert_failed");
+  }
+
+  const { data: existingSubscription } = await supabaseAdmin
+    .from("business_subscriptions")
+    .select("id, business_id, tenant_id, plan_code, provider_subscription_id, provider_plan_id")
+    .eq("provider_subscription_id", params.providerSubscriptionId)
+    .limit(1)
+    .maybeSingle();
+  const { data: subscription, error: subscriptionError } = existingSubscription
+    ? { data: existingSubscription, error: null }
+    : await supabaseAdmin
     .from("business_subscriptions")
     .insert({
       business_id: business.id,
-      tenant_id: createdUser.user.id,
+      tenant_id: userId,
       plan_code: intent.plan_code,
       status: "active",
       period_start: params.currentPeriodStart || new Date().toISOString(),
@@ -377,22 +439,33 @@ async function materializePendingSignup(
   );
 
   if (!welcomeBootstrapSatisfied) {
+    await markPendingSignupIntentFailed(supabaseAdmin, String(intent.id));
     throw new Error("pending_signup_welcome_bootstrap_missing");
   }
 
-  await supabaseAdmin
+  const { data: materializedIntent, error: pendingSignupMaterializedError } = await supabaseAdmin
     .from("pending_signup_intents")
     .update({
       status: "materialized",
-      user_id: createdUser.user.id,
+      user_id: userId,
       business_id: business.id,
       materialized_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", intent.id)
-    .eq("status", "materializing");
+    .eq("status", "materializing")
+    .select("id")
+    .single();
+
+  if (pendingSignupMaterializedError || !materializedIntent) {
+    throw pendingSignupMaterializedError || new Error("pending_signup_materialized_update_failed");
+  }
 
   return subscription;
+  } catch (error) {
+    await markPendingSignupIntentFailed(supabaseAdmin, String(intent.id));
+    throw error;
+  }
 }
 
 // Verify payment status with MP API (server-truth)
