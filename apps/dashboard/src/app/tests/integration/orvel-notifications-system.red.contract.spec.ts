@@ -165,6 +165,18 @@ function expectAppointmentTemplatePayload(payload: { subject: string; html: stri
   expect(payload.html).toMatch(/reprogramar\?token=secure-token/);
 }
 
+function expectActiveOrvelEmailBranding(payload: { subject: string; html: string }): void {
+  const requiredPalette = ['#0A0A0A', '#121212', '#F1F5F9', '#94A3B8', '#7C3AED', '#6D28D9', '#A78BFA'];
+  const rejectedOldPalette = ['#f6efe7', '#f7f0e8', '#30251d', '#2b2118', '#fffaf5', '#ead8c7', '#9a6b43', '#8a5a36'];
+
+  for (const color of requiredPalette) {
+    expect(payload.html, `Expected active Orvel dark/violet email palette color ${color}`).toContain(color);
+  }
+  for (const color of rejectedOldPalette) {
+    expect(payload.html.toLowerCase(), `Email template must not use old beige/brown color ${color}`).not.toContain(color.toLowerCase());
+  }
+}
+
 describe('Orvel notification system RED contracts', () => {
   describe('1) Internal dashboard notifications backend', () => {
     it('defines persisted admin dashboard notifications with unread/read/archived states', () => {
@@ -236,6 +248,16 @@ describe('Orvel notification system RED contracts', () => {
       expectAppointmentTemplatePayload(templates.renderAppointmentCancellationEmail(data), /cancelad[ao]|cancelación/i);
       expectAppointmentTemplatePayload(templates.renderAppointmentRescheduleEmail(data), /reprogramad[ao]|nuevo horario/i);
     });
+
+    it('uses the active Orvel dark/violet palette for customer appointment email templates', async () => {
+      const templates = await loadAppointmentTemplatesModule();
+      const data = appointmentTemplateFixture();
+
+      expectActiveOrvelEmailBranding(templates.renderAppointmentConfirmationEmail(data));
+      expectActiveOrvelEmailBranding(templates.renderAppointmentReminder24hEmail(data));
+      expectActiveOrvelEmailBranding(templates.renderAppointmentCancellationEmail(data));
+      expectActiveOrvelEmailBranding(templates.renderAppointmentRescheduleEmail(data));
+    });
   });
 
   describe('4) Business welcome template', () => {
@@ -252,6 +274,17 @@ describe('Orvel notification system RED contracts', () => {
       expect(payload.html).toMatch(/Orvel Studio/);
       expect(payload.html).toMatch(/https:\/\/orvel\.test\/dashboard/);
       expect(payload.html).toMatch(/soporte@orvel\.test/);
+    });
+
+    it('uses the active Orvel dark/violet palette for business welcome emails', async () => {
+      const welcome = await loadBusinessWelcomeTemplatesModule();
+      const payload = welcome.renderBusinessWelcomeEmail({
+        business: { name: 'Orvel Studio', ownerName: 'Sofía' },
+        dashboardUrl: 'https://orvel.test/dashboard',
+        supportContact: 'soporte@orvel.test',
+      });
+
+      expectActiveOrvelEmailBranding(payload);
     });
   });
 

@@ -65,6 +65,23 @@ function safeLogContext(record: { id?: unknown; template_key?: unknown; booking_
   };
 }
 
+function scrubTokenBearingOutboxPayload(payload: Record<string, any> | undefined): Record<string, any> {
+  const sensitiveFields = new Set(["confirmation_url", "set_password_url", "first_login_url", "action_link"]);
+  const scrubbed: Record<string, any> = {};
+  for (const [key, value] of Object.entries(payload ?? {})) {
+    const lowerKey = key.toLowerCase();
+    const isNamedSensitive = sensitiveFields.has(lowerKey);
+    const isRawTokenBearingUrl = typeof value === "string" && /^https?:\/\//i.test(value) && /(?:[?&](?:token|code|access_token|refresh_token)=|\/confirm-email\b|\/auth\/callback\b|\/recovery\b)/i.test(value);
+    if (isNamedSensitive || isRawTokenBearingUrl) {
+      scrubbed[key] = null;
+    } else {
+      scrubbed[key] = value;
+    }
+  }
+  scrubbed.sensitive_payload_scrubbed_at = new Date().toISOString();
+  return scrubbed;
+}
+
 function getBearerToken(authorizationHeader: string | null): string | null {
   const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader ?? "");
   return match?.[1]?.trim() || null;
@@ -134,9 +151,9 @@ function getEmailInvocationJwtRole(authorizationHeader: string | null): string |
 // Basic HTML Template for generic fallback
 function renderFallbackEmail(title: string, message: string): string {
   return `
-    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; background: #f7f0e8;">
-      <div style="background: #fff; padding: 32px; border-radius: 12px; border: 1px solid #ead8c7;">
-        <h2 style="color: #8a5a36; margin-top: 0;">${title}</h2>
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #F1F5F9; background: #0A0A0A;">
+      <div style="background: #121212; padding: 32px; border-radius: 12px; border: 1px solid #6D28D9;">
+        <h2 style="color: #A78BFA; margin-top: 0;">${title}</h2>
         <p>${message}</p>
       </div>
     </div>
@@ -231,6 +248,13 @@ async function markOutboxRecordSent(
 ): Promise<boolean> {
   if (!record.id) return true;
   if (!supabase) return false;
+  const scrubbedPayload = scrubTokenBearingOutboxPayload({
+    ...record.payload,
+    confirmation_url: record.payload?.confirmation_url,
+    set_password_url: record.payload?.set_password_url,
+    first_login_url: record.payload?.first_login_url,
+    action_link: record.payload?.action_link,
+  });
 
   let update = supabase
     .from("notification_email_outbox")
@@ -239,6 +263,7 @@ async function markOutboxRecordSent(
       processing_claim_id: null,
       processing_claimed_at: null,
       processing_error: null,
+      payload: scrubbedPayload,
     })
     .eq("id", record.id);
 
@@ -412,6 +437,15 @@ Deno.serve(async (req) => {
             html = result.html;
           } else if (template_key.endsWith("_business")) {
             const result = AppointmentTemplates.renderAppointmentBusinessNotificationEmail(fullData);
+            subject = result.subject;
+            html = result.html;
+          } else if (template_key === "signup_email_confirmation") {
+            const result = BusinessTemplates.renderSignupEmailConfirmation({
+              confirmationUrl: fullData.confirmation_url,
+              ownerName: fullData.owner_name,
+              businessName: fullData.business_name,
+              planCode: fullData.plan_code,
+            });
             subject = result.subject;
             html = result.html;
           } else if (template_key === "business_welcome") {

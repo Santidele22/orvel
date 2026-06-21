@@ -17,6 +17,14 @@ export interface EmailPayload {
 
 type AppointmentEmailKind = 'confirmation' | 'reminder' | 'cancellation' | 'reschedule' | 'business_notification';
 
+const ORVEL_DARK = '#0A0A0A';
+const ORVEL_SURFACE = '#121212';
+const ORVEL_TEXT = '#F1F5F9';
+const ORVEL_MUTED = '#94A3B8';
+const ORVEL_VIOLET = '#7C3AED';
+const ORVEL_VIOLET_DARK = '#6D28D9';
+const ORVEL_VIOLET_SOFT = '#A78BFA';
+
 export function formatArgentinaAppointmentDate(dateInput: Date | string): string {
   if (!dateInput) return "--/--/----";
   
@@ -75,10 +83,10 @@ function renderAppointmentEmail(
     html: `
       <!doctype html>
       <html lang="es-AR">
-        <body style="margin:0;background:#f7f0e8;color:#2b2118;font-family:Arial,sans-serif;">
+        <body style="margin:0;background:${ORVEL_DARK};color:${ORVEL_TEXT};font-family:Arial,sans-serif;">
           <main style="max-width:640px;margin:0 auto;padding:32px;">
-            <section style="background:#fffaf5;border-radius:24px;padding:32px;border:1px solid #ead8c7;">
-              <p style="letter-spacing:.18em;text-transform:uppercase;color:#9a6b43;font-size:12px;">Orvel</p>
+            <section style="background:${ORVEL_SURFACE};border-radius:24px;padding:32px;border:1px solid ${ORVEL_VIOLET_DARK};">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${ORVEL_VIOLET_SOFT};font-size:12px;">Orvel</p>
               <h1 style="font-size:28px;margin:0 0 12px;">${copy.heading}</h1>
               <p>${greeting} ${introText}</p>
               <ul style="line-height:1.8;padding-left:18px;">
@@ -92,11 +100,11 @@ function renderAppointmentEmail(
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
               <p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:#8a5a36;color:#fff;padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
               </p>
-              <p style="font-size:14px;color:#6b5b50;">
-                También podés <a href="${escapeAttribute(cancelLink)}">cancelar</a> o
-                <a href="${escapeAttribute(rescheduleLink)}">reprogramar</a> tu turno.
+              <p style="font-size:14px;color:${ORVEL_MUTED};">
+                También podés <a href="${escapeAttribute(cancelLink)}" style="color:#A78BFA;text-decoration:underline;">cancelar</a> o
+                <a href="${escapeAttribute(rescheduleLink)}" style="color:#A78BFA;text-decoration:underline;">reprogramar</a> tu turno.
               </p>
             </section>
           </main>
