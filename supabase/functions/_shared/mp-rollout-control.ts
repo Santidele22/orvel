@@ -6,6 +6,7 @@ export type PreapprovalRolloutInput = {
   tenantId: string;
   userId: string;
   environment: RolloutEnvironment;
+  rolloutPercentConfig?: string;
 };
 
 export type PreapprovalRolloutDecision = {
@@ -47,7 +48,9 @@ export function evaluatePreapprovalPlanRollout(input: PreapprovalRolloutInput): 
     };
   }
 
-  const rawRolloutPercent = Deno.env.get("MP_PREAPPROVAL_PLAN_ROLLOUT_PERCENT");
+  const rawRolloutPercent = Object.hasOwn(input, "rolloutPercentConfig")
+    ? input.rolloutPercentConfig
+    : Deno.env.get("MP_PREAPPROVAL_PLAN_ROLLOUT_PERCENT");
   const normalizedRollout = normalizeRolloutPercent(rawRolloutPercent);
   const rolloutPercent = normalizedRollout.value;
   const key = `${input.tenantId}:${input.userId}`; // tenantId:userId

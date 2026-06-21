@@ -33,26 +33,14 @@ Deno.test("resolveAppOrigin strips dashboard paths to avoid double dashboard seg
 });
 
 Deno.test("buildDashboardUrl avoids double dashboard segments", () => {
-  const previousFrontendUrl = Deno.env.get("FRONTEND_URL");
-  const previousAppBaseUrl = Deno.env.get("APP_BASE_URL");
+  const configuredUrl = "https://orvel.pro/dashboard";
 
-  try {
-    Deno.env.set("FRONTEND_URL", "https://orvel.pro/dashboard");
-    Deno.env.delete("APP_BASE_URL");
-
-    assertEquals(
-      buildDashboardUrl("billing/success"),
-      "https://orvel.pro/dashboard/billing/success",
-    );
-    assertEquals(
-      buildAppUrl("auth/signup/credentials?plan=STARTER"),
-      "https://orvel.pro/auth/signup/credentials?plan=STARTER",
-    );
-  } finally {
-    if (previousFrontendUrl === undefined) Deno.env.delete("FRONTEND_URL");
-    else Deno.env.set("FRONTEND_URL", previousFrontendUrl);
-
-    if (previousAppBaseUrl === undefined) Deno.env.delete("APP_BASE_URL");
-    else Deno.env.set("APP_BASE_URL", previousAppBaseUrl);
-  }
+  assertEquals(
+    buildDashboardUrl("billing/success", configuredUrl),
+    "https://orvel.pro/dashboard/billing/success",
+  );
+  assertEquals(
+    buildAppUrl("auth/signup/credentials?plan=STARTER", configuredUrl),
+    "https://orvel.pro/auth/signup/credentials?plan=STARTER",
+  );
 });

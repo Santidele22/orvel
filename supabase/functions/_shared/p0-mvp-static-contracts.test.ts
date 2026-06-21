@@ -855,13 +855,21 @@ Deno.test("Launch signup contract: MP approval materializes paid account without
   );
 });
 
-Deno.test("Launch welcome email contract: free credentials signup enqueues a business welcome email after provisioning", async () => {
+Deno.test("Launch welcome email contract: free signup enqueues a business welcome email after email confirmation provisioning", async () => {
   const createAccountBusinessSource = await readText(
     new URL("../../../apps/landing/src/pages/api/signup/create-account-business.ts", import.meta.url),
   );
-  const firstProvisioningIndex = createAccountBusinessSource.search(/\.from\(["']businesses["']\)[\s\S]*?\.(?:insert|upsert)\s*\(/);
-  const outboxInsertIndex = createAccountBusinessSource.search(/\.from\(["']notification_email_outbox["']\)[\s\S]*?\.insert\s*\(/);
-  const successResponseIndex = createAccountBusinessSource.lastIndexOf("ok: true");
+  const confirmEmailSource = await readText(
+    new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url),
+  );
+  const firstProvisioningIndex = confirmEmailSource.search(/\.from\(["']businesses["']\)[\s\S]*?\.(?:insert|upsert)\s*\(/);
+  const outboxInsertIndex = confirmEmailSource.search(/\.from\(["']notification_email_outbox["']\)[\s\S]*?\.insert\s*\(/);
+  const successResponseIndex = confirmEmailSource.lastIndexOf("ok: true");
+
+  assert(
+    /signup_email_confirmation|signup_email_confirmations|consume_signup_email_confirmation/i.test(createAccountBusinessSource),
+    "Free signup request must create a confirmation intent instead of provisioning immediately",
+  );
 
   assert(
     firstProvisioningIndex > 0,
@@ -877,7 +885,7 @@ Deno.test("Launch welcome email contract: free credentials signup enqueues a bus
   );
   assert(
     /template_key\s*:\s*["'](?:business_welcome|welcome_email)["']/.test(
-      createAccountBusinessSource.slice(outboxInsertIndex, successResponseIndex),
+      confirmEmailSource.slice(outboxInsertIndex, successResponseIndex),
     ),
     "Free signup welcome enqueue must use the canonical business_welcome/welcome_email template key",
   );

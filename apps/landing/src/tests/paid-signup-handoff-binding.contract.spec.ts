@@ -25,6 +25,8 @@ function validPendingSignupRow(bindingHash: string) {
     business_type: 'peluqueria',
     selected_business_types: ['peluqueria'],
     handoff_binding_hash: bindingHash,
+    confirmation_status: 'confirmed',
+    email_confirmed_at: '2026-06-20T00:00:00.000Z',
   };
 }
 

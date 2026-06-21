@@ -5,11 +5,14 @@ import {
   redeemSessionHandoff,
 } from "./session-handoff.ts";
 
+const TEST_ENCRYPTION_KEY_B64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
 Deno.test("RED Contract: creates only opaque one-time handoff references", async () => {
   const handoff = await createSessionHandoff({
     authorization: "Bearer access.jwt.must.not.be.returned",
     body: { refresh_token: "refresh.jwt.must.not.be.returned" },
     now: 1_780_000_000_000,
+    encryptionKeyB64: TEST_ENCRYPTION_KEY_B64,
   });
 
   assertEquals(typeof handoff.handoff, "string");
@@ -24,16 +27,25 @@ Deno.test("RED Contract: handoff redemption is single-use and returns session on
     authorization: "Bearer access.jwt",
     body: { refresh_token: "refresh.jwt" },
     now: 1_780_000_000_000,
+    encryptionKeyB64: TEST_ENCRYPTION_KEY_B64,
   });
 
-  const first = await redeemSessionHandoff({ handoff: created.handoff, now: 1_780_000_000_100 });
+  const first = await redeemSessionHandoff({
+    handoff: created.handoff,
+    now: 1_780_000_000_100,
+    encryptionKeyB64: TEST_ENCRYPTION_KEY_B64,
+  });
   assertEquals(first, {
     access_token: "access.jwt",
     refresh_token: "refresh.jwt",
   });
 
   await assertRejects(
-    () => redeemSessionHandoff({ handoff: created.handoff, now: 1_780_000_000_200 }),
+    () => redeemSessionHandoff({
+      handoff: created.handoff,
+      now: 1_780_000_000_200,
+      encryptionKeyB64: TEST_ENCRYPTION_KEY_B64,
+    }),
     Error,
     "already redeemed",
   );
