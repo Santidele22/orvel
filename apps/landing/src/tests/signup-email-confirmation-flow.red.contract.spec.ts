@@ -4,15 +4,34 @@ const CREATE_ACCOUNT_BUSINESS_API = new URL('../pages/api/signup/create-account-
 const CONFIRM_EMAIL_API = new URL('../pages/api/signup/confirm-email.ts', import.meta.url);
 const PENDING_SIGNUP_PROTECT_API = new URL('../pages/api/signup/pending-intent/protect.ts', import.meta.url);
 const SUBSCRIPTION_START_API = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
+const MIGRATIONS_DIR = new URL('../../../../supabase/migrations/', import.meta.url);
 
 async function readSource(url: URL): Promise<string> {
   return await import('node:fs/promises').then(({ readFile }) => readFile(url, 'utf8'));
+}
+
+async function readMigrationSources(): Promise<string> {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const entries = await readdir(MIGRATIONS_DIR, { withFileTypes: true });
+  const sqlFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.sql')).map((entry) => entry.name).sort();
+
+  return (await Promise.all(sqlFiles.map((fileName) => readFile(new URL(fileName, MIGRATIONS_DIR), 'utf8')))).join('\n');
 }
 
 function sliceBefore(source: string, marker: RegExp): string {
   const match = marker.exec(source);
   expect(match, `Expected source to contain marker ${marker}`).toBeTruthy();
   return source.slice(0, match!.index);
+}
+
+function migrationsDefineBusinessIsActive(migrations: string): boolean {
+  const businessCreateBlocks = Array.from(
+    migrations.matchAll(/create\s+table(?:\s+if\s+not\s+exists)?\s+public\.businesses\s*\(([\s\S]*?)\n\);/gi),
+    (match) => match[1] ?? '',
+  );
+
+  return businessCreateBlocks.some((block) => /\bis_active\b/i.test(block))
+    || /alter\s+table\s+(?:if\s+exists\s+)?public\.businesses[\s\S]{0,240}add\s+column(?:\s+if\s+not\s+exists)?\s+is_active\b/i.test(migrations);
 }
 
 describe('RED signup email confirmation flow contract', () => {
@@ -107,6 +126,25 @@ describe('RED signup email confirmation flow contract', () => {
     expect(finalMaterializedIndex, 'final materialized RPC must run before public welcome success').toBeGreaterThan(0);
     expect(successIndex, 'public welcome success must be inspectable').toBeGreaterThan(finalMaterializedIndex);
     expect(finalSlice, 'final materialized RPC result must be checked before public success').toMatch(/const\s*\{[\s\S]{0,120}(?:error|data|count)[\s\S]{0,120}\}\s*=\s*await|if\s*\([\s\S]{0,160}(?:materializationError|completeError|error|!\s*data|count\s*!==\s*1|!\s*updated)/i);
+  });
+
+  it('FREE confirm endpoint does not insert businesses.is_active unless migrations define that column', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+    const migrations = await readMigrationSources();
+    const businessInsert = source.match(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(\s*\{[\s\S]{0,520}?\}\s*\)/i)?.[0] ?? '';
+    const schemaDefinesBusinessIsActive = migrationsDefineBusinessIsActive(migrations);
+
+    expect(businessInsert, 'confirm-email businesses insert must be inspectable').toMatch(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(/i);
+    if (!schemaDefinesBusinessIsActive) {
+      expect(businessInsert, 'businesses.is_active must not be sent when local schema migrations do not define that column').not.toMatch(/\bis_active\s*:/i);
+    }
+  });
+
+  it('FREE confirm endpoint keeps materialization failures generic in public responses', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+
+    expect(source).toMatch(/signup_materialize_failed|confirmation_invalid_or_expired|confirmation_metadata_invalid/i);
+    expect(source, 'public response bodies must not expose granular database step names such as business_create_failed').not.toMatch(/error\s*:\s*["']business_create_failed["']/i);
   });
 
   it('FREE duplicate, pending, and rate controls are DB-backed instead of in-memory only', async () => {

@@ -152,10 +152,10 @@ export const GET: APIRoute = async ({ request }) => {
   const businessId = existingBusiness?.id || crypto.randomUUID();
   const slug = slugifyBusinessName(businessName);
   await supabaseAdmin.from("profiles").upsert({ id: userId, first_name: firstName, last_name: lastName, phone });
-  const { error: businessError } = existingBusiness ? { error: null } : await supabaseAdmin.from("businesses").insert({ id: businessId, slug, name: businessName, owner_id: userId, timezone: "America/Argentina/Buenos_Aires", is_active: true });
+  const { error: businessError } = existingBusiness ? { error: null } : await supabaseAdmin.from("businesses").insert({ id: businessId, slug, name: businessName, owner_id: userId, timezone: "America/Argentina/Buenos_Aires" });
   if (businessError) {
     await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return jsonResponse({ ok: false, error: "business_create_failed" }, 502);
+    return jsonResponse({ ok: false, error: "signup_materialize_failed" }, 502);
   }
 
   const { data: settings, error: settingsError } = await supabaseAdmin.from("business_settings").upsert({ business_id: businessId, business_name: businessName, slug: existingBusiness?.slug || slug, business_type: businessType, plan: "free", support_phone: phone, updated_at: new Date().toISOString() }).select("business_id").single();
