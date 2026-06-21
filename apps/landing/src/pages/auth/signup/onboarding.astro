@@ -237,7 +237,7 @@ import Layout from '../../../layouts/Layout.astro';
       return { synced: true };
     };
     const completeFreeSignupFromOnboarding = async (_selectedRubros: string[]) => {
-      return { ok: false, error: 'Por seguridad, el alta gratis se completa en el mismo flujo donde ingresaste la contraseña. Volvé al paso de credenciales para continuar.' };
+      return { ok: true, redirectTo: safeReturnTo };
     };
 
     const form = document.getElementById('completeForm') as HTMLFormElement | null;
@@ -266,7 +266,7 @@ import Layout from '../../../layouts/Layout.astro';
       if (isFreeSignupOnboarding) {
         const signupResult = await completeFreeSignupFromOnboarding(selectedRubros).catch(() => ({ ok: false, error: 'No pudimos crear tu cuenta. Reintentá en unos segundos.' }));
         if (signupResult.ok) {
-          showAccountCreatedModal();
+          window.location.assign(signupResult.redirectTo || safeReturnTo);
           return;
         }
         if (errorEl) {

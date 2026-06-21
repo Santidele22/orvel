@@ -120,4 +120,18 @@ describe('Contract: landing login returnTo resolves to dashboard app', () => {
       ).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     }
   });
+
+  it('does not preserve obsolete signup onboarding returnTo after login', () => {
+    expect(
+      sanitizeLandingAuthReturnTo('/auth/signup/onboarding?onboarding_required=true&plan=FREE', {
+        currentOrigin: 'https://orvel.pro'
+      })
+    ).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+
+    expect(
+      sanitizeLandingAuthReturnTo('/auth/signup/onboarding?resume=onboarding&source=subscription', {
+        currentOrigin: 'http://localhost:4321'
+      })
+    ).toBe('http://localhost:4200/dashboard/inicio');
+  });
 });

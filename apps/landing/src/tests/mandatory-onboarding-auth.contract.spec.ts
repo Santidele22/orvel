@@ -246,7 +246,7 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(result.redirectTo).toBeUndefined();
   });
 
-  it('successful FREE signup returns to landing-owned onboarding instead of falling back to dashboard login', async () => {
+  it('successful FREE signup sanitizes obsolete onboarding returnTo to dashboard home', async () => {
     const successfulSignup = vi.fn(async () => ({
       ok: true,
       token: 'session-token',
@@ -268,9 +268,9 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     });
 
     expect(result.ok).toBe(true);
-    expect(result.redirectTo).toBe('/auth/signup/onboarding?onboarding_required=true&account_created_modal=welcome_login&loginUrl=%2Fauth%2Flogin&plan=FREE&billing=monthly');
-    expect(new URL(result.redirectTo ?? '', 'https://orvel.pro').pathname).not.toBe('/auth/login');
-    expect(result.redirectTo).not.toContain('dashboard.orvel.pro');
+    expect(result.redirectTo).toBe('http://localhost:4200/dashboard/inicio');
+    expect(new URL(result.redirectTo ?? '').pathname).toBe('/dashboard/inicio');
+    expect(result.redirectTo).not.toContain('/auth/signup/onboarding');
   });
 
   it('onboarding completion with a Supabase session shows welcome modal instead of auto-redirecting to login or dashboard', async () => {
@@ -306,6 +306,16 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(failureCopyMatch?.groups?.copy).toBeTruthy();
     expect(failureCopyMatch?.groups?.copy).not.toMatch(/backend|supabase|rpc|provider/i);
     expect(failureCopyMatch?.groups?.copy).toMatch(/configuraci[oó]n|confirm|intent[aá]|continuar/i);
+  });
+
+  it('obsolete FREE onboarding path bypasses the legacy security failure toward dashboard', async () => {
+    const source = await readFile(new URL('../pages/auth/signup/onboarding.astro', import.meta.url), 'utf8');
+    const freeHandler = source.match(/const completeFreeSignupFromOnboarding[\s\S]*?;\n\s*};/i)?.[0] ?? '';
+
+    expect(freeHandler).toMatch(/ok\s*:\s*true/i);
+    expect(freeHandler).toMatch(/redirectTo\s*:\s*safeReturnTo/i);
+    expect(source).toMatch(/window\.location\.(?:assign|href)[\s\S]{0,120}signupResult\.redirectTo/i);
+    expect(source).not.toContain('Por seguridad, el alta gratis se completa en el mismo flujo donde ingresaste la contraseña');
   });
 
   it('signup flow does not persist passwords in browser storage keys or onboarding URLs', async () => {
