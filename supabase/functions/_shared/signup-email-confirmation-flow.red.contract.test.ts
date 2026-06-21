@@ -176,6 +176,25 @@ Deno.test("RED FREE complete materialization SQL contract: RPC RETURNS boolean a
   );
 });
 
+Deno.test("RED confirm-email result-page branding: uses Orvel dark/violet palette and rejects old generic cream/orange shell", async () => {
+  const landingSource = await readText(new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url));
+  const htmlHelper = /function\s+htmlResponse[\s\S]*?\n}\n/i.exec(landingSource)?.[0] ?? "";
+  const requiredPalette = ["#0A0A0A", "#121212", "#F1F5F9", "#94A3B8", "#7C3AED", "#6D28D9", "#A78BFA"];
+  const oldPalette = ["#fff7ed", "#ffedd5", "#ffffff", "#f97316", "#c2410c", "#dcfce7", "#15803d"];
+
+  assert(/function\s+htmlResponse/i.test(htmlHelper), "confirm-email HTML shell must be inspectable");
+  for (const color of requiredPalette) {
+    assertStringIncludes(htmlHelper, color, `confirm-email result page must include Orvel palette color ${color}`);
+  }
+  for (const color of oldPalette) {
+    assertEquals(htmlHelper.includes(color), false, `confirm-email result page must not use old generic palette color ${color}`);
+  }
+  assert(
+    /color-scheme:\s*dark|linear-gradient\(135deg,\s*var\(--brand\),\s*var\(--brand-dark\)\)/i.test(htmlHelper),
+    "confirm-email result page should render as a polished dark/violet Orvel shell",
+  );
+});
+
 Deno.test("RED FREE expiration SQL contract: expire_signup_email_confirmation returns boolean in every path", async () => {
   const sql = await readAllSqlMigrations();
   const definition = latestFunctionDefinition(sql, "expire_signup_email_confirmation");
