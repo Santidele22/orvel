@@ -18,6 +18,16 @@ function cleanText(value: unknown, maxLength: number): string | null {
   return normalized ? normalized.slice(0, maxLength) : null;
 }
 
+function cleanPassword(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return value.length >= 8 && value.length <= 256 ? value : null;
+}
+
+function isDuplicateUserError(error: unknown): boolean {
+  const message = error && typeof error === "object" && "message" in error ? String((error as { message?: unknown }).message || "") : String(error || "");
+  return /duplicate|23505|user_already/i.test(message);
+}
+
 function normalizePlan(value: unknown): SignupPlan | null {
   const normalized = cleanText(value, 32)?.toUpperCase();
   if (normalized === "BASIC" || normalized === "STARTED") return "STARTER";
@@ -57,6 +67,14 @@ async function isRateLimited(supabase: ReturnType<typeof createClient>, request:
   return data === true;
 }
 
+async function cleanupCreatedAuthUser(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<void> {
+  try {
+    await supabaseAdmin.auth.admin.deleteUser(userId);
+  } catch {
+    // Best-effort cleanup only. Public response stays generic; do not log PII or credentials.
+  }
+}
+
 function buildConfirmationUrl(request: Request, token: string): string {
   const url = new URL("/api/signup/confirm-email", request.url);
   url.searchParams.set("token", token);
@@ -78,8 +96,9 @@ export const POST: APIRoute = async ({ request }) => {
   const businessType = cleanText(body.rubro ?? body.business_type ?? body.tipoNegocio, 64)?.toLowerCase();
   const phone = cleanText(body.telefono ?? body.phone, 40);
   const plan = normalizePlan(body.plan);
+  const password = cleanPassword(body.password);
 
-  if (!email || !firstName || !lastName || !businessName || !businessType || !plan) {
+  if (!email || !firstName || !lastName || !businessName || !businessType || !plan || (plan === "FREE" && !password)) {
     return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
   }
 
@@ -141,6 +160,21 @@ export const POST: APIRoute = async ({ request }) => {
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const confirmationUrl = buildConfirmationUrl(request, token);
 
+  const { data: createdAuthUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: password,
+    email_confirm: false,
+    user_metadata: { first_name: firstName, last_name: lastName, phone, plan: "FREE", onboarding_required: true, onboarding_completed: false, source: "signup_request" },
+  });
+  if (createUserError || !createdAuthUser.user?.id) {
+    if (isDuplicateUserError(createUserError)) {
+      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+    }
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+  }
+
+  const authUserId = createdAuthUser.user.id;
+
   const confirmationPayload = {
     purpose: "free_signup",
     plan_code: plan,
@@ -150,6 +184,7 @@ export const POST: APIRoute = async ({ request }) => {
     expires_at: expiresAt,
     protected_metadata: {
       business_type: businessType,
+      created_user_id: authUserId,
     },
     email_encrypted: protectedFields.email_encrypted,
     first_name_encrypted: protectedFields.first_name_encrypted,
@@ -168,6 +203,7 @@ export const POST: APIRoute = async ({ request }) => {
     ? await (confirmationInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
     : { data: { id: "confirmation_insert_unverified_by_mock" }, ...(await confirmationInsertRequest) };
   if (confirmationError || !confirmation) {
+    await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
     throw confirmationError || new Error("confirmation_insert_missing_row");
   }
 
@@ -186,9 +222,10 @@ export const POST: APIRoute = async ({ request }) => {
     : { data: { id: "outbox_insert_unverified_by_mock" }, ...(await outboxInsertRequest) };
   if (outboxError || !outbox) {
     await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
+    await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
     throw outboxError || new Error("outbox_insert_missing_row");
   }
 
-  // Deferred provisioning happens only after consume_signup_email_confirmation in the confirmation callback: auth.admin.createUser.
+  // Deferred provisioning happens only after consume_signup_email_confirmation in the confirmation callback.
   return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
 };

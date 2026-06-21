@@ -12,6 +12,7 @@ describe('landing build idempotency contract', () => {
     const cleanScript = await readFile(resolve(landingRoot, 'scripts', 'clean-build-output.mjs'), 'utf8');
 
     expect(packageJson.scripts.prebuild).toBe('node ./scripts/clean-build-output.mjs');
+    expect(packageJson.scripts.build).toBe('node ./scripts/clean-build-output.mjs && astro build');
     expect(cleanScript).toContain("'dist'");
     expect(cleanScript).toContain("'.vercel/output'");
     expect(cleanScript).toContain('rm(');

@@ -23,10 +23,16 @@ const DUPLICATE_PROTECTION_ERROR_CODES = new Set([
   ['PENDING', 'SIGNUP', 'ALREADY', 'EXISTS'].join('_'),
 ]);
 
-const PUBLIC_DUPLICATE_PROTECTION_CONFLICT = {
-  error: 'signup_protection_conflict',
+const PUBLIC_SIGNUP_CONFIRMATION_REQUESTED = {
+  ok: true,
+  status: 'signup_confirmation_requested',
   message: 'Revisá tu correo para continuar con la solicitud de alta.',
-  status: 202,
+};
+
+const PUBLIC_DUPLICATE_PROTECTION_CONFLICT = {
+  ok: true,
+  status: 'signup_confirmation_requested',
+  message: 'Revisá tu correo para continuar con la solicitud de alta.',
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -47,7 +53,7 @@ function getErrorConstraint(error: unknown): string | undefined {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const serverIssuedHandoff = await createPendingSignupHandoff(request, {
+    await createPendingSignupHandoff(request, {
       email: body?.email,
       first_name: body?.first_name,
       last_name: body?.last_name,
@@ -58,29 +64,19 @@ export const POST: APIRoute = async ({ request }) => {
       billing_period: body?.billing_period,
     });
 
-    return new Response(JSON.stringify({
-      pending_signup_reference: serverIssuedHandoff.pendingSignupReference,
-      serverIssuedRedirect: serverIssuedHandoff.redirectUrl,
-      serverRedirectUrl: serverIssuedHandoff.redirectUrl,
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': serverIssuedHandoff.setCookie,
-      },
-    });
+    return jsonResponse(PUBLIC_SIGNUP_CONFIRMATION_REQUESTED, 202);
   } catch (error) {
     const code = getErrorCode(error);
     const isDuplicateProtectionConflict = DUPLICATE_PROTECTION_ERROR_CODES.has(code);
-    const status = isDuplicateProtectionConflict ? 202 : code === 'pending_signup_required_fields' ? 400 : 500;
-    const publicCode = isDuplicateProtectionConflict ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.error : code;
-    const publicMessage = isDuplicateProtectionConflict
-      ? PUBLIC_DUPLICATE_PROTECTION_CONFLICT.message
-      : ERROR_MESSAGES[code] || 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
+    if (isDuplicateProtectionConflict) {
+      console.warn('pending_signup_protect_failed', { code, status: 202, constraint: getErrorConstraint(error) });
+      return jsonResponse(PUBLIC_DUPLICATE_PROTECTION_CONFLICT, 202);
+    }
+    const status = code === 'pending_signup_required_fields' ? 400 : 500;
+    const publicCode = code;
+    const publicMessage = ERROR_MESSAGES[code] || 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.';
     console.warn('pending_signup_protect_failed', { code, status, constraint: getErrorConstraint(error) });
     return jsonResponse({
-      ok: isDuplicateProtectionConflict ? true : undefined,
-      status: isDuplicateProtectionConflict ? 'signup_confirmation_requested' : undefined,
       error: publicCode,
       message: publicMessage,
     }, status);
