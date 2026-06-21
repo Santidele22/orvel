@@ -29,19 +29,27 @@ function htmlResponse(state: { status: "materialized" | "already_materialized" |
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(state.title)} | Orvel</title>
     <style>
-      :root { color-scheme: light; --bg: #fff7ed; --card: #ffffff; --text: #1f2937; --muted: #6b7280; --brand: #f97316; --brand-dark: #c2410c; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at top, #ffedd5, var(--bg)); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
-      main { width: min(92vw, 520px); background: var(--card); border-radius: 28px; padding: 40px; box-shadow: 0 24px 70px rgba(194, 65, 12, 0.16); text-align: center; }
-      .badge { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 999px; margin-bottom: 20px; background: ${isSuccess ? "#dcfce7" : "#fee2e2"}; color: ${isSuccess ? "#15803d" : "#b91c1c"}; font-size: 28px; font-weight: 800; }
-      h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 40px); line-height: 1.05; }
-      p { margin: 0 auto 16px; color: var(--muted); line-height: 1.6; }
-      a { display: inline-flex; margin-top: 18px; padding: 14px 22px; border-radius: 999px; background: var(--brand); color: white; text-decoration: none; font-weight: 700; box-shadow: 0 10px 24px rgba(249, 115, 22, 0.28); }
-      a:hover { background: var(--brand-dark); }
-      small { display: block; margin-top: 18px; color: #9ca3af; }
+      :root { color-scheme: dark; --bg: #0A0A0A; --surface: #121212; --surface-soft: #18181b; --text: #F1F5F9; --muted: #94A3B8; --brand: #7C3AED; --brand-dark: #6D28D9; --brand-soft: #A78BFA; --danger: #F87171; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 18% 12%, rgba(124, 58, 237, 0.32), transparent 34%), radial-gradient(circle at 82% 0%, rgba(167, 139, 250, 0.18), transparent 28%), linear-gradient(135deg, var(--bg) 0%, #0f0f14 54%, #08080a 100%); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
+      main { position: relative; overflow: hidden; width: min(92vw, 540px); background: linear-gradient(180deg, rgba(18, 18, 18, 0.96), rgba(18, 18, 18, 0.88)); border: 1px solid rgba(167, 139, 250, 0.22); border-radius: 32px; padding: clamp(32px, 7vw, 48px); box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(124, 58, 237, 0.08) inset; text-align: center; }
+      main::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), transparent 42%); }
+      .eyebrow, .badge, h1, p, a, small { position: relative; }
+      .eyebrow { margin: 0 0 18px; color: var(--brand-soft); font-size: 12px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
+      .badge { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 22px; margin-bottom: 22px; background: ${isSuccess ? "linear-gradient(135deg, #7C3AED, #6D28D9)" : "rgba(248, 113, 113, 0.14)"}; color: ${isSuccess ? "#F1F5F9" : "#F87171"}; border: 1px solid ${isSuccess ? "rgba(167, 139, 250, 0.5)" : "rgba(248, 113, 113, 0.28)"}; box-shadow: ${isSuccess ? "0 18px 42px rgba(124, 58, 237, 0.36)" : "0 18px 42px rgba(248, 113, 113, 0.16)"}; font-size: 30px; font-weight: 900; }
+      h1 { margin: 0 0 14px; font-size: clamp(30px, 6vw, 44px); line-height: 1.02; letter-spacing: -0.04em; }
+      p { margin: 0 auto 16px; max-width: 34rem; color: var(--muted); line-height: 1.65; font-size: 16px; }
+      a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 22px; padding: 15px 24px; border-radius: 999px; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #F1F5F9; text-decoration: none; font-weight: 800; box-shadow: 0 18px 36px rgba(124, 58, 237, 0.36); transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+      a:hover { transform: translateY(-1px); box-shadow: 0 22px 44px rgba(124, 58, 237, 0.44); background: linear-gradient(135deg, var(--brand-soft), var(--brand)); }
+      a:focus-visible { outline: 3px solid rgba(167, 139, 250, 0.7); outline-offset: 4px; }
+      small { display: block; margin-top: 18px; color: #94A3B8; }
+      @media (max-width: 480px) { body { padding: 16px; } main { border-radius: 26px; } a { width: 100%; } }
+      @media (prefers-reduced-motion: reduce) { a { transition: none; } a:hover { transform: none; } }
     </style>
   </head>
   <body>
     <main data-confirmation-status="${escapeHtml(state.status)}">
+      <p class="eyebrow">Orvel</p>
       <div class="badge" aria-hidden="true">${isSuccess ? "✓" : "!"}</div>
       <h1>${escapeHtml(state.title)}</h1>
       <p>${escapeHtml(state.message)}</p>

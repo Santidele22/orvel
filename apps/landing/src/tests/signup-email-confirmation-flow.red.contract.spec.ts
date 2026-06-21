@@ -231,6 +231,22 @@ describe('RED signup email confirmation flow contract', () => {
     expect(source).toMatch(/already_materialized|materialized|email_confirmed|confirmaci[oó]n/i);
   });
 
+  it('confirm-email browser route uses the Orvel dark/violet result-page palette, not the old generic cream/orange shell', async () => {
+    const source = await readSource(CONFIRM_EMAIL_API);
+    const htmlHelper = source.match(/function\s+htmlResponse[\s\S]*?\n}\n/i)?.[0] ?? '';
+    const requiredPalette = ['#0A0A0A', '#121212', '#F1F5F9', '#94A3B8', '#7C3AED', '#6D28D9', '#A78BFA'];
+    const oldPalette = ['#fff7ed', '#ffedd5', '#ffffff', '#f97316', '#c2410c', '#dcfce7', '#15803d'];
+
+    expect(htmlHelper, 'confirm-email HTML shell must be inspectable').toMatch(/function\s+htmlResponse/);
+    for (const color of requiredPalette) {
+      expect(htmlHelper, `confirm-email result page must include Orvel palette color ${color}`).toContain(color);
+    }
+    for (const color of oldPalette) {
+      expect(htmlHelper, `confirm-email result page must not use old generic palette color ${color}`).not.toContain(color);
+    }
+    expect(htmlHelper).toMatch(/color-scheme:\s*dark|linear-gradient\(135deg,\s*var\(--brand\),\s*var\(--brand-dark\)\)/i);
+  });
+
   it('PAID signup start requires a verified email confirmation before server-side Mercado Pago checkout creation', async () => {
     const protectSource = await readSource(PENDING_SIGNUP_PROTECT_API);
     const startSource = await readSource(SUBSCRIPTION_START_API);
