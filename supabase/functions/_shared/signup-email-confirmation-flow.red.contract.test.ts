@@ -230,6 +230,24 @@ Deno.test("RED FREE duplicate auth user contract: auth-first signup binds the cr
   );
 });
 
+Deno.test("RED FREE confirm route confirms the trusted signup-created Auth user before public login success", async () => {
+  const confirmSource = await readText(new URL("../../../apps/landing/src/pages/api/signup/confirm-email.ts", import.meta.url));
+  const successIndex = confirmSource.search(/return\s+htmlResponse\s*\(\s*\{\s*status\s*:\s*["']materialized["']/i);
+  const authConfirmIndex = confirmSource.search(/auth\.admin\.updateUserById\s*\(\s*(?:userId|trustedUserId|metadata\.created_user_id)/i);
+  const beforeSuccess = authConfirmIndex >= 0 && successIndex > authConfirmIndex
+    ? confirmSource.slice(authConfirmIndex, successIndex)
+    : "";
+
+  assert(authConfirmIndex > 0, "Confirm route must mark the trusted signup-created Auth user confirmed; no email lookup/adoption");
+  assert(/email_confirm\s*:\s*true/i.test(beforeSuccess), "Auth admin update must set email_confirm true without sending reset/welcome/change-password email");
+  assert(!/password\s*:|generateLink|recovery|reset|change-password/i.test(beforeSuccess), "Confirm route must not store/change password or generate action-link emails");
+  assert(
+    /const\s*\{[\s\S]{0,140}(?:error|data)[\s\S]{0,140}\}\s*=\s*await\s+supabaseAdmin\.auth\.admin\.updateUserById|if\s*\([\s\S]{0,180}(?:authConfirmError|emailConfirmError|!\s*authConfirmedUser|!\s*confirmedAuthUser)/i.test(beforeSuccess),
+    "updateUserById result must be checked before public success/login CTA",
+  );
+  assert(/failed_materialization|signup_materialize_failed/i.test(beforeSuccess), "Auth confirmation failure must prevent false success and leave a retryable failure state");
+});
+
 Deno.test("RED PAID consume contract: success requires durable pending_signup_intents confirmation update", async () => {
   const sql = await readAllSqlMigrations();
   const body = latestFunctionBody(sql, "consume_signup_email_confirmation");
