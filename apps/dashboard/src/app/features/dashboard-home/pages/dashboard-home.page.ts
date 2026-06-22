@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../../core/theming/theme.service';
@@ -33,6 +33,17 @@ export class DashboardHomeComponent {
   protected readonly featuredAppointments = this.dashboardService.featuredAppointments;
   protected readonly stats = this.dashboardService.stats;
   protected readonly copied = signal(false);
+  protected readonly copyFailed = signal(false);
+  private hydratedUserId: string | null = null;
+
+  constructor() {
+    effect(() => {
+      const userId = this.authService.user()?.id;
+      if (userId) {
+        void this.hydrateBusinessSettings(userId);
+      }
+    });
+  }
 
   /** Dynamic greeting based on current time */
   protected readonly greeting = computed(() => {
@@ -101,7 +112,7 @@ export class DashboardHomeComponent {
   protected bookingUrl(): string {
     const state = this.businessFacade.settings();
     const slug = state?.slug?.trim();
-    if (!slug) {
+    if (!slug || slug === 'id-pendiente') {
       return 'Link de reservas no disponible';
     }
 
@@ -109,14 +120,38 @@ export class DashboardHomeComponent {
   }
 
   protected hasBookingUrl(): boolean {
-    return Boolean(this.businessFacade.settings()?.slug?.trim());
+    const slug = this.businessFacade.settings()?.slug?.trim();
+    return Boolean(slug && slug !== 'id-pendiente');
   }
 
-  protected copyBookingUrl(): void {
-    if (!this.hasBookingUrl()) return;
+  protected async copyBookingUrl(): Promise<void> {
+    this.copyFailed.set(false);
+    if (!this.hasBookingUrl() || !navigator.clipboard?.writeText) {
+      this.copyFailed.set(true);
+      return;
+    }
 
-    navigator.clipboard.writeText(this.bookingUrl());
-    this.copied.set(true);
-    setTimeout(() => this.copied.set(false), 2000);
+    try {
+      await navigator.clipboard.writeText(this.bookingUrl());
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
+    } catch {
+      this.copied.set(false);
+      this.copyFailed.set(true);
+    }
+  }
+
+  ngOnInit(): void {
+    const userId = this.authService.user()?.id;
+    if (userId) void this.hydrateBusinessSettings(userId);
+  }
+
+  private async hydrateBusinessSettings(userId: string): Promise<void> {
+    if (this.hydratedUserId === userId && this.businessFacade.settings()) {
+      return;
+    }
+
+    this.hydratedUserId = userId;
+    await this.businessFacade.loadFromSupabase(userId);
   }
 }

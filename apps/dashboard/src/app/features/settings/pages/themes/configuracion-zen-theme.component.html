@@ -143,10 +143,11 @@
                     Planes</button>
                 </div>
               </div>
-              <a href="http://localhost:8080/auth/signup/plan" data-testid="upgrade-plan-cta"
-                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20'">
-                Mejorar Plan
-              </a>
+              <button type="button" data-testid="upgrade-plan-cta" disabled
+                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20 opacity-60 cursor-not-allowed'"
+                aria-disabled="true">
+                Mejorar Plan próximamente
+              </button>
             </div>
           </div>
         </article>
@@ -169,16 +170,22 @@
                 <code class="min-w-0 flex-1 truncate text-[10px] text-purple-400">{{ publicBookingUrl() }}</code>
                 <button type="button" (click)="copyBookingUrl()" aria-label="Copiar link de reservas"
                   [attr.disabled]="hasPublicBookingUrl() ? null : true"
-                  class="w-8 h-8 rounded-lg bg-bg-primary border border-white/10 flex items-center justify-center text-purple-400 hover:bg-purple-500 hover:text-white transition-all active:scale-95">
+                  [attr.aria-disabled]="hasPublicBookingUrl() ? null : true"
+                  [class]="'w-8 h-8 rounded-lg bg-bg-primary border border-white/10 flex items-center justify-center text-purple-400 transition-all active:scale-95 ' + (hasPublicBookingUrl() ? 'hover:bg-purple-500 hover:text-white' : 'opacity-50 cursor-not-allowed')">
                   <i [class]="urlCopied() ? 'ri-check-line' : 'ri-file-copy-line'" aria-hidden="true"></i>
                 </button>
               </div>
-              <a [href]="hasPublicBookingUrl() ? publicBookingUrl() : null" target="_blank" aria-label="Abrir portal de reservas"
+              <a [href]="hasPublicBookingUrl() ? publicBookingUrl() : null" [attr.target]="hasPublicBookingUrl() ? '_blank' : null" aria-label="Abrir portal de reservas"
+                (click)="openPublicBookingPortal($event)"
                 [attr.aria-disabled]="hasPublicBookingUrl() ? null : true"
-                class="h-zen-control-md w-zen-control-md flex items-center justify-center bg-primary text-white rounded-zen-card hover:brightness-110 transition-all shadow-xl shadow-primary/20">
+                [class]="'h-zen-control-md w-zen-control-md flex items-center justify-center bg-primary text-white rounded-zen-card transition-all shadow-xl shadow-primary/20 ' + (hasPublicBookingUrl() ? 'hover:brightness-110' : 'opacity-50 cursor-not-allowed pointer-events-none')">
                 <i class="ri-external-link-line text-lg" aria-hidden="true"></i>
               </a>
             </div>
+
+            @if (urlCopyFailed()) {
+            <p class="text-[10px] text-amber-400" role="status">No pudimos copiar el link. Revisá que el portal esté disponible.</p>
+            }
 
             <p class="text-[10px] text-slate-600 italic leading-relaxed">
               Compartí este link en tu bio de Instagram o WhatsApp para recibir reservas.
@@ -197,6 +204,11 @@
             @if (fieldErrors().businessName) {
             <p [class]="ui.fieldError" data-testid="config-field-error-businessName">{{ fieldErrors().businessName }}</p>
             }
+          </div>
+
+          <div class="space-y-zen-sm">
+            <label [class]="ui.labelMicro + ' text-secondary'">Tipo de negocio</label>
+            <input type="text" formControlName="businessType" [class]="ui.input" placeholder="Ej: peluquería, uñas, spa" />
           </div>
 
           @if (hasMultipleBusinesses()) {

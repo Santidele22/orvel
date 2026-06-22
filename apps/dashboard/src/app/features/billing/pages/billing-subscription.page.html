@@ -11,13 +11,5 @@
     @if (state().status === 'unavailable' || state().status === 'error') {
       <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
     }
-
-    <section class="billing-subscription__addon" aria-labelledby="multi-branch-addon-title">
-      <p class="billing-subscription__addon-kicker">Add-on opcional</p>
-      <h2 id="multi-branch-addon-title">Sucursales adicionales / Multi-sucursal</h2>
-      <p class="billing-subscription__addon-price">+ {{ formatMonthlyPrice(multiBranchAddOn().priceMonthlyCents) }}/mes</p>
-      <p class="billing-subscription__addon-message">{{ multiBranchAddOnCta() }}</p>
-      <a class="billing-subscription__support" href="mailto:soporte@orvel.app?subject=Activar%20multi-sucursal">Contactar soporte</a>
-    </section>
   </section>
 </main>

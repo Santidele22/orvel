@@ -17,6 +17,7 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(source).toContain('createSupabaseOnboardingCompletionHandler');
     expect(source).toMatch(/from\(['"]businesses['"]\)[\s\S]*\.upsert/);
     expect(source).toMatch(/from\(['"]business_settings['"]\)[\s\S]*\.upsert/);
+    expect(source).toMatch(/from\(['"]business_settings['"]\)[\s\S]*\.upsert[\s\S]*business_type:\s*defaults\.businessType/);
     expect(source).toMatch(/auth\.updateUser[\s\S]*onboardingCompleted[\s\S]*true/);
     expect(source).toMatch(/business_type|tipoNegocio|businessType/);
     expect(source).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
@@ -31,21 +32,16 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(source).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
   });
 
-  it('paid plans show the optional branch prompt after persistence but before true welcome', async () => {
+  it('paid plans do not show the hidden branch/add-on prompt and go directly to true welcome', async () => {
     const source = await loadSource(ONBOARDING_PAGE_PATH);
 
-    expect(source).toMatch(/show.*Branch|branch.*Modal|sucursal.*modal|extra.*branch/i);
-    expect(source).toMatch(/skip.*Branch|saltar.*Sucursal|omitir.*sucursal/i);
-    expect(source.indexOf('persistMandatoryOnboarding')).toBeLessThan(
-      Math.max(source.search(/show.*Branch|branch.*Modal|sucursal.*modal|extra.*branch/i), 0)
-    );
+    expect(source).not.toMatch(/shouldOfferPaidAddon|openPaidAddonStep|showPaidAddonModal\s*=\s*true/i);
+    expect(source).not.toMatch(/skip.*Branch|saltar.*Sucursal|omitir.*sucursal|extra.*branch/i);
     expect(source).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
-    expect(source.search(/show.*Branch|branch.*Modal|sucursal.*modal|extra.*branch/i)).toBeLessThan(
-      source.indexOf('openWelcomeStep')
-    );
+    expect(source.indexOf('persistMandatoryOnboarding')).toBeLessThan(source.indexOf('openWelcomeStep'));
   });
 
-  it('keeps service selection, welcome, and paid branch prompt as visually separate onboarding states', async () => {
+  it('keeps service selection and welcome as the only onboarding UI states while branch/add-on UI is hidden', async () => {
     const source = await loadSource(ONBOARDING_PAGE_PATH);
     const template = await readFile(
       ONBOARDING_TEMPLATE_PATH,
@@ -54,9 +50,8 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
 
     expect(template).toMatch(/@if\s*\([^)]*isSelectionStep\(\)/);
     expect(template).toMatch(/@if\s*\([^)]*showWelcomeModal/);
-    expect(template).toMatch(/@if\s*\([^)]*showPaidAddonModal/);
-    expect(template.indexOf('business-types-grid')).toBeLessThan(template.indexOf('extra-branch-modal'));
-    expect(template.indexOf('extra-branch-modal')).toBeLessThan(template.indexOf('welcome-modal'));
+    expect(template).not.toMatch(/showPaidAddonModal|extra-branch-modal|paid.*addon|sucursal adicional|multi-branch/i);
+    expect(template.indexOf('business-types-grid')).toBeLessThan(template.indexOf('welcome-modal'));
     expect(source).toMatch(/isSelectionStep\(\)/);
   });
 
@@ -69,7 +64,7 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(source).toMatch(/triggerWelcomeConfetti/);
     expect(source.indexOf('openWelcomeStep')).toBeLessThan(source.indexOf('triggerWelcomeConfetti'));
     expect(source.indexOf('persistMandatoryOnboarding')).toBeLessThan(source.indexOf('triggerWelcomeConfetti'));
-    expect(source.indexOf('showPaidAddonModal = true')).toBeLessThan(source.indexOf('triggerWelcomeConfetti'));
+    expect(source).not.toMatch(/showPaidAddonModal\s*=\s*true/);
   });
 
   it('keeps the welcome modal accessible with labelled and described dialog copy', async () => {
@@ -246,7 +241,7 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(navigations).not.toContain('/auth/login');
   });
 
-  it('paid plan skip branch opens welcome/dashboard path, not login', async () => {
+  it('paid plan opens welcome/dashboard path directly without branch skip step or login', async () => {
     const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
     const storage = new Map<string, string>([['turnea.onboarding.plan', 'PRO']]);
     const navigations: string[] = [];
@@ -267,15 +262,13 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     component.toggleType('peluqueria');
 
     await component.submitAsync();
-    expect(component.showPaidAddonModal).toBe(true);
-    expect(component.showWelcomeModal).toBe(false);
-
-    component.omitPaidAddon();
     expect(component.showWelcomeModal).toBe(true);
+    expect(component.showPaidAddonModal).toBe(false);
     component.continueAfterWelcome();
 
     expect(navigations).toEqual(['/dashboard/inicio']);
     expect(navigations).not.toContain('/auth/login');
+    expect(storage.get('turnea.onboarding.paid_addon_skipped')).toBeUndefined();
   });
 
   it('welcome copy and action avoid email promises and legacy ugly button styling', async () => {

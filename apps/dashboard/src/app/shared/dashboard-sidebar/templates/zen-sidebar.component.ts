@@ -89,12 +89,6 @@ import { SIDEBAR_LINKS } from '../sidebar-links.config';
 
       <!-- Footer Actions -->
       <div class="px-3 py-5 space-y-2 shrink-0 border-t border-purple-400/10">
-        <button [attr.aria-label]="collapsed ? 'Soporte' : null" class="w-full h-10 flex items-center gap-3 px-3 text-slate-400 hover:text-purple-100 transition-all rounded-xl font-bold text-xs uppercase tracking-widest group hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60" [class.justify-center]="collapsed" [class.w-10]="collapsed" [class.mx-auto]="collapsed" [class.px-0]="collapsed">
-          <i class="ri-question-fill text-[1.2rem] group-hover:opacity-100 transition-opacity text-slate-500" aria-hidden="true"></i>
-          @if (!collapsed) {
-            <span>Soporte</span>
-          }
-        </button>
         <button data-testid="dashboard-sidebar-logout-action" (click)="onLogout()" [attr.aria-label]="collapsed ? 'Cerrar sesión' : null" class="w-full h-10 flex items-center gap-3 px-3 rounded-xl bg-slate-950/35 text-error hover:bg-red-500/10 transition-all font-bold text-xs uppercase tracking-widest group shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/50" [class.justify-center]="collapsed" [class.w-10]="collapsed" [class.mx-auto]="collapsed" [class.px-0]="collapsed">
           <i class="ri-logout-box-r-fill text-[1.2rem] group-hover:translate-x-0.5 transition-transform" aria-hidden="true"></i>
           @if (!collapsed) {
