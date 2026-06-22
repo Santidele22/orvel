@@ -84,6 +84,7 @@ type SupabaseBookingGateway = {
   >;
   createAdminBlockedTime: (payload: {
     businessId: string;
+    branchId: string;
     startsAtIso: string;
     endsAtIso: string;
     reason: string;
@@ -129,6 +130,7 @@ type SupabaseApiModule = {
   >;
   createAdminBlockedTime: (payload: {
     businessId: string;
+    branchId: string;
     startsAtIso: string;
     endsAtIso: string;
     reason: string;
@@ -210,7 +212,7 @@ describe('Supabase gateway RED mapping contracts (RPC outcomes => deterministic 
     expect(rpcSpy).toHaveBeenCalledWith('resolve_business_by_slug', expect.any(Object));
   });
 
-  it('maps booking create RPC validation error into VALIDATION_ERROR (422)', async () => {
+  it('rejects locally malformed booking create payload into VALIDATION_ERROR (422)', async () => {
     const { client, rpcSpy } = buildRpcClient({
       data: null,
       error: {
@@ -244,8 +246,7 @@ describe('Supabase gateway RED mapping contracts (RPC outcomes => deterministic 
       }
     });
 
-    expect(rpcSpy).toHaveBeenCalledTimes(1);
-    expect(rpcSpy).toHaveBeenCalledWith('create_public_booking', expect.any(Object));
+    expect(rpcSpy).not.toHaveBeenCalled();
   });
 
   it('maps booking create RPC policy error into CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN (422)', async () => {
@@ -393,6 +394,7 @@ describe('Supabase gateway RED mapping contracts (RPC outcomes => deterministic 
     const api = await wireGateway(client);
     const response = await api.createAdminBlockedTime({
       businessId: 'biz-qa-001',
+      branchId: 'branch-qa-001',
       startsAtIso: '2026-05-10T12:30:00.000Z',
       endsAtIso: '2026-05-10T13:30:00.000Z',
       reason: 'Overlap maintenance',

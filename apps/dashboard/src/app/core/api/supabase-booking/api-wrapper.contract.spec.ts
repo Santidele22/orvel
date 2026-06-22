@@ -204,6 +204,7 @@ describe('supabase-booking api-wrapper contract', () => {
     await expect(
       createAdminBlockedTime({
         businessId: 'biz-1',
+        branchId: 'branch-1',
         startsAtIso: '2026-06-01T12:00:00.000Z',
         endsAtIso: '2026-06-01T13:00:00.000Z',
         reason: 'lunch',
@@ -234,6 +235,7 @@ describe('supabase-booking api-wrapper contract', () => {
     });
     expect(gateway.createAdminBlockedTime).toHaveBeenCalledWith({
       businessId: 'biz-1',
+      branchId: 'branch-1',
       startsAtIso: '2026-06-01T12:00:00.000Z',
       endsAtIso: '2026-06-01T13:00:00.000Z',
       reason: 'lunch',
@@ -269,6 +271,7 @@ describe('supabase-booking api-wrapper contract', () => {
     await expect(
       createAdminBlockedTime({
         businessId: 'biz-1',
+        branchId: 'branch-1',
         startsAtIso: '2026-06-01T12:00:00.000Z',
         endsAtIso: '2026-06-01T13:00:00.000Z',
         reason: 'lunch',

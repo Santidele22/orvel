@@ -34,6 +34,25 @@ function elementWithTestId(template: string, testId: string): string {
 }
 
 describe('M3 blocked-time form UX RED contract', () => {
+  it('resolves an internal branch before blocked-time open/submit or shows upfront generic setup copy without late branch UI text', () => {
+    const openBlockedTimePanel = methodBody(turnosListSource, 'openBlockedTimePanel');
+    const submitBlockedTime = methodBody(turnosListSource, 'submitBlockedTime');
+    const blockedTimeRuntime = `${openBlockedTimePanel}\n${submitBlockedTime}`;
+
+    expect(blockedTimeRuntime, 'blocked-time action must resolve/ensure the MVP internal default branch before opening or submitting').toMatch(
+      /resolve(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|ensure(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|getOrProvisionDefaultBranch|defaultBranchScope/i
+    );
+    expect(blockedTimeRuntime, 'blocked-time flow must show account/setup copy before submit if internal scope cannot be prepared').toMatch(
+      /No pudimos preparar|configuraci[oó]n de cuenta|cuenta administradora|account setup|preparar el bloqueo/i
+    );
+    expect(blockedTimeRuntime + turnosListTemplate, 'MVP branchless blocked-time UX must not show late raw branch-selection copy').not.toMatch(
+      /Seleccion[aá] una sucursal activa|Sucursal activa|ACTIVE_BRANCH_REQUIRED/i
+    );
+    expect(submitBlockedTime, 'blocked-time payload must not send an empty branchId fallback to the service').not.toMatch(
+      /branchId\s*:\s*branchId\s*\?\?\s*['"]{2}|branchId\s*:\s*['"]{2}/i
+    );
+  });
+
   it('exposes a real visible primary action on /dashboard/turnos, not only an sr-only test hook', () => {
     const primaryAction = elementWithTestId(turnosListTemplate, 'turnos-admin-block-time-primary-action');
 
@@ -83,8 +102,11 @@ describe('M3 blocked-time form UX RED contract', () => {
     expect(submitBlockedTime, 'submitBlockedTime must not use authService.user()?.id as businessId').not.toMatch(
       /businessId\s*:\s*(?:bizId|this\.authService\.user\(\)\?\.id)|const\s+bizId\s*=\s*this\.authService\.user\(\)\?\.id/i
     );
-    expect(submitBlockedTime, 'submitBlockedTime must resolve an active/default branch before calling TurnoService').toMatch(
-      /getActiveBranchId\(\)|resolveActiveBranch|activeBranch/i
+    expect(submitBlockedTime, 'submitBlockedTime must route through the default-branch resolver before calling TurnoService').toMatch(
+      /ensureDefaultBranchId\(\)|ensureInternalDefaultBranchId\(\)|resolveActiveBranch/i
+    );
+    expect(submitBlockedTime, 'blocked-time submit must not relabel the implicit active branch as an explicit branchId payload').not.toMatch(
+      /getActiveBranchId\(\)[\s\S]{0,500}branchId\s*:/i
     );
     expect(submitBlockedTime, 'blocked-time submit must fail closed with a safe validation error when branch context is missing').toMatch(
       /if\s*\([^)]*!branchId[\s\S]{0,220}blockedTimeError\.set\([\s\S]{0,220}return/i
@@ -101,6 +123,37 @@ describe('M3 blocked-time form UX RED contract', () => {
     expect(submitBlockedTime + combinedSource, 'blocked-time UX must reject end time less than or equal to start time').toMatch(
       /end(?:Time)?(?:Iso|Minutes)?\s*(?:<=|>|isAfter)|start(?:Time)?(?:Iso|Minutes)?\s*(?:>=|<)|end.*must.*after.*start|fin.*(?:mayor|despu[eé]s).*inicio/i
     );
+  });
+
+  it('disables blocked-time submit until the form is complete and the range is valid, with a visible range error contract', () => {
+    const submitButton = turnosListTemplate.match(
+      /<button\b(?=[^>]*type=["']submit["'])(?=[^>]*data-testid=["']turnos-admin-block-time-submit-action["'])[^>]*>/i
+    )?.[0] ?? '';
+
+    expect(combinedSource, 'blocked-time form should expose a canSubmitBlockedTime guard for template and submit preflight').toMatch(
+      /canSubmitBlockedTime\s*\(/i
+    );
+    expect(submitButton, 'blocked-time submit must be disabled while date/start/end/reason are missing or end <= start').toMatch(
+      /\[disabled\]=["'][^"']*!canSubmitBlockedTime\(\)[^"']*["']/i
+    );
+    expect(turnosListTemplate, 'invalid end <= start must have a deterministic visible error target separate from backend collision feedback').toMatch(
+      /data-testid=["']turnos-admin-block-time-range-error["'][\s\S]{0,220}(hora de fin|fin.*mayor|despu[eé]s de la hora de inicio)/i
+    );
+  });
+
+  it('documents the valid blocked-time payload contract from date/start/end/reason controls', () => {
+    const submitBlockedTime = methodBody(turnosListSource, 'submitBlockedTime');
+
+    expect(submitBlockedTime, 'valid submit must build ISO boundaries from the visible date/start/end controls').toMatch(
+      /buildBlockedTimeIso\(\s*blockedTimeDate\s*,\s*blockedTimeStartTime\s*,\s*blockedTimeEndTime\s*\)/i
+    );
+    expect(submitBlockedTime, 'valid submit must send startsAtIso, endsAtIso, reason, and performedBy to TurnoService.createBlockedTime while branch scope stays service-owned').toMatch(
+      /createBlockedTime\(\s*payload\s*\)/i
+    );
+    expect(submitBlockedTime, 'valid blocked-time payload must not pass the page preflight/default branch as an explicit branchId').not.toMatch(
+      /const\s+payload[\s\S]{0,320}branchId\s*:/i
+    );
+    expect(submitBlockedTime, 'reason must preserve the user-provided blocked-time reason').toMatch(/reason\s*:\s*this\.blockedTimeForm\.reason\.trim\(\)/i);
   });
 
   it('shows safe conflict feedback and refreshes timeline plus admin availability after success', () => {

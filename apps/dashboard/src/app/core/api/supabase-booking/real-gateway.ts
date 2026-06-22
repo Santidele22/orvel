@@ -243,7 +243,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
           email: payload.client.email,
           phone: payload.client.phone
         },
-        notes: payload.notes
+        notes: payload.notes,
+        branch_id: null
       });
 
       if (error) {
@@ -533,7 +534,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       const supabase = createSupabaseClient();
       const { data, error } = await supabase.rpc('create_admin_manual_booking', {
         business_id: payload.businessId,
-        branch_id: payload.branchId,
+        branch_id: payload.branchId ?? null,
         service_id: payload.serviceId,
         starts_at_iso: payload.startsAtIso,
         duration_minutes: payload.durationMinutes,
@@ -573,6 +574,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       const supabase = createSupabaseClient();
       const { data, error } = await supabase.rpc('create_admin_blocked_time', {
         business_id: payload.businessId,
+        branch_id: payload.branchId,
         starts_at_iso: payload.startsAtIso,
         ends_at_iso: payload.endsAtIso,
         reason: payload.reason,

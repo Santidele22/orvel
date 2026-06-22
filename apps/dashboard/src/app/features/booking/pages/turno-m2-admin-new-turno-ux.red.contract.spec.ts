@@ -36,6 +36,88 @@ function methodBody(sourceText: string, methodName: string): string {
 }
 
 describe('M2 real admin new turno UX RED contract', () => {
+  it('resolves an internal default branch scope before admin availability/create when MVP branch UI is hidden', () => {
+    const checkAvailabilityBody = methodBody(turnoFormSource, 'checkAvailability');
+    const saveBody = methodBody(turnoFormSource, 'save');
+
+    expect(turnoFormTemplate, 'MVP branchless UX must not expose branch/sucursal controls when there are zero or one branches').toMatch(
+      /branchContext\.branches\(\)\.length\s*>\s*1/i
+    );
+    expect(checkAvailabilityBody + saveBody, 'admin create/availability must explicitly resolve an internal default branch scope before backend calls').toMatch(
+      /resolve(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|ensure(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|getOrProvisionDefaultBranch|defaultBranchScope/i
+    );
+    expect(saveBody, 'TurnoForm must not call TurnoService.create with an empty branchId fallback').not.toMatch(
+      /branchId\s*:\s*branchId\s*\?\?\s*['"]{2}|branchId\s*:\s*['"]{2}/i
+    );
+    expect(saveBody, 'TurnoService.create must be called only after the internal branch scope is known').toMatch(
+      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}turnoService\.create\(/i
+    );
+  });
+
+  it('keeps TurnoForm disabled with generic account setup copy when internal branch resolution fails', () => {
+    const canSaveBlock = turnoFormSource.match(/protected\s+canSave\s*=\s*computed\(\(\)\s*=>\s*\{[\s\S]{0,1100}?\}\);/i)?.[0] ?? '';
+    const setupFailureCopy = `${turnoFormSource}\n${turnoFormTemplate}`.match(
+      /(?:No pudimos preparar|configuraci[oó]n de cuenta|cuenta administradora|account setup|preparar el turno)[\s\S]{0,260}/i
+    )?.[0] ?? '';
+
+    expect(canSaveBlock, 'create submit must stay disabled when internal default branch/account setup resolution failed').toMatch(
+      /branch(?:Scope|Id|Resolution|Setup).*?(?:Error|Failed|Ready)|accountSetup(?:Error|Ready)|defaultBranch(?:Error|Ready)|setupError/i
+    );
+    expect(setupFailureCopy, 'resolution failure must show generic account/setup copy, not raw branch-selection instructions').not.toBe('');
+    expect(setupFailureCopy, 'generic account/setup failure copy must not mention Sucursal activa/raw branch UI').not.toMatch(
+      /Sucursal activa|Seleccion[aá] una sucursal|Eleg[ií] una sucursal|ACTIVE_BRANCH_REQUIRED/i
+    );
+  });
+
+  it('does not block MVP admin creation when there are no branches yet', () => {
+    const ngOnInitBody = methodBody(turnoFormSource, 'ngOnInit');
+    const canSaveBlock = turnoFormSource.match(/protected\s+canSave\s*=\s*computed\(\(\)\s*=>\s*\{[\s\S]{0,700}?\}\);/i)?.[0] ?? '';
+    const saveBody = methodBody(turnoFormSource, 'save');
+
+    expect(ngOnInitBody, 'MVP has no branches yet: /dashboard/turnos/new must still load clients/services and availability instead of failing early').not.toMatch(
+      /branches\(\)\.length\s*===\s*0[\s\S]{0,180}ACTIVE_BRANCH_REQUIRED|branches\(\)\.length\s*===\s*0[\s\S]{0,180}return/i
+    );
+    expect(canSaveBlock, 'Nuevo Turno save enablement must not require an active branch while branches are hidden/disabled for MVP').not.toMatch(
+      /activeBranchId\(\)|!!this\.branchContext\.activeBranchId\(\)/i
+    );
+    expect(saveBody, 'Nuevo Turno submit must not fail with a branch-required error before calling TurnoService.create for MVP').not.toMatch(
+      /if\s*\([^)]*!branchId[^)]*\)[\s\S]{0,180}error\.set\([\s\S]{0,180}return/i
+    );
+  });
+
+  it('hides or disables active-branch UI for MVP no-branch state instead of showing a blocking warning', () => {
+    const branchSelectorSection = turnosListTemplate.match(/<section[\s\S]{0,2200}Sucursal activa[\s\S]{0,600}<\/section>/i)?.[0] ?? '';
+    const formBranchGroup = turnoFormTemplate.match(/<div class="form-group" aria-live="polite">[\s\S]{0,1200}<\/div>/i)?.[0] ?? '';
+
+    expect(branchSelectorSection + formBranchGroup, 'MVP should not show a blocking no-branch warning in Nuevo Turno/admin turnos UI').not.toMatch(
+      /No hay sucursales activas|Configur[aá] una sucursal|ACTIVE_BRANCH_REQUIRED/i
+    );
+    expect(branchSelectorSection + formBranchGroup, 'branch controls should be absent or explicitly disabled when branches are not available yet').toMatch(
+      /branches\(\)\.length\s*>\s*1|disabled|aria-disabled/i
+    );
+  });
+
+  it('uses styled dashboard controls and deterministic selectors for required fields plus the create submit action', () => {
+    const requiredSelectors = [
+      'turno-admin-client-select',
+      'turno-admin-walk-in-name',
+      'turno-admin-service-select',
+      'turno-admin-date',
+      'turno-admin-available-slot-select',
+      'turno-admin-duration'
+    ];
+
+    for (const testId of requiredSelectors) {
+      const control = turnoFormTemplate.match(new RegExp(`<(?:input|select|textarea)\\b(?=[^>]*data-testid=["']${testId}["'])[^>]*>`, 'i'))?.[0] ?? '';
+      expect(control, `required control ${testId} must exist with a stable selector`).not.toBe('');
+      expect(control, `required control ${testId} must use the dashboard styled control class, not naked browser styling`).toMatch(/class=["'][^"']*(?:form-control|rounded-|or-|bg-bg-primary|border-white\/10)/i);
+    }
+
+    expect(turnoFormTemplate, 'new-turno form needs a deterministic create submit selector, distinct from reschedule-only selectors').toMatch(
+      /<button\b(?=[^>]*type=["']submit["'])(?=[^>]*data-testid=["']turno-admin-submit-action["'])[^>]*>/i
+    );
+  });
+
   it('exposes a real visible primary create action on /dashboard/turnos, not only sr-only or test-only hooks', () => {
     const primaryActionMatch = turnosListTemplate.match(/<button[\s\S]{0,900}data-testid=["']turnos-admin-create-primary-action["'][\s\S]{0,900}>/i)
       ?? turnosListTemplate.match(/<a[\s\S]{0,900}data-testid=["']turnos-admin-create-primary-action["'][\s\S]{0,900}>/i);

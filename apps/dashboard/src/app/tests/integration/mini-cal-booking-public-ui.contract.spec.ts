@@ -36,7 +36,7 @@ describe('Mini Calendly public booking UI route RED contract', () => {
     expect(source).toMatch(/data-testid=["']booking-availability-slot["']/i);
   });
 
-  it('validates required fields for name, whatsapp, email, notes', () => {
+  it('validates required fields for name, whatsapp, and email while keeping notes optional', () => {
     const source = getPublicBookingSource();
 
     expect(source).toMatch(/data-testid=["']booking-field-name["']/i);
@@ -47,7 +47,8 @@ describe('Mini Calendly public booking UI route RED contract', () => {
     expect(source).toMatch(/booking-field-name[\s\S]*required/i);
     expect(source).toMatch(/booking-field-whatsapp[\s\S]*required/i);
     expect(source).toMatch(/booking-field-email[\s\S]*required/i);
-    expect(source).toMatch(/booking-field-notes[\s\S]*required/i);
+    expect(source).not.toMatch(/booking-field-notes[\s\S]{0,240}\brequired\b/i);
+    expect(source).not.toMatch(/this\.notes\?\.trim\(\)/i);
   });
 
   it('submits booking and exposes confirmed semantic state', () => {

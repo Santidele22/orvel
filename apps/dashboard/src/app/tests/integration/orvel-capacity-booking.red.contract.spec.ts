@@ -96,10 +96,11 @@ describe('Orvel capacity booking RED contracts', () => {
     expect(merged).toMatch(/Quedan\s*\{?\{?\s*\w+\s*\}?\}?\s+lugares|Quedan\s+\$\{.*\}\s+lugares/);
   });
 
-  it('legacy capacity fallback is safe when API returns null/0 (effective capacity >= 1)', () => {
+  it('frontend preserves zero remaining capacity from the canonical availability API', () => {
     const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
 
-    expect(gateway).toMatch(/remainingCapacity\s*:\s*Math\.max\(\s*1\s*,\s*Number\(/);
+    expect(gateway).toMatch(/remainingCapacity\s*:\s*Number\(row\.remaining_capacity\s*\?\?\s*row\.remainingCapacity\s*\?\?\s*0\)/);
+    expect(gateway).not.toMatch(/remainingCapacity\s*:\s*Math\.max\(\s*1\s*,\s*Number\(/);
   });
 
   it('bookings status constraint remains centralized as bookings_status_check with only booked/cancelled', () => {
@@ -109,10 +110,10 @@ describe('Orvel capacity booking RED contracts', () => {
     expect(businessSettingsMigration).toMatch(/add\s+constraint\s+bookings_status_check\s+check\s*\(\s*status\s+in\s*\(\s*'booked'\s*,\s*'cancelled'\s*\)\s*\)/);
   });
 
-  it('adapter contract validates admin status updates against bookings_status_check allowed values', () => {
+  it('adapter contract validates admin status updates against canonical lifecycle values', () => {
     const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
 
-    expect(gateway).toMatch(/const\s+ALLOWED_BOOKING_STATUSES\s*=\s*\[[^\]]*'booked'[^\]]*'cancelled'[^\]]*\]/);
+    expect(gateway).toMatch(/const\s+ALLOWED_BOOKING_STATUSES\s*=\s*\[[^\]]*'booked'[^\]]*'confirmed'[^\]]*'completed'[^\]]*'cancelled'[^\]]*\]/);
     expect(gateway).toMatch(/if\s*\(\s*!ALLOWED_BOOKING_STATUSES\.includes\(payload\.status\)\s*\)/);
     expect(gateway).toMatch(/return\s*\{\s*status\s*:\s*422[\s\S]*VALIDATION_ERROR/);
   });

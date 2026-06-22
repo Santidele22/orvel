@@ -36,22 +36,18 @@
           <!-- Form -->
           @if (!loading()) {
           <form class="turno-form" (ngSubmit)="save()">
+            @if (branchContext.branches().length > 1) {
             <div class="form-group" aria-live="polite">
-              <label for="activeBranchSelector">Sucursal activa</label>
-              @if (branchContext.branches().length > 1) {
+              <label for="activeBranchSelector">Alcance operativo</label>
               <select id="activeBranchSelector" data-testid="active-branch-selector" [ngModel]="branchContext.activeBranchId() ?? ''"
-                (ngModelChange)="onBranchSelectionChange($event)" name="activeBranchSelector" class="form-control">
-                <option value="">Elegí una sucursal</option>
+                [disabled]="branchContext.branches().length <= 1" (ngModelChange)="onBranchSelectionChange($event)" name="activeBranchSelector" class="form-control">
+                <option value="">Elegí un alcance</option>
                 @for (branch of branchContext.branches(); track branch.id) {
                 <option [value]="branch.id">{{ branch.name }}</option>
                 }
               </select>
-              } @else if (branchContext.activeBranchId()) {
-              <p class="help-text">Sucursal activa seleccionada automáticamente.</p>
-              } @else {
-              <p class="warning-text">No hay sucursales activas. Configurá una sucursal antes de crear turnos.</p>
-              }
             </div>
+            }
 
             <!-- Error Message -->
             @if (error()) {
@@ -215,15 +211,27 @@
             <!-- Actions -->
             <div class="form-actions">
               <a routerLink="/dashboard/turnos" class="btn-secondary">Cancelar</a>
+              @if (isEdit()) {
               <button type="submit" data-testid="turno-admin-reschedule-submit" class="btn-primary"
                 [disabled]="!canSave()">
                 @if (saving()) {
                 <span class="spinner-sm"></span>
                 Guardando...
                 } @else {
-                {{ isEdit() ? 'Actualizar' : 'Crear' }} Turno
+                Actualizar Turno
                 }
               </button>
+              } @else {
+              <button type="submit" data-testid="turno-admin-submit-action" class="btn-primary"
+                [disabled]="!canSave()">
+                @if (saving()) {
+                <span class="spinner-sm"></span>
+                Guardando...
+                } @else {
+                Crear Turno
+                }
+              </button>
+              }
             </div>
           </form>
           }
