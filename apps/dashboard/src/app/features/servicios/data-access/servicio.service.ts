@@ -9,6 +9,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { inject } from '@angular/core';
+import { BusinessService } from '../../settings/data-access/business.service';
 
 type ServicioMutationScope = {
   tenantContext: { accountId: string };
@@ -26,6 +27,60 @@ type CategoriaDomainRecord = CategoriaCatalogRecord & {
   serviciosCount: number;
 };
 
+export type BusinessTypeCategoryMap = Record<string, readonly string[]>;
+
+export const TEMPORARY_FRONTEND_BUSINESS_TYPE_CATEGORY_MAP: BusinessTypeCategoryMap = {
+  peluqueria: ['Cortes', 'Peinados', 'Color', 'Tratamientos', 'Otro'],
+  hair_salon: ['Cortes', 'Peinados', 'Color', 'Tratamientos', 'Otro'],
+  barberia: ['Cortes', 'Barba', 'Color', 'Tratamientos', 'Otro'],
+  barber_shop: ['Cortes', 'Barba', 'Color', 'Tratamientos', 'Otro'],
+  uñas: ['Uñas', 'Manicuría', 'Pedicuría', 'Nail art', 'Otro'],
+  unas: ['Uñas', 'Manicuría', 'Pedicuría', 'Nail art', 'Otro'],
+  nail_salon: ['Uñas', 'Manicuría', 'Pedicuría', 'Nail art', 'Otro'],
+  pestañas: ['Pestañas', 'Lifting', 'Extensiones', 'Cejas', 'Otro'],
+  pestanas: ['Pestañas', 'Lifting', 'Extensiones', 'Cejas', 'Otro'],
+  cejas: ['Cejas', 'Perfilado', 'Laminado', 'Pestañas', 'Otro'],
+  masajes: ['Masajes', 'Wellness', 'Tratamientos', 'Otro'],
+  spa: ['Masajes', 'Tratamientos', 'Wellness', 'Depilación', 'Otro'],
+  estetica: ['Tratamientos', 'Depilación', 'Cejas', 'Pestañas', 'Otro'],
+  maquillaje: ['Maquillaje', 'Cejas', 'Pestañas', 'Otro'],
+  otro: ['Otro']
+} as const;
+
+export const BUSINESS_TYPE_CATEGORY_MAP = TEMPORARY_FRONTEND_BUSINESS_TYPE_CATEGORY_MAP;
+
+const BUSINESS_TYPE_CATEGORY_ALIASES: Record<string, string> = {
+  peluqueria: 'peluqueria',
+  'peluquería': 'peluqueria',
+  hair_salon: 'hair_salon',
+  barberia: 'barberia',
+  'barbería': 'barberia',
+  barber_shop: 'barber_shop',
+  uñas: 'unas',
+  unas: 'unas',
+  nail_salon: 'nail_salon',
+  pestañas: 'pestanas',
+  pestanas: 'pestanas',
+  cejas: 'cejas',
+  masajes: 'masajes',
+  spa: 'spa',
+  estetica: 'estetica',
+  'estética': 'estetica',
+  maquillaje: 'maquillaje',
+  otro: 'otro'
+};
+
+export function normalizeBusinessTypeCategoryKey(businessType: unknown): string {
+  const raw = String(businessType ?? '').trim().toLowerCase();
+  const ascii = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return BUSINESS_TYPE_CATEGORY_ALIASES[raw] ?? BUSINESS_TYPE_CATEGORY_ALIASES[ascii] ?? ascii.replace(/[\s-]+/g, '_');
+}
+
+export function getCategoriesByBusinessType(businessType: unknown): readonly string[] {
+  const normalized = normalizeBusinessTypeCategoryKey(businessType);
+  return TEMPORARY_FRONTEND_BUSINESS_TYPE_CATEGORY_MAP[normalized] ?? TEMPORARY_FRONTEND_BUSINESS_TYPE_CATEGORY_MAP['otro'] ?? ['Otro'];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -36,6 +91,7 @@ export class ServicioService {
   private errorState = signal<string | null>(null);
   private provider: 'mock' | 'supabase' = 'supabase';
   private readonly authService = this.resolveAuthService();
+  private readonly businessSettings = this.resolveBusinessSettings();
   private supabaseClient?: SupabaseClient;
 
   // Readonly signals
@@ -809,7 +865,9 @@ export class ServicioService {
   private buildInitialCategorias(servicios: Servicio[]): CategoriaCatalogRecord[] {
     const records = new Map<string, CategoriaCatalogRecord>();
 
-    CATEGORIAS_SERVICIOS.forEach((nombre, index) => {
+    const userBusinessType = this.businessSettings?.settings()?.businessType || this.authService?.user()?.tipoNegocio;
+    const mappedCategories = getCategoriesByBusinessType(userBusinessType);
+    [...mappedCategories, ...CATEGORIAS_SERVICIOS, 'Otro'].forEach((nombre, index) => {
       records.set(this.normalizeComparable(nombre), {
         id: `categoria-seed-${index + 1}`,
         nombre,
@@ -878,6 +936,14 @@ export class ServicioService {
   private resolveAuthService(): AuthService | null {
     try {
       return inject(AuthService);
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveBusinessSettings(): BusinessService | null {
+    try {
+      return inject(BusinessService);
     } catch {
       return null;
     }

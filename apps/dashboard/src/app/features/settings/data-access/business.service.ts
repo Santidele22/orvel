@@ -5,6 +5,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../core/api/supabase-booking/public-booking-slug';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
+import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 
 export type ApiError = {
   code: string;
@@ -32,6 +33,19 @@ export class BusinessSettingsPersistenceError extends Error {
     this.name = 'BusinessSettingsPersistenceError';
   }
 }
+
+const PUBLIC_BOOKING_SETTINGS_COLUMNS = `
+  business_id,
+  business_name,
+  slug,
+  buffer_minutes,
+  min_notice_minutes,
+  slot_interval_minutes,
+  working_hours,
+  auto_confirm,
+  cancelation_grace_period,
+  allow_client_professional_selection
+`;
 
 @Injectable({
   providedIn: 'root'
@@ -168,7 +182,7 @@ export class BusinessService {
         whatsapp: settings.whatsapp,
         instagram: settings.instagram,
         support_email: settings.supportEmail,
-        plan: settings.plan,
+        business_type: settings.businessType,
         cancelation_grace_period: settings.cancelationGracePeriod,
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
@@ -278,7 +292,8 @@ export class BusinessService {
       whatsapp: settings?.whatsapp,
       instagram: settings?.instagram,
       supportEmail: settings?.support_email,
-      plan: settings?.plan,
+      businessType: settings?.business_type ?? business?.business_type ?? business?.tipo_negocio ?? '',
+      plan: this.resolveDisplayPlan(),
       cancelationGracePeriod: settings?.cancelation_grace_period,
       autoConfirm: settings?.auto_confirm,
       maxAdvanceDays: settings?.max_advance_days,
@@ -291,6 +306,17 @@ export class BusinessService {
       lastName: profile?.last_name ?? settings?.last_name ?? '',
       phone: profile?.phone ?? settings?.phone ?? ''
     };
+  }
+
+  private resolveDisplayPlan(): string {
+    const authPlan = this.authService.user()?.plan;
+    if (authPlan) return authPlan;
+
+    if (typeof localStorage === 'undefined') return 'free';
+
+    return readPlanSelection({
+      getItem: (key: string) => localStorage.getItem(key === ONBOARDING_PLAN_STORAGE_KEY ? key : ONBOARDING_PLAN_STORAGE_KEY)
+    }) ?? 'free';
   }
 
   canCreateNewBusiness(): boolean {
@@ -336,7 +362,7 @@ export class BusinessService {
 
       const { data: settingsData } = await this.supabaseClient
         .from('business_settings')
-        .select('*')
+        .select(PUBLIC_BOOKING_SETTINGS_COLUMNS)
         .eq('business_id', data.id)
         .maybeSingle();
 
