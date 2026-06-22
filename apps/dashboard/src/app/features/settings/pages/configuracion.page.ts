@@ -113,7 +113,6 @@ export class ConfiguracionPage {
       }
     });
   }
-
   async copyBookingUrl(): Promise<void> {
     this.urlCopyFailed.set(false);
     if (!this.hasPublicBookingUrl() || !navigator.clipboard?.writeText) {

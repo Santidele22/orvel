@@ -133,7 +133,7 @@ function fromEntitlementsMap(): LandingPlanViewModel[] {
     maxRubros: PLAN_ENTITLEMENTS[code].maxRubros,
     maxMonthlyBookings: PLAN_ENTITLEMENTS[code].maxMonthlyBookings,
     includedLocalesLabel: '1 local incluido',
-    multiBranchAddOnLabel: 'Multi-sucursal disponible como add-on',
+    multiBranchAddOnLabel: '',
     subscriptionProvider: 'mercado_pago'
   }));
 }
@@ -164,7 +164,7 @@ function fromPlanEntitlementsRows(rows: PlanEntitlementRow[]): LandingPlanViewMo
       maxRubros: Math.max(staticEntitlements.maxRubros, Number(row.max_rubros ?? 0)),
       maxMonthlyBookings: row.max_monthly_bookings !== undefined ? row.max_monthly_bookings : staticEntitlements.maxMonthlyBookings,
       includedLocalesLabel: '1 local incluido',
-      multiBranchAddOnLabel: 'Multi-sucursal disponible como add-on',
+      multiBranchAddOnLabel: '',
       subscriptionProvider: 'mercado_pago'
     });
   }
@@ -201,7 +201,7 @@ function fromReferenceCatalog(catalog: DashboardReferenceCatalog): LandingPlanVi
       maxRubros: Math.max(staticEntitlements.maxRubros, catalogPlan.maxRubros),
       maxMonthlyBookings: catalogPlan.maxMonthlyBookings,
       includedLocalesLabel: '1 local incluido',
-      multiBranchAddOnLabel: 'Multi-sucursal disponible como add-on',
+      multiBranchAddOnLabel: '',
       subscriptionProvider: 'mercado_pago'
     };
   }).filter((plan): plan is LandingPlanViewModel => Boolean(plan));

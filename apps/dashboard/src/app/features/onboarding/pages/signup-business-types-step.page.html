@@ -12,7 +12,7 @@
     <div class="decoration-circle circle-2"></div>
   </div>
 
-  <div class="business-types-card" [class.state-success]="showWelcomeModal" [class.state-addon]="showPaidAddonModal">
+  <div class="business-types-card" [class.state-success]="showWelcomeModal">
     @if (isSelectionStep()) {
       <!-- Header -->
       <header class="business-types-header">
@@ -76,18 +76,6 @@
           {{ isLoading ? 'Guardando configuración' : 'Guardar configuración' }}
         </button>
       </div>
-    }
-
-    @if (showPaidAddonModal) {
-      <section class="extra-branch-modal" role="dialog" aria-modal="true" aria-labelledby="extra-branch-title">
-        <span class="eyebrow">Opcional para planes pagos</span>
-        <h2 id="extra-branch-title">¿Querés sumar otra sucursal?</h2>
-        <p>Tu configuración principal ya está lista. Podés preparar un local adicional ahora o saltar este paso y entrar a Orvel.</p>
-        <div class="signup-actions">
-          <button type="button" class="btn-back" (click)="omitPaidAddon()">Omitir sucursal</button>
-          <button type="button" class="btn-continue" (click)="continueWithPaidAddonLater()">Entrar a Orvel</button>
-        </div>
-      </section>
     }
 
     @if (showWelcomeModal) {

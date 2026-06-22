@@ -147,7 +147,7 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
           business_id: defaults.businessId,
           business_name: defaults.businessName,
           slug: defaults.slugSeed,
-          plan: defaults.plan.toLowerCase(),
+          business_type: defaults.businessType,
           capacity: defaults.capacity,
           buffer_minutes: defaults.bufferMinutes,
           min_notice_minutes: defaults.minNoticeMinutes,
@@ -215,8 +215,8 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
  * 2. User selects exactly one business type
  * 3. Real-time UI updates
  * 4. Continue button enabled when one type is selected
- * 5. On submit, persist all onboarding data
-   * 6. Navigate based on the selected plan
+  * 5. On submit, persist all onboarding data
+  * 6. Open the true welcome state for every plan
  */
 export class SignupBusinessTypesStepPage {
   // Selected primary type by user
@@ -228,7 +228,6 @@ export class SignupBusinessTypesStepPage {
   protected successMessage = '';
   protected showWelcomeModal = false;
   protected showPaidAddonModal = false;
-  protected paidAddonDecisionMade = false;
   
   // Router reference for navigation
   private routerRef: { navigateByUrl: (url: string) => void } | null = null;
@@ -405,12 +404,6 @@ export class SignupBusinessTypesStepPage {
 
     this.successMessage = '¡Todo listo! Tu configuración fue guardada con éxito.';
     markOnboardingCompletionConfirmed(storage);
-    // show paid Branch modal before the true welcome success state.
-    if (this.shouldOfferPaidAddon(plan)) {
-      this.openPaidAddonStep();
-      return;
-    }
-
     this.openWelcomeStep(storage);
   }
 
@@ -422,26 +415,6 @@ export class SignupBusinessTypesStepPage {
     this.continueToDashboard();
   }
 
-  omitPaidAddon(): void {
-    const storage = this.getStorage();
-    this.showPaidAddonModal = false;
-    this.paidAddonDecisionMade = true;
-    if (storage) {
-      storage.setItem('turnea.onboarding.paid_addon_skipped', '1');
-    }
-    this.openWelcomeStep(storage);
-  }
-
-  continueWithPaidAddonLater(): void {
-    this.omitPaidAddon();
-  }
-
-  private openPaidAddonStep(): void {
-    this.showWelcomeModal = false;
-    this.showPaidAddonModal = true;
-    this.isLoading = false;
-  }
-
   private openWelcomeStep(storage: Pick<Storage, 'setItem'> | null): void {
     this.showWelcomeModal = true;
     this.showPaidAddonModal = false;
@@ -450,11 +423,6 @@ export class SignupBusinessTypesStepPage {
       setCurrentStep(storage, 'welcome');
     }
     this.triggerWelcomeConfetti();
-  }
-
-  private shouldOfferPaidAddon(plan: PlanCode | null): boolean {
-    const noCostPlan = ['FR', 'EE'].join('') as PlanCode;
-    return normalizePlanCode(plan) !== noCostPlan;
   }
 
   private triggerWelcomeConfetti(): void {
@@ -505,8 +473,6 @@ export class SignupBusinessTypesStepPage {
       return false;
     }
 
-    // Contract marker: show paid extra Branch modal only after persistMandatoryOnboarding succeeds.
-    // Contract marker: skip Extra Branch keeps onboarding non-blocking and opens welcome.
     return this.onboardingCompletionHandler({ plan, businessType, storage });
   }
 
