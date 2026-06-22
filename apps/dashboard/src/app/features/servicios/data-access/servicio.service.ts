@@ -4,7 +4,7 @@
 import { Injectable, signal } from '@angular/core';
 import { Observable, of, from, delay, tap, switchMap, throwError, catchError } from 'rxjs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS } from '../../../models/servicio.model';
+import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, SERVICIOS_POR_CATEGORIA } from '../../../models/servicio.model';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
@@ -90,8 +90,8 @@ export class ServicioService {
   private loading = signal<boolean>(false);
   private errorState = signal<string | null>(null);
   private provider: 'mock' | 'supabase' = 'supabase';
-  private readonly authService = inject(AuthService);
-  private readonly businessSettings = inject(BusinessService);
+  private readonly authService = this.resolveAuthService();
+  private readonly businessSettings = this.resolveBusinessSettings();
   private supabaseClient?: SupabaseClient;
 
   // Readonly signals
@@ -545,7 +545,7 @@ export class ServicioService {
 
   private getBusinessIdFromSettings(): string | null {
     // Fuente 1: Usuario autenticado (Prioridad máxima)
-    const user = this.authService.user();
+    const user = this.authService?.user();
     if (user?.id) return user.id;
 
     // Fuente 2: Configuración del dashboard
@@ -865,7 +865,7 @@ export class ServicioService {
   private buildInitialCategorias(servicios: Servicio[]): CategoriaCatalogRecord[] {
     const records = new Map<string, CategoriaCatalogRecord>();
 
-    const userBusinessType = this.businessSettings.settings()?.businessType || this.authService.user()?.tipoNegocio;
+    const userBusinessType = this.businessSettings?.settings()?.businessType || this.authService?.user()?.tipoNegocio;
     const mappedCategories = getCategoriesByBusinessType(userBusinessType);
     [...mappedCategories, ...CATEGORIAS_SERVICIOS, 'Otro'].forEach((nombre, index) => {
       records.set(this.normalizeComparable(nombre), {
@@ -933,107 +933,43 @@ export class ServicioService {
     return accountId;
   }
 
+  private resolveAuthService(): AuthService | null {
+    try {
+      return inject(AuthService);
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveBusinessSettings(): BusinessService | null {
+    try {
+      return inject(BusinessService);
+    } catch {
+      return null;
+    }
+  }
+
   private getMockServicios(): Servicio[] {
-    return [
-      {
-        id: 'servicio-001',
-        nombre: 'Manicura Básica',
-        descripcion: 'Corte y limado de uñas',
-        categoria: 'Uñas',
-        duracionMinutos: 30,
-        precio: 2500,
+    return Object.entries(SERVICIOS_POR_CATEGORIA).flatMap(([categoria, nombres], categoryIndex) =>
+      nombres.map((nombre, serviceIndex) => ({
+        id: `servicio-catalogo-${categoryIndex + 1}-${serviceIndex + 1}`,
+        nombre,
+        descripcion: `${nombre} · ${categoria}`,
+        categoria,
+        duracionMinutos: this.estimateCatalogDuration(nombre),
+        precio: 0,
         activo: true,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-002',
-        nombre: 'Esmaltado Semipermanente',
-        descripcion: 'Esmalte que dura 2 semanas',
-        categoria: 'Uñas',
-        duracionMinutos: 45,
-        precio: 3500,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-003',
-        nombre: 'Uñas Acrílicas',
-        descripcion: 'Extensión en acrílico',
-        categoria: 'Uñas',
-        duracionMinutos: 90,
-        precio: 8000,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-004',
-        nombre: 'Uñas Gel',
-        descripcion: 'Extensión en gel UV',
-        categoria: 'Uñas',
-        duracionMinutos: 90,
-        precio: 8500,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-005',
-        nombre: 'Retiro de Esmalte',
-        descripcion: 'Remoción de esmaltado',
-        categoria: 'Uñas',
-        duracionMinutos: 15,
-        precio: 1500,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-006',
-        nombre: 'Diseño de Cejas',
-        descripcion: 'Diseño y depilación de cejas',
-        categoria: 'Cejas',
-        duracionMinutos: 20,
-        precio: 2000,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-007',
-        nombre: 'Extensiones de Pestañas',
-        descripcion: 'Pestañas pelo por pelo',
-        categoria: 'Pestañas',
-        duracionMinutos: 120,
-        precio: 12000,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-008',
-        nombre: 'Lifting de Pestañas',
-        descripcion: 'Elevación natural de pestañas',
-        categoria: 'Pestañas',
-        duracionMinutos: 60,
-        precio: 6000,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      },
-      {
-        id: 'servicio-009',
-        nombre: 'Masaje Relajante',
-        descripcion: 'Masaje corporal de relajación',
-        categoria: 'Masajes',
-        duracionMinutos: 60,
-        precio: 14000,
-        activo: true,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01')
-      }
-    ];
+      }))
+    );
+  }
+
+  private estimateCatalogDuration(nombre: string): number {
+    const normalized = this.normalizeComparable(nombre);
+    if (normalized.includes('extensiones') || normalized.includes('unas acrilicas') || normalized.includes('unas gel')) return 90;
+    if (normalized.includes('lifting') || normalized.includes('masaje') || normalized.includes('tratamiento')) return 60;
+    if (normalized.includes('retiro') || normalized.includes('lavado')) return 30;
+    return 45;
   }
 }

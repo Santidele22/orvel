@@ -77,7 +77,7 @@ export class ClientesPage {
     nombre: ['', [Validators.required, Validators.maxLength(40)]],
     apellido: ['', [Validators.required, Validators.maxLength(40)]],
     telefono: ['', [Validators.required, Validators.minLength(6)]],
-    email: ['']
+    email: ['', [Validators.email]]
   });
 
   constructor() {
@@ -105,7 +105,7 @@ export class ClientesPage {
 
     if (this.clientForm.invalid) {
       this.clientForm.markAllAsTouched();
-      this.formMessage.set('Formulario inválido. Revisa nombre y teléfono.');
+      this.formMessage.set('Formulario inválido. Revisa nombre, apellido, teléfono y email.');
       return;
     }
 
@@ -119,21 +119,54 @@ export class ClientesPage {
 
     const editingId = this.editingClientId();
 
-    if (editingId) {
-      await this.facade.edit(editingId, payload);
-    } else {
-      await this.facade.create(payload);
-    }
+    try {
+      if (editingId) {
+        await this.facade.edit(editingId, payload);
+      } else {
+        await this.facade.create(payload);
+      }
 
-    this.closeModal();
-    this.clients.set(this.facade.getList());
+      this.clients.set(this.facade.getList());
+      this.closeModal();
+    } catch (error) {
+      this.logClientError(error);
+      this.formMessage.set(`No se pudo ${editingId ? 'guardar' : 'crear'} el cliente. ${this.mapClientErrorMessage(error)}`);
+    }
+  }
+
+  private mapClientErrorMessage(error: unknown): string {
+    const rawMessage = this.extractRawErrorMessage(error).toLowerCase();
+    if (rawMessage.includes('duplicate') || rawMessage.includes('unique') || rawMessage.includes('already exists')) {
+      return 'Ya existe un cliente con esos datos. Revisá teléfono o email.';
+    }
+    if (rawMessage.includes('permission') || rawMessage.includes('rls') || rawMessage.includes('auth')) {
+      return 'No tenés permisos para completar esta acción. Iniciá sesión nuevamente.';
+    }
+    return 'Intenta nuevamente en unos minutos.';
+  }
+
+  private extractRawErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    return '';
+  }
+
+  private logClientError(error: unknown): void {
+    console.error('[Clientes] operación fallida', error);
   }
 
   private async loadClients(): Promise<void> {
     this.loading.set(true);
-    await this.facade.load();
-    this.clients.set(this.facade.getList());
-    this.loading.set(false);
+    this.formMessage.set('');
+    try {
+      await this.facade.load();
+      this.clients.set(this.facade.getList());
+    } catch (error) {
+      this.logClientError(error);
+      this.formMessage.set('No se pudieron cargar los clientes. Podés reintentar en unos minutos.');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
@@ -151,7 +184,8 @@ export class ClientesPage {
         this.clients.set(this.facade.getList());
       },
       error: (error) => {
-        this.formMessage.set('Error al dar de baja: ' + (error as Error).message);
+        this.logClientError(error);
+        this.formMessage.set('No se pudo dar de baja el cliente. Intentá nuevamente.');
       }
     });
   }

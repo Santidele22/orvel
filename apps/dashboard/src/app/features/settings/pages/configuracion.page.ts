@@ -58,8 +58,8 @@ export class ConfiguracionPage {
     supportEmail: ['', [Validators.email]],
 
     // Personal Profile
-    firstName: ['', [Validators.required]],
-    lastName: ['', [Validators.required]],
+    firstName: [''],
+    lastName: [''],
     phone: [''],
 
     // Subscription
@@ -113,7 +113,6 @@ export class ConfiguracionPage {
       }
     });
   }
-
   async copyBookingUrl(): Promise<void> {
     this.urlCopyFailed.set(false);
     if (!this.hasPublicBookingUrl() || !navigator.clipboard?.writeText) {
@@ -186,6 +185,7 @@ export class ConfiguracionPage {
   readonly isAccountSettingsModalOpen = signal(false);
   readonly isResetSent = signal(false);
   readonly resetError = signal<string | null>(null);
+  readonly attemptedSubmit = signal(false);
 
   // Mock user businesses - in real app would come from auth service
   // Real user businesses derived from current session
@@ -325,6 +325,7 @@ export class ConfiguracionPage {
 
     const formattedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     this.settingsForm.get(`workingHours.${day}.${field}`)?.setValue(formattedTime);
+    this.markWorkingDayInteracted(day);
     this.closeTimePicker();
   }
 
@@ -340,6 +341,11 @@ export class ConfiguracionPage {
     const ampm = h >= 12 ? 'PM' : 'AM';
     const displayHour = h % 12 || 12;
     return `${displayHour}:${m.toString().padStart(2, '0')} ${ampm}`;
+  }
+
+  hasInvalidWorkingHoursRange(dayKey: WeekdayKey): boolean {
+    const control = this.settingsForm.get(`workingHours.${dayKey}`);
+    return Boolean(control?.hasError('invalidRange') && (control.touched || control.dirty || this.attemptedSubmit()));
   }
 
   readonly weekdayRows: WeekdayRow[] = [
@@ -364,6 +370,7 @@ export class ConfiguracionPage {
   }
 
   async onSubmit(): Promise<void> {
+    this.attemptedSubmit.set(true);
     this.formMessage.set('');
     this.fieldErrors.set({});
     const user = this.authService.user();
@@ -399,7 +406,13 @@ export class ConfiguracionPage {
 
     try {
       this.loading.set(true);
-      const result = await this.facade.save(user.id, {
+      const activeBusinessId = await this.facade.getActiveBusinessId(user.id);
+      if (!activeBusinessId) {
+        this.formMessage.set('No se pudo identificar el negocio activo. Volvé a intentar en unos segundos.');
+        return;
+      }
+
+      await this.facade.save(activeBusinessId, {
         businessName: values.businessName.trim(),
         bufferMinutes: values.bufferMinutes,
         minNoticeMinutes: values.minNoticeMinutes,
@@ -427,14 +440,10 @@ export class ConfiguracionPage {
       });
 
       this.savedState.set(this.facade.getSnapshot());
-      
-      if (result.source.includes('error')) {
-        this.formMessage.set(`Hubo un problema al guardar parte de la configuración (${result.source}). Los cambios locales se mantienen.`);
-      } else {
-        this.formMessage.set('Configuración guardada exitosamente.');
-      }
+      this.settingsForm.markAsPristine();
+      this.formMessage.set('Configuración guardada exitosamente.');
     } catch (error) {
-      this.formMessage.set('Error al guardar en el servidor. Intente de nuevo.');
+      this.formMessage.set('No se pudo guardar la configuración. Revisá tu conexión e intentá nuevamente.');
       console.error('Error saving settings:', error);
     } finally {
       this.loading.set(false);
@@ -472,6 +481,13 @@ export class ConfiguracionPage {
     return group;
   }
 
+  private markWorkingDayInteracted(dayKey: WeekdayKey): void {
+    const dayGroup = this.settingsForm.get(`workingHours.${dayKey}`);
+    dayGroup?.markAsDirty();
+    dayGroup?.markAsTouched();
+    dayGroup?.updateValueAndValidity({ onlySelf: true });
+  }
+
   private async loadDefaults(): Promise<void> {
     const user = this.authService.user();
     if (user) {
@@ -492,7 +508,10 @@ export class ConfiguracionPage {
 
     try {
       this.loading.set(true);
-      await this.facade.loadFromSupabase(userId);
+      const activeBusinessId = await this.facade.getActiveBusinessId(userId);
+      if (activeBusinessId) {
+        await this.facade.loadFromSupabase(activeBusinessId);
+      }
     } catch (error) {
       console.error('Error loading settings from Supabase:', error);
     }

@@ -19,7 +19,8 @@ type CategoriaItem = {
   serviciosCount: number;
 };
 
-const ZEN_CATEGORIES = ['Masajes', 'Tratamientos', 'Spa', 'Wellness', 'Cejas', 'Pestañas'];
+const SAVE_SERVICE_ERROR_MESSAGE = 'No se pudo guardar el servicio. Intentá nuevamente en unos minutos.';
+const DELETE_SERVICE_ERROR_MESSAGE = 'No se pudo eliminar el servicio. Intentá nuevamente en unos minutos.';
 
 @Component({
   selector: 'app-servicios-page',
@@ -178,7 +179,8 @@ export class ServiciosPage {
       this.servicios.set(this.servicioService.items());
       this.closeModal();
     } catch (error) {
-      this.feedback.set('Error al guardar: ' + (error as Error).message);
+      console.error('[Servicios] guardado fallido', error);
+      this.feedback.set(SAVE_SERVICE_ERROR_MESSAGE);
     } finally {
       this.loading.set(false);
     }
@@ -186,10 +188,17 @@ export class ServiciosPage {
 
   private async loadData(): Promise<void> {
     this.loading.set(true);
-    await firstValueFrom(this.servicioService.getAll());
-    this.servicios.set(this.servicioService.items());
-    this.categorias.set(this.servicioService.listCategorias());
-    this.loading.set(false);
+    this.feedback.set('');
+    try {
+      await firstValueFrom(this.servicioService.getAll());
+      this.servicios.set(this.servicioService.items());
+    } catch (error) {
+      console.error('[Servicios] carga fallida', error);
+      this.feedback.set('No se pudieron cargar los servicios. El catálogo de categorías sigue disponible; podés reintentar en unos minutos.');
+    } finally {
+      this.categorias.set(this.servicioService.listCategorias());
+      this.loading.set(false);
+    }
   }
 
   // DB-FIX-003: Edit service - opens modal with selected service ID
@@ -215,7 +224,8 @@ export class ServiciosPage {
     try {
       await this.performDeleteServicio(serviceId);
     } catch (error) {
-      this.feedback.set('Error al eliminar: ' + (error as Error).message);
+      console.error('[Servicios] eliminación fallida', error);
+      this.feedback.set(DELETE_SERVICE_ERROR_MESSAGE);
     }
   }
 

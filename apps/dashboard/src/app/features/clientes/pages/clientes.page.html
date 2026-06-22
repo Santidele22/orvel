@@ -134,7 +134,7 @@
           </button>
         </div>
 
-        <form [formGroup]="clientForm" (ngSubmit)="onSubmit()" class="space-y-5">
+        <form [formGroup]="clientForm" data-testid="client-form" (ngSubmit)="onSubmit()" class="space-y-5">
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Nombre</label>
@@ -172,9 +172,9 @@
             <button type="button" data-testid="clientes-modal-cancel"
               class="h-11 px-7 rounded-full bg-transparent border border-white/10 text-sm font-medium text-text-secondary hover:bg-white/5 hover:text-white transition-all duration-300"
               (click)="closeModal()">Borrar</button>
-            <button type="submit"
+            <button type="submit" data-testid="client-form-submit"
               class="h-11 px-10 rounded-full bg-primary text-white font-semibold text-sm shadow-lg shadow-primary/30 hover:bg-primary-hover hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
-              Guardar cambios
+              {{ editingClientId() ? 'Guardar cambios' : 'Crear cliente' }}
             </button>
           </div>
         </form>

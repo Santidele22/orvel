@@ -19,6 +19,21 @@ export type ApiResponse<T> = {
   error?: ApiError;
 };
 
+type ActiveBusinessContext = {
+  businessId: string;
+  ownerId: string;
+};
+
+export class BusinessSettingsPersistenceError extends Error {
+  constructor(
+    message: string,
+    readonly code: 'BUSINESS_NOT_FOUND' | 'BUSINESS_UPDATE_FAILED' | 'SETTINGS_SAVE_FAILED' | 'PROFILE_SAVE_FAILED' | 'AUTH_REQUIRED'
+  ) {
+    super(message);
+    this.name = 'BusinessSettingsPersistenceError';
+  }
+}
+
 const PUBLIC_BOOKING_SETTINGS_COLUMNS = `
   business_id,
   business_name,
@@ -105,10 +120,13 @@ export class BusinessService {
   async loadFromSupabase(businessId: string): Promise<void> {
     if (!this.supabaseClient) return;
 
+    const context = await this.resolveActiveBusinessContext(businessId);
+    const resolvedBusinessId = context.businessId;
+
     const { data: businessData, error: businessError } = await this.supabaseClient
       .from('businesses')
       .select('*')
-      .eq('id', businessId)
+      .eq('id', resolvedBusinessId)
       .maybeSingle();
 
     if (businessError || !businessData) return;
@@ -116,13 +134,13 @@ export class BusinessService {
     const { data: settingsData } = await this.supabaseClient
       .from('business_settings')
       .select('*')
-      .eq('business_id', businessId)
+      .eq('business_id', resolvedBusinessId)
       .maybeSingle();
 
     const { data: profileData } = await this.supabaseClient
       .from('profiles')
       .select('first_name, last_name, phone')
-      .eq('id', businessId)
+      .eq('id', context.ownerId)
       .maybeSingle();
 
     this.currentSettings.set(this.mapToSettings(businessData, settingsData, profileData));
@@ -131,19 +149,29 @@ export class BusinessService {
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
     if (!this.supabaseClient) return { source: 'error:no-supabase' };
 
+    const context = await this.resolveActiveBusinessContext(businessId);
+    const resolvedBusinessId = context.businessId;
+
     // Update businesses table
     if (settings.businessName) {
-      await this.supabaseClient
+      const { error: businessUpdateError } = await this.supabaseClient
         .from('businesses')
         .update({ name: settings.businessName })
-        .eq('id', businessId);
+        .eq('id', resolvedBusinessId);
+
+      if (businessUpdateError) {
+        throw new BusinessSettingsPersistenceError(
+          'No se pudo actualizar el negocio. Los cambios no fueron guardados.',
+          'BUSINESS_UPDATE_FAILED'
+        );
+      }
     }
 
     // Update business_settings table
     const { error } = await this.supabaseClient
       .from('business_settings')
       .upsert({
-        business_id: businessId,
+        business_id: resolvedBusinessId,
         buffer_minutes: settings.bufferMinutes,
         min_notice_minutes: settings.minNoticeMinutes,
         slot_interval_minutes: settings.slotIntervalMinutes,
@@ -168,9 +196,14 @@ export class BusinessService {
         phone: settings.phone
       });
 
-    if (error) return { source: 'error:' + error.message };
+    if (error) {
+      throw new BusinessSettingsPersistenceError(
+        'No se pudo guardar la configuración. Los cambios locales se mantienen sin confirmar.',
+        'SETTINGS_SAVE_FAILED'
+      );
+    }
 
-    await this.loadFromSupabase(businessId);
+    await this.loadFromSupabase(resolvedBusinessId);
     return { source: 'supabase' };
   }
 
@@ -180,6 +213,55 @@ export class BusinessService {
 
   getSnapshot(): BusinessSettings | null {
     return this.currentSettings();
+  }
+
+  async getActiveBusinessId(candidateBusinessOrUserId?: string): Promise<string | null> {
+    if (!this.supabaseClient) return candidateBusinessOrUserId ?? null;
+
+    try {
+      return (await this.resolveActiveBusinessContext(candidateBusinessOrUserId)).businessId;
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveActiveBusinessContext(candidateBusinessOrUserId?: string): Promise<ActiveBusinessContext> {
+    if (!this.supabaseClient) {
+      throw new BusinessSettingsPersistenceError('No se pudo conectar con el servidor.', 'BUSINESS_NOT_FOUND');
+    }
+
+    const { data: { session } } = await this.supabaseClient.auth.getSession();
+    const ownerId = session?.user?.id ?? this.authService.user()?.id;
+
+    if (!ownerId) {
+      throw new BusinessSettingsPersistenceError('No se encontró sesión de usuario.', 'AUTH_REQUIRED');
+    }
+
+    const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem('orvel.active_business_id') ?? candidateBusinessOrUserId;
+
+    const { data: ownedBusinesses, error } = await this.supabaseClient
+      .from('businesses')
+      .select('id, owner_id')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new BusinessSettingsPersistenceError('No se pudo resolver el negocio activo.', 'BUSINESS_NOT_FOUND');
+    }
+
+    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string }>;
+    const resolved = businesses.find(business => business.id === preferredBusinessId)
+      ?? businesses.find(business => business.id === candidateBusinessOrUserId)
+      ?? businesses[0];
+
+    if (!resolved?.id) {
+      throw new BusinessSettingsPersistenceError('No se encontró un negocio activo para la sesión.', 'BUSINESS_NOT_FOUND');
+    }
+
+    this.activeBusinessId.set(resolved.id);
+    localStorage.setItem('orvel.active_business_id', resolved.id);
+
+    return { businessId: resolved.id, ownerId };
   }
 
   getDefaultWorkingHours(): Record<WeekdayKey, WorkingDayHours> {

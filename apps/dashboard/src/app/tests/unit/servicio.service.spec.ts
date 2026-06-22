@@ -4,7 +4,7 @@
 // Tests for service (servicio) management functionality
 // Spanish comments for clarity
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ServicioService } from '../../services/servicio.service';
 import { CreateServicioDTO } from '../../models/servicio.model';
 
@@ -14,6 +14,7 @@ describe('ServicioService - Unit Tests', () => {
   // Setup before each test
   beforeEach(() => {
     service = new ServicioService();
+    service.setProvider('mock');
   });
 
   // ============================================
@@ -48,8 +49,7 @@ describe('ServicioService - Unit Tests', () => {
       // Assert
       const categorias = servicios!.map(s => s.categoria);
       expect(categorias).toContain('Uñas');
-      expect(categorias).toContain('Pestañas');
-      expect(categorias).toContain('Cejas');
+      expect(categorias).toContain('Pestañas y Cejas');
     });
   });
 
@@ -64,12 +64,12 @@ describe('ServicioService - Unit Tests', () => {
 
     it('debería retornar servicio existente', async () => {
       // Act
-      const servicio = await service.getById('servicio-001').toPromise();
+      const servicio = await service.getById('servicio-catalogo-1-1').toPromise();
 
       // Assert
       expect(servicio).toBeDefined();
-      expect(servicio!.id).toBe('servicio-001');
-      expect(servicio!.nombre).toBe('Manicura Básica');
+      expect(servicio!.id).toBe('servicio-catalogo-1-1');
+      expect(servicio!.nombre).toBe('Corte de cabello');
     });
 
     it('debería retornar undefined para servicio inexistente', async () => {
@@ -174,25 +174,25 @@ describe('ServicioService - Unit Tests', () => {
 
     it('debería actualizar servicio existente', async () => {
       // Act
-      const resultado = await service.update('servicio-001', { 
-        nombre: 'Manicura Premium' 
+      const resultado = await service.update('servicio-catalogo-1-1', {
+        nombre: 'Corte premium'
       }).toPromise();
 
       // Assert
-      expect(resultado!.nombre).toBe('Manicura Premium');
-      expect(resultado!.categoria).toBe('Uñas'); // Mantiene valor original
+      expect(resultado!.nombre).toBe('Corte premium');
+      expect(resultado!.categoria).toBe('Barbería'); // Mantiene valor original
     });
 
     it('debería actualizar múltiples campos', async () => {
       // Act
-      const resultado = await service.update('servicio-001', {
-        nombre: 'Manicura Modificada',
+      const resultado = await service.update('servicio-catalogo-1-1', {
+        nombre: 'Corte modificado',
         precio: 4000,
         duracionMinutos: 45
       }).toPromise();
 
       // Assert
-      expect(resultado!.nombre).toBe('Manicura Modificada');
+      expect(resultado!.nombre).toBe('Corte modificado');
       expect(resultado!.precio).toBe(4000);
       expect(resultado!.duracionMinutos).toBe(45);
     });
@@ -204,12 +204,12 @@ describe('ServicioService - Unit Tests', () => {
       // Act & Assert - The service throws synchronously
       expect(() => {
         service.update('servicio-inexistente', { nombre: 'Test' });
-      }).toThrow('Servicio no encontrado');
+      }).toThrow('SERVICIO_NOT_FOUND');
     });
 
     it('debería poder desactivar servicio', async () => {
       // Act
-      const resultado = await service.update('servicio-001', { 
+      const resultado = await service.update('servicio-catalogo-1-1', {
         activo: false 
       }).toPromise();
 
@@ -232,16 +232,16 @@ describe('ServicioService - Unit Tests', () => {
       const initialCount = service.items().length;
 
       // Act
-      await service.delete('servicio-001').toPromise();
+      await service.delete('servicio-catalogo-1-1').toPromise();
 
       // Assert
       expect(service.items().length).toBe(initialCount - 1);
-      expect(service.items().some(s => s.id === 'servicio-001')).toBe(false);
+      expect(service.items().some(s => s.id === 'servicio-catalogo-1-1')).toBe(false);
     });
 
     it('debería retornar true después de eliminar', async () => {
       // Act
-      const resultado = await service.delete('servicio-001').toPromise();
+      const resultado = await service.delete('servicio-catalogo-1-1').toPromise();
 
       // Assert
       expect(resultado).toBe(true);
@@ -269,14 +269,14 @@ describe('ServicioService - Unit Tests', () => {
 
     it('debería excluir servicios inactivos', async () => {
       // Arrange - desactivar un servicio
-      await service.update('servicio-001', { activo: false }).toPromise();
+      await service.update('servicio-catalogo-1-1', { activo: false }).toPromise();
 
       // Act
       const servicios = await service.getByCategoria('Uñas').toPromise();
 
       // Assert
       expect(servicios!.every(s => s.activo)).toBe(true);
-      expect(servicios!.some(s => s.id === 'servicio-001')).toBe(false);
+      expect(servicios!.some(s => s.id === 'servicio-catalogo-1-1')).toBe(false);
     });
 
     it('debería retornar array vacío para categoría sin servicios', async () => {
@@ -340,7 +340,7 @@ describe('ServicioService - Unit Tests', () => {
 
       // Assert
       expect(categorias).toContain('Uñas');
-      expect(categorias).toContain('Pestañas');
+      expect(categorias).toContain('Pestañas y Cejas');
     });
 
     it('debería excluir categorías duplicadas', async () => {
@@ -446,11 +446,11 @@ describe('ServicioService - Unit Tests', () => {
       await service.getAll().toPromise();
       
       // Desactivar
-      await service.update('servicio-001', { activo: false }).toPromise();
-      expect(service.items().find(s => s.id === 'servicio-001')!.activo).toBe(false);
+      await service.update('servicio-catalogo-1-1', { activo: false }).toPromise();
+      expect(service.items().find(s => s.id === 'servicio-catalogo-1-1')!.activo).toBe(false);
 
       // Reactivar
-      const resultado = await service.update('servicio-001', { activo: true }).toPromise();
+      const resultado = await service.update('servicio-catalogo-1-1', { activo: true }).toPromise();
 
       // Assert
       expect(resultado!.activo).toBe(true);
