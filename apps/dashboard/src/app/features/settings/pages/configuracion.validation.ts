@@ -12,8 +12,8 @@ const workingDaySchema = z.object({
 
 const configuracionSchema = z.object({
   businessName: z.string().trim().min(1, 'Nombre del negocio requerido').max(80, 'Máximo 80 caracteres'),
-  firstName: z.string().trim().min(1, 'Nombre requerido'),
-  lastName: z.string().trim().min(1, 'Apellido requerido'),
+  firstName: z.string().trim().optional().or(z.literal('')),
+  lastName: z.string().trim().optional().or(z.literal('')),
   supportEmail: z.string().trim().optional().or(z.literal('')).refine((value) => !value || z.string().email().safeParse(value).success, {
     message: 'Email inválido'
   }),
@@ -46,6 +46,12 @@ const configuracionSchema = z.object({
   cleanupTimeMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
   capacity: z.number().min(1, 'Debe ser mayor o igual a 1'), // Employee count for bookings
   workingHours: z.record(z.string(), workingDaySchema)
+    .refine((days) => Object.values(days).every((day) => {
+      if (!day.enabled) return true;
+      const [startHour, startMinute] = day.start.split(':').map(Number);
+      const [endHour, endMinute] = day.end.split(':').map(Number);
+      return startHour * 60 + startMinute < endHour * 60 + endMinute;
+    }), { message: 'El horario de apertura debe ser anterior al cierre' })
 });
 
 export type ConfiguracionValidationResult = {

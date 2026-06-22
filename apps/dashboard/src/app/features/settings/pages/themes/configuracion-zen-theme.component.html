@@ -31,7 +31,7 @@
       @if (!loading()) {
       <div class="sr-only" data-testid="settings-empty-state" role="status">Ready for configuration updates.</div>
 
-      <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" class="space-y-zen-xl"
+      <form [formGroup]="settingsForm" data-testid="settings-form" (ngSubmit)="onSubmit()" class="space-y-zen-xl"
         aria-label="business settings form">
 
         @if (activeSettingsTab() === 'perfil') {
@@ -334,7 +334,7 @@
           </div>
         </article>
 
-        <article [class]="ui.cardGlass + ' space-y-zen-lg'" formGroupName="workingHours">
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'" formGroupName="workingHours" data-testid="working-hours-section">
           <h2 [class]="ui.titleSection">Working hours</h2>
 
           <div class="space-y-zen-md">
@@ -344,23 +344,47 @@
                 <span [class]="ui.labelMicro + ' text-secondary'">{{ day.label }}</span>
               </div>
               <div class="col-span-12 md:col-span-2">
+                @if (day.key === 'monday') {
+                <input data-testid="working-hours-monday-enabled" type="checkbox" formControlName="enabled"
+                  class="h-zen-control-sm w-zen-control-sm accent-primary cursor-pointer" />
+                } @else {
                 <input type="checkbox" formControlName="enabled"
                   class="h-zen-control-sm w-zen-control-sm accent-primary cursor-pointer" />
+                }
               </div>
               <div class="col-span-6 md:col-span-3">
+                @if (day.key === 'monday') {
+                <button data-testid="working-hours-monday-start" type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker('monday', 'start')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
+                </button>
+                } @else {
                 <button type="button"
                   [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
                   (click)="openTimePicker($any(day.key), 'start')">
                   {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
                 </button>
+                }
               </div>
               <div class="col-span-6 md:col-span-3">
+                @if (day.key === 'monday') {
+                <button data-testid="working-hours-monday-end" type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker('monday', 'end')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
+                </button>
+                } @else {
                 <button type="button"
                   [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
                   (click)="openTimePicker($any(day.key), 'end')">
                   {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
                 </button>
+                }
               </div>
+              @if (hasInvalidWorkingHoursRange(day.key)) {
+              <p class="col-span-12" [class]="ui.fieldError" data-testid="config-field-error-workingHours">invalidRange: el horario de apertura debe ser anterior al cierre.</p>
+              }
             </div>
             }
           </div>
@@ -369,7 +393,7 @@
 
         <div [class]="ui.cardGlass + ' flex items-center justify-between gap-zen-md'">
           <span class="text-xs font-medium text-tertiary">{{ formMessage() || 'Ready for changes' }}</span>
-          <button type="submit" [class]="ui.primaryAction + ' shadow-xl shadow-primary/30'">Guardar cambios</button>
+          <button type="submit" data-testid="settings-save-submit" [class]="ui.primaryAction + ' shadow-xl shadow-primary/30'">Guardar cambios</button>
         </div>
       </form>
       }

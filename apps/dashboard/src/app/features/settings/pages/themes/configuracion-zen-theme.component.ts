@@ -36,6 +36,7 @@ export class ConfiguracionZenThemeComponent {
   onSelectedBusinessChange(value: string): void { this.ctx.onSelectedBusinessChange(value); }
   openTimePicker(dayKey: any, field: 'start' | 'end'): void { this.ctx.openTimePicker(dayKey, field); }
   formatTo12h(time: string): string { return this.ctx.formatTo12h(time); }
+  hasInvalidWorkingHoursRange(dayKey: any): boolean { return this.ctx.hasInvalidWorkingHoursRange(dayKey); }
   setSettingsTab(tab: 'perfil' | 'negocio'): void { this.ctx.setSettingsTab(tab); }
   openAccountSettingsModal(): void { this.ctx.openAccountSettingsModal(); }
 }

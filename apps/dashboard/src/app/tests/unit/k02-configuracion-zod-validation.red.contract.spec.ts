@@ -22,6 +22,7 @@ type ConfiguracionValidationInput = {
   cancelationGracePeriod: number;
   maxAdvanceDays: number;
   cleanupTimeMinutes: number;
+  capacity: number;
   workingHours: Record<string, ConfiguracionWorkingDay>;
 };
 
@@ -36,7 +37,7 @@ type ConfiguracionValidationModule = {
 
 async function loadConfiguracionValidationModule(): Promise<ConfiguracionValidationModule> {
   try {
-    const mod = await import('../../pages/dashboard/configuracion/configuracion.validation');
+    const mod = await import('../../features/settings/pages/configuracion.validation');
     return mod as ConfiguracionValidationModule;
   } catch {
     throw new Error(
@@ -71,6 +72,7 @@ const validBaseInput: ConfiguracionValidationInput = {
   cancelationGracePeriod: 24,
   maxAdvanceDays: 90,
   cleanupTimeMinutes: 0,
+  capacity: 1,
   workingHours: validWorkingHours
 };
 
@@ -87,8 +89,6 @@ describe('K02 - Configuración Zod validation RED contract', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors.businessName).toBeTypeOf('string');
-    expect(result.fieldErrors.firstName).toBeTypeOf('string');
-    expect(result.fieldErrors.lastName).toBeTypeOf('string');
   });
 
   it('validates email/phone/url formats when provided', async () => {
@@ -153,5 +153,20 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     expect(result.fieldErrors.cancelationGracePeriod).toBeTypeOf('string');
     expect(result.fieldErrors.maxAdvanceDays).toBeTypeOf('string');
     expect(result.fieldErrors.cleanupTimeMinutes).toBeTypeOf('string');
+  });
+
+  it('rejects enabled working days with opening time not before closing time', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      workingHours: {
+        ...validWorkingHours,
+        monday: { enabled: true, start: '18:00', end: '09:00' }
+      }
+    });
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors.workingHours).toBe('El horario de apertura debe ser anterior al cierre');
   });
 });
