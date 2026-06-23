@@ -1,9 +1,9 @@
 <!--
   Signup Business Types Step - Template
   
-  Step 3 of onboarding flow - Primary Rubro Selection
+  Step 3 of onboarding flow - Primary and additional Rubro Selection
   Shows only rubros allowed by the plan selected in Step 1
-  User selects one primary rubro and submits to complete onboarding
+  User selects one primary rubro and optional additional rubros for catalog suggestions
 -->
 <div class="business-types-container">
   <!-- Background Decoration -->
@@ -17,12 +17,12 @@
       <!-- Header -->
       <header class="business-types-header">
         <span class="eyebrow">Último paso</span>
-        <h1 class="business-types-title">Elegí el rubro principal de tu negocio</h1>
-        <p class="business-types-subtitle">Esto configura tu agenda inicial. Podés cambiarlo más adelante.</p>
+        <h1 class="business-types-title">Elegí el rubro principal y los rubros extra</h1>
+        <p class="business-types-subtitle">El primero queda como rubro principal. Los demás nos ayudan a sugerirte servicios para armar tu catálogo y podés cambiarlos más adelante.</p>
       </header>
 
       <!-- Primary Rubro Grid -->
-      <div class="business-types-grid" aria-label="Rubros principales disponibles">
+      <div class="business-types-grid" aria-label="Rubros disponibles" aria-required="true">
         @for (type of allowedTypes; track type.code) {
           <button
             type="button"
@@ -47,7 +47,7 @@
       <!-- Selection Info -->
       <div class="selection-info">
         <span class="selection-count">
-          Rubro principal: {{ selectedTypes.length }} / {{ getMaxTypes() }}
+          Rubros seleccionados: {{ selectedTypes.length }} / {{ getMaxTypes() }} · Principal requerido: {{ selectedTypes[0] || 'sin seleccionar' }}
         </span>
       </div>
 

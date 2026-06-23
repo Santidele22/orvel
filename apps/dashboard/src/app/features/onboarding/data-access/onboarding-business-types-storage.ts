@@ -44,9 +44,13 @@ function normalizeBusinessTypeCode(value: unknown): BusinessTypeCode | null {
  * @param types - Array of business type codes to persist
  */
 export function persistBusinessTypes(storage: Pick<Storage, 'setItem'>, types: BusinessTypeCode[]): void {
-  const normalizedTypes = types
-    .map((type) => normalizeBusinessTypeCode(type))
-    .filter((type): type is BusinessTypeCode => type !== null);
+  const normalizedTypes = [
+    ...new Set(
+      types
+        .map((type) => normalizeBusinessTypeCode(type))
+        .filter((type): type is BusinessTypeCode => type !== null)
+    )
+  ];
 
   storage.setItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY, JSON.stringify(normalizedTypes));
 }
@@ -68,11 +72,15 @@ export function readBusinessTypes(storage: Pick<Storage, 'getItem'>): BusinessTy
       return null;
     }
 
-    const normalizedTypes = parsed
-      .map((item) => normalizeBusinessTypeCode(item))
-      .filter((item): item is BusinessTypeCode => item !== null);
+    const normalizedTypes = [
+      ...new Set(
+        parsed
+          .map((item) => normalizeBusinessTypeCode(item))
+          .filter((item): item is BusinessTypeCode => item !== null)
+      )
+    ];
 
-    if (normalizedTypes.length !== parsed.length) {
+    if (normalizedTypes.length === 0 && parsed.length > 0) {
       return null;
     }
 

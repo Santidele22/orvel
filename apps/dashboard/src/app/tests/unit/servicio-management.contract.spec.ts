@@ -29,6 +29,7 @@ describe('Sprint 1 - Service management contract (mock mode)', () => {
 
   beforeEach(async () => {
     servicioService = new ServicioService();
+    servicioService.setProvider('mock');
     await firstValueFrom(servicioService.getAll());
   });
 

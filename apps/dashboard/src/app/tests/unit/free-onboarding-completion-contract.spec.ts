@@ -50,7 +50,7 @@ describe('free onboarding completion contract', () => {
     supabaseMocks.updateUser.mockResolvedValue({ data: { user: { id: 'user-free-1' } }, error: null });
   });
 
-  it('uses the shared Supabase auth storage key and writes dashboard-required FREE metadata', async () => {
+  it('uses the shared Supabase auth storage key, keeps plan out of public settings, and writes dashboard-required FREE metadata', async () => {
     const { createSupabaseOnboardingCompletionHandler } = await import(
       '../../features/onboarding/pages/signup-business-types-step.page'
     );
@@ -59,6 +59,7 @@ describe('free onboarding completion contract', () => {
     const completed = await handler({
       plan: 'FREE',
       businessType: 'peluqueria',
+      selectedRubros: ['peluqueria'],
       storage: {
         getItem: vi.fn((key: string) =>
           key.includes('credentials') ? JSON.stringify({ business_name: 'Studio Free' }) : null
@@ -86,11 +87,12 @@ describe('free onboarding completion contract', () => {
       expect.objectContaining({
         business_id: 'user-free-1',
         business_name: 'Studio Free',
-        business_type: 'peluqueria',
-        plan: 'free'
+        business_type: 'peluqueria'
       }),
       { onConflict: 'business_id' }
     );
+    const [settingsPayload] = supabaseMocks.settingsUpsert.mock.calls[0] as [Record<string, unknown>];
+    expect(settingsPayload).not.toHaveProperty('plan');
     expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
       data: {
         onboardingCompleted: true,
@@ -98,8 +100,70 @@ describe('free onboarding completion contract', () => {
         plan: 'FREE',
         tipoNegocio: 'peluqueria',
         businessType: 'peluqueria',
-        business_type: 'peluqueria'
+        business_type: 'peluqueria',
+        selectedBusinessTypes: ['peluqueria'],
+        selected_business_types: ['peluqueria'],
+        additionalRubros: []
       }
     });
+  });
+
+  it('clears stale rubro metadata by always sending selected and additional rubro keys', async () => {
+    const { createSupabaseOnboardingCompletionHandler } = await import(
+      '../../features/onboarding/pages/signup-business-types-step.page'
+    );
+
+    const handler = createSupabaseOnboardingCompletionHandler();
+    const completed = await handler({
+      plan: 'FREE',
+      businessType: 'peluqueria',
+      selectedRubros: ['peluqueria', 'barberia'],
+      storage: {
+        getItem: vi.fn((key: string) =>
+          key.includes('credentials') ? JSON.stringify({ business_name: 'Studio Free' }) : null
+        )
+      }
+    });
+
+    expect(completed).toBe(true);
+    expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        plan: 'FREE',
+        businessType: 'peluqueria',
+        business_type: 'peluqueria',
+        selectedBusinessTypes: ['peluqueria', 'barberia'],
+        selected_business_types: ['peluqueria', 'barberia'],
+        additionalRubros: ['barberia']
+      })
+    });
+  });
+
+  it('clears stale additional rubros by sending an empty additionalRubros array when only the primary rubro remains', async () => {
+    const { createSupabaseOnboardingCompletionHandler } = await import(
+      '../../features/onboarding/pages/signup-business-types-step.page'
+    );
+
+    const handler = createSupabaseOnboardingCompletionHandler();
+    const completed = await handler({
+      plan: 'FREE',
+      businessType: 'peluqueria',
+      selectedRubros: [],
+      storage: {
+        getItem: vi.fn((key: string) =>
+          key.includes('credentials') ? JSON.stringify({ business_name: 'Studio Free' }) : null
+        )
+      }
+    });
+
+    expect(completed).toBe(true);
+    expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        selectedBusinessTypes: ['peluqueria'],
+        selected_business_types: ['peluqueria'],
+        additionalRubros: []
+      })
+    });
+    const [settingsPayload] = supabaseMocks.settingsUpsert.mock.calls[0] as [Record<string, unknown>];
+    expect(settingsPayload).not.toHaveProperty('plan');
   });
 });

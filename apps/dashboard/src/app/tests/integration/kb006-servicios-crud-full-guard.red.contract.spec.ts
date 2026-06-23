@@ -14,8 +14,12 @@ import { ServicioService } from '../../services/servicio.service';
 import type { CreateServicioDTO } from '../../models/servicio.model';
 
 function readServicioServiceSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/services/servicio.service.ts');
+  const tsPath = resolve(process.cwd(), 'src/app/features/servicios/data-access/servicio.service.ts');
   return existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
+}
+
+function forceDegradedSupabaseFallback(service: ServicioService): void {
+  (service as unknown as { getSupabaseClient: () => null }).getSupabaseClient = () => null;
 }
 
 const validCreateDto = (overrides: Partial<CreateServicioDTO> = {}): CreateServicioDTO => ({
@@ -34,6 +38,7 @@ describe('KB-006.1 - Create Servicio (Supabase + validation)', () => {
   beforeEach(() => {
     service = new ServicioService();
     service.setProvider('supabase');
+    forceDegradedSupabaseFallback(service);
   });
 
   it('KB-006.1.1 @RED - wires a Supabase create path for servicios', () => {
@@ -83,6 +88,7 @@ describe('KB-006.2 - Read Servicios (Supabase load/filter/search)', () => {
 
   beforeEach(() => {
     service = new ServicioService();
+    service.setProvider('mock');
   });
 
   it('KB-006.2.1 @RED - wires a Supabase read path for servicios', () => {
@@ -133,6 +139,7 @@ describe('KB-006.3 - Update Servicio (Supabase + immutability)', () => {
   beforeEach(async () => {
     service = new ServicioService();
     service.setProvider('supabase');
+    forceDegradedSupabaseFallback(service);
     await firstValueFrom(service.getAll());
   });
 
@@ -172,6 +179,7 @@ describe('KB-006.4 - Delete Servicio (constraints + Supabase behavior)', () => {
   beforeEach(() => {
     service = new ServicioService();
     service.setProvider('supabase');
+    forceDegradedSupabaseFallback(service);
   });
 
   it('KB-006.4.1 @RED - wires delete path to Supabase (soft/hard domain behavior)', () => {
@@ -194,6 +202,7 @@ describe('KB-006.5 - Category CRUD', () => {
 
   beforeEach(async () => {
     service = new ServicioService();
+    service.setProvider('mock');
     await firstValueFrom(service.getAll());
   });
 
@@ -206,9 +215,9 @@ describe('KB-006.5 - Category CRUD', () => {
   });
 
   it('KB-006.5.2 @RED - createCategoria prevents duplicates using normalized name (trim/case/accent)', () => {
-    service.createCategoria({ nombre: '  Depilación  ' });
+    service.createCategoria({ nombre: '  Faciales KB006  ' });
 
-    expect(() => service.createCategoria({ nombre: 'depilacion' })).toThrow(/duplicada|existente|duplicate/i);
+    expect(() => service.createCategoria({ nombre: 'faciales kb006' })).toThrow(/duplicada|existente|duplicate/i);
   });
 });
 

@@ -42,7 +42,7 @@ async function loadOnboardingRubrosModule(): Promise<{
   return { REQUIRED_RUBROS, sanitizeSelectedRubros, canContinueOnboarding, toggleSelectedRubro };
 }
 
-describe('TDD contract: onboarding rubro single-select', () => {
+describe('TDD contract: onboarding rubro multi-select', () => {
   it('supports rubros from the dashboard reference catalog in catalog sort order', async () => {
     const { REQUIRED_RUBROS } = await loadOnboardingRubrosModule();
     const catalogBusinessTypes = getDefaultDashboardReferenceCatalog().businessTypes;
@@ -60,16 +60,16 @@ describe('TDD contract: onboarding rubro single-select', () => {
     ]);
   });
 
-  it('allows exactly one rubro to continue and trims any extra persisted rubros', async () => {
+  it('requires at least one primary rubro but preserves additional rubros for catalog preload', async () => {
     const { canContinueOnboarding, sanitizeSelectedRubros } = await loadOnboardingRubrosModule();
 
     expect(canContinueOnboarding(sanitizeSelectedRubros([]))).toBe(false);
     expect(canContinueOnboarding(sanitizeSelectedRubros(['peluqueria']))).toBe(true);
-    expect(sanitizeSelectedRubros(['peluqueria', 'spa', 'barberia'])).toEqual(['peluqueria']);
-    expect(sanitizeSelectedRubros(['cejas', 'masajes', 'otro'])).toEqual(['cejas']);
+    expect(sanitizeSelectedRubros(['peluqueria', 'spa', 'barberia'])).toEqual(['peluqueria', 'spa', 'barberia']);
+    expect(sanitizeSelectedRubros(['cejas', 'masajes', 'otro'])).toEqual(['cejas', 'masajes', 'otro']);
   });
 
-  it('toggles selected rubros deterministically by replacing the previous rubro', async () => {
+  it('toggles selected rubros deterministically without replacing previous rubros', async () => {
     const { toggleSelectedRubro, canContinueOnboarding } = await loadOnboardingRubrosModule();
 
     const afterFirstToggle = toggleSelectedRubro([], 'peluqueria');
@@ -77,27 +77,27 @@ describe('TDD contract: onboarding rubro single-select', () => {
     expect(canContinueOnboarding(afterFirstToggle)).toBe(true);
 
     const afterSecondToggle = toggleSelectedRubro(afterFirstToggle, 'spa');
-    expect(afterSecondToggle).toEqual(['spa']);
+    expect(afterSecondToggle).toEqual(['peluqueria', 'spa']);
     expect(canContinueOnboarding(afterSecondToggle)).toBe(true);
 
     const afterThirdToggle = toggleSelectedRubro(afterSecondToggle, 'spa');
-    expect(afterThirdToggle).toEqual([]);
-    expect(canContinueOnboarding(afterThirdToggle)).toBe(false);
+    expect(afterThirdToggle).toEqual(['peluqueria']);
+    expect(canContinueOnboarding(afterThirdToggle)).toBe(true);
 
     const afterFourthToggle = toggleSelectedRubro(afterThirdToggle, 'barberia');
-    expect(afterFourthToggle).toEqual(['barberia']);
+    expect(afterFourthToggle).toEqual(['peluqueria', 'barberia']);
     expect(canContinueOnboarding(afterFourthToggle)).toBe(true);
   });
 
-  it('normalizes aliases but persists only the first canonical rubro', async () => {
+  it('normalizes aliases and persists every selected canonical rubro once', async () => {
     const { sanitizeSelectedRubros, toggleSelectedRubro } = await loadOnboardingRubrosModule();
     const catalog = getDefaultDashboardReferenceCatalog();
 
     expect(resolveBusinessTypeCodeFromCatalog(catalog, 'uñas')).toBe('unas');
     expect(resolveBusinessTypeCodeFromCatalog(catalog, 'pestañas')).toBe('pestanas');
 
-    expect(sanitizeSelectedRubros(['uñas', 'Pestañas', 'barbería'])).toEqual(['unas']);
-    expect(toggleSelectedRubro(['uñas'], 'pestañas')).toEqual(['pestanas']);
+    expect(sanitizeSelectedRubros(['uñas', 'Pestañas', 'barbería'])).toEqual(['unas', 'pestanas', 'barberia']);
+    expect(toggleSelectedRubro(['uñas'], 'pestañas')).toEqual(['unas', 'pestanas']);
   });
 
   it('keeps canContinue false when a duplicate click clears the only selected rubro', async () => {
@@ -130,6 +130,15 @@ describe('TDD contract: onboarding rubro single-select', () => {
       100
     ]);
 
-    expect(selected).toEqual(['peluqueria']);
+    expect(selected).toEqual([
+      'peluqueria',
+      'unas',
+      'pestanas',
+      'barberia',
+      'spa',
+      'cejas',
+      'masajes',
+      'otro'
+    ]);
   });
 });

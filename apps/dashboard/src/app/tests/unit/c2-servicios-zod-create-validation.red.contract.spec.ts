@@ -24,7 +24,7 @@ type ServiciosValidationModule = {
 
 async function loadServiciosValidationModule(): Promise<ServiciosValidationModule> {
   try {
-    const mod = await import('../../pages/dashboard/servicios/servicios.validation');
+    const mod = await import('../../features/servicios/pages/servicios.validation');
     return mod as ServiciosValidationModule;
   } catch {
     throw new Error(
