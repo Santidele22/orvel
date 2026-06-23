@@ -1,0 +1,196 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/organisms/Header.astro';
+import Footer from '../components/organisms/Footer.astro';
+
+type LegalSection = {
+  title: string;
+  body: string[];
+  review?: string;
+};
+
+const sections: LegalSection[] = [
+  {
+    title: '1. Prestador del servicio y contacto',
+    body: [
+      'Orvel es el nombre del producto/servicio SaaS para gestión de turnos. El domicilio de contacto informado es Río Cuarto 597, Argentina. El correo de contacto es orvel2026@gmail.com. El servicio se ofrece desde Argentina.',
+    ],
+    review:
+      'Revisión legal pendiente: completar razón social, CUIT, domicilio legal y datos fiscales del prestador del servicio.',
+  },
+  {
+    title: '2. Aceptación',
+    body: [
+      'Al acceder, registrarte o utilizar Orvel, aceptás estos términos y condiciones. Si no estás de acuerdo, no deberías usar el servicio.',
+      'Quien actúe en nombre de un negocio declara contar con facultades suficientes para aceptar estos términos por cuenta de dicho negocio.',
+    ],
+  },
+  {
+    title: '3. Descripción del servicio',
+    body: [
+      'Orvel es un SaaS orientado a negocios de belleza para gestionar cuentas, servicios, profesionales, horarios, disponibilidad, reservas, enlaces públicos de reserva, reprogramaciones, cancelaciones y funciones operativas relacionadas con la administración de turnos.',
+      'Orvel no presta servicios de belleza, salud, estética, médicos ni profesionales, ni actúa como proveedor de esos servicios frente a clientes finales.',
+    ],
+  },
+  {
+    title: '4. Usuarios y elegibilidad',
+    body: [
+      'Podés usar Orvel si tenés capacidad legal para contratar o si actuás válidamente en representación de un negocio. El uso del servicio debe cumplir con la normativa aplicable y con estos términos.',
+    ],
+  },
+  {
+    title: '5. Responsabilidades de las cuentas de negocio',
+    body: [
+      'Las cuentas de negocio son responsables por la exactitud de la información cargada, la configuración de servicios, profesionales, horarios, disponibilidad, precios, políticas de cancelación y cualquier comunicación con sus clientes.',
+      'También deben mantener la confidencialidad de sus credenciales y notificar cualquier uso no autorizado de la cuenta.',
+    ],
+  },
+  {
+    title: '6. Reservas públicas y responsabilidad frente a clientes',
+    body: [
+      'Los clientes finales pueden realizar reservas mediante enlaces públicos u otros flujos habilitados por el negocio. La relación por el servicio reservado se establece entre el cliente final y el negocio correspondiente.',
+      'El negocio es responsable por la atención, prestación, modificación, cancelación o cualquier reclamo asociado al turno o servicio profesional ofrecido.',
+    ],
+  },
+  {
+    title: '7. Privacidad y protección de datos',
+    body: [
+      'Orvel trata datos personales conforme a la Ley 25.326 de Protección de Datos Personales de Argentina y la normativa de la Agencia de Acceso a la Información Pública (AAIP), según corresponda.',
+      'Las categorías de datos pueden incluir datos de cuenta, identificación de negocio, datos de contacto, datos operativos de reservas, profesionales, servicios, horarios, disponibilidad y registros técnicos necesarios para prestar y proteger el servicio.',
+      'Las personas titulares de datos pueden ejercer sus derechos de acceso, rectificación, actualización y supresión escribiendo a orvel2026@gmail.com.',
+      'El backend de Orvel utiliza Supabase con región en Brasil, por lo que el tratamiento puede involucrar procesamiento transfronterizo de datos.',
+    ],
+    review:
+      'Revisión legal pendiente: validar transferencias internacionales, roles de tratamiento, política de privacidad, registro ante AAIP y textos específicos de consentimiento/información.',
+  },
+  {
+    title: '8. Advertencia sobre datos sensibles',
+    body: [
+      'No deberías cargar datos sensibles que no sean estrictamente necesarios para operar una reserva. Esto incluye, entre otros, datos de salud, información médica, datos biométricos, creencias, orientación sexual u otros datos protegidos especialmente por la normativa aplicable.',
+      'Si un negocio decide solicitar o registrar información sensible, será responsable de contar con base legal, consentimiento y medidas adecuadas para dicho tratamiento.',
+    ],
+  },
+  {
+    title: '9. Enlaces privados de cancelación y reprogramación',
+    body: [
+      'Orvel puede generar enlaces privados para cancelar o reprogramar reservas. Quien acceda a un enlace privado podría ejecutar acciones sobre el turno asociado, por lo que no deben compartirse públicamente ni con personas no autorizadas.',
+    ],
+  },
+  {
+    title: '10. Suscripciones, pagos y facturación',
+    body: [
+      'Orvel puede ofrecer planes pagos mediante suscripciones o preaprobaciones de MercadoPago. Las condiciones comerciales, precios, periodicidad, impuestos, comprobantes, renovaciones y bajas se informarán en los flujos comerciales aplicables.',
+      'La cancelación de una suscripción evita renovaciones futuras, pero mantiene el acceso al servicio hasta la finalización del período ya abonado, salvo que se informe expresamente otra condición más favorable.',
+      'Los cargos duplicados, erróneos o no autorizados que sean atribuibles a Orvel o a un error de facturación verificable serán corregidos y, cuando corresponda, reembolsados por el medio disponible.',
+      'Durante los primeros 7 a 10 días desde la contratación o renovación, los pedidos de reembolso podrán ser evaluados caso por caso, de buena fe y con criterios de equidad, considerando el uso realizado, el motivo del pedido y las condiciones comerciales aplicables.',
+      'Si una causa atribuible a Orvel generara una imposibilidad sustancial de prestar el servicio contratado, Orvel podrá ofrecer una extensión de servicio, crédito a favor o reembolso proporcional, según corresponda al caso.',
+      'Los pagos, suscripciones, preaprobaciones, cancelaciones, soporte de cobro y eventuales devoluciones pueden depender de la disponibilidad, tiempos, políticas y herramientas de MercadoPago u otros proveedores de pago habilitados.',
+      'Los precios, impuestos, promociones, descuentos y condiciones comerciales pueden variar según el plan, la fecha, el canal de contratación, la jurisdicción aplicable y la disponibilidad de promociones vigentes.',
+    ],
+    review:
+      'Revisión comercial/legal pendiente: completar detalles de planes, facturación, impuestos, comprobantes, renovaciones, cancelaciones, reembolsos y condiciones específicas de MercadoPago subscriptions/preapproval.',
+  },
+  {
+    title: '11. Uso aceptable',
+    body: [
+      'No está permitido usar Orvel para actividades ilegales, engañosas, abusivas, invasivas de la privacidad, que vulneren derechos de terceros, que afecten la seguridad del servicio o que intenten acceder sin autorización a sistemas, cuentas o datos.',
+      'Tampoco está permitido interferir con la disponibilidad del servicio, realizar ingeniería inversa no autorizada, automatizar usos abusivos o cargar contenido malicioso.',
+    ],
+  },
+  {
+    title: '12. Proveedores de terceros',
+    body: [
+      'Orvel puede integrarse o apoyarse en proveedores de terceros, incluyendo Supabase para infraestructura/backend y MercadoPago para pagos o suscripciones. El uso de esos servicios puede estar sujeto a términos, políticas y disponibilidad de dichos proveedores.',
+    ],
+  },
+  {
+    title: '13. Disponibilidad y limitaciones del MVP',
+    body: [
+      'Orvel se encuentra en una etapa MVP y puede presentar cambios, ajustes, interrupciones, errores o limitaciones funcionales. Haremos esfuerzos razonables para mantener y mejorar la disponibilidad, pero no garantizamos funcionamiento ininterrumpido o libre de errores.',
+    ],
+  },
+  {
+    title: '14. Propiedad intelectual',
+    body: [
+      'Orvel, su marca, interfaz, software, contenidos, diseños y elementos asociados pertenecen a sus titulares o licenciantes. El uso del servicio no transfiere derechos de propiedad intelectual al usuario, salvo el derecho limitado de uso conforme a estos términos.',
+      'Los datos y contenidos cargados por los usuarios o negocios siguen perteneciendo a quienes correspondan, sin perjuicio de las autorizaciones necesarias para prestar el servicio.',
+    ],
+  },
+  {
+    title: '15. Suspensión y terminación',
+    body: [
+      'Podemos suspender o terminar el acceso a Orvel cuando exista incumplimiento de estos términos, riesgo para la seguridad, uso abusivo, falta de pago cuando corresponda, requerimiento legal o necesidad operativa razonable.',
+      'El usuario o negocio puede dejar de usar el servicio o solicitar la baja de su cuenta por los canales disponibles.',
+    ],
+  },
+  {
+    title: '16. Cambios en los términos',
+    body: [
+      'Podemos actualizar estos términos para reflejar cambios legales, comerciales, técnicos u operativos. La versión vigente se publicará en esta página con su fecha de última actualización.',
+      'El uso continuado de Orvel luego de una actualización implica aceptación de los términos modificados.',
+    ],
+  },
+  {
+    title: '17. Ley aplicable y jurisdicción',
+    body: [
+      'Estos términos se rigen por las leyes de la República Argentina.',
+      'Para cualquier controversia derivada de estos términos o del uso de Orvel, serán competentes los tribunales, organismos o autoridades que correspondan en la República Argentina, sin perjuicio de los derechos irrenunciables de consumidores y usuarios, las normas de orden público aplicables y los mecanismos de defensa del consumidor que pudieran corresponder.',
+    ],
+    review:
+      'Revisión legal pendiente: validar jurisdicción competente, autoridades aplicables y redacción final de resolución de conflictos.',
+  },
+  {
+    title: '18. Contacto',
+    body: [
+      'Para consultas sobre estos términos, privacidad o el uso del servicio, podés escribir a orvel2026@gmail.com.',
+    ],
+  },
+];
+---
+
+<Layout title="Términos y condiciones | Orvel" showPreloader={false}>
+  <Header />
+  <main class="min-h-screen bg-bg-primary pt-28 md:pt-32">
+    <section class="max-w-4xl mx-auto px-6 sm:px-8 md:px-12 pb-20">
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 text-sm text-stone-400 hover:text-primary transition-colors mb-8"
+      >
+        <i class="ri-arrow-left-line" aria-hidden="true"></i>
+        Volver al inicio
+      </a>
+
+      <header class="mb-12">
+        <p class="font-body text-xs uppercase tracking-[0.3em] text-primary mb-4">
+          Legal
+        </p>
+        <h1 class="font-headline text-4xl md:text-6xl font-bold text-stone-100 leading-tight mb-5">
+          Términos y condiciones
+        </h1>
+        <p class="text-stone-400 text-base md:text-lg">
+          Última actualización: junio de 2026
+        </p>
+      </header>
+
+      <div class="space-y-8">
+        {sections.map((section) => (
+          <section class="rounded-3xl border border-border bg-white/[0.03] p-6 md:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            <h2 class="font-headline text-2xl md:text-3xl font-semibold text-stone-100 mb-4">
+              {section.title}
+            </h2>
+            <div class="space-y-4 text-stone-300 leading-7 font-body">
+              {section.body.map((paragraph) => <p>{paragraph}</p>)}
+            </div>
+            {section.review && (
+              <aside class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100 leading-6">
+                <strong class="block text-amber-200 mb-1">Pendiente de revisión legal</strong>
+                {section.review}
+              </aside>
+            )}
+          </section>
+        ))}
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Layout>
