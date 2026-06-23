@@ -5,6 +5,7 @@ export type PublicBookingFormInput = {
   lastName: string;
   whatsapp: string;
   email: string;
+  notes?: string;
   serviceId: string;
   slotIso: string;
 };
@@ -84,6 +85,7 @@ const publicBookingSchema = z.object({
     .min(1, 'Por favor ingresa tu correo electrónico')
     .email('Por favor ingresa un correo válido')
     .refine((value) => !consecutiveDotsPattern.test(value), 'Por favor ingresa un correo válido'),
+  notes: z.string().trim().optional(),
   serviceId: z.string().trim().min(1, 'Por favor selecciona un servicio'),
   slotIso: z.string().trim().min(1, 'Por favor selecciona un horario disponible')
 });

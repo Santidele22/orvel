@@ -87,6 +87,7 @@ type RescheduleBookingByTokenInput = ManageBookingInput & {
 
 type AdminManualBookingPayload = {
   businessId: string
+  branchId?: string
   serviceId: string
   startsAtIso: string
   durationMinutes: number
@@ -99,6 +100,7 @@ type AdminManualBookingPayload = {
 
 type AdminBlockedTimePayload = {
   businessId: string
+  branchId: string
   startsAtIso: string
   endsAtIso: string
   reason: string
@@ -124,7 +126,7 @@ type AdminStatusUpdatePayload = {
   performedBy: string
 }
 
-const ALLOWED_BOOKING_STATUSES = ['booked', 'cancelled'] as readonly string[]
+const ALLOWED_BOOKING_STATUSES = ['booked', 'confirmed', 'completed', 'cancelled', 'canceled'] as readonly string[]
 
 type SupabaseRpcError = {
   code?: string
@@ -162,6 +164,10 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
 }
 
+function isEmail(value: unknown): value is string {
+  return typeof value === 'string' && /^\S+@\S+\.\S+$/.test(value)
+}
+
 function validationError(fields: string[]): ApiResponse<never> {
   return {
     status: 422,
@@ -182,7 +188,7 @@ function validatePublicBookingPayload(payload: PublicBookingPayload): string[] {
   if (!isNonBlankString(payload.serviceId)) fields.push('serviceId')
   if (!isIsoDate(payload.startsAtIso)) fields.push('startsAtIso')
   if (!isNonBlankString(payload.client?.fullName)) fields.push('client.fullName')
-  if (!isNonBlankString(payload.client?.email)) fields.push('client.email')
+  if (!isEmail(payload.client?.email)) fields.push('client.email')
 
   return fields
 }
@@ -221,6 +227,7 @@ function validateAdminBlockedTimePayload(payload: AdminBlockedTimePayload): stri
   const fields: string[] = []
 
   if (!isNonBlankString(payload.businessId)) fields.push('businessId')
+  if (!isNonBlankString(payload.branchId)) fields.push('branchId')
   if (!isIsoDate(payload.startsAtIso)) fields.push('startsAtIso')
   if (!isIsoDate(payload.endsAtIso)) fields.push('endsAtIso')
   if (isIsoDate(payload.startsAtIso) && isIsoDate(payload.endsAtIso) && Date.parse(payload.endsAtIso) <= Date.parse(payload.startsAtIso)) {
@@ -312,7 +319,8 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
         starts_at_iso: payload.startsAtIso,
         client: payload.client,
         notes: payload.notes,
-        professional_id: payload.professionalId
+        professional_id: payload.professionalId,
+        branch_id: null
       })
 
       if (result.error) {
@@ -388,7 +396,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       const slots = ((result.data as any[]) || []).map((row) => ({
         startsAtIso: new Date(row.starts_at_iso).toISOString(),
         endsAtIso: new Date(row.ends_at_iso).toISOString(),
-        remainingCapacity: Math.max(1, Number(row.remaining_capacity ?? row.remainingCapacity ?? 1))
+        remainingCapacity: Number(row.remaining_capacity ?? row.remainingCapacity ?? 0)
       }));
 
       return {
@@ -617,7 +625,8 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
         walk_in_name: payload.walkInName,
         professional_id: payload.professionalId,
         performed_by: payload.performedBy,
-        notes: payload.notes
+        notes: payload.notes,
+        branch_id: payload.branchId ?? null
       })
 
       if (result.error) {
@@ -656,6 +665,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
       const result = await client.rpc('create_admin_blocked_time', {
         business_id: payload.businessId,
+        branch_id: payload.branchId,
         starts_at_iso: payload.startsAtIso,
         ends_at_iso: payload.endsAtIso,
         reason: payload.reason,

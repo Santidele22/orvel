@@ -27,25 +27,24 @@
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
 
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section relative">
+    @if (branchContext.branches().length > 1) {
     <section class="mb-zen-xl rounded-zen-card border border-white/10 bg-surface/70 p-zen-lg shadow-xl" aria-live="polite">
       <div class="flex flex-col gap-zen-md md:flex-row md:items-end md:justify-between">
         <div>
-          <p class="text-xs font-bold uppercase tracking-wider text-text-secondary">Sucursal activa</p>
-          <p class="mt-1 text-sm text-text-tertiary">Seleccioná una sucursal para que los turnos queden aislados por local.</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-text-secondary">Alcance operativo</p>
+          <p class="mt-1 text-sm text-text-tertiary">Elegí un alcance para que los turnos queden aislados por local.</p>
         </div>
 
-        @if (branchContext.branches().length > 1) {
         <label class="flex min-w-[240px] flex-col gap-2 text-xs font-bold uppercase tracking-wider text-text-secondary">
-          Selector de sucursal
+          Selector de alcance
           <select data-testid="active-branch-selector" class="rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none"
-            [ngModel]="branchContext.activeBranchId() ?? ''" (ngModelChange)="onBranchSelectionChange($event)">
-            <option value="">Elegí una sucursal</option>
+            [ngModel]="branchContext.activeBranchId() ?? ''" [disabled]="branchContext.branches().length <= 1" (ngModelChange)="onBranchSelectionChange($event)">
+            <option value="">Elegí un alcance</option>
             @for (branch of branchContext.branches(); track branch.id) {
             <option [value]="branch.id">{{ branch.name }}</option>
             }
           </select>
         </label>
-        }
       </div>
 
       @if (branchSelectorMessage()) {
@@ -54,6 +53,7 @@
       </p>
       }
     </section>
+    }
 
     <!-- Background Decorative Elements -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
@@ -191,7 +191,7 @@
                 {{ turno.servicioNombre }} · {{ turno.duracionMinutos }} min
               </p>
               <p data-testid="turnos-admin-reschedule-branch-context" class="text-[11px] text-text-tertiary">
-                serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'sucursal activa' }}
+                serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'alcance operativo' }}
               </p>
               }
             </div>
@@ -286,12 +286,19 @@
             </p>
             }
 
+            @if (blockedTimeForm.startTime && blockedTimeForm.endTime && timeToMinutes(blockedTimeForm.endTime) <= timeToMinutes(blockedTimeForm.startTime)) {
+            <p data-testid="turnos-admin-block-time-range-error"
+              class="rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+              La hora de fin debe ser mayor/después de la hora de inicio.
+            </p>
+            }
+
             <div class="flex gap-2">
               <button type="button" (click)="closeBlockedTimePanel()"
                 class="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors">
                 Cancelar
               </button>
-              <button type="submit" data-testid="turnos-admin-block-time-submit-action" [disabled]="blockedTimeSubmitting()"
+              <button type="submit" data-testid="turnos-admin-block-time-submit-action" [disabled]="!canSubmitBlockedTime()"
                 class="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
                 {{ blockedTimeSubmitting() ? 'Bloqueando…' : 'Bloquear' }}
               </button>

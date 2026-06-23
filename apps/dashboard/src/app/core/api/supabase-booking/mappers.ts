@@ -56,8 +56,9 @@ export function mapRpcErrorToApiError(error: { message?: string; code?: string }
   const code = error.code || '';
   const message = error.message || 'Unknown error';
   
-  // Check code first (more reliable), then message
-  if (code === 'P0001' || message.includes('BUSINESS_NOT_FOUND')) {
+  // Supabase plpgsql RPCs raise domain errors as P0001, so inspect the
+  // message before falling back to a generic P0001 business-not-found mapping.
+  if (message.includes('BUSINESS_NOT_FOUND')) {
     return { code: 'BUSINESS_NOT_FOUND', message: 'Business not found. Please check the booking link.' };
   }
   if (code === 'TOKEN_REVOKED' || message.includes('TOKEN_REVOKED')) {
@@ -73,7 +74,7 @@ export function mapRpcErrorToApiError(error: { message?: string; code?: string }
     return { code: 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN', message };
   }
   if (message.includes('INVALID_TOKEN')) {
-    return { code: 'INVALID_TOKEN', message };
+    return { code: 'INVALID_TOKEN', message: 'Invalid token' };
   }
   if (message.includes('TOKEN_EXPIRED')) {
     return { code: 'TOKEN_EXPIRED', message };
@@ -86,6 +87,9 @@ export function mapRpcErrorToApiError(error: { message?: string; code?: string }
   }
   if (message.includes('BLOCKED_TIME_COLLISION')) {
     return { code: 'BLOCKED_TIME_COLLISION', message };
+  }
+  if (code === 'P0001') {
+    return { code: 'VALIDATION_ERROR', message };
   }
   return { code: 'VALIDATION_ERROR', message };
 }

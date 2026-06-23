@@ -122,9 +122,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected visibleLimit = signal<number>(4);
   protected branchSelectorMessage = computed(() => {
-    if (this.branchContext.loading()) return 'Cargando sucursales…';
-    if (this.branchContext.branches().length === 0) return 'No hay sucursales activas. Configurá una sucursal para ver turnos.';
-    if (this.branchContext.requiresExplicitSelection()) return 'Seleccioná una sucursal para ver y administrar turnos.';
+    if (this.branchContext.loading()) return 'Cargando alcance operativo…';
+    if (this.branchContext.requiresExplicitSelection()) return 'No pudimos preparar la configuración de cuenta para administrar turnos.';
     return null;
   });
 
@@ -186,7 +185,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
     
     try {
       await this.branchContext.ensureLoaded();
-      if (this.branchContext.requiresExplicitSelection() || this.branchContext.branches().length === 0) {
+      if (this.branchContext.requiresExplicitSelection()) {
         this.loading.set(false);
         return;
       }
@@ -524,7 +523,15 @@ export class TurnosListPage implements OnInit, OnDestroy {
     this.manualBookingSuccess.set(false);
   }
 
-  protected openBlockedTimePanel() {
+  protected async openBlockedTimePanel() {
+    try {
+      await this.turnoService.ensureDefaultBranchId();
+    } catch {
+      this.showBlockedTimePanel.set(false);
+      this.blockedTimeError.set('No pudimos preparar el bloqueo para esta cuenta. Revisá la configuración de cuenta o contactá soporte.');
+      return;
+    }
+
     this.blockedTimeForm.date = this.toDateInputValue(this.selectedDate());
     this.blockedTimeForm.startTime = '';
     this.blockedTimeForm.endTime = '';
@@ -562,13 +569,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const startMinutes = this.timeToMinutes(blockedTimeStartTime);
     const endMinutes = this.timeToMinutes(blockedTimeEndTime);
 
-    if (!blockedTimeDate || !blockedTimeStartTime || !blockedTimeEndTime || !blockedTimeReason) {
-      this.blockedTimeError.set('Completá fecha, hora de inicio, hora de fin y motivo.');
-      return;
-    }
-
-    if (endMinutes <= startMinutes) {
-      this.blockedTimeError.set('La hora de fin debe ser mayor/después de la hora de inicio.');
+    if (!this.canSubmitBlockedTime()) {
+      this.blockedTimeError.set('Completá fecha, hora de inicio, hora de fin y motivo. La hora de fin debe ser mayor/después de la hora de inicio.');
       return;
     }
 
@@ -578,17 +580,16 @@ export class TurnosListPage implements OnInit, OnDestroy {
       return;
     }
 
-    const branchId = this.turnoService.getActiveBranchId();
-    if (!branchId) {
-      this.blockedTimeError.set('Seleccioná una sucursal activa antes de bloquear horarios.');
-      return;
-    }
-
     try {
       this.blockedTimeSubmitting.set(true);
+      const branchId = await this.turnoService.ensureDefaultBranchId();
+      if (!branchId) {
+        this.blockedTimeError.set('No pudimos preparar el bloqueo para esta cuenta. Revisá la configuración de cuenta o contactá soporte.');
+        this.blockedTimeSubmitting.set(false);
+        return;
+      }
       const { startsAtIso, endsAtIso } = this.buildBlockedTimeIso(blockedTimeDate, blockedTimeStartTime, blockedTimeEndTime);
-      const payload: Omit<AdminBlockedTimePayload, 'businessId'> & { branchId: string } = {
-        branchId,
+      const payload: Omit<AdminBlockedTimePayload, 'businessId' | 'branchId'> = {
         startsAtIso,
         endsAtIso,
         reason: this.blockedTimeForm.reason.trim(),
@@ -621,10 +622,28 @@ export class TurnosListPage implements OnInit, OnDestroy {
     };
   }
 
-  private timeToMinutes(value: string): number {
+  protected timeToMinutes(value: string): number {
     const [hours, minutes] = value.split(':').map(Number);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return Number.NaN;
     return hours * 60 + minutes;
+  }
+
+  protected canSubmitBlockedTime(): boolean {
+    const blockedTimeDate = this.blockedTimeForm.date?.trim();
+    const blockedTimeStartTime = this.blockedTimeForm.startTime?.trim();
+    const blockedTimeEndTime = this.blockedTimeForm.endTime?.trim();
+    const blockedTimeReason = this.blockedTimeForm.reason?.trim();
+    const startMinutes = this.timeToMinutes(blockedTimeStartTime);
+    const endMinutes = this.timeToMinutes(blockedTimeEndTime);
+
+    return !!blockedTimeDate
+      && !!blockedTimeStartTime
+      && !!blockedTimeEndTime
+      && !!blockedTimeReason
+      && Number.isFinite(startMinutes)
+      && Number.isFinite(endMinutes)
+      && endMinutes > startMinutes
+      && !this.blockedTimeSubmitting();
   }
 
   private toDateInputValue(date: Date): string {

@@ -112,7 +112,7 @@ export type AdminManualBookingPayload = {
 
 export type AdminBlockedTimePayload = {
   businessId: string;
-  branchId?: string;
+  branchId: string;
   startsAtIso: string;
   endsAtIso: string;
   reason: string;

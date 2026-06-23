@@ -119,7 +119,8 @@ describe('createSupabaseBookingGateway contract surface', () => {
       starts_at_iso: '2026-06-01T10:00:00.000Z',
       client: { fullName: 'Ada Lovelace', email: 'ada@example.test' },
       notes: 'window seat',
-      professional_id: 'pro-1'
+      professional_id: 'pro-1',
+      branch_id: null
     });
   });
 
@@ -141,7 +142,7 @@ describe('createSupabaseBookingGateway contract surface', () => {
       status: 422,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Validation failed',
+        message: 'Invalid request payload',
         details: { fields: ['client.email'] }
       }
     });
@@ -320,7 +321,8 @@ describe('createSupabaseBookingGateway contract surface', () => {
       walk_in_name: 'Walk In',
       professional_id: 'pro-1',
       performed_by: 'admin-1',
-      notes: 'front desk'
+      notes: 'front desk',
+      branch_id: null
     });
   });
 
@@ -368,6 +370,7 @@ describe('createSupabaseBookingGateway contract surface', () => {
     await expect(
       gateway.createAdminBlockedTime({
         businessId: 'biz-1',
+        branchId: 'branch-1',
         startsAtIso: '2026-06-01T12:00:00.000Z',
         endsAtIso: '2026-06-01T13:00:00.000Z',
         reason: 'lunch',
@@ -376,6 +379,7 @@ describe('createSupabaseBookingGateway contract surface', () => {
     ).resolves.toEqual({ status: 201, data: { blockId: 'block-1', type: 'blocked-time' } });
     expect(rpc).toHaveBeenCalledWith('create_admin_blocked_time', {
       business_id: 'biz-1',
+      branch_id: 'branch-1',
       starts_at_iso: '2026-06-01T12:00:00.000Z',
       ends_at_iso: '2026-06-01T13:00:00.000Z',
       reason: 'lunch',
@@ -391,6 +395,7 @@ describe('createSupabaseBookingGateway contract surface', () => {
     await expect(
       gateway.createAdminBlockedTime({
         businessId: 'biz-1',
+        branchId: 'branch-1',
         startsAtIso: '2026-06-01T12:00:00.000Z',
         endsAtIso: '2026-06-01T13:00:00.000Z',
         reason: 'lunch',
@@ -406,6 +411,7 @@ describe('createSupabaseBookingGateway contract surface', () => {
     await expect(
       gateway.createAdminBlockedTime({
         businessId: '',
+        branchId: '',
         startsAtIso: '2026-06-01T13:00:00.000Z',
         endsAtIso: '2026-06-01T12:00:00.000Z',
         reason: '',
@@ -414,6 +420,25 @@ describe('createSupabaseBookingGateway contract surface', () => {
     ).resolves.toMatchObject({
       status: 422,
       error: { code: 'VALIDATION_ERROR' }
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects admin blocked-time payloads without validated branch scope before calling Supabase RPC', async () => {
+    const rpc = vi.fn(() => okRpc({ blockId: 'block-1', type: 'blocked-time' }));
+    const gateway = createSupabaseBookingGateway({ client: { rpc } });
+
+    await expect(
+      gateway.createAdminBlockedTime({
+        businessId: 'biz-1',
+        startsAtIso: '2026-06-01T12:00:00.000Z',
+        endsAtIso: '2026-06-01T13:00:00.000Z',
+        reason: 'lunch',
+        performedBy: 'admin-1'
+      } as any)
+    ).resolves.toMatchObject({
+      status: 422,
+      error: { code: 'VALIDATION_ERROR', details: { fields: expect.arrayContaining(['branchId']) } }
     });
     expect(rpc).not.toHaveBeenCalled();
   });

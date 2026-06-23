@@ -136,6 +136,7 @@ export class TurnoService {
   private pendingAdminAvailabilityKeys = new Set<string>();
   private adminAvailabilityRequestVersions = new Map<string, number>();
   private mockBlockedTimeSequence = 0;
+  private ignoredImplicitBranchIds = new Set<string>();
   private authService = inject(AuthService);
   private branchContext = getBranchContextService();
 
@@ -465,9 +466,6 @@ export class TurnoService {
     if (!dto.servicioId?.trim()) {
       return throwError(() => new Error('servicioId es requerido'));
     }
-    if (!dto.branchId?.trim()) {
-      return throwError(() => new Error('ACTIVE_BRANCH_REQUIRED: Se requiere branch context para crear turnos'));
-    }
     if (!dto.fecha || isNaN(dto.fecha.getTime())) {
       return throwError(() => new Error('fecha inválida'));
     }
@@ -518,7 +516,7 @@ export class TurnoService {
     if (!supabase) throw new Error('AUTH_REQUIRED: Supabase no disponible');
 
     const adminSession = await this.requireAdminSession(supabase);
-    const branchScope = await this.validateBranchTenant(supabase, dto.branchId, adminSession);
+    const branchScope = await this.resolveInternalDefaultBranchScope(supabase, dto.branchId, adminSession);
     if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a la cuenta activa');
 
     const payload: AdminManualBookingPayload = {
@@ -584,19 +582,33 @@ export class TurnoService {
     return this.branchContext.getActiveBranchId() ?? this.resolveActiveBranchId();
   }
 
+  async ensureInternalDefaultBranchId(): Promise<string> {
+    const supabase = this.getSupabaseClient();
+    if (!supabase) throw new Error('AUTH_REQUIRED: Supabase no disponible');
+
+    const branchScope = await this.resolveInternalDefaultBranchScope(supabase);
+    return branchScope.branchId;
+  }
+
+  async ensureDefaultBranchId(): Promise<string> {
+    return this.ensureInternalDefaultBranchId();
+  }
+
   private resolveActiveBranchId(): string | null {
     const contextBranchId = this.branchContext.getActiveBranchId();
-    if (contextBranchId) return contextBranchId;
+    if (contextBranchId && !this.ignoredImplicitBranchIds.has(contextBranchId)) return contextBranchId;
 
     const authUser = this.authService.user() as unknown as Record<string, unknown> | null;
     const activeBranchId = authUser?.['activeBranchId'] ?? authUser?.['branchId'];
-    if (typeof activeBranchId === 'string' && activeBranchId.trim()) {
-      return activeBranchId.trim();
+    const authBranchId = typeof activeBranchId === 'string' ? activeBranchId.trim() : '';
+    if (authBranchId && !this.ignoredImplicitBranchIds.has(authBranchId)) {
+      return authBranchId;
     }
 
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY) ?? window.localStorage.getItem('activeSalonId') ?? window.localStorage.getItem('activeLocationId');
-      return stored?.trim() || null;
+      const storedBranchId = stored?.trim() || null;
+      return storedBranchId && !this.ignoredImplicitBranchIds.has(storedBranchId) ? storedBranchId : null;
     }
 
     return null;
@@ -651,6 +663,114 @@ export class TurnoService {
       branchId: String(branch.id),
       businessId: String(branch.business_id)
     };
+  }
+
+  private async resolveInternalDefaultBranchScope(
+    supabaseClient: SupabaseClient | null,
+    requestedBranchId?: string | null,
+    adminSession?: AdminSessionContext
+  ): Promise<BranchTenantScope> {
+    if (!supabaseClient) throw new Error('SUPABASE_UNAVAILABLE: Supabase client not available');
+
+    const explicitRequestedBranchId = requestedBranchId?.trim() || null;
+    if (explicitRequestedBranchId) {
+      const branchScope = await this.validateBranchTenant(supabaseClient, explicitRequestedBranchId, adminSession);
+      if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
+      this.rememberResolvedBranchScope(branchScope.branchId);
+      return branchScope;
+    }
+
+    const rememberedBranchId = this.resolveActiveBranchId();
+    if (rememberedBranchId) {
+      try {
+        const branchScope = await this.validateBranchTenant(supabaseClient, rememberedBranchId, adminSession);
+        if (branchScope) {
+          this.rememberResolvedBranchScope(branchScope.branchId);
+          return branchScope;
+        }
+      } catch (error) {
+        if (!this.isImplicitBranchValidationFailure(error)) {
+          throw error;
+        }
+        this.clearRememberedBranchScope(rememberedBranchId);
+      }
+    }
+
+    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
+    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
+    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
+
+    const { data: branches, error } = await supabaseClient
+      .from('branches')
+      .select('id, business_id, slug, name, created_at')
+      .eq('business_id', businessId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+
+    if (error) throw new Error('BRANCH_FORBIDDEN: No se pudo preparar el alcance interno de la cuenta');
+
+    const ownedBranches = ((branches ?? []) as Array<Record<string, unknown>>)
+      .filter((branch) => branch['id'] && String(branch['business_id']) === businessId);
+    const defaultBranch = ownedBranches.find((branch) => {
+      const slug = String(branch['slug'] ?? '').toLowerCase();
+      const name = String(branch['name'] ?? '').toLowerCase();
+      return slug === 'principal' || slug === 'default' || slug === 'internal-default' || name.includes('principal');
+    }) ?? (ownedBranches.length === 1 ? ownedBranches[0] : null);
+
+    if (defaultBranch?.['id']) {
+      const branchScope = await this.validateBranchTenant(supabaseClient, String(defaultBranch['id']), sessionContext);
+      if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
+      this.rememberResolvedBranchScope(branchScope.branchId);
+      return branchScope;
+    }
+
+    if (ownedBranches.length > 1) {
+      throw new Error('ACTIVE_BRANCH_REQUIRED: No se pudo resolver una sucursal interna única para esta cuenta');
+    }
+
+    const { data: createdBranch, error: createError } = await supabaseClient
+      .from('branches')
+      .insert({
+        business_id: businessId,
+        name: 'Principal',
+        slug: null,
+        is_active: true,
+        timezone: TIMEZONE
+      })
+      .select('id, business_id')
+      .single();
+
+    if (createError || !createdBranch?.id) {
+      throw new Error('ACCOUNT_SETUP_REQUIRED: No pudimos preparar la configuración de cuenta');
+    }
+
+    const branchScope = await this.validateBranchTenant(supabaseClient, String(createdBranch.id), sessionContext);
+    if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
+    this.rememberResolvedBranchScope(branchScope.branchId);
+    return branchScope;
+  }
+
+  private rememberResolvedBranchScope(branchId: string): void {
+    this.ignoredImplicitBranchIds.delete(branchId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, branchId);
+    }
+  }
+
+  private clearRememberedBranchScope(branchId?: string): void {
+    if (branchId?.trim()) {
+      this.ignoredImplicitBranchIds.add(branchId.trim());
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
+      window.localStorage.removeItem('activeSalonId');
+      window.localStorage.removeItem('activeLocationId');
+    }
+  }
+
+  private isImplicitBranchValidationFailure(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return /^(BRANCH_NOT_FOUND|INVALID_BRANCH):/.test(message);
   }
 
   private async assertBookingInActiveBranch(supabaseClient: SupabaseClient, bookingId: string): Promise<BranchTenantScope> {
@@ -1115,11 +1235,6 @@ export class TurnoService {
 
   createBlockedTime(payload: AdminBlockedTimeCreateInput): Observable<{ blockId: string }> {
     this.invalidateAdminAvailabilityForLoadAvailability();
-    const branchId = payload.branchId?.trim() || this.resolveActiveBranchId();
-
-    if (!branchId) {
-      return throwError(() => new Error('ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios'));
-    }
 
     if (!payload.performedBy?.trim()) {
       return throwError(() => new Error('AUTH_REQUIRED: No se pudo identificar el administrador'));
@@ -1130,7 +1245,7 @@ export class TurnoService {
       return of({ blockId: `mock-block-${this.mockBlockedTimeSequence}` });
     }
 
-    return from(this.createBlockedTimeWithResolvedTenant(payload, branchId)).pipe(
+    return from(this.createBlockedTimeWithResolvedTenant(payload, payload.branchId?.trim() || undefined)).pipe(
       map(response => {
         if (response.error) {
           throw new Error(response.error.message || 'Error al crear bloqueo de tiempo');
@@ -1146,13 +1261,15 @@ export class TurnoService {
 
   private async createBlockedTimeWithResolvedTenant(
     payload: AdminBlockedTimeCreateInput,
-    branchId: string
+    branchId?: string
   ): Promise<ApiResponse<{ blockId: string }>> {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
     const adminSession = await this.requireAdminSession(supabase);
-    const branchScope = await this.validateBranchTenant(supabase, branchId, adminSession);
+    const branchScope = branchId
+      ? await this.validateBranchTenant(supabase, branchId, adminSession)
+      : await this.resolveInternalDefaultBranchScope(supabase, payload.branchId, adminSession);
     if (!branchScope) {
       return { status: 400, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios' } };
     }
@@ -1290,7 +1407,9 @@ export class TurnoService {
     let data: unknown;
     let error: { message?: string; code?: string } | null = null;
     try {
-      const branchScope = await this.validateBranchTenant(supabase, request.branchId ?? this.resolveActiveBranchId() ?? undefined);
+      const branchScope = request.branchId
+        ? await this.validateBranchTenant(supabase, request.branchId)
+        : await this.resolveInternalDefaultBranchScope(supabase);
       if (!branchScope) {
         this.pendingAdminAvailabilityKeys.delete(cacheKey);
         this.adminAvailabilityCache.set(cacheKey, []);

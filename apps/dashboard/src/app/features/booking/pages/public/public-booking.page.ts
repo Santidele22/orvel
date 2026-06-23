@@ -7,6 +7,7 @@ import { BusinessService } from '../../../settings/data-access/business.service'
 import { PublicBookingService } from '../../data-access/public-booking.service';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
+import type { PublicSlot } from '../../../../core/api/supabase-booking.api';
 
 interface DayAvailability {
   date: string;
@@ -37,7 +38,7 @@ export class PublicBookingPage implements OnInit {
   
   protected readonly publicServices = signal<any[]>([]);
   protected readonly selectedServiceId = signal<string>('');
-  protected readonly availabilitySlots = signal<Array<{ startsAtIso: string; remainingCapacity: number }>>([]);
+  protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
 
   protected readonly availableDays = signal<DayAvailability[]>([]);
@@ -122,7 +123,7 @@ export class PublicBookingPage implements OnInit {
       if (response.data?.slots && response.data.slots.length > 0) {
         const slots = response.data.slots.map(s => ({
           startsAtIso: s.startsAtIso,
-          remainingCapacity: s.remainingCapacity ?? 1
+          remainingCapacity: s.remainingCapacity ?? 0
         }));
         this.availabilitySlots.set(slots);
         this.selectedSlot = slots[0]?.startsAtIso || '';
@@ -295,6 +296,7 @@ export class PublicBookingPage implements OnInit {
       lastName: this.lastName,
       whatsapp: this.whatsapp,
       email: this.email,
+      notes: this.notes,
       serviceId: this.selectedServiceId(),
       slotIso: this.selectedSlot
     };

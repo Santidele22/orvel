@@ -46,6 +46,8 @@ export class TurnoFormPage implements OnInit {
   protected availabilityEmpty = signal<boolean>(false);
   protected hasLoadedAvailability = signal<boolean>(false);
   protected availabilityStale = signal<boolean>(true);
+  protected defaultBranchScopeReady = signal<boolean>(false);
+  protected defaultBranchSetupError = signal<string | null>(null);
   protected availabilityRequestKey = signal<string>('');
   private latestAvailabilityVersion = 0;
 
@@ -66,12 +68,13 @@ export class TurnoFormPage implements OnInit {
   private readonly unavailableSlotMessage = 'Este horario no está disponible. Elegí otro turno.';
   protected canSave = computed(() => {
     return !this.saving()
-      && !!this.branchContext.activeBranchId()
       && !this.availabilityLoading()
       && !this.availabilityError()
       && !this.availabilityEmpty()
       && !this.availabilityStale()
       && this.hasLoadedAvailability()
+      && this.defaultBranchScopeReady()
+      && !this.defaultBranchSetupError()
       && !this.conflictError()
       && (!!this.clienteId() || !!this.walkInName().trim())
       && !!this.servicioId()
@@ -84,11 +87,14 @@ export class TurnoFormPage implements OnInit {
     
     try {
       await this.branchContext.ensureLoaded();
-      if (this.branchContext.requiresExplicitSelection() || this.branchContext.branches().length === 0) {
-        this.error.set(this.branchContext.error() ?? 'ACTIVE_BRANCH_REQUIRED: Seleccioná una sucursal antes de crear turnos.');
+      if (this.branchContext.requiresExplicitSelection()) {
+        this.defaultBranchSetupError.set('No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.');
+        this.error.set(this.defaultBranchSetupError());
         this.loading.set(false);
         return;
       }
+
+      await this.ensureDefaultBranchScopeReady('turno');
 
       // Load clientes and servicios
       await Promise.all([
@@ -112,7 +118,7 @@ export class TurnoFormPage implements OnInit {
 
       this.loading.set(false);
     } catch {
-      this.error.set('Error al cargar datos');
+      this.error.set(this.defaultBranchSetupError() ?? 'Error al cargar datos');
       this.loading.set(false);
     }
   }
@@ -154,12 +160,6 @@ export class TurnoFormPage implements OnInit {
   }
 
   protected async checkAvailability() {
-    if (!this.branchContext.activeBranchId()) {
-      this.availabilityError.set('ACTIVE_BRANCH_REQUIRED: Seleccioná una sucursal para consultar disponibilidad.');
-      this.availabilityStale.set(true);
-      return;
-    }
-
     const availabilityVersion = ++this.latestAvailabilityVersion;
     const fechaDate = new Date(this.fecha());
     const today = new Date();
@@ -178,10 +178,12 @@ export class TurnoFormPage implements OnInit {
     this.isPastDate.set(fechaDate < today);
 
     try {
+      const branchId = await this.ensureDefaultBranchScopeReady('turno');
       const horarios = await this.turnoService.loadAvailabilityAdminSlotTimes({
         fecha: fechaDate,
         durationMinutes: this.duracionMinutos(),
         serviceId: this.servicioId() || null,
+        branchId,
         context: this.isEdit() ? 'admin-reschedule' : 'admin-create',
         bookingId: this.turnoId()
       });
@@ -195,12 +197,15 @@ export class TurnoFormPage implements OnInit {
       this.hasLoadedAvailability.set(true);
       this.availabilityStale.set(false);
       this.conflictError.set(null);
-    } catch {
+    } catch (error) {
       if (availabilityVersion !== this.latestAvailabilityVersion) return;
 
       this.disponibles.set([]);
       this.hora.set('');
-      this.availabilityError.set('No pudimos consultar disponibilidad. Reintentá antes de guardar.');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.availabilityError.set(/ACCOUNT_SETUP_REQUIRED|ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN/i.test(errorMessage)
+        ? 'No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.'
+        : 'No pudimos consultar disponibilidad. Reintentá antes de guardar.');
       this.availabilityStale.set(true);
       this.hasLoadedAvailability.set(false);
       this.conflictError.set(this.unavailableSlotMessage);
@@ -236,7 +241,6 @@ export class TurnoFormPage implements OnInit {
   protected async save() {
     // Validate
     const walkInName = this.walkInName().trim();
-    const branchId = this.turnoService.getActiveBranchId();
 
     if (!this.clienteId() && !walkInName) {
       this.error.set('Seleccione un cliente o ingresá un nombre para atención sin ficha');
@@ -249,28 +253,10 @@ export class TurnoFormPage implements OnInit {
     if (!this.canSave()) {
       return;
     }
-    if (!branchId) {
-      this.error.set('No encontramos una sucursal activa. Seleccioná o configurá la sucursal antes de crear el turno.');
-      return;
-    }
-
     this.saving.set(true);
     this.error.set(null);
 
     try {
-      const dto: CreateTurnoDTO = {
-        branchId: branchId,
-        clienteId: this.clienteId(),
-        walkInName: this.clienteId() ? undefined : walkInName,
-        servicioId: this.servicioId(),
-        fecha: new Date(this.fecha()),
-        hora: this.hora(),
-        duracionMinutos: this.duracionMinutos(),
-        precio: this.precio(),
-        notas: this.notas(),
-        estado: this.estado()
-      };
-
       if (this.isEdit() && this.turnoId()) {
         const performedBy = this.currentAdminActor();
         if (!performedBy) {
@@ -287,6 +273,19 @@ export class TurnoFormPage implements OnInit {
         }).toPromise();
       } else {
         // Create new
+        const branchId = await this.ensureDefaultBranchScopeReady('turno');
+        const dto: CreateTurnoDTO = {
+          branchId: branchId,
+          clienteId: this.clienteId(),
+          walkInName: this.clienteId() ? undefined : walkInName,
+          servicioId: this.servicioId(),
+          fecha: new Date(this.fecha()),
+          hora: this.hora(),
+          duracionMinutos: this.duracionMinutos(),
+          precio: this.precio(),
+          notas: this.notas(),
+          estado: this.estado()
+        };
         await this.turnoService.create(dto).toPromise();
       }
 
@@ -298,6 +297,8 @@ export class TurnoFormPage implements OnInit {
       if (/TURNO_SLOT_COLLISION/i.test(errorMessage) || /(ocupado|no disponible|conflict|bloqueado)/i.test(errorMessage)) {
         this.conflictError.set(this.unavailableSlotMessage);
         this.error.set(null);
+      } else if (/ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN/i.test(errorMessage)) {
+        this.error.set('No pudimos preparar el turno para esta cuenta. Reintentá más tarde o contactá soporte.');
       } else if (/TURNO_INVALID_STATUS_TRANSITION/i.test(errorMessage)) {
         this.error.set('No se puede reprogramar el turno con su estado actual');
       } else {
@@ -324,6 +325,22 @@ export class TurnoFormPage implements OnInit {
     }
     this.resetAvailability('La sucursal activa cambió: elegí un horario disponible.');
     await this.checkAvailability();
+  }
+
+  private async ensureDefaultBranchScopeReady(context: 'turno' | 'disponibilidad'): Promise<string> {
+    try {
+      const branchId = await this.turnoService.ensureDefaultBranchId();
+      this.defaultBranchScopeReady.set(true);
+      this.defaultBranchSetupError.set(null);
+      return branchId;
+    } catch (error) {
+      this.defaultBranchScopeReady.set(false);
+      const copy = context === 'turno'
+        ? 'No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.'
+        : 'No pudimos preparar la disponibilidad para esta cuenta. Revisá la configuración de cuenta o contactá soporte.';
+      this.defaultBranchSetupError.set(copy);
+      throw error;
+    }
   }
 
   private currentAdminActor(): string | null {
