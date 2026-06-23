@@ -4,6 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Servicio } from '../../../models/servicio.model';
 import { ServicioService } from '../data-access/servicio.service';
+import {
+  getSuggestedServicesForRubros,
+  type SuggestedService
+} from '../data-access/service-catalog-suggestions';
 import { ThemeService } from '../../../core/theming/theme.service';
 import {
   ORVEL_SECTION_PRIMITIVES,
@@ -11,6 +15,10 @@ import {
   type OrvelBadgeTone
 } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { validateCreateCategory, validateCreateServicio } from './servicios.validation';
+import {
+  ONBOARDING_BUSINESS_TYPES_STORAGE_KEY,
+  type BusinessTypeCode
+} from '../../onboarding/data-access/onboarding-business-types-storage';
 
 type CategoriaItem = {
   id: string;
@@ -45,6 +53,7 @@ export class ServiciosPage {
   
   readonly categorias = signal<CategoriaItem[]>([]);
   readonly servicios = signal<Servicio[]>([]);
+  readonly selectedRubros = signal<BusinessTypeCode[]>([]);
   
   // DB-FIX-003: Selected service ID to track which service is being edited/deleted
   readonly selectedServiceId = signal<string | null>(null);
@@ -98,6 +107,15 @@ export class ServiciosPage {
     return Array.from(grouped.entries()).map(([category, items]) => ({ category, items }));
   });
 
+  readonly suggestedServices = computed(() => {
+    const existingKeys = new Set(this.servicios().map((servicio) => this.serviceSuggestionKey(servicio)));
+    return getSuggestedServicesForRubros(this.selectedRubros()).filter(
+      (suggestion) => !existingKeys.has(this.serviceSuggestionKey(suggestion))
+    );
+  });
+
+  readonly shouldShowSuggestions = computed(() => this.suggestedServices().length > 0 && this.servicios().length < 3);
+
   constructor() {
     void this.loadData();
   }
@@ -121,6 +139,17 @@ export class ServiciosPage {
     else this.serviceFieldErrors.set({});
     
     this.showModal.set(true);
+  }
+
+  openSuggestedServicio(suggestion: SuggestedService): void {
+    this.openModal('servicio');
+    this.servicioForm.patchValue({
+      nombre: suggestion.nombre,
+      categoria: suggestion.categoria,
+      duracionMinutos: suggestion.duracionMinutos,
+      precio: suggestion.precio,
+      activo: true
+    });
   }
 
   closeModal(): void {
@@ -196,9 +225,32 @@ export class ServiciosPage {
       console.error('[Servicios] carga fallida', error);
       this.feedback.set('No se pudieron cargar los servicios. El catálogo de categorías sigue disponible; podés reintentar en unos minutos.');
     } finally {
+      this.selectedRubros.set(this.readSelectedRubrosDraft());
       this.categorias.set(this.servicioService.listCategorias());
       this.loading.set(false);
     }
+  }
+
+  private readSelectedRubrosDraft(): BusinessTypeCode[] {
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(ONBOARDING_BUSINESS_TYPES_STORAGE_KEY) : null;
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? (parsed.filter((item) => typeof item === 'string') as BusinessTypeCode[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private serviceSuggestionKey(service: Pick<Servicio, 'nombre' | 'categoria'>): string {
+    return `${this.normalizeSuggestionComparable(service.nombre)}::${this.normalizeSuggestionComparable(service.categoria)}`;
+  }
+
+  private normalizeSuggestionComparable(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
   }
 
   // DB-FIX-003: Edit service - opens modal with selected service ID

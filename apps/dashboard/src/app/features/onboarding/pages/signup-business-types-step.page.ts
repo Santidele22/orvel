@@ -4,11 +4,9 @@
  * Contains the pure class without Angular dependencies.
  * This file can be imported by tests without Angular compilation.
  */
-import type { PlanCode } from '../../../core/plans/plan-entitlements';
-import { normalizePlanCode, resolveValidPlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../data-access/onboarding-plan-utils';
 import {
   type DashboardReferenceCatalog,
-  getAllowedBusinessTypesForPlan,
   resolveBusinessTypeCodeFromCatalog
 } from '../../../core/catalog/reference-catalog';
 import {
@@ -49,6 +47,7 @@ const CREDENTIALS_STORAGE_KEY = 'turnea.onboarding.credentials.v1';
 type OnboardingCompletionInput = {
   plan: PlanCode | null;
   businessType: BusinessTypeCode;
+  selectedRubros: BusinessTypeCode[];
   storage: Pick<Storage, 'getItem'>;
 };
 
@@ -68,8 +67,8 @@ function getCurrentReferenceCatalog(): DashboardReferenceCatalog {
   return getRuntimeReferenceCatalogSnapshot();
 }
 
-function allowedBusinessTypeCodesForPlan(plan: PlanCode | null): BusinessTypeCode[] {
-  return getAllowedBusinessTypesForPlan(getCurrentReferenceCatalog(), plan ?? 'STARTER')
+function catalogBusinessTypeCodes(): BusinessTypeCode[] {
+  return getCurrentReferenceCatalog().businessTypes
     .map((type) => toBusinessTypeCode(type.code))
     .filter((code): code is BusinessTypeCode => code !== null);
 }
@@ -101,7 +100,7 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
     supabaseAnonKey: SUPABASE_CONFIG.anonKey
   });
 
-  return async ({ plan, businessType, storage }) => {
+  return async ({ plan, businessType, selectedRubros, storage }) => {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     const session = sessionData?.session;
     if (sessionError || !session?.access_token || !session.user?.id) {
@@ -114,6 +113,11 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
     }
 
     const canonicalPlan = normalizePlanCode(plan);
+    const sanitizedSelectedBusinessTypes = sanitizeBusinessTypes(selectedRubros);
+    const selectedBusinessTypes = sanitizedSelectedBusinessTypes.length > 0
+      ? sanitizedSelectedBusinessTypes
+      : [persistedBusinessType];
+    const additionalRubros = selectedBusinessTypes.filter((type) => type !== persistedBusinessType);
     const businessName = readBusinessName(storage);
     const defaults = buildInitialBusinessSettingsForOnboarding({
       businessId: session.user.id,
@@ -162,15 +166,20 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
       return false;
     }
 
+    const metadata = {
+      onboardingCompleted: true,
+      onboarding_completed: true,
+      plan: defaults.plan,
+      tipoNegocio: defaults.businessType,
+      businessType: defaults.businessType,
+      business_type: defaults.businessType,
+      selectedBusinessTypes,
+      selected_business_types: selectedBusinessTypes,
+      additionalRubros
+    };
+
     const { error: metadataError } = await supabase.auth.updateUser({
-      data: {
-        onboardingCompleted: true,
-        onboarding_completed: true,
-        plan: defaults.plan,
-        tipoNegocio: defaults.businessType,
-        businessType: defaults.businessType,
-        business_type: defaults.businessType
-      }
+      data: metadata
     });
 
     return !metadataError;
@@ -192,6 +201,20 @@ function getTestStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> |
   return null;
 }
 
+function sanitizeBusinessTypes(types: unknown): BusinessTypeCode[] {
+  if (!Array.isArray(types)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      types
+        .map((type) => toBusinessTypeCode(type))
+        .filter((type): type is BusinessTypeCode => type !== null)
+    )
+  ];
+}
+
 /**
  * Sets the test storage
  */
@@ -206,20 +229,20 @@ export function setTestStorage(storage: Pick<Storage, 'getItem' | 'setItem' | 'r
 /**
  * Signup Business Types Step Page - Pure Business Logic Class
  *
- * Step 3 of the onboarding flow - Primary Business Type Selection.
- * User must select one primary business type allowed by their plan.
+ * Step 3 of the onboarding flow - Primary and additional Business Type Selection.
+ * User must select one primary business type and can add optional rubros for catalog suggestions.
  * Plan is selected in Step 1.
  *
  * Flow:
- * 1. Filter available types by plan (Step 1 selection)
- * 2. User selects exactly one business type
+ * 1. Show catalog-derived rubro suggestions for the selected plan context
+ * 2. User selects one primary business type and optional additional rubros
  * 3. Real-time UI updates
  * 4. Continue button enabled when one type is selected
-  * 5. On submit, persist all onboarding data
-  * 6. Open the true welcome state for every plan
+ * 5. On submit, persist all onboarding data
+ * 6. Open the true welcome state for every plan
  */
 export class SignupBusinessTypesStepPage {
-  // Selected primary type by user
+  // Ordered rubros selected by user. Index 0 is the required primary rubro.
   protected _selectedTypes: BusinessTypeCode[] = [];
   
   // UI state
@@ -274,13 +297,11 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Gets the allowed business types for the selected plan
+   * Gets the catalog business-type suggestions for the selected plan context.
    * Computed fresh each time - no caching
    */
   get allowedTypes(): BusinessType[] {
-    const plan = this.getSelectedPlan();
-    
-    return getAllowedBusinessTypesForPlan(getCurrentReferenceCatalog(), plan ?? 'STARTER')
+    return getCurrentReferenceCatalog().businessTypes
       .map((type): BusinessType | null => {
         const code = toBusinessTypeCode(type.code);
         return code ? { code, label: type.label } : null;
@@ -288,11 +309,9 @@ export class SignupBusinessTypesStepPage {
       .filter((type): type is BusinessType => type !== null);
   }
 
-  /**
-   * Gets the maximum number of primary selections allowed for current plan
-   */
+  /** Gets the maximum number of rubros shown by the current catalog/plan UX. */
   getMaxTypes(): number {
-    return 1;
+    return getCurrentReferenceCatalog().businessTypes.length;
   }
 
   async refreshReferenceCatalog(): Promise<void> {
@@ -313,7 +332,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Gets the selected primary business type
+   * Gets selected rubros. Index 0 is the primary business type.
    */
   get selectedTypes(): BusinessTypeCode[] {
     return [...this._selectedTypes];
@@ -324,9 +343,7 @@ export class SignupBusinessTypesStepPage {
    * @param type - The business type code
    */
   canSelect(type: BusinessTypeCode): boolean {
-    const plan = this.getSelectedPlan();
-    const allowedCodes = allowedBusinessTypeCodesForPlan(plan);
-    return allowedCodes.includes(type);
+    return catalogBusinessTypeCodes().includes(type);
   }
 
   /**
@@ -338,7 +355,7 @@ export class SignupBusinessTypesStepPage {
   }
 
   /**
-   * Toggles the primary business type selection
+   * Toggles a rubro selection without replacing prior rubros.
    * @param type - The business type code to toggle
    */
   toggleType(type: BusinessTypeCode): void {
@@ -352,8 +369,7 @@ export class SignupBusinessTypesStepPage {
       // Already selected, remove it
       this._selectedTypes.splice(index, 1);
     } else {
-      // The dashboard onboarding collects exactly one primary service type.
-      this._selectedTypes = [type];
+      this._selectedTypes = [...this._selectedTypes, type];
     }
   }
 
@@ -392,7 +408,7 @@ export class SignupBusinessTypesStepPage {
 
     this.isLoading = true;
 
-    // Persist the primary business type as a draft only. Completion/navigation requires
+    // Persist the ordered rubros as a draft only. Completion/navigation requires
     // Supabase updateUser metadata and business_settings upsert to succeed.
     persistBusinessTypes(storage, [...this._selectedTypes]);
 
@@ -473,7 +489,7 @@ export class SignupBusinessTypesStepPage {
       return false;
     }
 
-    return this.onboardingCompletionHandler({ plan, businessType, storage });
+    return this.onboardingCompletionHandler({ plan, businessType, selectedRubros: [...this._selectedTypes], storage });
   }
 
   /**
@@ -508,11 +524,8 @@ export class SignupBusinessTypesStepPage {
     try {
       const stored = readBusinessTypes(storage);
       if (stored && stored.length > 0) {
-        // Filter to only allowed types (in case plan changed)
-        const plan = this.getSelectedPlan();
-        const allowedCodes = allowedBusinessTypeCodesForPlan(plan);
-        
-        this._selectedTypes = stored.filter((code) => allowedCodes.includes(code)).slice(0, 1);
+        const catalogCodes = catalogBusinessTypeCodes();
+        this._selectedTypes = stored.filter((code) => catalogCodes.includes(code));
       }
     } catch {
       // Invalid stored data, ignore

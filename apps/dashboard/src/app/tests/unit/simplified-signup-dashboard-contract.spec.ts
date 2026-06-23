@@ -18,7 +18,8 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     expect(source).toMatch(/from\(['"]businesses['"]\)[\s\S]*\.upsert/);
     expect(source).toMatch(/from\(['"]business_settings['"]\)[\s\S]*\.upsert/);
     expect(source).toMatch(/from\(['"]business_settings['"]\)[\s\S]*\.upsert[\s\S]*business_type:\s*defaults\.businessType/);
-    expect(source).toMatch(/auth\.updateUser[\s\S]*onboardingCompleted[\s\S]*true/);
+    expect(source).toMatch(/onboardingCompleted:\s*true/);
+    expect(source).toMatch(/auth\.updateUser[\s\S]*data:\s*metadata/);
     expect(source).toMatch(/business_type|tipoNegocio|businessType/);
     expect(source).toMatch(/setCurrentStep\(storage, ['"]welcome['"]\)/);
     expect(source).not.toMatch(/navigateByUrl\(['"]\/dashboard\/inicio['"]\)[\s\S]{0,800}(business_settings|auth\.updateUser)/);
@@ -124,7 +125,7 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
     }
   });
 
-  it('allows exactly one service type for every plan and replaces the prior selection', async () => {
+  it('allows one required primary rubro plus optional additional rubros for every plan without replacement', async () => {
     const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
 
     for (const plan of ['FREE', 'STARTER', 'GROWTH', 'PRO']) {
@@ -139,12 +140,12 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
       });
 
       const component = new SignupBusinessTypesStepPage();
-      expect(component.getMaxTypes()).toBe(1);
+      expect(component.getMaxTypes()).toBeGreaterThan(1);
 
       component.toggleType('peluqueria');
       component.toggleType('spa');
 
-      expect(component.selectedTypes).toEqual(['spa']);
+      expect(component.selectedTypes).toEqual(['peluqueria', 'spa']);
     }
   });
 
