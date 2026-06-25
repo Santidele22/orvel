@@ -16,6 +16,7 @@ type SignupEnv = {
 };
 
 const VALID_SIGNUP_PLANS = ['FREE', 'STARTER', 'GROWTH', 'PRO'] as const;
+const VALID_SIGNUP_RUBROS = new Set(['peluqueria', 'barberia', 'unas', 'estetica', 'spa', 'maquillaje', 'pestanas', 'cejas', 'masajes', 'otro']);
 
 const normalizeSignupPlan = (rawPlan: string | null) => rawPlan?.trim().toUpperCase() ?? '';
 const normalizeBillingPeriod = (raw: string | null) => {
@@ -24,7 +25,12 @@ const normalizeBillingPeriod = (raw: string | null) => {
 };
 const isValidSignupPlan = (rawPlan: string | null) =>
   VALID_SIGNUP_PLANS.includes(normalizeSignupPlan(rawPlan) as typeof VALID_SIGNUP_PLANS[number]);
-const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
+const normalizeBusinessType = (value: string) => value === 'uñas' ? 'unas' : value === 'pestañas' ? 'pestanas' : value;
+const normalizeRubroCode = (value: unknown) => {
+  if (typeof value !== 'string') return '';
+  const normalized = normalizeBusinessType(value.trim().toLowerCase());
+  return VALID_SIGNUP_RUBROS.has(normalized) ? normalized : '';
+};
 const isExistingAccountError = (error: unknown) => {
   const message = error instanceof Error ? error.message : `${error ?? ''}`;
   return /signup_existing|EMAIL_EXISTS|EMAIL_ALREADY_REGISTERED|already\s+(?:registered|exists)|email.*registrad[oa]/i.test(message);
@@ -106,17 +112,44 @@ export function initSignupAccountPage(env: SignupEnv): void {
       : missingPlanRedirectUrl;
   }
 
-  const readSignupAccountValues = (): SignupAccountInput => ({
-    nombre: form.querySelector<HTMLInputElement>('input[name="nombre"]')?.value ?? '',
-    apellido: form.querySelector<HTMLInputElement>('input[name="apellido"]')?.value ?? '',
-    negocioNombre: form.querySelector<HTMLInputElement>('input[name="negocioNombre"]')?.value ?? '',
-    rubro: form.querySelector<HTMLSelectElement>('select[name="rubro"]')?.value ?? '',
-    telefonoCaracteristica: form.querySelector<HTMLInputElement>('input[name="telefonoCaracteristica"]')?.value ?? '',
-    telefonoNumero: form.querySelector<HTMLInputElement>('input[name="telefonoNumero"]')?.value ?? '',
-    email: form.querySelector<HTMLInputElement>('input[name="email"]')?.value ?? '',
-    password: form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '',
-    confirm: form.querySelector<HTMLInputElement>('input[name="confirm"]')?.value ?? ''
-  });
+  const getRubroCompatibilityField = () => form.querySelector<HTMLInputElement | HTMLSelectElement>('[name="rubro"]');
+  const getPrimaryRubroField = () => form.querySelector<HTMLInputElement>('input[name="primaryRubro"]:checked');
+  const getAdditionalRubroFields = () => Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubros"]'));
+  const getSelectedRubros = (): string[] => {
+    const primary = normalizeRubroCode(getPrimaryRubroField()?.value ?? '');
+    const selected = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubros"]:checked'))
+      .map((input) => normalizeRubroCode(input.value))
+      .filter((value): value is string => Boolean(value));
+    const legacyPrimary = normalizeRubroCode(getRubroCompatibilityField()?.value ?? '');
+    const ordered = primary ? [primary, ...selected] : selected.length > 0 ? selected : legacyPrimary ? [legacyPrimary] : [];
+    return [...new Set(ordered)];
+  };
+  const syncPrimaryRubroField = () => {
+    const primary = getSelectedRubros()[0] ?? '';
+    const field = getRubroCompatibilityField();
+    if (field) field.value = primary;
+    getAdditionalRubroFields().forEach((input) => {
+      const isPrimary = normalizeRubroCode(input.value) === primary;
+      input.disabled = isPrimary;
+      if (isPrimary) input.checked = false;
+      input.setAttribute('aria-disabled', String(isPrimary));
+    });
+    return primary;
+  };
+  const readSignupAccountValues = (): SignupAccountInput => {
+    const primaryRubro = syncPrimaryRubroField();
+    return {
+      nombre: form.querySelector<HTMLInputElement>('input[name="nombre"]')?.value ?? '',
+      apellido: form.querySelector<HTMLInputElement>('input[name="apellido"]')?.value ?? '',
+      negocioNombre: form.querySelector<HTMLInputElement>('input[name="negocioNombre"]')?.value ?? '',
+      rubro: primaryRubro,
+      telefonoCaracteristica: form.querySelector<HTMLInputElement>('input[name="telefonoCaracteristica"]')?.value ?? '',
+      telefonoNumero: form.querySelector<HTMLInputElement>('input[name="telefonoNumero"]')?.value ?? '',
+      email: form.querySelector<HTMLInputElement>('input[name="email"]')?.value ?? '',
+      password: form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '',
+      confirm: form.querySelector<HTMLInputElement>('input[name="confirm"]')?.value ?? ''
+    };
+  };
   const getFieldError = (fieldName: SignupAccountField, value?: string, requirePassword = true) => {
     const current = readSignupAccountValues();
     const result = validateSignupAccount({ ...current, [fieldName]: value ?? current[fieldName] }, { requirePassword });
@@ -149,6 +182,9 @@ export function initSignupAccountPage(env: SignupEnv): void {
     return true;
   };
   const validateField = (input: HTMLInputElement | HTMLSelectElement) => {
+    if (input.name === 'primaryRubro' || input.name === 'rubros') {
+      return paintFieldError(getRubroCompatibilityField() ?? input, validators.rubro(syncPrimaryRubroField()));
+    }
     const fieldName = input.name as keyof typeof validators;
     return validators[fieldName] ? paintFieldError(input, validators[fieldName](input.value)) : true;
   };
@@ -157,6 +193,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
     const fieldErrors = mapSignupAccountErrorsForAstro(result);
     let valid = true;
     form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
+      if (input.name === 'primaryRubro' || input.name === 'rubros') return;
       const fieldName = input.name as SignupAccountField;
       if (SIGNUP_ACCOUNT_FIELDS.includes(fieldName) && !paintFieldError(input, fieldErrors[fieldName] ?? '')) valid = false;
     });
@@ -220,7 +257,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
       button.textContent = label;
     }
   };
-  const createAccountAndBusiness = async (values: { email: string; password: string; nombre: string; apellido: string; negocioNombre: string; rubro: string; telefono: string; plan: string }) => {
+  const createAccountAndBusiness = async (values: { email: string; password: string; nombre: string; apellido: string; negocioNombre: string; rubro: string; business_type: string; selected_business_types: string[]; selectedBusinessTypes: string[]; additionalRubros: string[]; telefono: string; plan: string }) => {
     const response = await fetch('/api/signup/create-account-business', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,7 +267,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
     if (!response.ok || !result?.ok) throw new Error(result?.message || 'create_account_business_failed');
     return result;
   };
-  const createProtectedPendingSignupIntent = async (values: { email: string; nombre: string; apellido: string; negocioNombre: string; telefono: string; plan: string; billing: string }) => {
+  const createProtectedPendingSignupIntent = async (values: { email: string; nombre: string; apellido: string; negocioNombre: string; telefono: string; plan: string; billing: string; business_type: string; selected_business_types: string[]; selectedBusinessTypes: string[]; additionalRubros: string[] }) => {
     const response = await fetch('/api/signup/pending-intent/protect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -240,7 +277,10 @@ export function initSignupAccountPage(env: SignupEnv): void {
         last_name: values.apellido,
         business_name: values.negocioNombre,
         phone: values.telefono,
-        business_type: normalizeBusinessType(readSubmitValues().rubro || 'otro'),
+        business_type: values.business_type,
+        selected_business_types: values.selected_business_types,
+        selectedBusinessTypes: values.selectedBusinessTypes,
+        additionalRubros: values.additionalRubros,
         plan_code: values.plan,
         billing_period: values.billing,
       })
@@ -253,6 +293,10 @@ export function initSignupAccountPage(env: SignupEnv): void {
         serverRedirectUrl: null,
         plan_code: values.plan,
         billing_period: values.billing,
+        business_type: values.business_type,
+        selected_business_types: values.selected_business_types,
+        selectedBusinessTypes: values.selectedBusinessTypes,
+        additionalRubros: values.additionalRubros,
       };
     }
     const pendingSignupReference = typeof result?.pending_signup_reference === 'string' ? result.pending_signup_reference : null;
@@ -264,16 +308,26 @@ export function initSignupAccountPage(env: SignupEnv): void {
       serverRedirectUrl,
       plan_code: values.plan,
       billing_period: values.billing,
+      business_type: values.business_type,
+      selected_business_types: values.selected_business_types,
+      selectedBusinessTypes: values.selectedBusinessTypes,
+      additionalRubros: values.additionalRubros,
     };
   };
   const readSubmitValues = () => {
     const values = readSignupAccountValues();
+    const selectedBusinessTypes = getSelectedRubros();
+    const primaryBusinessType = selectedBusinessTypes[0] ?? normalizeRubroCode(values.rubro) ?? '';
     return {
       ...values,
       nombre: values.nombre.trim(),
       apellido: values.apellido.trim(),
       negocioNombre: values.negocioNombre.trim(),
-      rubro: `${values.rubro ?? ''}`.trim(),
+      rubro: primaryBusinessType,
+      business_type: primaryBusinessType,
+      selectedBusinessTypes,
+      selected_business_types: selectedBusinessTypes,
+      additionalRubros: selectedBusinessTypes.slice(1),
       telefonoCaracteristica: values.telefonoCaracteristica.trim(),
       telefonoNumero: values.telefonoNumero.trim(),
       email: values.email.trim(),
@@ -284,7 +338,9 @@ export function initSignupAccountPage(env: SignupEnv): void {
   form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
     input.addEventListener('input', () => { validateField(input); updateContinueButtonState(); });
     input.addEventListener('blur', () => { validateField(input); updateContinueButtonState(); });
+    input.addEventListener('change', () => { syncPrimaryRubroField(); validateField(getRubroCompatibilityField() ?? input); updateContinueButtonState(); });
   });
+  syncPrimaryRubroField();
   updateContinueButtonState();
 
   form.addEventListener('submit', async (event) => {
@@ -309,9 +365,13 @@ export function initSignupAccountPage(env: SignupEnv): void {
         telefono: values.normalizedPhone,
         plan: '',
         billing,
+        business_type: values.business_type,
+        selected_business_types: values.selected_business_types,
+        selectedBusinessTypes: values.selectedBusinessTypes,
+        additionalRubros: values.additionalRubros,
       }).then((protectedSignup) => {
         sessionStorage.setItem(SIGNUP_STORAGE_KEYS.pendingSignupIntent, JSON.stringify(protectedSignup));
-        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, normalizeBusinessType(values.rubro || 'otro'));
+        sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.business_type || 'otro');
         redirectToPlanSelection(explicitPlan?.trim() ? 'invalid_plan' : 'missing_plan');
       }).catch((error) => {
         if (button) {
@@ -341,6 +401,10 @@ export function initSignupAccountPage(env: SignupEnv): void {
       apellido: values.apellido,
       negocioNombre: values.negocioNombre,
       rubro: values.rubro,
+      business_type: values.business_type,
+      selectedBusinessTypes: values.selectedBusinessTypes,
+      selected_business_types: values.selected_business_types,
+      additionalRubros: values.additionalRubros,
       telefono: values.normalizedPhone,
       plan
     };

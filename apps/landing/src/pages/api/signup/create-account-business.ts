@@ -7,6 +7,7 @@ type SignupPlan = "FREE" | "STARTER" | "GROWTH" | "PRO";
 
 const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "STARTER", "GROWTH", "PRO"]);
 const RATE_LIMIT_MAX_REQUESTS = 5;
+const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -21,6 +22,22 @@ function cleanText(value: unknown, maxLength: number): string | null {
 function cleanPassword(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return value.length >= 8 && value.length <= 256 ? value : null;
+}
+
+function normalizeBusinessType(value: unknown): string | null {
+  const cleaned = cleanText(value, 64)?.toLowerCase();
+  const normalized = cleaned === "uñas" ? "unas" : cleaned === "pestañas" ? "pestanas" : cleaned;
+  return normalized && ALLOWED_BUSINESS_TYPES.has(normalized) ? normalized : null;
+}
+
+function normalizeSelectedBusinessTypes(body: Record<string, unknown>, fallbackPrimary: string): string[] {
+  const candidate = body.selected_business_types ?? body.selectedBusinessTypes ?? body.additionalRubros ?? body.rubros;
+  const rawValues = Array.isArray(candidate) ? candidate : [];
+  const normalized = rawValues
+    .map((item) => normalizeBusinessType(item))
+    .filter((item): item is string => Boolean(item));
+  const ordered = [fallbackPrimary, ...normalized.filter((item) => item !== fallbackPrimary)];
+  return [...new Set(ordered)];
 }
 
 function isDuplicateUserError(error: unknown): boolean {
@@ -93,10 +110,11 @@ export const POST: APIRoute = async ({ request }) => {
   const firstName = cleanText(body.nombre ?? body.first_name, 80);
   const lastName = cleanText(body.apellido ?? body.last_name, 80);
   const businessName = cleanText(body.negocioNombre ?? body.business_name, 120);
-  const businessType = cleanText(body.rubro ?? body.business_type ?? body.tipoNegocio, 64)?.toLowerCase();
+  const businessType = normalizeBusinessType(body.rubro ?? body.business_type ?? body.tipoNegocio);
   const phone = cleanText(body.telefono ?? body.phone, 40);
   const plan = normalizePlan(body.plan);
   const password = cleanPassword(body.password);
+  const selectedBusinessTypes = businessType ? normalizeSelectedBusinessTypes(body, businessType) : [];
 
   if (!email || !firstName || !lastName || !businessName || !businessType || !plan || (plan === "FREE" && !password)) {
     return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
@@ -164,7 +182,7 @@ export const POST: APIRoute = async ({ request }) => {
     email,
     password: password,
     email_confirm: false,
-    user_metadata: { first_name: firstName, last_name: lastName, phone, plan: "FREE", onboarding_required: true, onboarding_completed: false, source: "signup_request" },
+    user_metadata: { first_name: firstName, last_name: lastName, phone, plan: "FREE", onboarding_required: true, onboarding_completed: false, source: "signup_request", business_type: businessType, tipoNegocio: businessType, rubro: businessType, selected_business_types: selectedBusinessTypes, selectedBusinessTypes: selectedBusinessTypes, additionalRubros: selectedBusinessTypes.slice(1) },
   });
   if (createUserError || !createdAuthUser.user?.id) {
     if (isDuplicateUserError(createUserError)) {
@@ -184,6 +202,9 @@ export const POST: APIRoute = async ({ request }) => {
     expires_at: expiresAt,
     protected_metadata: {
       business_type: businessType,
+      selected_business_types: selectedBusinessTypes,
+      selectedBusinessTypes: selectedBusinessTypes,
+      additionalRubros: selectedBusinessTypes.slice(1),
       created_user_id: authUserId,
     },
     email_encrypted: protectedFields.email_encrypted,

@@ -166,4 +166,45 @@ describe('free onboarding completion contract', () => {
     const [settingsPayload] = supabaseMocks.settingsUpsert.mock.calls[0] as [Record<string, unknown>];
     expect(settingsPayload).not.toHaveProperty('plan');
   });
+
+  it('uses auth metadata selected business types when local rubro draft is absent', async () => {
+    supabaseMocks.getSession.mockResolvedValueOnce({
+      data: {
+        session: {
+          access_token: 'session-token',
+          user: {
+            id: 'user-free-1',
+            user_metadata: {
+              selected_business_types: ['peluqueria', 'barberia', 'spa']
+            }
+          }
+        }
+      },
+      error: null
+    });
+    const { createSupabaseOnboardingCompletionHandler } = await import(
+      '../../features/onboarding/pages/signup-business-types-step.page'
+    );
+
+    const handler = createSupabaseOnboardingCompletionHandler();
+    const completed = await handler({
+      plan: 'FREE',
+      businessType: 'peluqueria',
+      selectedRubros: [],
+      storage: {
+        getItem: vi.fn((key: string) =>
+          key.includes('credentials') ? JSON.stringify({ business_name: 'Studio Free' }) : null
+        )
+      }
+    });
+
+    expect(completed).toBe(true);
+    expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        selectedBusinessTypes: ['peluqueria', 'barberia', 'spa'],
+        selected_business_types: ['peluqueria', 'barberia', 'spa'],
+        additionalRubros: ['barberia', 'spa']
+      })
+    });
+  });
 });

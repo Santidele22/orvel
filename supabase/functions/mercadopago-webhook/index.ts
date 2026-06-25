@@ -261,6 +261,30 @@ async function cleanupJustCreatedPendingSignupAuthUser(
   }
 }
 
+function normalizePaidSignupBusinessType(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizePaidSignupSelectedBusinessTypes(
+  intent: Record<string, unknown>,
+): string[] {
+  const businessType = normalizePaidSignupBusinessType(intent.business_type);
+  const rawSelections = Array.isArray(intent.selected_business_types)
+    ? intent.selected_business_types
+    : Array.isArray(intent.selectedBusinessTypes)
+    ? intent.selectedBusinessTypes
+    : [];
+  const rawAdditionalRubros = Array.isArray(intent.additionalRubros)
+    ? intent.additionalRubros
+    : [];
+  const selectedBusinessTypes = [...rawSelections, ...rawAdditionalRubros]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return [...new Set([businessType, ...selectedBusinessTypes].filter(Boolean))];
+}
+
 async function materializePendingSignup(
   supabaseAdmin: SupabaseClient,
   params: {
@@ -306,6 +330,7 @@ async function materializePendingSignup(
 
     const bound_user_id = typeof intent.user_id === "string" && intent.user_id ? intent.user_id : null;
     let userId = bound_user_id;
+    const selectedBusinessTypes = normalizePaidSignupSelectedBusinessTypes(intent as Record<string, unknown>);
     if (!userId) {
     const { data: createdUser, error: createUserError } = await supabaseAdmin.auth
       .admin.createUser({
@@ -320,6 +345,12 @@ async function materializePendingSignup(
           onboarding_completed: false,
           onboardingCompleted: false,
           source: "paid_signup_payment_approved",
+          business_type: intent.business_type,
+          tipoNegocio: intent.business_type,
+          rubro: intent.business_type,
+          selected_business_types: selectedBusinessTypes,
+          selectedBusinessTypes: selectedBusinessTypes,
+          additionalRubros: selectedBusinessTypes.slice(1),
         },
       });
 
@@ -344,6 +375,30 @@ async function materializePendingSignup(
         throw boundIntentError || new Error("pending_signup_user_bind_failed");
       }
       userId = createdUserId;
+    }
+  } else {
+    const { data: trustedBoundUser, error: trustedBoundUserError } = await supabaseAdmin.auth
+      .admin.getUserById(userId);
+
+    if (trustedBoundUserError || !trustedBoundUser.user) {
+      throw trustedBoundUserError || new Error("pending_signup_bound_auth_user_missing");
+    }
+
+    const { data: metadataRepairUser, error: metadataRepairError } = await supabaseAdmin.auth
+      .admin.updateUserById(userId, {
+        user_metadata: {
+          ...(trustedBoundUser.user.user_metadata || {}),
+          business_type: intent.business_type,
+          tipoNegocio: intent.business_type,
+          rubro: intent.business_type,
+          selected_business_types: selectedBusinessTypes,
+          selectedBusinessTypes: selectedBusinessTypes,
+          additionalRubros: selectedBusinessTypes.slice(1),
+        },
+      });
+
+    if (metadataRepairError || !metadataRepairUser.user) {
+      throw metadataRepairError || new Error("pending_signup_auth_metadata_repair_failed");
     }
   }
 

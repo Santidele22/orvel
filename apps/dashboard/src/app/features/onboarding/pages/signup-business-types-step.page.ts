@@ -114,8 +114,11 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
 
     const canonicalPlan = normalizePlanCode(plan);
     const sanitizedSelectedBusinessTypes = sanitizeBusinessTypes(selectedRubros);
+    const metadataSelectedBusinessTypes = readMetadataSelectedBusinessTypes(session.user.user_metadata);
     const selectedBusinessTypes = sanitizedSelectedBusinessTypes.length > 0
       ? sanitizedSelectedBusinessTypes
+      : metadataSelectedBusinessTypes.length > 0
+        ? [persistedBusinessType, ...metadataSelectedBusinessTypes.filter((type) => type !== persistedBusinessType)]
       : [persistedBusinessType];
     const additionalRubros = selectedBusinessTypes.filter((type) => type !== persistedBusinessType);
     const businessName = readBusinessName(storage);
@@ -213,6 +216,17 @@ function sanitizeBusinessTypes(types: unknown): BusinessTypeCode[] {
         .filter((type): type is BusinessTypeCode => type !== null)
     )
   ];
+}
+
+function readMetadataSelectedBusinessTypes(metadata: unknown): BusinessTypeCode[] {
+  if (!metadata || typeof metadata !== 'object') {
+    return [];
+  }
+
+  const record = metadata as Record<string, unknown>;
+  return sanitizeBusinessTypes(
+    record['selected_business_types'] ?? record['selectedBusinessTypes'] ?? record['additionalRubros']
+  );
 }
 
 /**

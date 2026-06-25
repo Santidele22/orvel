@@ -460,6 +460,65 @@ Deno.test("RED PAID webhook partial materialization retry: failed/materializing 
   );
 });
 
+Deno.test("RED PAID webhook auth metadata: created user receives pending signup rubro selections", async () => {
+  const source = await readText(new URL("mercadopago-webhook/index.ts", functionsDir));
+  const materializeStart = source.indexOf("async function materializePendingSignup");
+  const materializeEnd = source.indexOf("// Verify payment status", materializeStart);
+  const materializeBody = materializeStart >= 0 && materializeEnd > materializeStart
+    ? source.slice(materializeStart, materializeEnd)
+    : "";
+  const createUserIndex = materializeBody.search(/auth\s*\.admin\s*\.createUser\s*\(/i);
+  const createUserEnd = materializeBody.indexOf("});", createUserIndex);
+  const createUserSlice = createUserIndex >= 0 && createUserEnd > createUserIndex
+    ? materializeBody.slice(createUserIndex, createUserEnd)
+    : "";
+
+  assert(materializeBody.length > 0, "Guard must inspect paid signup materialization");
+  assert(createUserSlice.length > 0, "Guard must inspect paid Auth user creation");
+  assert(/user_metadata\s*:/i.test(createUserSlice), "Paid Auth user creation must include user_metadata");
+  assert(/business_type\s*:\s*intent\.business_type/i.test(createUserSlice), "Created paid Auth user metadata must copy pending intent.business_type");
+  assert(/tipoNegocio\s*:\s*intent\.business_type/i.test(createUserSlice), "Created paid Auth user metadata must include dashboard-compatible tipoNegocio alias");
+  assert(/rubro\s*:\s*intent\.business_type/i.test(createUserSlice), "Created paid Auth user metadata must include dashboard-compatible rubro alias");
+  assert(/selected_business_types\s*:\s*[^,}]*selectedBusinessTypes/i.test(createUserSlice), "Created paid Auth user metadata must copy pending intent selected_business_types");
+  assert(/selectedBusinessTypes\s*:\s*selectedBusinessTypes/i.test(createUserSlice), "Created paid Auth user metadata must include camelCase selectedBusinessTypes alias");
+  assert(/additionalRubros\s*:\s*selectedBusinessTypes\.slice\(1\)/i.test(createUserSlice), "Created paid Auth user metadata must include additionalRubros derived from selected rubros");
+  assert(
+    !/selected_business_types\s*:\s*\[\s*intent\.business_type\s*\]/i.test(createUserSlice),
+    "Created paid Auth user metadata must not collapse multi-rubro intent selections to only [business_type]",
+  );
+});
+
+Deno.test("RED PAID webhook auth metadata repair: trusted bound user receives missing rubro selections before materialized success", async () => {
+  const source = await readText(new URL("mercadopago-webhook/index.ts", functionsDir));
+  const materializeStart = source.indexOf("async function materializePendingSignup");
+  const materializeEnd = source.indexOf("// Verify payment status", materializeStart);
+  const materializeBody = materializeStart >= 0 && materializeEnd > materializeStart
+    ? source.slice(materializeStart, materializeEnd)
+    : "";
+  const boundUserIndex = materializeBody.search(/bound_user_id|intent\.user_id/i);
+  const businessMutationIndex = materializeBody.search(/\.from\(["']businesses["']\)/i);
+  const repairSlice = boundUserIndex >= 0 && businessMutationIndex > boundUserIndex
+    ? materializeBody.slice(boundUserIndex, businessMutationIndex)
+    : "";
+
+  assert(materializeBody.length > 0, "Guard must inspect paid signup materialization");
+  assert(repairSlice.length > 0, "Guard must inspect trusted bound-user retry path before business/materialized success");
+  assert(/auth\s*\.admin\s*\.updateUserById\s*\(\s*(?:userId|bound_user_id)/i.test(repairSlice), "Retry must repair only the trusted user_id already bound to the same pending_signup_intent");
+  assert(/user_metadata\s*:/i.test(repairSlice), "Bound-user repair must update user_metadata");
+  assert(/business_type\s*:\s*intent\.business_type/i.test(repairSlice), "Bound-user repair metadata must copy pending intent.business_type");
+  assert(/selected_business_types\s*:\s*[^,}]*selectedBusinessTypes/i.test(repairSlice), "Bound-user repair metadata must copy pending intent selected_business_types");
+  assert(/selectedBusinessTypes\s*:\s*selectedBusinessTypes/i.test(repairSlice), "Bound-user repair metadata must include camelCase selectedBusinessTypes alias");
+  assert(/additionalRubros\s*:\s*selectedBusinessTypes\.slice\(1\)/i.test(repairSlice), "Bound-user repair metadata must include additionalRubros derived from selected rubros");
+  assert(
+    /const\s*\{[\s\S]{0,140}(?:error|data)[\s\S]{0,140}\}\s*=\s*await\s+supabaseAdmin\.auth\.admin\.updateUserById|if\s*\([\s\S]{0,180}(?:metadataRepairError|authMetadataRepairError|!\s*metadataRepairUser|!\s*repairedAuthUser)/i.test(repairSlice),
+    "Bound-user metadata repair result must be checked before webhook marks the intent materialized/processed",
+  );
+  assert(
+    !/findAuthUserByEmail|listUsers|getUserByEmail|existing(?:Auth)?User|adopt/i.test(repairSlice),
+    "Bound-user repair must not search/adopt arbitrary users by email",
+  );
+});
+
 Deno.test("RED PAID webhook materialization persistence: onboarding and final intent updates are checked before processed", async () => {
   const source = await readText(new URL("mercadopago-webhook/index.ts", functionsDir));
   const materializeStart = source.indexOf("async function materializePendingSignup");
