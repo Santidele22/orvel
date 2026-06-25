@@ -615,7 +615,7 @@ export class BusinessSettingsFacade {
 
   private buildDefaultState(): BusinessSettingsState {
     return {
-      businessName: '',
+      businessName: 'Sucursal sin nombre',
       slug: '',
       bufferMinutes: 10,
       minNoticeMinutes: 120,

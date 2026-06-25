@@ -130,6 +130,52 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     expect(valid.fieldErrors.coverUrl).toBeUndefined();
   });
 
+  it('accepts the same common Argentina phone variants as public booking for phone and whatsapp', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+    const validArgentinaPhones = [
+      '+5491112345678',
+      '+54 11 5555-0000',
+      '11 1234-5678',
+      '011 15 1234 5678',
+      '351 123 4567',
+      '+54 351 123 4567'
+    ];
+
+    for (const phone of validArgentinaPhones) {
+      const result = validateConfiguracionForm({
+        ...validBaseInput,
+        phone,
+        whatsapp: phone
+      });
+
+      expect(result.fieldErrors.phone, `phone should accept ${phone}`).toBeUndefined();
+      expect(result.fieldErrors.whatsapp, `whatsapp should accept ${phone}`).toBeUndefined();
+      expect(result.isValid, `settings form should be valid for ${phone}`).toBe(true);
+    }
+  });
+
+  it('rejects invalid, too-short, and non-Argentina phone and whatsapp samples explicitly', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+    const invalidSamples = [
+      { label: 'invalid characters', value: 'abc123' },
+      { label: 'too short Argentina number', value: '+54 11 123' },
+      { label: 'non-Argentina international number', value: '+1 415 555 2671' },
+      { label: 'non-Argentina LATAM number', value: '+57 300 123 4567' }
+    ];
+
+    for (const sample of invalidSamples) {
+      const result = validateConfiguracionForm({
+        ...validBaseInput,
+        phone: sample.value,
+        whatsapp: sample.value
+      });
+
+      expect(result.isValid, `${sample.label} should be rejected`).toBe(false);
+      expect(result.fieldErrors.phone, `phone should reject ${sample.value}`).toBeTypeOf('string');
+      expect(result.fieldErrors.whatsapp, `whatsapp should reject ${sample.value}`).toBeTypeOf('string');
+    }
+  });
+
   it('enforces range and length rules', async () => {
     const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
 

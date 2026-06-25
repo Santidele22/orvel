@@ -28,7 +28,9 @@ describe('K03 - Configuración submit validation integration RED contract', () =
     expect(pageTs).toMatch(/if\s*\(!validation\.isValid\)\s*\{[\s\S]*markAllAsTouched\([\s\S]*return\s*;[\s\S]*\}/);
 
     const validationIndex = pageTs.indexOf('validateConfiguracionForm(');
-    const saveIndex = pageTs.indexOf('saveToSupabase(');
+    const directSaveIndex = pageTs.indexOf('saveToSupabase(');
+    const facadeSaveIndex = pageTs.indexOf('facade.save(');
+    const saveIndex = directSaveIndex >= 0 ? directSaveIndex : facadeSaveIndex;
     expect(validationIndex).toBeGreaterThanOrEqual(0);
     expect(saveIndex).toBeGreaterThanOrEqual(0);
     expect(validationIndex).toBeLessThan(saveIndex);
@@ -36,6 +38,14 @@ describe('K03 - Configuración submit validation integration RED contract', () =
 
   it('exposes field-level errors for UI rendering', () => {
     const { pageTs, themeHtml } = readConfiguracionSources();
+    const expectedFieldErrorTestIds = [
+      'config-field-error-phone',
+      'config-field-error-whatsapp',
+      'config-field-error-instagram',
+      'config-field-error-supportEmail',
+      'config-field-error-logoUrl',
+      'config-field-error-coverUrl'
+    ];
 
     expect(pageTs).toMatch(/fieldErrors\s*=\s*signal<Record<string,\s*string>>\(\{\}\)/);
     expect(pageTs).toMatch(/this\.fieldErrors\.set\(validation\.fieldErrors\)/);
@@ -43,6 +53,12 @@ describe('K03 - Configuración submit validation integration RED contract', () =
 
     expect(themeHtml).toMatch(/fieldErrors\(\)\./);
     expect(themeHtml).toMatch(/data-testid="config-field-error-/);
+
+    for (const testId of expectedFieldErrorTestIds) {
+      const fieldName = testId.replace('config-field-error-', '');
+      expect(themeHtml, `${fieldName} should render its own field error`).toContain(`fieldErrors().${fieldName}`);
+      expect(themeHtml, `${fieldName} should expose a stable field error test id`).toContain(`data-testid="${testId}"`);
+    }
   });
 
   it('keeps deterministic invalid-form UX contract for submit', () => {

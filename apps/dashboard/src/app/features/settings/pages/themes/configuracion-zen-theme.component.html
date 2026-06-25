@@ -66,8 +66,13 @@
               <i
                 class="ri-phone-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
               <input type="text" formControlName="phone" [class]="ui.input + ' pl-11'"
-                placeholder="Tu teléfono de contacto" />
+                placeholder="Tu teléfono de contacto"
+                [attr.aria-invalid]="fieldErrors().phone ? 'true' : null"
+                [attr.aria-describedby]="fieldErrors().phone ? 'config-field-error-phone' : null" />
             </div>
+            @if (fieldErrors().phone) {
+            <p id="config-field-error-phone" [class]="ui.fieldError" data-testid="config-field-error-phone" role="alert">{{ fieldErrors().phone }}</p>
+            }
           </div>
         </article>
 
@@ -85,8 +90,13 @@
                 <i
                   class="ri-whatsapp-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
                 <input type="text" formControlName="whatsapp" [class]="ui.input + ' pl-11'"
-                  placeholder="+54 9 11 ..." />
+                  placeholder="+54 9 11 ..."
+                  [attr.aria-invalid]="fieldErrors().whatsapp ? 'true' : null"
+                  [attr.aria-describedby]="fieldErrors().whatsapp ? 'config-field-error-whatsapp' : null" />
               </div>
+              @if (fieldErrors().whatsapp) {
+              <p id="config-field-error-whatsapp" [class]="ui.fieldError" data-testid="config-field-error-whatsapp" role="alert">{{ fieldErrors().whatsapp }}</p>
+              }
             </div>
             <div class="space-y-zen-sm">
               <label [class]="ui.labelMicro + ' text-secondary'">Instagram</label>
@@ -94,8 +104,13 @@
                 <i
                   class="ri-instagram-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
                 <input type="text" formControlName="instagram" [class]="ui.input + ' pl-11'"
-                  placeholder="@tu_negocio" />
+                  placeholder="@tu_negocio"
+                  [attr.aria-invalid]="fieldErrors().instagram ? 'true' : null"
+                  [attr.aria-describedby]="fieldErrors().instagram ? 'config-field-error-instagram' : null" />
               </div>
+              @if (fieldErrors().instagram) {
+              <p id="config-field-error-instagram" [class]="ui.fieldError" data-testid="config-field-error-instagram" role="alert">{{ fieldErrors().instagram }}</p>
+              }
             </div>
           </div>
 
@@ -105,8 +120,13 @@
               <i
                 class="ri-mail-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
               <input type="email" formControlName="supportEmail" [class]="ui.input + ' pl-11'"
-                placeholder="hola@tunegocio.com" />
+                placeholder="hola@tunegocio.com"
+                [attr.aria-invalid]="fieldErrors().supportEmail ? 'true' : null"
+                [attr.aria-describedby]="fieldErrors().supportEmail ? 'config-field-error-supportEmail' : null" />
             </div>
+            @if (fieldErrors().supportEmail) {
+            <p id="config-field-error-supportEmail" [class]="ui.fieldError" data-testid="config-field-error-supportEmail" role="alert">{{ fieldErrors().supportEmail }}</p>
+            }
           </div>
         </article>
 
@@ -209,6 +229,27 @@
           <div class="space-y-zen-sm">
             <label [class]="ui.labelMicro + ' text-secondary'">Tipo de negocio</label>
             <input type="text" formControlName="businessType" [class]="ui.input" placeholder="Ej: peluquería, uñas, spa" />
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">URL del logo</label>
+              <input type="url" formControlName="logoUrl" [class]="ui.input" placeholder="https://.../logo.png"
+                [attr.aria-invalid]="fieldErrors().logoUrl ? 'true' : null"
+                [attr.aria-describedby]="fieldErrors().logoUrl ? 'config-field-error-logoUrl' : null" />
+              @if (fieldErrors().logoUrl) {
+              <p id="config-field-error-logoUrl" [class]="ui.fieldError" data-testid="config-field-error-logoUrl" role="alert">{{ fieldErrors().logoUrl }}</p>
+              }
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">URL de portada</label>
+              <input type="url" formControlName="coverUrl" [class]="ui.input" placeholder="https://.../portada.jpg"
+                [attr.aria-invalid]="fieldErrors().coverUrl ? 'true' : null"
+                [attr.aria-describedby]="fieldErrors().coverUrl ? 'config-field-error-coverUrl' : null" />
+              @if (fieldErrors().coverUrl) {
+              <p id="config-field-error-coverUrl" [class]="ui.fieldError" data-testid="config-field-error-coverUrl" role="alert">{{ fieldErrors().coverUrl }}</p>
+              }
+            </div>
           </div>
 
           @if (hasMultipleBusinesses()) {
