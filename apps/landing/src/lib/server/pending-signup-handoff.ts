@@ -4,6 +4,7 @@ import { protectPendingSignupPii } from './pending-signup-pii-protection';
 
 const HANDOFF_COOKIE_NAMES = ['__Host-orvel_paid_signup_handoff', 'orvel_paid_signup_handoff'] as const;
 const HANDOFF_MAX_AGE_SECONDS = 30 * 60;
+const ALLOWED_BUSINESS_TYPES = new Set(['peluqueria', 'barberia', 'unas', 'estetica', 'spa', 'maquillaje', 'pestanas', 'cejas', 'masajes', 'otro']);
 
 type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
 type SignupPlan = 'STARTER' | 'GROWTH' | 'PRO';
@@ -16,6 +17,10 @@ type HandoffInput = {
   business_name: unknown;
   phone: unknown;
   business_type: unknown;
+  selected_business_types?: unknown;
+  selectedBusinessTypes?: unknown;
+  additionalRubros?: unknown;
+  rubros?: unknown;
   plan_code: unknown;
   billing_period: unknown;
 };
@@ -59,6 +64,22 @@ function cleanText(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.replace(/[\r\n\t]+/g, ' ').trim();
   return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function normalizeBusinessType(value: unknown): string | null {
+  const cleaned = cleanText(value, 80)?.toLowerCase();
+  const normalized = cleaned === 'uñas' ? 'unas' : cleaned === 'pestañas' ? 'pestanas' : cleaned;
+  return normalized && ALLOWED_BUSINESS_TYPES.has(normalized) ? normalized : null;
+}
+
+function normalizeSelectedBusinessTypes(input: HandoffInput, fallbackPrimary: string): string[] {
+  const candidate = input.selected_business_types ?? input.selectedBusinessTypes ?? input.rubros;
+  const rawValues = Array.isArray(candidate) ? candidate : [];
+  const additional = Array.isArray(input.additionalRubros) ? input.additionalRubros : [];
+  const selectedBusinessTypes = [...rawValues, ...additional]
+    .map((item) => normalizeBusinessType(item))
+    .filter((item): item is string => Boolean(item));
+  return [...new Set([fallbackPrimary, ...selectedBusinessTypes.filter((item) => item !== fallbackPrimary)])];
 }
 
 function normalizePlan(value: unknown): SignupPlan | null {
@@ -145,6 +166,7 @@ function buildSetCookie(request: Request, binding: string): string {
 function buildPendingSignupWritePayload(params: {
   protectedFields: Awaited<ReturnType<typeof protectPendingSignupPii>>;
   businessType: string;
+  selectedBusinessTypes: string[];
   planCode: SignupPlan;
   billingPeriod: BillingPeriod;
   pendingSignupReference: string;
@@ -154,7 +176,7 @@ function buildPendingSignupWritePayload(params: {
   return {
     ...params.protectedFields,
     business_type: params.businessType,
-    selected_business_types: [params.businessType],
+    selected_business_types: params.selectedBusinessTypes,
     plan_code: params.planCode,
     billing_period: params.billingPeriod,
     status: 'created',
@@ -210,8 +232,9 @@ export async function createPendingSignupHandoff(request: Request, input: Handof
   const email = cleanText(input.email, 320)?.toLowerCase();
   const planCode = normalizePlan(input.plan_code);
   const billingPeriod = normalizeBillingPeriod(input.billing_period);
-  const businessType = cleanText(input.business_type, 80)?.toLowerCase();
+  const businessType = normalizeBusinessType(input.business_type);
   if (!email || !planCode || !businessType) throw new Error('pending_signup_required_fields');
+  const selectedBusinessTypes = normalizeSelectedBusinessTypes(input, businessType);
 
   const supabaseAdmin = getSupabaseAdmin();
   const duplicateUser = await findAuthUserByEmail(supabaseAdmin, email);
@@ -243,6 +266,7 @@ export async function createPendingSignupHandoff(request: Request, input: Handof
   const payload = buildPendingSignupWritePayload({
     protectedFields,
     businessType,
+    selectedBusinessTypes,
     planCode,
     billingPeriod,
     pendingSignupReference,

@@ -61,18 +61,80 @@ import Layout from '../../../layouts/Layout.astro';
             <p id="error-negocioNombre" class="hidden text-error text-[10px] mt-1 ml-1 animate-in fade-in slide-in-from-top-1" role="alert"></p>
           </div>
 
-          <div class="group">
-            <label for="rubro" class="block text-[10px] uppercase tracking-[0.2em] text-text-secondary mb-2 ml-1">Rubro o categoría</label>
-            <select id="rubro" name="rubro" required aria-required="true" class="input" aria-describedby="error-rubro">
-              <option value="">Seleccioná el rubro de tu negocio</option>
-              <option value="peluqueria">Peluquería</option>
-              <option value="barberia">Barbería</option>
-              <option value="unas">Uñas</option>
-              <option value="estetica">Estética</option>
-              <option value="spa">Spa</option>
-              <option value="maquillaje">Maquillaje</option>
-              <option value="otro">Otro rubro de belleza</option>
-            </select>
+          <div class="group space-y-4">
+            <fieldset id="primary-rubro" aria-describedby="primary-rubro-help error-rubro" aria-required="true">
+              <legend class="block text-[10px] uppercase tracking-[0.2em] text-text-secondary mb-2 ml-1">Rubro principal *</legend>
+              <p id="primary-rubro-help" class="mb-3 text-[10px] leading-5 text-text-secondary/70 ml-1">
+                Elegí el rubro que mejor representa tu negocio. Lo usamos para configurar tu cuenta inicial.
+              </p>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="peluqueria" data-primary-rubro required />
+                  <span>Peluquería</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="barberia" required />
+                  <span>Barbería</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="unas" required />
+                  <span>Uñas</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="estetica" required />
+                  <span>Estética</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="spa" required />
+                  <span>Spa</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="maquillaje" required />
+                  <span>Maquillaje</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/70 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/50 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <input class="h-4 w-4 accent-primary" type="radio" name="primaryRubro" value="otro" required />
+                  <span>Otro rubro de belleza</span>
+                </label>
+              </div>
+            </fieldset>
+            <fieldset id="rubros" aria-describedby="additional-rubros-help error-rubro">
+              <legend class="block text-[10px] uppercase tracking-[0.2em] text-text-secondary mb-2 ml-1">Rubros adicionales</legend>
+              <p id="additional-rubros-help" class="mb-3 text-[10px] leading-5 text-text-secondary/70 ml-1">
+                Opcional. Sumá otros servicios que también ofrecés; no limita tu plan.
+              </p>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="peluqueria" />
+                  <span>Peluquería</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="barberia" />
+                  <span>Barbería</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="unas" />
+                  <span>Uñas</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="estetica" />
+                  <span>Estética</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="spa" />
+                  <span>Spa</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="maquillaje" />
+                  <span>Maquillaje</span>
+                </label>
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg-secondary/50 px-4 py-3 text-sm font-semibold text-text-primary transition hover:border-primary/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary/70 has-[:checked]:border-primary/70 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45">
+                  <input class="h-4 w-4 accent-primary" type="checkbox" name="rubros" value="otro" />
+                  <span>Otro rubro de belleza</span>
+                </label>
+              </div>
+            </fieldset>
+            <input id="rubro" name="rubro" type="hidden" required aria-required="true" />
             <p id="error-rubro" class="hidden text-error text-[10px] mt-1 ml-1 animate-in fade-in slide-in-from-top-1" role="alert"></p>
           </div>
 

@@ -60,6 +60,10 @@ export const POST: APIRoute = async ({ request }) => {
       phone: body?.phone,
       business_name: body?.business_name,
       business_type: body?.business_type,
+      selected_business_types: body?.selected_business_types,
+      selectedBusinessTypes: body?.selectedBusinessTypes,
+      additionalRubros: body?.additionalRubros,
+      rubros: body?.rubros,
       plan_code: body?.plan_code,
       billing_period: body?.billing_period,
     });
