@@ -35,8 +35,9 @@ describe('Turnos admin edit flow integration RED contract', () => {
     // TODO(Aurora): mantener ruta de edición estable al conectar acciones admin
     const routesSource = readRoutesSource();
 
+    expect(routesSource).toMatch(/export\s+const\s+dashboardShellChildren\s*:\s*Routes\s*=\s*\[/);
+    expect(routesSource).toMatch(/dashboardShellChildren[\s\S]*path:\s*'turnos\/edit\/:id'[\s\S]*TurnoFormPage/);
     expect(routesSource).toMatch(/path:\s*'dashboard'/);
-    expect(routesSource).toMatch(/children:\s*\[[\s\S]*path:\s*'turnos'/);
-    expect(routesSource).toMatch(/path:\s*'turnos\/edit\/:id'/);
+    expect(routesSource).toMatch(/path:\s*'dashboard'[\s\S]*children:\s*dashboardShellChildren/);
   });
 });

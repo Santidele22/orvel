@@ -166,11 +166,11 @@
           </div>
 
           <div class="pt-4">
-            <a routerLink="/dashboard/turnos/new" data-testid="turnos-admin-create-primary-action"
+            <button type="button" (click)="openAdminNewTurnoModal()" data-testid="turnos-admin-create-primary-action"
               class="w-full py-3 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
               <i class="ri-add-line text-lg"></i>
               Nuevo Turno
-            </a>
+            </button>
           </div>
 
           <div class="pt-2">
@@ -312,3 +312,7 @@
 
   }
 </section>
+
+@if (showNewTurnoModal()) {
+<app-turno-form presentation="modal" (cancelled)="closeAdminNewTurnoModal()" (saved)="handleAdminNewTurnoSaved()"></app-turno-form>
+}

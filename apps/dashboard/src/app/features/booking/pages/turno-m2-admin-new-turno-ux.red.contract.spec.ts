@@ -35,6 +35,14 @@ function methodBody(sourceText: string, methodName: string): string {
   return sourceText.slice(signatureStart);
 }
 
+function tagWithTestId(sourceText: string, testId: string): string {
+  return sourceText.match(new RegExp(`<[^>]+data-testid=["']${testId}["'][^>]*>`, 'i'))?.[0] ?? '';
+}
+
+function controlWithTestId(sourceText: string, testId: string): string {
+  return sourceText.match(new RegExp(`<(?:input|select|textarea)\\b(?=[^>]*data-testid=["']${testId}["'])[^>]*>`, 'i'))?.[0] ?? '';
+}
+
 describe('M2 real admin new turno UX RED contract', () => {
   it('resolves an internal default branch scope before admin availability/create when MVP branch UI is hidden', () => {
     const checkAvailabilityBody = methodBody(turnoFormSource, 'checkAvailability');
@@ -134,6 +142,62 @@ describe('M2 real admin new turno UX RED contract', () => {
     const hasRealModalFlow = /data-testid=["']turno-admin-new-modal["']|openAdminNewTurnoModal|openNewTurnoFlow/i.test(turnosListTemplate + turnosListSource);
 
     expect(hasNewRoute || hasRealModalFlow, 'M2 requires a real new-turno route or modal flow wired from the visible list action').toBe(true);
+  });
+
+  it('opens Nuevo Turno through a dark modal contract or renders the new form inside an equivalent modal shell', () => {
+    const listEntrypoint = tagWithTestId(turnosListTemplate, 'turnos-admin-create-primary-action');
+    const combinedNewTurnoUx = `${turnosListTemplate}\n${turnosListSource}\n${turnoFormTemplate}`;
+
+    expect(listEntrypoint, 'Nuevo Turno entrypoint must remain visible and deterministic').not.toBe('');
+    expect(listEntrypoint, 'Nuevo Turno should open a modal flow directly or navigate only to a route whose form renders as a modal shell').toMatch(
+      /openAdminNewTurnoModal|openNewTurnoFlow|routerLink=["']\/dashboard\/turnos\/new["']/i
+    );
+    expect(combinedNewTurnoUx, 'Nuevo Turno UX must expose a deterministic modal dialog root').toMatch(
+      /data-testid=["']turno-admin-new-modal["'][\s\S]{0,260}role=["']dialog["']|role=["']dialog["'][\s\S]{0,260}data-testid=["']turno-admin-new-modal["']/i
+    );
+    expect(combinedNewTurnoUx, 'Nuevo Turno modal must be an accessible modal, not a separate naked page').toMatch(/aria-modal=["']true["']/i);
+    expect(combinedNewTurnoUx, 'Nuevo Turno modal needs an overlay/backdrop matching Nuevo Cliente dark zen shell').toMatch(
+      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,180}(?:backdrop-blur|bg-black\/60|fixed inset-0)/i
+    );
+  });
+
+  it('matches Nuevo Cliente modal shell controls with deterministic shell, close, footer cancel, and submit selectors', () => {
+    const combinedNewTurnoUx = `${turnosListTemplate}\n${turnoFormTemplate}`;
+
+    expect(combinedNewTurnoUx, 'modal shell must have a stable selector for E2E/visual QA').toMatch(
+      /data-testid=["']turno-admin-new-modal-shell["']/i
+    );
+    expect(combinedNewTurnoUx, 'modal shell must use the same dark/zen visual logic as Nuevo Cliente').toMatch(
+      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,260}(?:bg-\[#151b2b\]|bg-bg-primary|rounded-\[32px\]|rounded-zen-card|shadow-2xl|border-white\/5)/i
+    );
+    expect(combinedNewTurnoUx, 'modal close button must be deterministic and explicit').toMatch(
+      /<button\b(?=[^>]*data-testid=["']turno-admin-new-modal-close["'])(?=[^>]*type=["']button["'])[^>]*>/i
+    );
+    expect(combinedNewTurnoUx, 'modal footer cancel action must be deterministic and explicit').toMatch(
+      /<(?:button|a)\b(?=[^>]*data-testid=["']turno-admin-new-modal-cancel["'])[^>]*>/i
+    );
+    expect(combinedNewTurnoUx, 'modal submit action must keep the existing deterministic create selector').toMatch(
+      /<button\b(?=[^>]*type=["']submit["'])(?=[^>]*data-testid=["']turno-admin-submit-action["'])[^>]*>/i
+    );
+  });
+
+  it('renders Nuevo Turno form fields as dark modal controls rather than default white browser inputs', () => {
+    const darkModalControlClass = /class=["'][^"']*(?:bg-\[#1a2236\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
+    const requiredDarkControls = [
+      'turno-admin-client-select',
+      'turno-admin-walk-in-name',
+      'turno-admin-service-select',
+      'turno-admin-date',
+      'turno-admin-available-slot-select',
+      'turno-admin-duration',
+      'turno-admin-notes'
+    ];
+
+    for (const testId of requiredDarkControls) {
+      const control = controlWithTestId(turnoFormTemplate, testId);
+      expect(control, `required modal field ${testId} must exist`).not.toBe('');
+      expect(control, `modal field ${testId} must carry explicit dark/zen control styling to avoid default white inputs`).toMatch(darkModalControlClass);
+    }
   });
 
   it('collects client or walk-in, service, date, backend slot, duration, and notes in the real new turno form', () => {
