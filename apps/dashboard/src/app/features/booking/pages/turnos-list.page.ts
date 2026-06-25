@@ -4,7 +4,7 @@
 import { Component, OnDestroy, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { TurnoService } from '../data-access/turno.service';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
@@ -19,6 +19,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { TurnoFormPage } from './turno-form.page';
 
 type BlockedTimeFormState = {
   date: string;
@@ -51,8 +52,8 @@ interface CalendarioEvento {
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
-    CalendarPickerComponent
+    CalendarPickerComponent,
+    TurnoFormPage
   ],
   templateUrl: './turnos-list.page.html',
   styleUrl: './turnos-list.page.scss'
@@ -95,6 +96,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   // Calendar state
   protected calendarioEventos = signal<CalendarioEvento[]>([]);
   protected showManualBookingPanel = signal(false);
+  protected showNewTurnoModal = signal(false);
   protected showBlockedTimePanel = signal(false);
   protected manualBookingSuccess = signal(false);
   protected blockedTimeCollision = signal(false);
@@ -170,6 +172,20 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected loadMore() {
     this.visibleLimit.update(limit => limit + 4);
+  }
+
+  protected openAdminNewTurnoModal() {
+    this.showNewTurnoModal.set(true);
+  }
+
+  protected closeAdminNewTurnoModal() {
+    this.showNewTurnoModal.set(false);
+  }
+
+  protected async handleAdminNewTurnoSaved() {
+    this.showNewTurnoModal.set(false);
+    this.manualBookingSuccess.set(true);
+    await this.refreshTurnosFromSource();
   }
 
   // Computed sorted by fecha descending

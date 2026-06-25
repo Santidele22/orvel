@@ -1,240 +1,51 @@
 <!-- Turno Form Page - US-002 -->
 <!-- Create or Edit Turno -->
 
+@if (presentation === 'modal') {
+<div data-testid="turno-admin-new-modal-overlay"
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-black/60 animate-in fade-in duration-300">
+  <button type="button" class="absolute inset-0 w-full h-full" aria-label="Cerrar modal de nuevo turno"
+    (click)="cancel()"></button>
+
+  <section data-testid="turno-admin-new-modal" role="dialog" aria-modal="true" aria-labelledby="turno-admin-new-modal-title"
+    class="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-[32px] bg-[#151b2b] border border-white/5 p-6 sm:p-8 shadow-2xl shadow-black/60 custom-scrollbar">
+    <div data-testid="turno-admin-new-modal-shell" class="rounded-[32px] bg-[#151b2b]">
+      <header class="mb-8 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-tertiary">Formulario</p>
+          <h2 id="turno-admin-new-modal-title" class="text-2xl font-bold tracking-tight text-white mt-1">
+            {{ isEdit() ? 'Editar Turno' : 'Nuevo Turno' }}
+          </h2>
+        </div>
+        <button type="button" data-testid="turno-admin-new-modal-close" aria-label="Cerrar modal de nuevo turno"
+          class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-text-tertiary hover:bg-white/10 hover:text-white transition-all duration-300"
+          (click)="cancel()">
+          <i class="ri-close-line text-lg" aria-hidden="true"></i>
+        </button>
+      </header>
+
+      <ng-container [ngTemplateOutlet]="turnoFormContent"></ng-container>
+    </div>
+  </section>
+</div>
+} @else {
 <section class="min-h-full flex flex-col">
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section">
     <div class="grid grid-cols-12 gap-zen-xxl">
       <main class="col-span-12 lg:col-span-8" data-layout-section="main_agenda">
         <div class="turno-form-container">
-          <!-- Header -->
           <header class="form-header">
-            <a routerLink="/dashboard/turnos" class="back-link">
+            <button type="button" class="back-link" (click)="cancel()">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
               Volver
-            </a>
+            </button>
             <h1>{{ isEdit() ? 'Editar' : 'Nuevo' }} Turno</h1>
           </header>
 
-          <!-- Loading -->
-          <!-- DB-FIX-002: Loading skeleton with data-testid selectors -->
-          @if (loading()) {
-          <div class="loading-state" data-testid="turno-form-loading-skeleton">
-            <div class="animate-pulse space-y-4 w-full">
-              <!-- DB-FIX-002:Skeleton fields -->
-              <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-              <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-              <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-              <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-            </div>
-            <p>Cargando...</p>
-          </div>
-          }
-
-          <!-- Form -->
-          @if (!loading()) {
-          <form class="turno-form" (ngSubmit)="save()">
-            @if (branchContext.branches().length > 1) {
-            <div class="form-group" aria-live="polite">
-              <label for="activeBranchSelector">Alcance operativo</label>
-              <select id="activeBranchSelector" data-testid="active-branch-selector" [ngModel]="branchContext.activeBranchId() ?? ''"
-                [disabled]="branchContext.branches().length <= 1" (ngModelChange)="onBranchSelectionChange($event)" name="activeBranchSelector" class="form-control">
-                <option value="">Elegí un alcance</option>
-                @for (branch of branchContext.branches(); track branch.id) {
-                <option [value]="branch.id">{{ branch.name }}</option>
-                }
-              </select>
-            </div>
-            }
-
-            <!-- Error Message -->
-            @if (error()) {
-            <div class="error-message">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              {{ error() }}
-            </div>
-            }
-
-            <!-- Cliente Selection -->
-            <div class="form-group">
-              <label for="cliente">Cliente *</label>
-              <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
-                (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente" class="form-control">
-                <option value="">Seleccionar cliente</option>
-                @for (cliente of clientes(); track cliente.id) {
-                <option [value]="cliente.id">
-                  {{ cliente.nombre }} {{ cliente.apellido }}
-                </option>
-                }
-              </select>
-            </div>
-
-            @if (!clienteId()) {
-            <div class="form-group">
-              <label for="walkInName">Nombre walk-in *</label>
-              <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name"
-                [ngModel]="walkInName()" (ngModelChange)="walkInName.set($event)" name="walkInName"
-                placeholder="Nombre de la persona" class="form-control" />
-            </div>
-            }
-
-            <!-- Servicio Selection -->
-            <div class="form-group">
-              <label for="servicio">Servicio *</label>
-              <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
-                (ngModelChange)="servicioId.set($event); onServicioChange()" name="servicio" required
-                class="form-control">
-                <option value="">Seleccionar servicio</option>
-                @for (servicio of servicios(); track servicio.id) {
-                <option [value]="servicio.id">
-                  {{ servicio.nombre }} - {{ formatCurrency(servicio.precio) }} ({{ servicio.duracionMinutos }} min)
-                </option>
-                }
-              </select>
-            </div>
-
-            <!-- Fecha y Hora Grid -->
-            <div class="form-row">
-              <!-- Fecha -->
-              <div class="form-group">
-                <label for="fecha">Fecha *</label>
-                <input type="date" id="fecha" data-testid="turno-admin-date" [ngModel]="fecha()" (ngModelChange)="fecha.set($event); onfechaChange()"
-                  name="fecha" required class="form-control" />
-
-                @if (isPastDate()) {
-                <span class="warning-text">No se puede agendar en el pasado</span>
-                }
-              </div>
-
-              <!-- Hora -->
-              <div class="form-group">
-                <label for="hora">Hora *</label>
-                <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()" (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora"
-                  required class="form-control" [disabled]="availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
-                  <option value="">Seleccionar hora</option>
-                  @for (horario of disponibles(); track horario) {
-                  <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
-                  }
-                </select>
-
-                @if (availabilityLoading()) {
-                <span class="help-text" data-testid="turno-admin-availability-loading" aria-live="polite">
-                  Consultando disponibilidad...
-                </span>
-                }
-
-                @if (availabilityError()) {
-                <span class="error-text" data-testid="turno-admin-availability-error" aria-live="polite">
-                  {{ availabilityError() }}
-                </span>
-                }
-
-                @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
-                <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">
-                  No hay horarios disponibles para esta fecha.
-                </span>
-                }
-
-                @if (conflictError()) {
-                <span class="error-text" data-testid="turno-slot-blocked-feedback" aria-live="polite">
-                  {{ conflictError() }}
-                </span>
-
-                @if (isEdit()) {
-                <span class="error-text" data-testid="turno-admin-reschedule-feedback" aria-live="polite">
-                  {{ conflictError() }}
-                </span>
-                }
-                }
-              </div>
-            </div>
-
-            <!-- Duration (auto from service, editable) -->
-            <div class="form-row">
-              <div class="form-group">
-                <label for="duracion">Duración (minutos)</label>
-                <input type="number" id="duracion" data-testid="turno-admin-duration" [ngModel]="duracionMinutos()"
-                  (ngModelChange)="duracionMinutos.set($event); resetAvailability('La disponibilidad cambió: elegí un horario disponible.'); checkAvailability()" name="duracion" min="15" step="15"
-                  class="form-control" />
-              </div>
-
-              <!-- Precio -->
-              <div class="form-group">
-                <label for="precio">Precio ($)</label>
-                <input type="number" id="precio" [ngModel]="precio()" (ngModelChange)="precio.set($event)" name="precio"
-                  min="0" step="100" class="form-control" />
-              </div>
-            </div>
-
-            <!-- Estado (only for editing) -->
-            @if (isEdit()) {
-            <div class="form-group">
-              <label for="estado">Estado</label>
-              <select id="estado" [ngModel]="estado()" (ngModelChange)="estado.set($event)" name="estado"
-                class="form-control">
-
-                <option value="confirmado">Confirmado</option>
-                <option value="en-proceso">En Proceso</option>
-                <option value="completado">Completado</option>
-                <option value="cancelado">Cancelado</option>
-                <option value="no-asistio">No Asistió</option>
-              </select>
-            </div>
-            }
-
-            <!-- Notas -->
-            <div class="form-group">
-              <label for="notas">Notas</label>
-              <textarea id="notas" data-testid="turno-admin-notes" [ngModel]="notas()" (ngModelChange)="notas.set($event)" name="notas" rows="3"
-                placeholder="Notas opcionales sobre el turno..." class="form-control"></textarea>
-            </div>
-
-            <!-- Available Slots Info -->
-            @if (!isEdit()) {
-            <div class="availability-info">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span>{{ disponibles().length }} horarios disponibles para esta fecha</span>
-            </div>
-            }
-
-            <!-- Actions -->
-            <div class="form-actions">
-              <a routerLink="/dashboard/turnos" class="btn-secondary">Cancelar</a>
-              @if (isEdit()) {
-              <button type="submit" data-testid="turno-admin-reschedule-submit" class="btn-primary"
-                [disabled]="!canSave()">
-                @if (saving()) {
-                <span class="spinner-sm"></span>
-                Guardando...
-                } @else {
-                Actualizar Turno
-                }
-              </button>
-              } @else {
-              <button type="submit" data-testid="turno-admin-submit-action" class="btn-primary"
-                [disabled]="!canSave()">
-                @if (saving()) {
-                <span class="spinner-sm"></span>
-                Guardando...
-                } @else {
-                Crear Turno
-                }
-              </button>
-              }
-            </div>
-          </form>
-          }
+          <ng-container [ngTemplateOutlet]="turnoFormContent"></ng-container>
         </div>
       </main>
 
@@ -247,3 +58,189 @@
     </div>
   </div>
 </section>
+}
+
+<ng-template #turnoFormContent>
+  @if (loading()) {
+  <div class="loading-state" data-testid="turno-form-loading-skeleton">
+    <div class="animate-pulse space-y-4 w-full">
+      <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+      <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+      <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+      <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+    </div>
+    <p>Cargando...</p>
+  </div>
+  }
+
+  @if (!loading()) {
+  <form class="turno-form" (ngSubmit)="save()">
+    @if (branchContext.branches().length > 1) {
+    <div class="form-group" aria-live="polite">
+      <label for="activeBranchSelector">Alcance operativo</label>
+      <select id="activeBranchSelector" data-testid="active-branch-selector" [ngModel]="branchContext.activeBranchId() ?? ''"
+        [disabled]="branchContext.branches().length <= 1" (ngModelChange)="onBranchSelectionChange($event)" name="activeBranchSelector"
+        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+        <option value="">Elegí un alcance</option>
+        @for (branch of branchContext.branches(); track branch.id) {
+        <option [value]="branch.id">{{ branch.name }}</option>
+        }
+      </select>
+    </div>
+    }
+
+    @if (error()) {
+    <div class="error-message">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      {{ error() }}
+    </div>
+    }
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="form-group">
+        <label for="cliente">Cliente *</label>
+        <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
+          (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente"
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+          <option value="">Seleccionar cliente</option>
+          @for (cliente of clientes(); track cliente.id) {
+          <option [value]="cliente.id">{{ cliente.nombre }} {{ cliente.apellido }}</option>
+          }
+        </select>
+      </div>
+
+      @if (!clienteId()) {
+      <div class="form-group">
+        <label for="walkInName">Nombre walk-in *</label>
+        <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name" [ngModel]="walkInName()"
+          (ngModelChange)="walkInName.set($event)" name="walkInName" placeholder="Nombre de la persona"
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+      </div>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="servicio">Servicio *</label>
+      <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
+        (ngModelChange)="servicioId.set($event); onServicioChange()" name="servicio" required
+        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+        <option value="">Seleccionar servicio</option>
+        @for (servicio of servicios(); track servicio.id) {
+        <option [value]="servicio.id">{{ servicio.nombre }} - {{ formatCurrency(servicio.precio) }} ({{ servicio.duracionMinutos }} min)</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="fecha">Fecha *</label>
+        <input type="date" id="fecha" data-testid="turno-admin-date" [ngModel]="fecha()"
+          (ngModelChange)="fecha.set($event); onfechaChange()" name="fecha" required
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+
+        @if (isPastDate()) {
+        <span class="warning-text">No se puede agendar en el pasado</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="hora">Hora *</label>
+        <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()"
+          (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora" required
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40"
+          [disabled]="availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
+          <option value="">Seleccionar hora</option>
+          @for (horario of disponibles(); track horario) {
+          <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
+          }
+        </select>
+
+        @if (availabilityLoading()) {
+        <span class="help-text" data-testid="turno-admin-availability-loading" aria-live="polite">Consultando disponibilidad...</span>
+        }
+
+        @if (availabilityError()) {
+        <span class="error-text" data-testid="turno-admin-availability-error" aria-live="polite">{{ availabilityError() }}</span>
+        }
+
+        @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
+        <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios disponibles para esta fecha.</span>
+        }
+
+        @if (conflictError()) {
+        <span class="error-text" data-testid="turno-slot-blocked-feedback" aria-live="polite">{{ conflictError() }}</span>
+        @if (isEdit()) {
+        <span class="error-text" data-testid="turno-admin-reschedule-feedback" aria-live="polite">{{ conflictError() }}</span>
+        }
+        }
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="duracion">Duración (minutos)</label>
+        <input type="number" id="duracion" data-testid="turno-admin-duration" [ngModel]="duracionMinutos()"
+          (ngModelChange)="duracionMinutos.set($event); resetAvailability('La disponibilidad cambió: elegí un horario disponible.'); checkAvailability()"
+          name="duracion" min="15" step="15"
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+      </div>
+
+      <div class="form-group">
+        <label for="precio">Precio ($)</label>
+        <input type="number" id="precio" data-testid="turno-admin-price" [ngModel]="precio()" (ngModelChange)="precio.set($event)"
+          name="precio" min="0" step="100"
+          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+      </div>
+    </div>
+
+    @if (isEdit()) {
+    <div class="form-group">
+      <label for="estado">Estado</label>
+      <select id="estado" [ngModel]="estado()" (ngModelChange)="estado.set($event)" name="estado"
+        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+        <option value="confirmado">Confirmado</option>
+        <option value="en-proceso">En Proceso</option>
+        <option value="completado">Completado</option>
+        <option value="cancelado">Cancelado</option>
+        <option value="no-asistio">No Asistió</option>
+      </select>
+    </div>
+    }
+
+    <div class="form-group">
+      <label for="notas">Notas</label>
+      <textarea id="notas" data-testid="turno-admin-notes" [ngModel]="notas()" (ngModelChange)="notas.set($event)"
+        name="notas" rows="3" placeholder="Notas opcionales sobre el turno..."
+        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40"></textarea>
+    </div>
+
+    @if (!isEdit()) {
+    <div class="availability-info">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      <span>{{ disponibles().length }} horarios disponibles para esta fecha</span>
+    </div>
+    }
+
+    <div class="form-actions">
+      <button type="button" data-testid="turno-admin-new-modal-cancel" class="btn-secondary" (click)="cancel()">Cancelar</button>
+      @if (isEdit()) {
+      <button type="submit" data-testid="turno-admin-reschedule-submit" class="btn-primary" [disabled]="!canSave()">
+        @if (saving()) { <span class="spinner-sm"></span> Guardando... } @else { Actualizar Turno }
+      </button>
+      } @else {
+      <button type="submit" data-testid="turno-admin-submit-action" class="btn-primary" [disabled]="!canSave()">
+        @if (saving()) { <span class="spinner-sm"></span> Guardando... } @else { Crear Turno }
+      </button>
+      }
+    </div>
+  </form>
+  }
+</ng-template>

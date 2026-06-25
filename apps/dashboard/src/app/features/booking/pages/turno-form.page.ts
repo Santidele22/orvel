@@ -1,10 +1,10 @@
 // Turno Form Page - US-002
 // Create/Edit Turno with conflict detection
 
-import { Component, OnInit, computed, signal, inject } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnInit, Output, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TurnoService } from '../data-access/turno.service';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
@@ -17,7 +17,7 @@ import { getBranchContextService } from '../../../core/branches/branch-context.s
 @Component({
   selector: 'app-turno-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './turno-form.page.html',
   styleUrl: './turno-form.page.scss'
 })
@@ -29,6 +29,10 @@ export class TurnoFormPage implements OnInit {
   protected branchContext = getBranchContextService();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+
+  @Input() presentation: 'page' | 'modal' = 'page';
+  @Output() cancelled = new EventEmitter<void>();
+  @Output() saved = new EventEmitter<void>();
 
   // State
   protected loading = signal<boolean>(false);
@@ -291,6 +295,11 @@ export class TurnoFormPage implements OnInit {
 
       this.resetAvailability();
 
+      if (this.presentation === 'modal') {
+        this.saved.emit();
+        return;
+      }
+
       this.router.navigate(['/dashboard/turnos']);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -305,6 +314,22 @@ export class TurnoFormPage implements OnInit {
         this.error.set('Error al guardar turno');
       }
       this.saving.set(false);
+    }
+  }
+
+  protected cancel() {
+    if (this.presentation === 'modal') {
+      this.cancelled.emit();
+      return;
+    }
+
+    this.router.navigate(['/dashboard/turnos']);
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscapeKey() {
+    if (this.presentation === 'modal') {
+      this.cancelled.emit();
     }
   }
 
