@@ -69,6 +69,15 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(zenTopbar).not.toMatch(/isDarkMode\s*\(/);
   });
 
+  it('ZenTopbar shows the authenticated user name instead of the generic Usuario fallback', async () => {
+    const zenTopbar = await source(ZEN_TOPBAR_TS);
+
+    expect(zenTopbar).toMatch(/userDisplayName\s*=\s*computed/);
+    expect(zenTopbar).toMatch(/businessFacade\.settings\(\)[\s\S]*firstName[\s\S]*lastName/);
+    expect(zenTopbar).toMatch(/authService\.user\(\)[\s\S]*nombre[\s\S]*apellido/);
+    expect(zenTopbar).not.toMatch(/['"]Usuario['"]/);
+  });
+
   it('ZenSidebar exposes a stable logout testid and routes the click through onLogout confirmation', async () => {
     const sidebarTs = await source(SIDEBAR_TS);
     const sidebarHtml = await source(SIDEBAR_HTML);

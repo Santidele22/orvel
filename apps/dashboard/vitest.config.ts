@@ -4,6 +4,8 @@ import type { UserConfig } from 'vitest/config';
 
 export default defineConfig((configEnv) => ({
   test: {
+    allowOnly: false,
+
     // Test environment
     environment: 'node',
     

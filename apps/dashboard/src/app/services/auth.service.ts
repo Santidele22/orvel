@@ -41,11 +41,12 @@ export class AuthService {
   private updateStateFromSession(session: SupabaseSession | null) {
     if (session && session.user) {
       const metadata = session.user.user_metadata || {};
+      const resolvedName = this.resolveUserName(metadata);
       const user: User = {
         id: session.user.id,
         email: session.user.email || '',
-        nombre: (metadata['nombre'] as string) || (metadata['full_name'] as string)?.split(' ')[0] || '',
-        apellido: (metadata['apellido'] as string) || (metadata['full_name'] as string)?.split(' ').slice(1).join(' ') || '',
+        nombre: resolvedName.firstName,
+        apellido: resolvedName.lastName,
         negocioNombre: metadata['negocioNombre'] as string || '',
         tipoNegocio: (metadata['tipoNegocio'] as TipoNegocio) || 'otro',
         telefono: metadata['telefono'] as string,
@@ -167,12 +168,13 @@ export class AuthService {
 // PRIVATE HELPERS
   private toAuthUser(session: SupabaseSession): AuthUser {
     const metadata = session.user.user_metadata || {};
+    const resolvedName = this.resolveUserName(metadata);
     return {
       user: {
         id: session.user.id,
         email: session.user.email || '',
-        nombre: (metadata['nombre'] as string) || (metadata['full_name'] as string)?.split(' ')[0] || '',
-        apellido: (metadata['apellido'] as string) || (metadata['full_name'] as string)?.split(' ').slice(1).join(' ') || '',
+        nombre: resolvedName.firstName,
+        apellido: resolvedName.lastName,
         negocioNombre: metadata['negocioNombre'] as string || '',
         tipoNegocio: (metadata['tipoNegocio'] as TipoNegocio) || 'otro',
         telefono: metadata['telefono'] as string,
@@ -182,6 +184,34 @@ export class AuthService {
       },
       token: session.access_token
     };
+  }
+
+  private resolveUserName(metadata: Record<string, unknown>): { firstName: string; lastName: string } {
+    const firstName = this.readStringMetadata(metadata, 'nombre', 'first_name', 'firstName', 'given_name');
+    const lastName = this.readStringMetadata(metadata, 'apellido', 'last_name', 'lastName', 'family_name');
+
+    if (firstName || lastName) {
+      return { firstName, lastName };
+    }
+
+    const fullName = this.readStringMetadata(metadata, 'full_name', 'fullName', 'name', 'display_name', 'displayName');
+    const [first, ...rest] = fullName.split(/\s+/).filter(Boolean);
+
+    return {
+      firstName: first ?? '',
+      lastName: rest.join(' ')
+    };
+  }
+
+  private readStringMetadata(metadata: Record<string, unknown>, ...keys: string[]): string {
+    for (const key of keys) {
+      const value = metadata[key];
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
   }
 
 }

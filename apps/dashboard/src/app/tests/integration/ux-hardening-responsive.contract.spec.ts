@@ -52,8 +52,9 @@ describe('UX hardening final: responsive/layout contracts (mock mode, RED)', () 
         'Desktop sidebar must be hidden below lg and visible at lg+ with stable Tailwind hooks.'
       ),
       ...missingWhen(
-        /app-dashboard-topbar[\s\S]*class=["'][^"']*(?:lg:hidden|hidden\s+lg:hidden)/.test(shellHtml),
-        'Mobile topbar must be visible below lg and hidden at lg+ from the shell host class.'
+        /app-dashboard-topbar[\s\S]*class=["'][^"']*\bz-40\b[^"']*\bshrink-0\b/.test(shellHtml) &&
+          !/app-dashboard-topbar[\s\S]*class=["'][^"']*(?:lg:hidden|hidden\s+lg:hidden|\bhidden\b)/.test(shellHtml),
+        'Topbar must remain visible at lg+ so desktop keeps the notifications/profile area.'
       ),
       ...missingWhen(
         /shellRoot:\s*['"][^'"]*(?:overflow-x-hidden|overflow-hidden)[^'"]*['"]/.test(structuralTokens),

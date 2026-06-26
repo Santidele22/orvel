@@ -82,12 +82,12 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
             (click)="toggleMenu()"
             class="flex items-center gap-3 p-1.5 bg-bg-primary rounded-2xl hover:shadow-2xl hover:shadow-black/20 transition-all active:scale-95 group shadow-xl">
              <div class="w-9 h-9 rounded-[14px] bg-primary/20 flex items-center justify-center text-primary font-bold text-sm overflow-hidden shadow-inner">
-                  {{ (authService.user()?.nombre?.charAt(0) || authService.user()?.email?.charAt(0) || 'U') | uppercase }}
-              </div>
-              <div class="hidden sm:flex flex-col items-start pr-2">
-                <span class="text-[11px] font-bold text-text-primary leading-none uppercase tracking-wide">{{ authService.user()?.nombre || 'Usuario' }} {{ authService.user()?.apellido || '' }}</span>
-                <span class="text-[9px] font-medium text-text-secondary uppercase tracking-[0.2em]">{{ businessName() }}</span>
-              </div>
+                   {{ userInitials() }}
+               </div>
+               <div class="hidden sm:flex flex-col items-start pr-2">
+                 <span class="text-[11px] font-bold text-text-primary leading-none uppercase tracking-wide">{{ userDisplayName() }}</span>
+                 <span class="text-[9px] font-medium text-text-secondary uppercase tracking-[0.2em]">{{ businessName() }}</span>
+               </div>
               <i class="ri-arrow-down-s-line text-text-secondary pr-1 group-hover:text-primary transition-colors" [class.rotate-180]="showUserMenu()"></i>
            </button>
 
@@ -96,11 +96,11 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
               class="absolute right-0 top-full mt-4 w-72 bg-bg-primary rounded-3xl shadow-2xl shadow-black/40 p-6 flex flex-col gap-1 animate-in zoom-in-95 slide-in-from-top-4 duration-300 origin-top-right overflow-hidden">
                  
                <div class="px-2 py-4 mb-2 flex items-center gap-4">
-                 <div class="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary text-xl font-bold shadow-inner">{{ (authService.user()?.nombre?.charAt(0) || 'U') + (authService.user()?.apellido?.charAt(0) || 'A') | uppercase }}</div>
-                 <div class="space-y-0.5">
-                  <h4 class="text-sm font-bold text-text-primary">{{ authService.user()?.nombre ? (authService.user()?.nombre + ' ' + (authService.user()?.apellido || '')) : 'Mi Perfil' }}</h4>
-                   <p class="text-[10px] font-medium text-text-secondary truncate w-32">{{ authService.user()?.email || 'Verificando...' }}</p>
-                 </div>
+                  <div class="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary text-xl font-bold shadow-inner">{{ userInitials() }}</div>
+                  <div class="space-y-0.5">
+                   <h4 class="text-sm font-bold text-text-primary">{{ userDisplayName() }}</h4>
+                    <p class="text-[10px] font-medium text-text-secondary truncate w-32">{{ authService.user()?.email || 'Verificando...' }}</p>
+                  </div>
                </div>
 
                  <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
@@ -142,6 +142,28 @@ export class ZenTopbarComponent {
 
   readonly businessName = computed(() => {
     return this.businessFacade.settings()?.businessName || this.authService.user()?.negocioNombre || 'Mi Negocio';
+  });
+
+  readonly userDisplayName = computed(() => {
+    const settings = this.businessFacade.settings();
+    const user = this.authService.user();
+    const fullName = this.joinName(settings?.firstName, settings?.lastName)
+      || this.joinName(user?.nombre, user?.apellido)
+      || this.emailLabel(user?.email);
+
+    return fullName || 'Mi perfil';
+  });
+
+  readonly userInitials = computed(() => {
+    const displayName = this.userDisplayName();
+    const initials = displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part.charAt(0))
+      .join('');
+
+    return (initials || this.authService.user()?.email?.charAt(0) || 'U').toUpperCase();
   });
 
   @Input() onLogout: () => void | Promise<void> = () => { this.authService.logout(); };
@@ -196,5 +218,17 @@ export class ZenTopbarComponent {
 
   toggleMenu() {
     this.showUserMenu.update(v => !v);
+  }
+
+  private joinName(firstName?: string, lastName?: string): string {
+    return [firstName, lastName]
+      .map(value => value?.trim())
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private emailLabel(email?: string): string {
+    const localPart = email?.split('@')[0]?.trim();
+    return localPart || '';
   }
 }
