@@ -6,7 +6,6 @@ import Footer from '../components/organisms/Footer.astro';
 type LegalSection = {
   title: string;
   body: string[];
-  review?: string;
 };
 
 const sections: LegalSection[] = [
@@ -15,8 +14,6 @@ const sections: LegalSection[] = [
     body: [
       'Orvel es el nombre del producto/servicio SaaS para gestión de turnos. El domicilio de contacto informado es Río Cuarto 597, Argentina. El correo de contacto es orvel2026@gmail.com. El servicio se ofrece desde Argentina.',
     ],
-    review:
-      'Revisión legal pendiente: completar razón social, CUIT, domicilio legal y datos fiscales del prestador del servicio.',
   },
   {
     title: '2. Aceptación',
@@ -60,8 +57,6 @@ const sections: LegalSection[] = [
       'Las personas titulares de datos pueden ejercer sus derechos de acceso, rectificación, actualización y supresión escribiendo a orvel2026@gmail.com.',
       'El backend de Orvel utiliza Supabase con región en Brasil, por lo que el tratamiento puede involucrar procesamiento transfronterizo de datos.',
     ],
-    review:
-      'Revisión legal pendiente: validar transferencias internacionales, roles de tratamiento, política de privacidad, registro ante AAIP y textos específicos de consentimiento/información.',
   },
   {
     title: '8. Advertencia sobre datos sensibles',
@@ -87,8 +82,6 @@ const sections: LegalSection[] = [
       'Los pagos, suscripciones, preaprobaciones, cancelaciones, soporte de cobro y eventuales devoluciones pueden depender de la disponibilidad, tiempos, políticas y herramientas de MercadoPago u otros proveedores de pago habilitados.',
       'Los precios, impuestos, promociones, descuentos y condiciones comerciales pueden variar según el plan, la fecha, el canal de contratación, la jurisdicción aplicable y la disponibilidad de promociones vigentes.',
     ],
-    review:
-      'Revisión comercial/legal pendiente: completar detalles de planes, facturación, impuestos, comprobantes, renovaciones, cancelaciones, reembolsos y condiciones específicas de MercadoPago subscriptions/preapproval.',
   },
   {
     title: '11. Uso aceptable',
@@ -136,8 +129,6 @@ const sections: LegalSection[] = [
       'Estos términos se rigen por las leyes de la República Argentina.',
       'Para cualquier controversia derivada de estos términos o del uso de Orvel, serán competentes los tribunales, organismos o autoridades que correspondan en la República Argentina, sin perjuicio de los derechos irrenunciables de consumidores y usuarios, las normas de orden público aplicables y los mecanismos de defensa del consumidor que pudieran corresponder.',
     ],
-    review:
-      'Revisión legal pendiente: validar jurisdicción competente, autoridades aplicables y redacción final de resolución de conflictos.',
   },
   {
     title: '18. Contacto',
@@ -181,12 +172,6 @@ const sections: LegalSection[] = [
             <div class="space-y-4 text-stone-300 leading-7 font-body">
               {section.body.map((paragraph) => <p>{paragraph}</p>)}
             </div>
-            {section.review && (
-              <aside class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100 leading-6">
-                <strong class="block text-amber-200 mb-1">Pendiente de revisión legal</strong>
-                {section.review}
-              </aside>
-            )}
           </section>
         ))}
       </div>
