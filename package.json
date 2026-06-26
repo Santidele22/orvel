@@ -41,5 +41,8 @@
   "workspaces": [
     "apps/landing",
     "apps/dashboard"
-  ]
+  ],
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
 }

@@ -200,6 +200,19 @@ describe('dashboard auth onboarding contract', () => {
     );
   });
 
+  it('dashboardAuthGuard preserves /dashboard returnTo when Angular runs under /dashboard base href', async () => {
+    supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    window.location.pathname = '/dashboard/inicio';
+
+    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const result = await dashboardAuthGuard({} as never, { url: '/inicio' } as never);
+
+    expect(result).toBe(false);
+    expect(window.location.assign).toHaveBeenCalledWith(
+      'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Finicio'
+    );
+  });
+
   it('keeps /auth/onboarding as a dashboard compatibility redirect, not the real onboarding UI route', async () => {
     const routesSource = await readFile(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 
