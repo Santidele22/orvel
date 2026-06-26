@@ -21,13 +21,13 @@ const { plansWithBilling } = Astro.props;
 import PlanCard from '../molecules/PlanCard.astro';
 ---
 
-<section class="relative overflow-hidden py-24 md:py-32 bg-bg-primary" id="pricing">
+<section class="relative overflow-hidden landing-section bg-bg-primary" id="pricing">
   <div class="absolute inset-x-0 top-24 mx-auto h-72 w-72 rounded-full bg-primary/10 blur-[110px] pointer-events-none"></div>
-  <div class="max-w-7xl mx-auto px-8 md:px-12 relative z-10">
-    <div class="text-center mb-12">
-      <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary mb-4 shadow-sm">Precios claros</div>
-      <h2 class="text-4xl md:text-5xl font-headline font-bold tracking-tighter text-text-primary mb-4">Llená tu agenda sin esfuerzo</h2>
-      <p class="text-lg text-text-primary/70 max-w-3xl mx-auto">Más turnos, menos cancelaciones. Elegí el plan que acompaña tu crecimiento. Todos los planes incluyen 1 local.</p>
+  <div class="landing-container relative z-10">
+    <div class="text-center mb-12 md:mb-14">
+      <div class="landing-eyebrow border border-primary/20 bg-primary/5 text-primary mb-4 shadow-sm">Precios claros</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4">Llená tu agenda sin esfuerzo</h2>
+      <p class="landing-lead text-text-secondary mx-auto">Más turnos, menos cancelaciones. Elegí el plan que acompaña tu crecimiento. Todos los planes incluyen 1 local.</p>
     </div>
 
     <!-- Billing Toggle -->
@@ -39,7 +39,7 @@ import PlanCard from '../molecules/PlanCard.astro';
       </div>
     </div>
     
-    <div class="flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-6">
+    <div class="flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-5 lg:gap-6">
       {plansWithBilling.map((plan) => (
         <PlanCard plan={plan} />
       ))}

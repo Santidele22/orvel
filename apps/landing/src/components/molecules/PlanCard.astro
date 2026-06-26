@@ -40,7 +40,7 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
 
 <CardContainer
   href={cardHref}
-  class={`plan-card p-6 rounded-xl bg-bg-primary border border-border flex flex-col hover:-translate-y-2 hover:border-primary/50 hover:shadow-xl transition-all duration-300 group cursor-pointer w-full md:w-[320px] shrink-0 ${plan.is_featured ? 'ring-2 ring-primary relative z-10' : ''}`}
+  class={`plan-card p-6 rounded-2xl bg-bg-primary border border-border flex flex-col hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl transition-all duration-300 group cursor-pointer w-full md:w-[320px] shrink-0 ${plan.is_featured ? 'ring-2 ring-primary relative z-10' : ''}`}
   data-plan-code={plan.code}
 >
   {plan.is_featured && (
@@ -74,7 +74,7 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     </p>
   </div>
   
-  <ul class="mb-6 space-y-3 text-text-primary text-xs flex-grow border-t border-border/50 pt-4">
+  <ul class="mb-6 space-y-3 text-text-primary/90 text-xs leading-relaxed flex-grow border-t border-border/50 pt-4">
     {isFree && (
       <>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> 1 agenda</li>

@@ -1,7 +1,8 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
 import { Observable, from, throwError, map, tap } from 'rxjs';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../core/api/supabase-booking/public-booking-slug';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
@@ -22,6 +23,7 @@ export type ApiResponse<T> = {
 type ActiveBusinessContext = {
   businessId: string;
   ownerId: string;
+  slug?: string;
 };
 
 export class BusinessSettingsPersistenceError extends Error {
@@ -68,10 +70,7 @@ export class BusinessService {
   private initSupabase() {
     const env = loadDashboardRuntimeEnv();
     if (env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      this.supabaseClient = createClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      );
+      this.supabaseClient = createDashboardSupabaseClient({ env });
     }
   }
 
@@ -151,6 +150,7 @@ export class BusinessService {
 
     const context = await this.resolveActiveBusinessContext(businessId);
     const resolvedBusinessId = context.businessId;
+    const resolvedSlug = context.slug ?? this.currentSettings()?.slug;
 
     // Update businesses table
     if (settings.businessName) {
@@ -173,6 +173,7 @@ export class BusinessService {
       .upsert({
         business_id: resolvedBusinessId,
         business_name: settings.businessName,
+        slug: resolvedSlug,
         support_email: settings.supportEmail,
         buffer_minutes: settings.bufferMinutes,
         min_notice_minutes: settings.minNoticeMinutes,
@@ -230,7 +231,7 @@ export class BusinessService {
 
     const { data: ownedBusinesses, error } = await this.supabaseClient
       .from('businesses')
-      .select('id, owner_id')
+      .select('id, owner_id, slug')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: true });
 
@@ -238,7 +239,7 @@ export class BusinessService {
       throw new BusinessSettingsPersistenceError('No se pudo resolver el negocio activo.', 'BUSINESS_NOT_FOUND');
     }
 
-    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string }>;
+    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string; slug?: string }>;
     const resolved = businesses.find(business => business.id === preferredBusinessId)
       ?? businesses.find(business => business.id === candidateBusinessOrUserId)
       ?? businesses[0];
@@ -250,7 +251,7 @@ export class BusinessService {
     this.activeBusinessId.set(resolved.id);
     localStorage.setItem('orvel.active_business_id', resolved.id);
 
-    return { businessId: resolved.id, ownerId };
+    return { businessId: resolved.id, ownerId, slug: resolved.slug };
   }
 
   getDefaultWorkingHours(): Record<WeekdayKey, WorkingDayHours> {

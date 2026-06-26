@@ -108,72 +108,73 @@
   </div>
 
   @if (showModal()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-xl bg-black/60 animate-in fade-in duration-300">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
       <button
         type="button"
+        aria-label="Cerrar modal de clientes"
         class="absolute inset-0 w-full h-full"
         data-testid="clientes-modal-overlay"
         (click)="closeModal()"
       ></button>
       <div
-        class="relative w-full max-w-md rounded-[32px] bg-[#151b2b] border border-white/5 p-10 shadow-2xl shadow-black/60"
+        class="relative w-full max-w-lg rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
         role="dialog"
         aria-modal="true"
         aria-label="Clientes modal"
       >
         <!-- Header -->
-        <div class="mb-8 flex items-center justify-between">
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-tertiary">Formulario</p>
-            <h3 class="text-2xl font-bold tracking-tight text-white mt-1">{{ editingClientId() ? 'Editar Cliente' : 'Nuevo Cliente' }}</h3>
+        <div class="mb-7 flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Formulario</p>
+            <h3 class="text-2xl font-semibold tracking-tight text-white">{{ editingClientId() ? 'Editar Cliente' : 'Nuevo Cliente' }}</h3>
           </div>
           <button type="button" data-testid="clientes-modal-close"
-            class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 text-text-tertiary hover:bg-white/10 hover:text-white transition-all duration-300"
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-text-tertiary transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             (click)="closeModal()">
             <i class="ri-close-line text-lg"></i>
           </button>
         </div>
 
         <form [formGroup]="clientForm" data-testid="client-form" (ngSubmit)="onSubmit()" class="space-y-5">
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="space-y-2">
-              <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Nombre</label>
-              <input formControlName="nombre"
-                class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+              <label for="client-nombre" class="ml-1 block text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Nombre</label>
+              <input id="client-nombre" formControlName="nombre"
+                class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 placeholder:text-text-secondary focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50"
                 placeholder="Ej. María" />
             </div>
             <div class="space-y-2">
-              <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Apellido</label>
-              <input formControlName="apellido"
-                class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+              <label for="client-apellido" class="ml-1 block text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Apellido</label>
+              <input id="client-apellido" formControlName="apellido"
+                class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 placeholder:text-text-secondary focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50"
                 placeholder="Ej. García" />
             </div>
           </div>
 
           <div class="space-y-2">
-            <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Teléfono</label>
-            <input formControlName="telefono"
-              class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+            <label for="client-telefono" class="ml-1 block text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Teléfono</label>
+            <input id="client-telefono" formControlName="telefono"
+              class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 placeholder:text-text-secondary focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50"
               placeholder="+54 11 ..." />
           </div>
 
           <div class="space-y-2">
-            <label class="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary block ml-1">Email (Opcional)</label>
-            <input formControlName="email"
-              class="h-12 w-full rounded-xl bg-[#1a2236] border border-white/10 px-4 text-sm font-medium text-white placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40 shadow-inner outline-none transition-all duration-300"
+            <label for="client-email" class="ml-1 block text-[11px] font-semibold uppercase tracking-wider text-text-secondary">Email (Opcional)</label>
+            <input id="client-email" formControlName="email"
+              class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 placeholder:text-text-secondary focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50"
               placeholder="maria@email.com" />
           </div>
 
           @if (formMessage()) {
-            <p class="text-xs font-medium text-error text-center px-2">{{ formMessage() }}</p>
+            <p class="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-center text-xs font-medium text-error" role="alert">{{ formMessage() }}</p>
           }
 
-          <div class="flex justify-center gap-4 pt-5">
+          <div class="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
             <button type="button" data-testid="clientes-modal-cancel"
-              class="h-11 px-7 rounded-full bg-transparent border border-white/10 text-sm font-medium text-text-secondary hover:bg-white/5 hover:text-white transition-all duration-300"
+              class="h-11 rounded-xl border border-white/10 bg-transparent px-6 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
               (click)="closeModal()">Borrar</button>
             <button type="submit" data-testid="client-form-submit"
-              class="h-11 px-10 rounded-full bg-primary text-white font-semibold text-sm shadow-lg shadow-primary/30 hover:bg-primary-hover hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
+              class="h-11 rounded-xl bg-primary px-7 text-sm font-semibold text-white shadow-sm shadow-primary/25 transition-colors duration-200 hover:bg-primary-hover active:bg-[#5B21B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]">
               {{ editingClientId() ? 'Guardar cambios' : 'Crear cliente' }}
             </button>
           </div>

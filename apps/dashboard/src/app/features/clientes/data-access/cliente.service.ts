@@ -3,9 +3,10 @@
 
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, of, from, delay, tap, throwError, switchMap, catchError } from 'rxjs';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { Cliente, CreateClienteDTO, UpdateClienteDTO } from '../../../models/cliente.model';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 
@@ -29,10 +30,7 @@ export class ClienteService {
     try {
       if (!this.supabaseClient) {
         const env = loadDashboardRuntimeEnv();
-        this.supabaseClient = createClient(
-          env.NEXT_PUBLIC_SUPABASE_URL,
-          env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
+        this.supabaseClient = createDashboardSupabaseClient({ env });
       }
       return this.supabaseClient;
     } catch (error) {

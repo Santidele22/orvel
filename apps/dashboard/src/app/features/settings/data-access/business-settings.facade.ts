@@ -1,6 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { AuthService } from '../../../services/auth.service';
 import { isAllowedOnboardingBusinessType } from '../../onboarding/data-access/business-type-defaults';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
@@ -553,7 +554,7 @@ export class BusinessSettingsFacade {
     try {
       if (!this.supabaseClient) {
         const env = loadDashboardRuntimeEnv();
-        this.supabaseClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+        this.supabaseClient = createDashboardSupabaseClient({ env });
       }
       return this.supabaseClient;
     } catch {

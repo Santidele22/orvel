@@ -11,16 +11,7 @@ import { WeekdayKey } from '../../../models/business.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './dashboard-home.page.html',
-  styles: [`
-    :host { display: block; }
-    .animate-bounce-subtle {
-      animation: bounce-subtle 2s infinite;
-    }
-    @keyframes bounce-subtle {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
-    }
-  `]
+  styles: [':host { display: block; }']
 })
 export class DashboardHomeComponent {
   protected readonly dashboardService = inject(DashboardService);

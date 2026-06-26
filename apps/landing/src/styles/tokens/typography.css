@@ -4,14 +4,14 @@
   --font-body: "Onest Variable", Onest, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-label: "Onest Variable", Onest, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* Typography Scale */
-  --text-caption: 12px;
-  --text-body: 14px;
-  --text-body-lg: 16px;
-  --text-h3: 18px;
-  --text-h3-lg: 20px;
-  --text-h2: 24px;
-  --text-h2-lg: 28px;
-  --text-h1: 32px;
-  --text-h1-lg: 36px;
+  /* Landing typography scale */
+  --text-caption: 0.75rem;
+  --text-label: 0.8125rem;
+  --text-body: 0.875rem;
+  --text-body-lg: 1rem;
+  --text-lead: clamp(1rem, 0.94rem + 0.3vw, 1.125rem);
+  --text-card-title: clamp(1.125rem, 1.06rem + 0.35vw, 1.375rem);
+  --text-section-title: clamp(2.25rem, 1.82rem + 1.8vw, 3.25rem);
+  --text-hero-title: clamp(3.25rem, 2.24rem + 4.35vw, 5.75rem);
+  --text-display: clamp(2.75rem, 2.2rem + 2.35vw, 4rem);
 }
