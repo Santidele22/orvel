@@ -36,17 +36,17 @@ const faqs = [
 ];
 ---
 
-<section class="py-24 bg-bg-primary relative overflow-hidden" id="faq">
+<section class="landing-section bg-bg-primary relative overflow-hidden" id="faq">
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-bg-primary to-bg-primary pointer-events-none"></div>
   
-  <div class="max-w-4xl mx-auto px-8 md:px-12 relative z-10">
-    <div class="text-center mb-16 reveal">
-      <div class="inline-block px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-[10px] font-bold tracking-widest uppercase text-primary mb-4 shadow-sm">Dudas Frecuentes</div>
-      <h2 class="text-4xl md:text-5xl font-headline font-bold tracking-tighter text-text-primary mb-4">Todo lo que necesitás saber</h2>
-      <p class="text-text-secondary font-body max-w-2xl mx-auto">Respuestas claras a las preguntas más comunes sobre cómo Orvel puede transformar la gestión de tu negocio.</p>
+  <div class="landing-container max-w-4xl relative z-10">
+    <div class="text-center landing-section-header reveal">
+      <div class="landing-eyebrow border border-primary/20 bg-primary/5 text-primary mb-4 shadow-sm">Dudas Frecuentes</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4">Todo lo que necesitás saber</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto">Respuestas claras a las preguntas más comunes sobre cómo Orvel puede transformar la gestión de tu negocio.</p>
     </div>
 
-    <div class="space-y-4">
+    <div class="space-y-3 md:space-y-4">
       {faqs.map((faq, index) => (
         <div class="faq-item bg-bg-secondary rounded-2xl border border-border overflow-hidden reveal" style={`transition-delay: ${index * 50}ms`}>
           <button type="button" class="faq-button w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-white/[0.02]" aria-expanded="false" aria-controls={`faq-content-${index}`}>

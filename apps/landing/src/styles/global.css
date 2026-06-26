@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "./theme/index.css";
 
+:root {
+  --landing-gutter: clamp(1.5rem, 1rem + 2vw, 3rem);
+  --landing-section-y: clamp(5rem, 4rem + 4vw, 7rem);
+  --landing-section-y-compact: clamp(4rem, 3.25rem + 3vw, 5.5rem);
+  --landing-stack: clamp(3rem, 2.5rem + 2vw, 4rem);
+  --landing-measure: 42rem;
+}
+
 html {
   font-family: var(--font-sans);
   font-synthesis-weight: none;
@@ -26,6 +34,58 @@ body {
 
 :where(label, .font-label) {
   font-family: var(--font-label);
+}
+
+@layer components {
+  .landing-container {
+    width: min(100% - (var(--landing-gutter) * 2), 80rem);
+    margin-inline: auto;
+  }
+
+  .landing-section {
+    padding-block: var(--landing-section-y);
+  }
+
+  .landing-section-compact {
+    padding-block: var(--landing-section-y-compact);
+  }
+
+  .landing-section-header {
+    margin-bottom: var(--landing-stack);
+  }
+
+  .landing-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-family: var(--font-label);
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .landing-title {
+    font-size: var(--text-section-title);
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+
+  .landing-lead {
+    max-width: var(--landing-measure);
+    font-size: var(--text-lead);
+    line-height: 1.7;
+  }
+
+  .landing-card {
+    border-radius: 1.5rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+  }
 }
 
 .material-symbols-outlined {
