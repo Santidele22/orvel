@@ -164,4 +164,13 @@ describe('Sprint 2 RED - Business Settings form contract', () => {
       `BusinessService.saveToSupabase must not send unknown business_settings columns; build a schema-backed payload instead. Unknown columns: ${unknownColumns.join(', ')}`
     ).toEqual([]);
   });
+
+  it('includes the business slug when saving business_settings', () => {
+    const payloadColumns = extractBusinessSettingsUpsertPayloadColumns(readBusinessServiceSource());
+
+    expect(
+      payloadColumns,
+      'BusinessService.saveToSupabase must preserve business_settings.slug because production requires it for the public booking identity.'
+    ).toContain('slug');
+  });
 });

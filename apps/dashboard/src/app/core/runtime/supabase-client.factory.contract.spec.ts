@@ -1,6 +1,7 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createDashboardSupabaseClient } from './supabase-client.factory';
 import type { DashboardRuntimeEnv } from './dashboard-env';
+import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '../auth/supabase-config';
 
 type RpcResult = {
   data: unknown;
@@ -35,5 +36,30 @@ describe('createDashboardSupabaseClient contract', () => {
     const client = createDashboardSupabaseClient<RpcOnlyClient>(dashboardFactoryInput);
 
     expectTypeOf(client.rpc).toBeFunction();
+  });
+
+  it('uses the same auth storage key as AuthService-created Supabase clients', () => {
+    const env: DashboardRuntimeEnv = {
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key'
+    };
+
+    let observedOptions: unknown;
+
+    createDashboardSupabaseClient({
+      env,
+      createClient: (_url, _anonKey, options) => {
+        observedOptions = options;
+        return { rpc: async () => ({ data: null, error: null }) };
+      }
+    });
+
+    expect(observedOptions).toMatchObject({
+      auth: {
+        storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
+        persistSession: true,
+        detectSessionInUrl: false
+      }
+    });
   });
 });
