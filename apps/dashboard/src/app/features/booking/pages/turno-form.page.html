@@ -24,7 +24,9 @@
         </button>
       </header>
 
-      <ng-container [ngTemplateOutlet]="turnoFormContent"></ng-container>
+      <div data-testid="turno-admin-new-modal-content" class="contents">
+        <ng-container [ngTemplateOutlet]="turnoFormContent"></ng-container>
+      </div>
     </div>
   </section>
 </div>
@@ -74,13 +76,13 @@
   }
 
   @if (!loading()) {
-  <form class="turno-form" (ngSubmit)="save()">
+  <form data-testid="turno-admin-new-modal-form" class="turno-form grid gap-6 sm:gap-8" (ngSubmit)="save()">
     @if (branchContext.branches().length > 1) {
     <div class="form-group" aria-live="polite">
       <label for="activeBranchSelector">Alcance operativo</label>
       <select id="activeBranchSelector" data-testid="active-branch-selector" [ngModel]="branchContext.activeBranchId() ?? ''"
         [disabled]="branchContext.branches().length <= 1" (ngModelChange)="onBranchSelectionChange($event)" name="activeBranchSelector"
-        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+        class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
         <option value="">Elegí un alcance</option>
         @for (branch of branchContext.branches(); track branch.id) {
         <option [value]="branch.id">{{ branch.name }}</option>
@@ -101,108 +103,124 @@
     </div>
     }
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="form-group">
-        <label for="cliente">Cliente *</label>
-        <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
-          (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente"
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
-          <option value="">Seleccionar cliente</option>
-          @for (cliente of clientes(); track cliente.id) {
-          <option [value]="cliente.id">{{ cliente.nombre }} {{ cliente.apellido }}</option>
+    <div data-testid="turno-admin-new-modal-body" class="grid gap-6">
+      <section data-testid="turno-admin-new-modal-section-client" class="rounded-2xl border border-white/5 bg-white/[0.03] p-4 sm:p-5 space-y-4">
+        <div>
+          <p class="text-sm font-semibold text-white">Cliente y servicio</p>
+          <p class="mt-1 text-xs text-text-tertiary">Elegí una ficha existente o cargá una atención sin ficha.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="cliente">Cliente *</label>
+            <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
+              (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente"
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+              <option value="">Seleccionar cliente</option>
+              @for (cliente of clientes(); track cliente.id) {
+              <option [value]="cliente.id">{{ cliente.nombre }} {{ cliente.apellido }}</option>
+              }
+            </select>
+          </div>
+
+          @if (!clienteId()) {
+          <div class="form-group">
+            <label for="walkInName">Nombre walk-in *</label>
+            <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name" [ngModel]="walkInName()"
+              (ngModelChange)="walkInName.set($event)" name="walkInName" placeholder="Nombre de la persona"
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+          </div>
           }
-        </select>
-      </div>
+        </div>
 
-      @if (!clienteId()) {
-      <div class="form-group">
-        <label for="walkInName">Nombre walk-in *</label>
-        <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name" [ngModel]="walkInName()"
-          (ngModelChange)="walkInName.set($event)" name="walkInName" placeholder="Nombre de la persona"
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
-      </div>
-      }
-    </div>
+        <div class="form-group">
+          <label for="servicio">Servicio *</label>
+          <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
+            (ngModelChange)="servicioId.set($event); onServicioChange()" name="servicio" required
+            class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+            <option value="">Seleccionar servicio</option>
+            @for (servicio of servicios(); track servicio.id) {
+            <option [value]="servicio.id">{{ servicio.nombre }} - {{ formatCurrency(servicio.precio) }} ({{ servicio.duracionMinutos }} min)</option>
+            }
+          </select>
+        </div>
+      </section>
 
-    <div class="form-group">
-      <label for="servicio">Servicio *</label>
-      <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
-        (ngModelChange)="servicioId.set($event); onServicioChange()" name="servicio" required
-        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
-        <option value="">Seleccionar servicio</option>
-        @for (servicio of servicios(); track servicio.id) {
-        <option [value]="servicio.id">{{ servicio.nombre }} - {{ formatCurrency(servicio.precio) }} ({{ servicio.duracionMinutos }} min)</option>
-        }
-      </select>
-    </div>
+      <section data-testid="turno-admin-new-modal-section-schedule" class="rounded-2xl border border-white/5 bg-white/[0.03] p-4 sm:p-5 space-y-4">
+        <div>
+          <p class="text-sm font-semibold text-white">Agenda</p>
+          <p class="mt-1 text-xs text-text-tertiary">Los horarios salen de disponibilidad real para evitar superposiciones.</p>
+        </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label for="fecha">Fecha *</label>
-        <input type="date" id="fecha" data-testid="turno-admin-date" [ngModel]="fecha()"
-          (ngModelChange)="fecha.set($event); onfechaChange()" name="fecha" required
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="fecha">Fecha *</label>
+            <input type="date" id="fecha" data-testid="turno-admin-date" [ngModel]="fecha()"
+              (ngModelChange)="fecha.set($event); onfechaChange()" name="fecha" required
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
 
-        @if (isPastDate()) {
-        <span class="warning-text">No se puede agendar en el pasado</span>
-        }
-      </div>
+            @if (isPastDate()) {
+            <span class="warning-text">No se puede agendar en el pasado</span>
+            }
+          </div>
 
-      <div class="form-group">
-        <label for="hora">Hora *</label>
-        <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()"
-          (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora" required
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40"
-          [disabled]="availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
-          <option value="">Seleccionar hora</option>
-          @for (horario of disponibles(); track horario) {
-          <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
-          }
-        </select>
+          <div class="form-group">
+            <label for="hora">Hora *</label>
+            <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()"
+              (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora" required
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40"
+              [disabled]="availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
+              <option value="">Seleccionar hora</option>
+              @for (horario of disponibles(); track horario) {
+              <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
+              }
+            </select>
 
-        @if (availabilityLoading()) {
-        <span class="help-text" data-testid="turno-admin-availability-loading" aria-live="polite">Consultando disponibilidad...</span>
-        }
+            @if (availabilityLoading()) {
+            <span class="help-text" data-testid="turno-admin-availability-loading" aria-live="polite">Consultando disponibilidad...</span>
+            }
 
-        @if (availabilityError()) {
-        <span class="error-text" data-testid="turno-admin-availability-error" aria-live="polite">{{ availabilityError() }}</span>
-        }
+            @if (availabilityError()) {
+            <span class="error-text" data-testid="turno-admin-availability-error" aria-live="polite">{{ availabilityError() }}</span>
+            }
 
-        @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
-        <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios disponibles para esta fecha.</span>
-        }
+            @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
+            <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios disponibles para esta fecha.</span>
+            }
 
-        @if (conflictError()) {
-        <span class="error-text" data-testid="turno-slot-blocked-feedback" aria-live="polite">{{ conflictError() }}</span>
-        @if (isEdit()) {
-        <span class="error-text" data-testid="turno-admin-reschedule-feedback" aria-live="polite">{{ conflictError() }}</span>
-        }
-        }
-      </div>
-    </div>
+            @if (conflictError()) {
+            <span class="error-text" data-testid="turno-slot-blocked-feedback" aria-live="polite">{{ conflictError() }}</span>
+            @if (isEdit()) {
+            <span class="error-text" data-testid="turno-admin-reschedule-feedback" aria-live="polite">{{ conflictError() }}</span>
+            }
+            }
+          </div>
+        </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label for="duracion">Duración (minutos)</label>
-        <input type="number" id="duracion" data-testid="turno-admin-duration" [ngModel]="duracionMinutos()"
-          (ngModelChange)="duracionMinutos.set($event); resetAvailability('La disponibilidad cambió: elegí un horario disponible.'); checkAvailability()"
-          name="duracion" min="15" step="15"
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
-      </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="duracion">Duración (minutos)</label>
+            <input type="number" id="duracion" data-testid="turno-admin-duration" [ngModel]="duracionMinutos()"
+              (ngModelChange)="duracionMinutos.set($event); resetAvailability('La disponibilidad cambió: elegí un horario disponible.'); checkAvailability()"
+              name="duracion" min="15" step="15"
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+          </div>
 
-      <div class="form-group">
-        <label for="precio">Precio ($)</label>
-        <input type="number" id="precio" data-testid="turno-admin-price" [ngModel]="precio()" (ngModelChange)="precio.set($event)"
-          name="precio" min="0" step="100"
-          class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
-      </div>
+          <div class="form-group">
+            <label for="precio">Precio ($)</label>
+            <input type="number" id="precio" data-testid="turno-admin-price" [ngModel]="precio()" (ngModelChange)="precio.set($event)"
+              name="precio" min="0" step="100"
+              class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+          </div>
+        </div>
+      </section>
     </div>
 
     @if (isEdit()) {
     <div class="form-group">
       <label for="estado">Estado</label>
       <select id="estado" [ngModel]="estado()" (ngModelChange)="estado.set($event)" name="estado"
-        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
+        class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
         <option value="confirmado">Confirmado</option>
         <option value="en-proceso">En Proceso</option>
         <option value="completado">Completado</option>
@@ -216,7 +234,7 @@
       <label for="notas">Notas</label>
       <textarea id="notas" data-testid="turno-admin-notes" [ngModel]="notas()" (ngModelChange)="notas.set($event)"
         name="notas" rows="3" placeholder="Notas opcionales sobre el turno..."
-        class="form-control modal-control bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40"></textarea>
+        class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40"></textarea>
     </div>
 
     @if (!isEdit()) {
@@ -229,7 +247,7 @@
     </div>
     }
 
-    <div class="form-actions">
+    <footer data-testid="turno-admin-new-modal-footer" class="form-actions border-t border-white/10 pt-6 justify-end items-center">
       <button type="button" data-testid="turno-admin-new-modal-cancel" class="btn-secondary" (click)="cancel()">Cancelar</button>
       @if (isEdit()) {
       <button type="submit" data-testid="turno-admin-reschedule-submit" class="btn-primary" [disabled]="!canSave()">
@@ -240,7 +258,7 @@
         @if (saving()) { <span class="spinner-sm"></span> Guardando... } @else { Crear Turno }
       </button>
       }
-    </div>
+    </footer>
   </form>
   }
 </ng-template>

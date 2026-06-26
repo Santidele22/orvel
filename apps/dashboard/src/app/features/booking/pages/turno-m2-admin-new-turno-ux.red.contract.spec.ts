@@ -43,6 +43,10 @@ function controlWithTestId(sourceText: string, testId: string): string {
   return sourceText.match(new RegExp(`<(?:input|select|textarea)\\b(?=[^>]*data-testid=["']${testId}["'])[^>]*>`, 'i'))?.[0] ?? '';
 }
 
+function countTestId(sourceText: string, testId: string): number {
+  return sourceText.match(new RegExp(`data-testid=["']${testId}["']`, 'gi'))?.length ?? 0;
+}
+
 describe('M2 real admin new turno UX RED contract', () => {
   it('resolves an internal default branch scope before admin availability/create when MVP branch UI is hidden', () => {
     const checkAvailabilityBody = methodBody(turnoFormSource, 'checkAvailability');
@@ -198,6 +202,33 @@ describe('M2 real admin new turno UX RED contract', () => {
       expect(control, `required modal field ${testId} must exist`).not.toBe('');
       expect(control, `modal field ${testId} must carry explicit dark/zen control styling to avoid default white inputs`).toMatch(darkModalControlClass);
     }
+  });
+
+  it('uses a semantic Orvel modal layout with sectioned grid content and separated footer actions', () => {
+    const combinedNewTurnoUx = `${turnosListTemplate}\n${turnoFormTemplate}`;
+
+    expect(combinedNewTurnoUx, 'Nuevo Turno modal must keep the reusable form content mounted inside the modal shell instead of rendering a cramped/naked page form').toMatch(
+      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,1200}(?:\[?ngTemplateOutlet\]?=["']turnoFormContent["']|data-testid=["']turno-admin-new-modal-form["']|<form\b)/i
+    );
+    expect(countTestId(turnoFormTemplate, 'turno-admin-new-modal-form'), 'the modal form selector must be unique and belong to the semantic form, not a wrapper').toBe(1);
+    expect(turnoFormTemplate, 'modal form must declare a stable form selector and modern responsive grid layout').toMatch(
+      /<form\b(?=[^>]*data-testid=["']turno-admin-new-modal-form["'])(?=[^>]*class=["'][^"']*(?:grid|space-y-zen|gap-zen|gap-6|gap-8))/i
+    );
+    expect(turnoFormTemplate, 'client/service/date/details must be grouped into semantic Orvel sections rather than loose legacy rows').toMatch(
+      /<(?:section|fieldset)\b(?=[^>]*data-testid=["']turno-admin-new-modal-section-client["'])[^>]*>[\s\S]{0,1800}data-testid=["']turno-admin-client-select["']/i
+    );
+    expect(turnoFormTemplate, 'schedule controls must live in their own semantic Orvel grid section').toMatch(
+      /<(?:section|fieldset)\b(?=[^>]*data-testid=["']turno-admin-new-modal-section-schedule["'])[^>]*>[\s\S]{0,1800}data-testid=["']turno-admin-date["'][\s\S]{0,1800}data-testid=["']turno-admin-available-slot-select["']/i
+    );
+
+    for (const testId of ['turno-admin-client-select', 'turno-admin-service-select', 'turno-admin-date', 'turno-admin-available-slot-select', 'turno-admin-duration']) {
+      const control = controlWithTestId(turnoFormTemplate, testId);
+      expect(control, `${testId} must be a full-width Orvel modal control`).toMatch(/\b(?:w-full|block\s+w-full|flex-1)\b/i);
+    }
+
+    expect(turnoFormTemplate, 'footer actions must be in a dedicated modal footer, visually separated from form fields').toMatch(
+      /<(?:footer|div)\b(?=[^>]*data-testid=["']turno-admin-new-modal-footer["'])(?=[^>]*class=["'][^"']*(?:border-t|pt-zen|pt-6|justify-end|sm:justify-end|items-center))[\s\S]{0,900}data-testid=["']turno-admin-new-modal-cancel["'][\s\S]{0,900}data-testid=["']turno-admin-submit-action["']/i
+    );
   });
 
   it('collects client or walk-in, service, date, backend slot, duration, and notes in the real new turno form', () => {

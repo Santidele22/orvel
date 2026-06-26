@@ -42,9 +42,7 @@ describe('K03 - Configuración submit validation integration RED contract', () =
       'config-field-error-phone',
       'config-field-error-whatsapp',
       'config-field-error-instagram',
-      'config-field-error-supportEmail',
-      'config-field-error-logoUrl',
-      'config-field-error-coverUrl'
+      'config-field-error-supportEmail'
     ];
 
     expect(pageTs).toMatch(/fieldErrors\s*=\s*signal<Record<string,\s*string>>\(\{\}\)/);
@@ -59,6 +57,41 @@ describe('K03 - Configuración submit validation integration RED contract', () =
       expect(themeHtml, `${fieldName} should render its own field error`).toContain(`fieldErrors().${fieldName}`);
       expect(themeHtml, `${fieldName} should expose a stable field error test id`).toContain(`data-testid="${testId}"`);
     }
+
+    expect(themeHtml, 'logo URL is internal Orvel style state and must not expose a visible field error/test id').not.toContain(
+      'config-field-error-logoUrl'
+    );
+    expect(themeHtml, 'cover URL is internal Orvel style state and must not expose a visible field error/test id').not.toContain(
+      'config-field-error-coverUrl'
+    );
+  });
+
+  it('does not expose Orvel-owned style/business-type settings in the visible UI contract', () => {
+    const { themeHtml } = readConfiguracionSources();
+    const forbiddenVisibleSettings = [
+      { field: 'businessType', label: /Tipo\s+de\s+negocio/i, testId: /business-type|businessType|tipo-negocio/i },
+      { field: 'logoUrl', label: /URL\s+del\s+logo|Logo\s+URL/i, testId: /logo-url|logoUrl|config-field-error-logoUrl/i },
+      { field: 'coverUrl', label: /URL\s+de\s+portada|Cover\s+URL/i, testId: /cover-url|coverUrl|config-field-error-coverUrl/i }
+    ];
+
+    for (const setting of forbiddenVisibleSettings) {
+      expect(themeHtml, `${setting.field} may remain internal but must not be an editable visible form control`).not.toMatch(
+        new RegExp(`<(?:input|select|textarea)\\b[^>]*formControlName=["']${setting.field}["']`, 'i')
+      );
+      expect(themeHtml, `${setting.field} must not expose visible settings copy because all accounts follow Orvel style`).not.toMatch(setting.label);
+      expect(themeHtml, `${setting.field} must not expose visible deterministic selectors`).not.toMatch(setting.testId);
+    }
+  });
+
+  it('does not validate hidden Orvel-owned logo and cover URLs during visible settings submit', () => {
+    const { pageTs } = readConfiguracionSources();
+
+    expect(pageTs, 'visible settings submit should continue to use the central validation contract').toMatch(
+      /validateConfiguracionForm\(.*settingsForm\.getRawValue\(\).*\)/s
+    );
+    expect(pageTs, 'logo URL must remain hidden/internal and not be patched into visible submit validation errors').not.toMatch(
+      /fieldErrors\s*\.\s*set\([\s\S]{0,240}(?:logoUrl|coverUrl)/
+    );
   });
 
   it('keeps deterministic invalid-form UX contract for submit', () => {

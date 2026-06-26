@@ -79,18 +79,8 @@ const configuracionSchema = z.object({
   instagram: z.string().trim().optional().or(z.literal('')).refine((value) => !value || instagramRegex.test(value), {
     message: 'Instagram inválido'
   }),
-  logoUrl: z.string().trim().optional().or(z.literal('')).refine((value) => {
-    if (!value) return true;
-    return /^https?:\/\//.test(value) && z.string().url().safeParse(value).success;
-  }, {
-    message: 'URL de logo inválida'
-  }),
-  coverUrl: z.string().trim().optional().or(z.literal('')).refine((value) => {
-    if (!value) return true;
-    return /^https?:\/\//.test(value) && z.string().url().safeParse(value).success;
-  }, {
-    message: 'URL de portada inválida'
-  }),
+  logoUrl: z.string().optional(),
+  coverUrl: z.string().optional(),
   bufferMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
   minNoticeMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
   slotIntervalMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),

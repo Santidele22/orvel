@@ -91,7 +91,7 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     expect(result.fieldErrors.businessName).toBeTypeOf('string');
   });
 
-  it('validates email/phone/url formats when provided', async () => {
+  it('validates visible contact formats when provided without surfacing hidden style-field errors', async () => {
     const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
 
     const invalid = validateConfiguracionForm({
@@ -109,8 +109,8 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     expect(invalid.fieldErrors.phone).toBeTypeOf('string');
     expect(invalid.fieldErrors.whatsapp).toBeTypeOf('string');
     expect(invalid.fieldErrors.instagram).toBeTypeOf('string');
-    expect(invalid.fieldErrors.logoUrl).toBeTypeOf('string');
-    expect(invalid.fieldErrors.coverUrl).toBeTypeOf('string');
+    expect(invalid.fieldErrors.logoUrl).toBeUndefined();
+    expect(invalid.fieldErrors.coverUrl).toBeUndefined();
 
     const valid = validateConfiguracionForm({
       ...validBaseInput,
@@ -128,6 +128,20 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     expect(valid.fieldErrors.instagram).toBeUndefined();
     expect(valid.fieldErrors.logoUrl).toBeUndefined();
     expect(valid.fieldErrors.coverUrl).toBeUndefined();
+  });
+
+  it('does not block settings validation for hidden Orvel-owned logo and cover URLs', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      logoUrl: 'not-a-visible-user-editable-url',
+      coverUrl: 'ftp://legacy-internal-cover'
+    });
+
+    expect(result.isValid).toBe(true);
+    expect(result.fieldErrors.logoUrl).toBeUndefined();
+    expect(result.fieldErrors.coverUrl).toBeUndefined();
   });
 
   it('accepts the same common Argentina phone variants as public booking for phone and whatsapp', async () => {
