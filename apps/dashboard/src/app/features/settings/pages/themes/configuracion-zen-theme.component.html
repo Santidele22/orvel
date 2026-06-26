@@ -226,32 +226,6 @@
             }
           </div>
 
-          <div class="space-y-zen-sm">
-            <label [class]="ui.labelMicro + ' text-secondary'">Tipo de negocio</label>
-            <input type="text" formControlName="businessType" [class]="ui.input" placeholder="Ej: peluquería, uñas, spa" />
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">URL del logo</label>
-              <input type="url" formControlName="logoUrl" [class]="ui.input" placeholder="https://.../logo.png"
-                [attr.aria-invalid]="fieldErrors().logoUrl ? 'true' : null"
-                [attr.aria-describedby]="fieldErrors().logoUrl ? 'config-field-error-logoUrl' : null" />
-              @if (fieldErrors().logoUrl) {
-              <p id="config-field-error-logoUrl" [class]="ui.fieldError" data-testid="config-field-error-logoUrl" role="alert">{{ fieldErrors().logoUrl }}</p>
-              }
-            </div>
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">URL de portada</label>
-              <input type="url" formControlName="coverUrl" [class]="ui.input" placeholder="https://.../portada.jpg"
-                [attr.aria-invalid]="fieldErrors().coverUrl ? 'true' : null"
-                [attr.aria-describedby]="fieldErrors().coverUrl ? 'config-field-error-coverUrl' : null" />
-              @if (fieldErrors().coverUrl) {
-              <p id="config-field-error-coverUrl" [class]="ui.fieldError" data-testid="config-field-error-coverUrl" role="alert">{{ fieldErrors().coverUrl }}</p>
-              }
-            </div>
-          </div>
-
           @if (hasMultipleBusinesses()) {
           <div class="space-y-zen-md">
             <label [class]="ui.labelMicro + ' text-secondary'">Sucursal activa</label>

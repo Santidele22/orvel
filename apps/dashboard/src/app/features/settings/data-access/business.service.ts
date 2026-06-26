@@ -43,7 +43,7 @@ const PUBLIC_BOOKING_SETTINGS_COLUMNS = `
   slot_interval_minutes,
   working_hours,
   auto_confirm,
-  cancelation_grace_period,
+  cancellation_window_minutes,
   allow_client_professional_selection
 `;
 
@@ -172,28 +172,17 @@ export class BusinessService {
       .from('business_settings')
       .upsert({
         business_id: resolvedBusinessId,
+        business_name: settings.businessName,
+        support_email: settings.supportEmail,
         buffer_minutes: settings.bufferMinutes,
         min_notice_minutes: settings.minNoticeMinutes,
         slot_interval_minutes: settings.slotIntervalMinutes,
         working_hours: settings.workingHours,
-        logo_url: settings.logoUrl,
-        cover_url: settings.coverUrl,
-        brand_color: settings.brandColor,
-        whatsapp: settings.whatsapp,
-        instagram: settings.instagram,
-        support_email: settings.supportEmail,
         business_type: settings.businessType,
-        cancelation_grace_period: settings.cancelationGracePeriod,
+        cancellation_window_minutes: settings.cancelationGracePeriod,
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
-        allow_multiple_services: settings.allowMultipleServices,
-        cleanup_time_minutes: settings.cleanupTimeMinutes,
-        capacity: settings.capacity,
-        week_start_day: settings.weekStartDay,
-        time_format: settings.timeFormat,
-        first_name: settings.firstName,
-        last_name: settings.lastName,
-        phone: settings.phone
+        capacity: settings.capacity
       });
 
     if (error) {
@@ -294,7 +283,7 @@ export class BusinessService {
       supportEmail: settings?.support_email,
       businessType: settings?.business_type ?? business?.business_type ?? business?.tipo_negocio ?? '',
       plan: this.resolveDisplayPlan(),
-      cancelationGracePeriod: settings?.cancelation_grace_period,
+      cancelationGracePeriod: settings?.cancellation_window_minutes,
       autoConfirm: settings?.auto_confirm,
       maxAdvanceDays: settings?.max_advance_days,
       allowMultipleServices: settings?.allow_multiple_services,
@@ -396,7 +385,7 @@ export class BusinessService {
       },
       bookingPolicy: {
         autoConfirm: settings?.auto_confirm ?? true,
-        cancellationWindowMinutes: settings?.cancelation_grace_period ?? 60,
+        cancellationWindowMinutes: settings?.cancellation_window_minutes ?? 60,
         allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false
       }
     };
