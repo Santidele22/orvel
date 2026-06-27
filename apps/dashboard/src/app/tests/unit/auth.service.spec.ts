@@ -195,6 +195,51 @@ describe('AuthService - Supabase-backed auth', () => {
       expect(newService.getToken()).toBe('stored-supabase-token');
     });
 
+    it('maps common Supabase profile metadata names into the dashboard user name', async () => {
+      const supabaseSession = session({
+        user: {
+          ...session().user,
+          user_metadata: {
+            first_name: 'Santi',
+            last_name: 'Idele',
+            negocioNombre: 'Demo Salon',
+            tipoNegocio: 'uñas'
+          }
+        }
+      });
+      authClient.signInWithPassword.mockResolvedValue({ data: { session: supabaseSession, user: supabaseSession.user }, error: null });
+
+      const result = await firstValueFrom(service.login({ email: 'demo@salon.com', password: 'demo' }));
+
+      expect(result.user.nombre).toBe('Santi');
+      expect(result.user.apellido).toBe('Idele');
+    });
+
+    it.each([
+      ['camelCase profile keys', { firstName: 'Santi', lastName: 'Idele' }, 'Santi', 'Idele'],
+      ['OIDC profile keys', { given_name: 'Santi', family_name: 'Idele' }, 'Santi', 'Idele'],
+      ['full_name fallback', { full_name: 'Santi Idele' }, 'Santi', 'Idele'],
+      ['display_name fallback', { display_name: 'Santi Idele' }, 'Santi', 'Idele'],
+      ['name fallback with multiple surnames', { name: 'Santi De Orvel Studio' }, 'Santi', 'De Orvel Studio']
+    ])('maps %s into dashboard user names', async (_label, userMetadata, expectedFirstName, expectedLastName) => {
+      const supabaseSession = session({
+        user: {
+          ...session().user,
+          user_metadata: {
+            ...userMetadata,
+            negocioNombre: 'Demo Salon',
+            tipoNegocio: 'uñas'
+          }
+        }
+      });
+      authClient.signInWithPassword.mockResolvedValue({ data: { session: supabaseSession, user: supabaseSession.user }, error: null });
+
+      const result = await firstValueFrom(service.login({ email: 'demo@salon.com', password: 'demo' }));
+
+      expect(result.user.nombre).toBe(expectedFirstName);
+      expect(result.user.apellido).toBe(expectedLastName);
+    });
+
     it('ignores corrupt legacy localStorage and remains logged out without a Supabase session', async () => {
       localStorage.setItem('salon_auth', 'invalid-json');
 
