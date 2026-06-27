@@ -155,6 +155,7 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
           business_name: defaults.businessName,
           slug: defaults.slugSeed,
           business_type: defaults.businessType,
+          selected_business_types: selectedBusinessTypes,
           capacity: defaults.capacity,
           buffer_minutes: defaults.bufferMinutes,
           min_notice_minutes: defaults.minNoticeMinutes,
@@ -166,6 +167,18 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
       );
 
     if (settingsError) {
+      return false;
+    }
+
+    const { data: defaultServicesProvisioned, error: defaultServicesError } = await supabase.rpc(
+      'provision_default_services_for_business',
+      {
+        p_business_id: defaults.businessId,
+        p_business_types: selectedBusinessTypes
+      }
+    );
+
+    if (defaultServicesError || typeof defaultServicesProvisioned !== 'number') {
       return false;
     }
 

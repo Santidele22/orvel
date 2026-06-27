@@ -484,6 +484,18 @@ async function materializePendingSignup(
       new Error("pending_signup_subscription_create_failed");
   }
 
+  const { data: defaultServicesProvisioned, error: defaultServicesError } = await supabaseAdmin.rpc(
+    "provision_default_services_for_business",
+    {
+      p_business_id: business.id,
+      p_business_types: selectedBusinessTypes,
+    },
+  );
+
+  if (defaultServicesError || typeof defaultServicesProvisioned !== "number") {
+    throw defaultServicesError || new Error("pending_signup_default_services_provision_failed");
+  }
+
   const welcomeBootstrapSatisfied = await ensurePaidSignupWelcomeBootstrap(
     supabaseAdmin,
     {
