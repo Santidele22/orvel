@@ -52,3 +52,56 @@ Record:
 - CLI command used.
 - Whether push/update succeeded.
 - Any blocker and exact error summary, without secrets.
+
+## Recovery: create_public_booking Canonical Availability Enforcement
+
+Use this section for migration `20260627210000_enforce_public_booking_canonical_availability.sql`.
+
+### Verify After Push
+
+1. Confirm migration status:
+   ```bash
+   npx supabase@latest migration list --linked
+   ```
+2. Confirm the public RPC still exists and is executable through PostgREST after schema reload.
+3. For a reviewer-safe linked smoke check, use `supabase db query --linked` inside a transaction and rollback. Replace placeholder UUIDs/slugs with a known disposable business/service fixture only; do not use real customer data:
+   ```bash
+   npx supabase@latest db query --linked <<'SQL'
+   BEGIN;
+
+   -- Expected: create_public_booking rejects a start time that is not present in
+   -- _query_booking_slot_availability for that business/service/date.
+   SELECT public.create_public_booking(
+     'replace-with-disposable-business-slug',
+     '00000000-0000-0000-0000-000000000000',
+     '2099-01-01T03:00:00.000Z',
+     '{"fullName":"Rollback Verification","email":"verify@example.invalid","phone":"000"}'::jsonb,
+     NULL,
+     NULL,
+     NULL
+   );
+
+   ROLLBACK;
+   SQL
+   ```
+   Passing evidence is an RPC error with code/message `SLOT_CONFLICT` before any booking insert. If the disposable fixture is missing, stop and create/choose a safe fixture; do not mutate production data outside the rollback transaction.
+
+### Stop Conditions
+
+- `migration list --linked` reports a mismatch.
+- The RPC returns confirmed booking data for a slot absent from `_query_booking_slot_availability`.
+- The RPC exposes `manage_token` storage in `public.bookings` instead of only `manage_token_hash`.
+- PostgREST cannot resolve either `create_public_booking` overload after `NOTIFY pgrst, 'reload schema'`.
+
+### Fix-Forward / Recovery
+
+Do not repair migration history or rewrite the pushed migration. Create a new full-timestamp migration that:
+
+1. Restores service availability by using `CREATE OR REPLACE FUNCTION`.
+2. If enforcement is faulty, restore the previous create_public_booking definition from the prior migration or git history, preserving overloads, `SECURITY DEFINER`, `search_path`, grants, and hash-only management bearer behavior.
+3. Re-apply only the corrected canonical availability check after the restored baseline is verified.
+4. Push with:
+   ```bash
+   npx supabase@latest db push --linked --include-all
+   ```
+5. Re-run the rollback smoke check above and record the result in the PR notes.
