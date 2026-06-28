@@ -6,9 +6,9 @@ import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 const MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send";
 
 type AppointmentLinks = {
-  view: string;
-  cancel: string;
-  reschedule: string;
+  view?: string | null;
+  cancel?: string | null;
+  reschedule?: string | null;
 };
 
 type MaybeArray<T> = T | T[] | null | undefined;
@@ -37,6 +37,7 @@ type OutboxRecord = {
 };
 
 const MAX_SUBJECT_LENGTH = 180;
+const DEFAULT_APPOINTMENT_DURATION_MINUTES = 30;
 
 type OutboxClaimStatus = "send" | "already_sent" | "unavailable";
 
@@ -162,12 +163,12 @@ function renderFallbackEmail(title: string, message: string): string {
 
 function normalizeAppointmentLinks(rawLinks: unknown, baseUrl: string): AppointmentLinks {
   const links = rawLinks && typeof rawLinks === "object" ? rawLinks as Partial<AppointmentLinks> : {};
-  const toAbsolute = (value: unknown): string => {
-    if (typeof value !== "string" || !value.trim()) return "#";
+  const toAbsolute = (value: unknown): string | null => {
+    if (typeof value !== "string" || !value.trim() || value.trim() === "#") return null;
     try {
       return new URL(value.trim(), baseUrl).toString();
     } catch {
-      return "#";
+      return null;
     }
   };
 
@@ -391,7 +392,7 @@ Deno.serve(async (req) => {
                 time: bookingRow.starts_at 
                   ? new Date(bookingRow.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) 
                   : (fullData.time || (fullData.starts_at ? new Date(fullData.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : "--:--")),
-                duration: service?.duration_minutes || bookingRow.duration_minutes || fullData.duration || 30,
+                duration: service?.duration_minutes || bookingRow.duration_minutes || fullData.duration || DEFAULT_APPOINTMENT_DURATION_MINUTES,
                 price: bookingRow.price_at_booking || service?.price || fullData.price || 0,
                 contact: {
                   phone: settings?.support_phone || fullData.business_phone || "No especificado",
@@ -406,7 +407,7 @@ Deno.serve(async (req) => {
               fullData.business = fullData.business || { name: fullData.business_name || "Orvel", address: "Consultar dirección" };
               fullData.service = fullData.service || { name: fullData.service_name || "Servicio" };
               fullData.contact = fullData.contact || { phone: "No especificado", email: fromEmail };
-              fullData.links = fullData.links || { view: "#", cancel: "#", reschedule: "#" };
+              fullData.links = normalizeAppointmentLinks(fullData.links, dashboardUrl);
             }
           } else {
             // No booking_id, ensure minimal structure for template
@@ -415,7 +416,7 @@ Deno.serve(async (req) => {
             fullData.business = fullData.business || { name: fullData.business_name || "Orvel", address: "Consultar dirección" };
             fullData.service = fullData.service || { name: fullData.service_name || "Servicio" };
             fullData.contact = fullData.contact || { phone: "No especificado", email: fromEmail };
-            fullData.links = fullData.links || { view: "#", cancel: "#", reschedule: "#" };
+            fullData.links = normalizeAppointmentLinks(fullData.links, dashboardUrl);
           }
 
           // 3. Render Template based on key
@@ -425,6 +426,10 @@ Deno.serve(async (req) => {
             html = result.html;
           } else if (template_key === "appointment_reminder_24h") {
             const result = AppointmentTemplates.renderAppointmentReminder24hEmail(fullData);
+            subject = result.subject;
+            html = result.html;
+          } else if (template_key === "booking_cancelled_business" || template_key === "appointment_cancelled_business") {
+            const result = AppointmentTemplates.renderAppointmentBusinessCancellationEmail(fullData);
             subject = result.subject;
             html = result.html;
           } else if (template_key === "appointment_cancelled" || template_key === "booking_cancelled") {
@@ -476,49 +481,42 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (html) {
-        const providerSubject = sanitizeEmailSubject(subject);
-        const mailtrapPayload = {
-          from: { email: fromEmail, name: fromName },
-          to: [{ email: to_email }],
-          subject: providerSubject,
-          html: html,
-        };
+      const providerSubject = sanitizeEmailSubject(subject);
+      const mailtrapPayload = {
+        from: { email: fromEmail, name: fromName },
+        to: [{ email: to_email }],
+        subject: providerSubject,
+        html: html,
+      };
 
-        const res = await fetch(MAILTRAP_API_URL, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(mailtrapPayload)
+      const res = await fetch(MAILTRAP_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(mailtrapPayload)
+      });
+
+      if (!res.ok) {
+        await res.body?.cancel();
+        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId);
+        console.error("Failed to send email", {
+          ...safeLogContext(record),
+          provider_status: res.status,
         });
-
-        if (!res.ok) {
-          await res.body?.cancel();
-          await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId);
-          console.error("Failed to send email", {
-            ...safeLogContext(record),
-            provider_status: res.status,
-          });
-          return new Response(JSON.stringify({ error: "mailtrap_error" }), { status: 502 });
-        } else {
-          const finalized = await markOutboxRecordSent(supabase, record, claim.claimId);
-          if (!finalized) {
-            await res.body?.cancel();
-            console.error("Email provider sent but outbox finalization failed", safeLogContext(record));
-            return new Response(JSON.stringify({ error: "outbox_finalization_failed" }), { status: 502 });
-          }
-
-          console.log("Email successfully sent", safeLogContext(record));
-          return new Response(JSON.stringify({ success: true, sent: true }), { headers: { "Content-Type": "application/json" } });
-        }
+        return new Response(JSON.stringify({ error: "mailtrap_error" }), { status: 502 });
       }
 
-      return new Response(JSON.stringify({ error: "Email content missing" }), {
-        status: 422,
-        headers: { "Content-Type": "application/json" },
-      });
+      const finalized = await markOutboxRecordSent(supabase, record, claim.claimId);
+      if (!finalized) {
+        await res.body?.cancel();
+        console.error("Email provider sent but outbox finalization failed", safeLogContext(record));
+        return new Response(JSON.stringify({ error: "outbox_finalization_failed" }), { status: 502 });
+      }
+
+      console.log("Email successfully sent", safeLogContext(record));
+      return new Response(JSON.stringify({ success: true, sent: true }), { headers: { "Content-Type": "application/json" } });
     }
     
     return new Response("No action taken", { status: 200 });

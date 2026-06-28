@@ -105,3 +105,52 @@ Do not repair migration history or rewrite the pushed migration. Create a new fu
    npx supabase@latest db push --linked --include-all
    ```
 5. Re-run the rollback smoke check above and record the result in the PR notes.
+## Booking Lifecycle Email Outbox Deploy and Recovery
+
+Use this section for changes that add or rename `notification_email_outbox.template_key` values, including booking created, rescheduled, and cancelled lifecycle emails.
+
+### Deploy Order
+
+1. Deploy `process-email-outbox` first so the Edge Function can render any new template keys before database triggers enqueue them:
+   `supabase functions deploy process-email-outbox`.
+2. Push the migration after the function deploy succeeds:
+   `supabase db push`.
+3. Verify new rows with a visibility query before manual replay:
+   ```sql
+   select id, template_key, lifecycle_event_key, booking_id, to_email, sent_at, processing_claimed_at, processing_error, created_at
+   from public.notification_email_outbox
+   where template_key in ('appointment_confirmation', 'booking_created_business', 'booking_rescheduled', 'booking_cancelled_business')
+   order by created_at desc
+   limit 50;
+   ```
+
+### Manual Drain or Retry
+
+The processor expects the same payload shape as the database webhook: `type = INSERT`, `table = notification_email_outbox`, and `record = <row>`. Use a service-role authorized request only; never use anon or publishable keys.
+
+1. Find unsent rows:
+    ```sql
+    select id, template_key, lifecycle_event_key, booking_id, to_email, sent_at, processing_claimed_at, processing_error, created_at
+    from public.notification_email_outbox
+    where sent_at is null
+      and template_key in ('appointment_confirmation', 'booking_created_business', 'booking_rescheduled', 'booking_cancelled_business')
+      and lifecycle_event_key is not null
+    order by created_at asc
+    limit 25;
+    ```
+2. If a row is stuck with a stale claim and no provider send is known to have succeeded, clear only that claim and leave the row unsent for replay:
+   ```sql
+   update public.notification_email_outbox
+   set processing_claim_id = null,
+       processing_claimed_at = null,
+       processing_error = 'manual_retry_requested'
+   where id = '<outbox-row-id>'
+     and sent_at is null;
+   ```
+3. Reinvoke the function with the selected row as the `record` payload. Keep credentials outside docs and shell history; use your approved secret handling for the service-role bearer.
+
+### Rollback / Fix-forward
+
+- Prefer fix-forward for template rendering mistakes: deploy the corrected function first, then manually retry unsent rows.
+- If a migration enqueues the wrong lifecycle matrix, stop the trigger or ship a corrective migration before replaying. Do not delete sent rows to fake rollback.
+- Created and cancelled lifecycle keys are intentionally stable per booking/recipient. Rescheduled keys include the update event timestamp so each real reschedule sends once while duplicate processing of the same event remains idempotent.
