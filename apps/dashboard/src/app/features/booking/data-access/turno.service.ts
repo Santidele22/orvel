@@ -25,6 +25,15 @@ type AdminSessionContext = {
   businessId: string | null;
 };
 
+type AdminCancelFailureTelemetryStage = 'rpc' | 'ui';
+
+type AdminCancelFailureTelemetryInput = {
+  stage: AdminCancelFailureTelemetryStage;
+  code: unknown;
+  status?: unknown;
+  retryable?: boolean;
+};
+
 // Map Supabase RPC error to ApiError
 function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiError {
   const code = error.code || '';
@@ -244,10 +253,11 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
-    await this.assertBookingInActiveBranch(supabase, payload.bookingId);
+    const branchScope = await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
     const { data, error } = await supabase.rpc('cancel_admin_booking', {
       booking_id: payload.bookingId,
+      branch_id: branchScope.branchId,
       performed_by: payload.performedBy,
       notes: payload.notes,
       reason: payload.reason
@@ -262,6 +272,33 @@ export class TurnoService {
         status: row.status || 'cancelled' 
       } 
     };
+  }
+
+  async recordAdminCancelFailureTelemetry(input: AdminCancelFailureTelemetryInput): Promise<void> {
+    const supabase = this.getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      await supabase.rpc('record_admin_booking_cancel_failure', {
+        p_stage: input.stage,
+        p_code: this.sanitizeAdminCancelTelemetryCode(input.code),
+        p_status: this.sanitizeAdminCancelTelemetryStatus(input.status),
+        p_retryable: input.retryable ?? true
+      });
+    } catch {
+      // Telemetry must never block or alter the admin cancellation UX.
+    }
+  }
+
+  private sanitizeAdminCancelTelemetryCode(code: unknown): string {
+    if (typeof code !== 'string') return 'UNKNOWN';
+
+    const normalized = code.trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '_').slice(0, 64);
+    return normalized || 'UNKNOWN';
+  }
+
+  private sanitizeAdminCancelTelemetryStatus(status: unknown): number | undefined {
+    return typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? status : undefined;
   }
 
   private async rescheduleAdminBooking(payload: AdminRescheduleBookingPayload): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
@@ -1016,17 +1053,6 @@ export class TurnoService {
 
     // Use Supabase provider
     return from(this.cancelByAdminWithSupabase(id, payload)).pipe(
-      tap(updated => {
-        this.notificationService?.emit({
-          eventKey: `booking.cancelled:admin:${updated.id}`,
-          eventType: 'booking.cancelled',
-          channel: 'email',
-          recipientRole: 'client',
-          sourceRole: 'admin',
-          appointmentId: updated.id,
-          occurredAt: updated.updatedAt.toISOString()
-        });
-      }),
       tap(() => this.invalidateAdminAvailabilityForLoadAvailability())
     );
   }
@@ -1071,6 +1097,7 @@ export class TurnoService {
 
     const payloadSupabase: AdminCancelBookingPayload = {
       bookingId: id,
+      // Supabase session is authoritative; the caller payload only proves admin UI intent.
       performedBy: adminSession.userId,
       notes: payload.reason
     };

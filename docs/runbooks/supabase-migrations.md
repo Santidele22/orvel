@@ -154,3 +154,24 @@ The processor expects the same payload shape as the database webhook: `type = IN
 - Prefer fix-forward for template rendering mistakes: deploy the corrected function first, then manually retry unsent rows.
 - If a migration enqueues the wrong lifecycle matrix, stop the trigger or ship a corrective migration before replaying. Do not delete sent rows to fake rollback.
 - Created and cancelled lifecycle keys are intentionally stable per booking/recipient. Rescheduled keys include the update event timestamp so each real reschedule sends once while duplicate processing of the same event remains idempotent.
+
+## Admin Booking Cancel RPC Compatibility
+
+Use this section for migration `20260628131500_admin_cancel_failure_telemetry_compat.sql`.
+
+### Deploy / Verify
+
+1. Push the forward-only migration:
+   ```bash
+   npx supabase@latest db push --linked --include-all
+   ```
+2. Confirm PostgREST schema reload completed and both RPC signatures exist:
+   - `public.cancel_admin_booking(uuid, uuid, uuid, text, text)` is the branch-scoped production path.
+   - `public.cancel_admin_booking(uuid, uuid, text, text)` is a cached-client compatibility wrapper only.
+3. Verify the 4-arg wrapper returns `CLIENT_UPGRADE_REQUIRED` and records only sanitized telemetry in `public.admin_booking_cancel_failure_events`.
+
+### Safety Notes
+
+- Do not make the 4-arg wrapper infer branch scope. Cached clients cannot safely prove active branch context, so the wrapper must fail closed.
+- The 5-arg RPC remains the only direct authenticated cancellation path and must keep rejecting missing or mismatched branch scope.
+- Telemetry rows must not include raw provider errors, stack traces, booking ids, customer data, branch ids, or business ids.
