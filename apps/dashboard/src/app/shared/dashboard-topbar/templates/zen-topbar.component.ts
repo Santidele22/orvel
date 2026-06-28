@@ -39,7 +39,17 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
               </div>
 
               <div class="max-h-80 overflow-y-auto flex flex-col gap-2 pr-1" style="scrollbar-width: thin;">
-                @if (notificationList().length === 0) {
+                @if (notificationList().length === 0 && showNotificationRefreshFailed()) {
+                  <div class="py-10 flex flex-col items-center justify-center text-center gap-3">
+                    <div class="w-16 h-16 rounded-2xl bg-bg-primary flex items-center justify-center shadow-inner">
+                      <i class="ri-wifi-off-line text-3xl text-text-secondary/20"></i>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-xs font-bold text-text-primary">No pudimos cargar las notificaciones</p>
+                      <p class="text-[9px] font-medium text-text-secondary uppercase tracking-wider">Intentá de nuevo en unos segundos</p>
+                    </div>
+                  </div>
+                } @else if (notificationList().length === 0) {
                   <div class="py-10 flex flex-col items-center justify-center text-center gap-3">
                     <div class="w-16 h-16 rounded-2xl bg-bg-primary flex items-center justify-center shadow-inner">
                       <i class="ri-notification-off-line text-3xl text-text-secondary/20"></i>
@@ -103,15 +113,25 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
                   </div>
                </div>
 
-                 <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
-                   <i class="ri-user-smile-fill text-lg opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all"></i>
-                   <span>Mi Perfil</span>
-                </button>
+                <a
+                  data-testid="dashboard-topbar-profile-action"
+                  routerLink="/dashboard/configuracion"
+                  [queryParams]="{ tab: 'perfil' }"
+                  (click)="showUserMenu.set(false)"
+                  class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
+                  <i class="ri-user-smile-fill text-lg opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all"></i>
+                  <span>Mi Perfil</span>
+                </a>
 
-                <button class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
+                <a
+                  data-testid="dashboard-topbar-settings-action"
+                  routerLink="/dashboard/configuracion"
+                  [queryParams]="{ tab: 'negocio' }"
+                  (click)="showUserMenu.set(false)"
+                  class="w-full h-12 flex items-center gap-3 px-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary hover:bg-primary/10 hover:text-primary transition-all group">
                   <i class="ri-settings-4-fill text-lg opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all"></i>
                   <span>Ajustes</span>
-                </button>
+                </a>
 
                 <div class="h-px bg-white/5 my-2"></div>
 
@@ -139,6 +159,10 @@ export class ZenTopbarComponent {
 
   readonly unreadNotificationCount = this.notifications.unreadNotificationCount;
   readonly notificationList = this.notifications.notifications;
+  readonly notificationRefreshFailed = signal(false);
+  readonly showNotificationRefreshFailed = computed(() =>
+    this.isAdminUser() && (this.notificationRefreshFailed() || Boolean(this.notifications.error()))
+  );
 
   readonly businessName = computed(() => {
     return this.businessFacade.settings()?.businessName || this.authService.user()?.negocioNombre || 'Mi Negocio';
@@ -178,19 +202,25 @@ export class ZenTopbarComponent {
 
   async refreshAdminNotifications(): Promise<void> {
     if (!this.isAdminUser()) {
+      this.notificationRefreshFailed.set(false);
       return;
     }
 
-    await this.notifications.refreshForAdmin();
+    try {
+      await this.notifications.refreshForAdmin();
+      this.notificationRefreshFailed.set(false);
+    } catch {
+      this.notificationRefreshFailed.set(true);
+    }
   }
 
   async toggleNotifications(): Promise<void> {
-    if (!this.isAdminUser()) {
-      return;
-    }
-
+    this.showUserMenu.set(false);
     this.showNotificationList.update((visible) => !visible);
-    await this.refreshAdminNotifications();
+
+    if (this.isAdminUser()) {
+      await this.refreshAdminNotifications();
+    }
   }
 
   async markNotificationRead(notificationId: string): Promise<void> {
@@ -217,6 +247,7 @@ export class ZenTopbarComponent {
   }
 
   toggleMenu() {
+    this.showNotificationList.set(false);
     this.showUserMenu.update(v => !v);
   }
 
