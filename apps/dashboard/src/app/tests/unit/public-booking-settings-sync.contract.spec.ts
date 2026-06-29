@@ -321,6 +321,285 @@ describe('public booking settings synchronization', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
+  it('filters inactive public services and only queries availability for an exposed service', async () => {
+    // Arrange
+    const workingHours = createWorkingHours(['monday']);
+    const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
+      supabaseClient: {
+        rpc: ReturnType<typeof vi.fn>;
+        from: ReturnType<typeof vi.fn>;
+      };
+    };
+    businessService.supabaseClient = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          name: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: { workingHours },
+          booking_policy: {}
+        },
+        error: null
+      }),
+      from: vi.fn()
+    };
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(({ dateIso }: { dateIso: string }) => Promise.resolve({
+        status: 200,
+        data: { slots: [{ startsAtIso: `${dateIso}T13:00:00.000Z`, remainingCapacity: 1 }] }
+      })),
+      createPublicBooking: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn(() => of([
+              { id: 'inactive-service', nombre: 'Inactive service', precio: 9999, duration_minutes: 30, activo: false },
+              { id: 'active-service', nombre: 'Active service', precio: 1000, duration_minutes: 45, activo: true }
+            ]))
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+
+    // Act
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    fixture.detectChanges();
+
+    // Assert
+    const serviceSelect = fixture.nativeElement.querySelector('select[name="selectedService"]') as HTMLSelectElement;
+    expect(serviceSelect.textContent).toContain('Active service');
+    expect(serviceSelect.textContent).not.toContain('Inactive service');
+    expect(publicBookingService.queryPublicSlotAvailability).toHaveBeenCalledWith(expect.objectContaining({
+      serviceId: 'active-service'
+    }));
+    expect(publicBookingService.queryPublicSlotAvailability).not.toHaveBeenCalledWith(expect.objectContaining({
+      serviceId: 'inactive-service'
+    }));
+  });
+
+  it('does not query availability when the selected public service is no longer exposed', async () => {
+    // Arrange
+    const workingHours = createWorkingHours(['monday']);
+    const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
+      supabaseClient: {
+        rpc: ReturnType<typeof vi.fn>;
+        from: ReturnType<typeof vi.fn>;
+      };
+    };
+    businessService.supabaseClient = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          name: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: { workingHours },
+          booking_policy: {}
+        },
+        error: null
+      }),
+      from: vi.fn()
+    };
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(({ dateIso }: { dateIso: string }) => Promise.resolve({
+        status: 200,
+        data: { slots: [{ startsAtIso: `${dateIso}T13:00:00.000Z`, remainingCapacity: 1 }] }
+      })),
+      createPublicBooking: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn(() => of([{ id: 'active-service', nombre: 'Active service', precio: 1000, duration_minutes: 45, activo: true }]))
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    const initialCallCount = publicBookingService.queryPublicSlotAvailability.mock.calls.length;
+    const component = fixture.componentInstance as unknown as {
+      selectedServiceId: { set: (serviceId: string) => void };
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      selectedSlot: string;
+      loadAvailability: () => Promise<void>;
+    };
+
+    // Act
+    component.selectedServiceId.set('inactive-or-missing-service');
+    await component.loadAvailability();
+
+    // Assert
+    expect(publicBookingService.queryPublicSlotAvailability).toHaveBeenCalledTimes(initialCallCount);
+    expect(component.availabilitySlots()).toEqual([]);
+    expect(component.selectedSlot).toBe('');
+  });
+
+  it('does not apply stale availability slots after selected service stops being exposed', async () => {
+    // Arrange
+    let resolveAvailability: (value: { status: number; data: { slots: Array<{ startsAtIso: string; remainingCapacity: number }> } }) => void = () => undefined;
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(() => new Promise(resolve => {
+        resolveAvailability = resolve as typeof resolveAvailability;
+      })),
+      createPublicBooking: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: BusinessService,
+          useValue: {
+            resolveBusinessBySlug: vi.fn(),
+            getDefaultWorkingHours: vi.fn()
+          }
+        },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn()
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    const component = fixture.componentInstance as unknown as {
+      resolvedSlug: { set: (slug: string) => void };
+      publicServices: { set: (services: Array<{ id: string; name: string; price: number; duration: number }>) => void };
+      selectedServiceId: { set: (serviceId: string) => void };
+      selectedDate: { set: (dateIso: string) => void };
+      workingHours: { set: (hours: Record<WeekdayKey, WorkingDayHours>) => void };
+      availableDays: { set: (days: Array<{ date: string; label: string; weekday: string; isWorkingDay: boolean; hasAvailability: boolean }>) => void };
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      selectedSlot: string;
+      canSubmit: () => boolean;
+      loadAvailability: () => Promise<void>;
+    };
+    component.resolvedSlug.set('studio-roma');
+    component.publicServices.set([{ id: 'active-service', name: 'Active service', price: 1000, duration: 45 }]);
+    component.selectedServiceId.set('active-service');
+    component.selectedDate.set('2026-06-29');
+    component.workingHours.set(createWorkingHours(['monday']));
+    component.availableDays.set([{ date: '2026-06-29', label: '29', weekday: 'LUN', isWorkingDay: true, hasAvailability: false }]);
+
+    // Act
+    const pendingAvailability = component.loadAvailability();
+    component.publicServices.set([]);
+    component.selectedServiceId.set('inactive-or-missing-service');
+    resolveAvailability({
+      status: 200,
+      data: { slots: [{ startsAtIso: '2026-06-29T13:00:00.000Z', remainingCapacity: 1 }] }
+    });
+    await pendingAvailability;
+
+    // Assert
+    expect(component.availabilitySlots()).toEqual([]);
+    expect(component.selectedSlot).toBe('');
+    expect(component.canSubmit()).toBe(false);
+  });
+
+  it('blocks submit when the selected service is removed from the exposed public services list', async () => {
+    // Arrange
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: BusinessService,
+          useValue: {
+            resolveBusinessBySlug: vi.fn(),
+            getDefaultWorkingHours: vi.fn()
+          }
+        },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn()
+          }
+        },
+        {
+          provide: PublicBookingService,
+          useValue: {
+            queryPublicSlotAvailability: vi.fn(),
+            createPublicBooking: vi.fn()
+          }
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    const component = fixture.componentInstance as unknown as {
+      publicServices: { set: (services: Array<{ id: string; name: string; price: number; duration: number }>) => void };
+      selectedServiceId: { set: (serviceId: string) => void };
+      selectedDate: { set: (dateIso: string) => void };
+      workingHours: { set: (hours: Record<WeekdayKey, WorkingDayHours>) => void };
+      availableDays: { set: (days: Array<{ date: string; label: string; weekday: string; isWorkingDay: boolean; hasAvailability: boolean }>) => void };
+      availabilitySlots: { set: (slots: Array<{ startsAtIso: string; remainingCapacity: number }>) => void };
+      selectedSlot: string;
+      firstName: string;
+      lastName: string;
+      whatsapp: string;
+      email: string;
+      canSubmit: () => boolean;
+    };
+    component.publicServices.set([{ id: 'active-service', name: 'Active service', price: 1000, duration: 45 }]);
+    component.selectedServiceId.set('active-service');
+    component.selectedDate.set('2026-06-29');
+    component.workingHours.set(createWorkingHours(['monday']));
+    component.availableDays.set([{ date: '2026-06-29', label: '29', weekday: 'LUN', isWorkingDay: true, hasAvailability: true }]);
+    component.availabilitySlots.set([{ startsAtIso: '2026-06-29T13:00:00.000Z', remainingCapacity: 1 }]);
+    component.selectedSlot = '2026-06-29T13:00:00.000Z';
+    component.firstName = 'Lucía';
+    component.lastName = 'García';
+    component.whatsapp = '1112345678';
+    component.email = 'lucia@example.com';
+
+    // Act
+    component.publicServices.set([]);
+
+    // Assert
+    expect(component.canSubmit()).toBe(false);
+  });
+
   it('shows retryable portal error when public resolver returns a non-404 failure', async () => {
     // Arrange
     const businessService = {

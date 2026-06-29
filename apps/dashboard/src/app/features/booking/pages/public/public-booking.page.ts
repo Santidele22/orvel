@@ -34,7 +34,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
   
-  protected readonly publicServices = signal<any[]>([]);
+  protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
@@ -119,12 +119,20 @@ export class PublicBookingPage implements OnInit {
       
       if (services && services.length > 0) {
         // Mapeamos al formato que espera el template (id, name, price, duration)
-        const mapped = services.map((s: any) => ({ 
-          id: s.id, 
-          name: s.nombre || s.name || 'Servicio sin nombre', 
-          price: s.precio || s.price || 0,
-          duration: s.duration_minutes || s.duration || 30
-        }));
+        const mapped = services
+          .filter((s: any) => this.isPublicServiceActive(s))
+          .map((s: any) => ({
+            id: s.id,
+            name: s.nombre || s.name || 'Servicio sin nombre',
+            price: s.precio || s.price || 0,
+            duration: s.duration_minutes || s.duration || 30
+          }));
+
+        if (mapped.length === 0) {
+          this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
+          return;
+        }
+
         this.publicServices.set(mapped);
         this.selectedServiceId.set(mapped[0].id);
         await this.loadAvailability();
@@ -154,6 +162,13 @@ export class PublicBookingPage implements OnInit {
     const serviceId = this.selectedServiceId();
     if (!slug || !serviceId) return;
 
+    if (!this.hasSelectedPublicService(serviceId)) {
+      this.availabilitySlots.set([]);
+      this.updateDayAvailability(this.selectedDate(), false);
+      this.selectedSlot = '';
+      return;
+    }
+
     this.loadingSlots.set(true);
     this.availabilityErrorMessage.set('');
     const date = this.selectedDate();
@@ -164,6 +179,10 @@ export class PublicBookingPage implements OnInit {
         serviceId,
         dateIso: date
       });
+
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
 
       if (response.error || response.status < 200 || response.status >= 300) {
         emitPublicBookingFailureEvent({ stage: 'availability', status: response.status, code: response.error?.code });
@@ -189,6 +208,9 @@ export class PublicBookingPage implements OnInit {
         this.selectedSlot = '';
       }
     } catch (error) {
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
       emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
       this.availabilitySlots.set([]);
       this.updateDayAvailability(date, false);
@@ -200,6 +222,18 @@ export class PublicBookingPage implements OnInit {
     
     // Also check days availability in background (don't await - let it run in background)
     this.checkDaysAvailability();
+  }
+
+  private isPublicServiceActive(service: Record<string, unknown>): boolean {
+    return service['activo'] !== false && service['is_active'] !== false;
+  }
+
+  private hasSelectedPublicService(serviceId: string): boolean {
+    return this.publicServices().some(service => service.id === serviceId);
+  }
+
+  private isCurrentPublicServiceSelection(serviceId: string): boolean {
+    return this.selectedServiceId() === serviceId && this.hasSelectedPublicService(serviceId);
   }
 
   protected async submitBooking(): Promise<void> {
@@ -272,6 +306,13 @@ export class PublicBookingPage implements OnInit {
       return;
     }
 
+    if (!this.hasSelectedPublicService(serviceId)) {
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+      this.loadingAvailability.set(false);
+      return;
+    }
+
     const slug = this.resolvedSlug();
     if (!slug) {
       this.loadingAvailability.set(false);
@@ -289,6 +330,10 @@ export class PublicBookingPage implements OnInit {
           serviceId,
           dateIso: day.date
         });
+
+        if (!this.isCurrentPublicServiceSelection(serviceId)) {
+          return;
+        }
 
         if (response.error || (typeof response.status === 'number' && (response.status < 200 || response.status >= 300))) {
           failedAvailabilityChecks = true;
@@ -310,6 +355,9 @@ export class PublicBookingPage implements OnInit {
         }
 
       } catch (error) {
+        if (!this.isCurrentPublicServiceSelection(serviceId)) {
+          return;
+        }
         failedAvailabilityChecks = true;
         emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
         days[i] = { ...day, hasAvailability: false };
@@ -319,6 +367,11 @@ export class PublicBookingPage implements OnInit {
         }
       }
     }));
+
+    if (!this.isCurrentPublicServiceSelection(serviceId)) {
+      this.loadingAvailability.set(false);
+      return;
+    }
 
     this.availableDays.set(days);
     if (failedAvailabilityChecks) {
@@ -411,7 +464,8 @@ export class PublicBookingPage implements OnInit {
       this.selectedSlot && 
       this.isSelectedDateAvailable() &&
       this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
-      this.selectedServiceId() && 
+      this.selectedServiceId() &&
+      this.hasSelectedPublicService(this.selectedServiceId()) &&
       this.firstName?.trim() && 
       this.lastName?.trim() && 
       this.whatsapp?.trim() && 
