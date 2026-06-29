@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { PublicBookingService, type ManageBookingDetails, type PublicSlot } from '../../data-access/public-booking.service';
 
 type ManageErrorCode =
@@ -91,7 +92,14 @@ export class ManageBookingPage implements OnInit {
       return;
     }
 
-    this.applyFailClosedError(response.error?.code as ManageErrorCode | undefined);
+    const failureCode = response.error?.code as ManageErrorCode | undefined;
+    emitPublicBookingFailureEvent({
+      stage: 'service',
+      code: failureCode ?? 'MANAGE_TOKEN_LOAD_FAILED',
+      status: response.status,
+      retryable: failureCode === 'BACKEND_UNAVAILABLE' || !failureCode
+    });
+    this.applyFailClosedError(failureCode);
     this.loading.set(false);
   }
 
@@ -177,6 +185,12 @@ export class ManageBookingPage implements OnInit {
       return;
     }
 
+    emitPublicBookingFailureEvent({
+      stage: 'submit',
+      code: response.error?.code ?? 'RESCHEDULE_SUBMIT_FAILED',
+      status: response.status,
+      retryable: true
+    });
     this.applyFailClosedError(response.error?.code as ManageErrorCode | undefined);
   }
 
@@ -249,11 +263,29 @@ export class ManageBookingPage implements OnInit {
         dateIso
       });
 
+      if (response.error) {
+        emitPublicBookingFailureEvent({
+          stage: 'availability',
+          code: response.error.code ?? 'AVAILABILITY_LOOKUP_FAILED',
+          status: response.status,
+          retryable: true
+        });
+        this.rescheduleAvailabilityUnavailable.set(true);
+        this.hasLoadedAvailability.set(false);
+        return;
+      }
+
       const slots = response.data?.slots ?? [];
       this.availableRescheduleSlots.set(slots);
       this.hasLoadedAvailability.set(true);
       this.rescheduleAvailabilityUnavailable.set(slots.length === 0);
-    } catch (error) {
+    } catch {
+      emitPublicBookingFailureEvent({
+        stage: 'availability',
+        code: 'AVAILABILITY_LOOKUP_FAILED',
+        status: 503,
+        retryable: true
+      });
       this.rescheduleAvailabilityUnavailable.set(true);
       this.hasLoadedAvailability.set(false);
     } finally {

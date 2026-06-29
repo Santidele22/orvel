@@ -105,6 +105,16 @@ Do not repair migration history or rewrite the pushed migration. Create a new fu
    npx supabase@latest db push --linked --include-all
    ```
 5. Re-run the rollback smoke check above and record the result in the PR notes.
+
+## Recovery: Reschedule Canonical Availability and RPC Grants
+
+Use this section for migrations `20260628143000_enforce_reschedule_canonical_availability.sql`, `20260628145500_harden_reschedule_rpc_execute_grants.sql`, `20260628152000_admin_reschedule_branch_scope_telemetry.sql`, and `20260628161000_document_admin_reschedule_branch_guard.sql`.
+
+- Do not rewrite either migration after it has been pushed. Fix DB behavior, grants, or security posture with a later full-timestamp migration.
+- After every fix-forward, run the rollback-safe smoke SQL in `supabase/checks/20260628143000_reschedule_canonical_availability_smoke.sql`; it must cover both public token reschedule and admin reschedule behavior.
+- Preserve anonymous access only to public token manage/cancel/reschedule RPCs. Helper/admin RPC grant changes must explicitly revoke unintended `PUBLIC`/`anon` execute before granting intended roles.
+- Browser/admin dashboard reschedule calls must use `reschedule_admin_booking(uuid, text, uuid, uuid, text, text)`. Authorization remains business-level through `can_manage_business`; the `branch_id` argument is a stale-context/target consistency guard, not a branch-level permission boundary. Branchless admin reschedule overloads are service-role compatibility only and must fail closed for authenticated callers.
+
 ## Booking Lifecycle Email Outbox Deploy and Recovery
 
 Use this section for changes that add or rename `notification_email_outbox.template_key` values, including booking created, rescheduled, and cancelled lifecycle emails.

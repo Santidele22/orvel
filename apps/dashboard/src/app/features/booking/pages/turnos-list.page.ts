@@ -41,6 +41,11 @@ export type AdminCancelFailurePresentation = {
   telemetryCode: 'PERMISSION_OR_STATE_GUARD' | 'UNEXPECTED_FAILURE';
 };
 
+export type AdminRescheduleFailurePresentation = {
+  feedback: string;
+  telemetryCode: 'PERMISSION_OR_STATE_GUARD' | 'SLOT_UNAVAILABLE' | 'UNEXPECTED_FAILURE';
+};
+
 export function buildAdminCancelFailurePresentation(error: unknown): AdminCancelFailurePresentation {
   const message = error instanceof Error ? error.message : String(error ?? 'unknown');
   const isGuardFailure = /BRANCH|UNAUTHORIZED|TURNO_NOT_FOUND|INVALID_STATUS|TRANSITION|ACTIVE_BRANCH_REQUIRED/i.test(message);
@@ -48,6 +53,19 @@ export function buildAdminCancelFailurePresentation(error: unknown): AdminCancel
   return {
     feedback: ADMIN_CANCEL_FAILURE_FEEDBACK,
     telemetryCode: isGuardFailure ? 'PERMISSION_OR_STATE_GUARD' : 'UNEXPECTED_FAILURE'
+  };
+}
+
+export function buildAdminRescheduleFailurePresentation(error: unknown): AdminRescheduleFailurePresentation {
+  const message = error instanceof Error ? error.message : String(error ?? 'unknown');
+  const isGuardFailure = /BRANCH|UNAUTHORIZED|TURNO_NOT_FOUND|INVALID_STATUS|TRANSITION|ACTIVE_BRANCH_REQUIRED/i.test(message);
+  const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(message);
+
+  return {
+    feedback: isConflict
+      ? 'Ese horario ya no está disponible o está bloqueado. Elegí otro horario.'
+      : 'No pudimos reprogramar el turno. Revisá disponibilidad e intentá nuevamente.',
+    telemetryCode: isGuardFailure ? 'PERMISSION_OR_STATE_GUARD' : (isConflict ? 'SLOT_UNAVAILABLE' : 'UNEXPECTED_FAILURE')
   };
 }
 
@@ -413,10 +431,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
       this.closeAdminReschedulePicker();
     } catch (error) {
       this.adminRescheduleSubmitting.set(false);
-      const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(String(error));
-      this.adminRescheduleFeedback.set(isConflict
-        ? 'Ese horario ya no está disponible o está bloqueado. Elegí otro horario.'
-        : 'No pudimos reprogramar el turno. Revisá disponibilidad e intentá nuevamente.');
+      const failure = buildAdminRescheduleFailurePresentation(error);
+      console.warn('Admin booking reschedule failed', {
+        action: 'admin_booking_reschedule',
+        reason: failure.telemetryCode
+      });
+      this.adminRescheduleFeedback.set(failure.feedback);
     }
   }
 
