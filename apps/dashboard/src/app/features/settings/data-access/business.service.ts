@@ -1,4 +1,4 @@
-import { Injectable, signal, inject, computed } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { Observable, from, throwError, map, tap } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
@@ -7,6 +7,7 @@ import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../c
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
+import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 
 export type ApiError = {
   code: string;
@@ -26,6 +27,14 @@ type ActiveBusinessContext = {
   slug?: string;
 };
 
+const DEFAULT_BOOKING_POLICY = {
+  bufferMinutes: 15,
+  minNoticeMinutes: 120,
+  slotIntervalMinutes: 30,
+  cancellationWindowMinutes: 60,
+  timezone: 'America/Argentina/Buenos_Aires'
+} as const;
+
 export class BusinessSettingsPersistenceError extends Error {
   constructor(
     message: string,
@@ -35,19 +44,6 @@ export class BusinessSettingsPersistenceError extends Error {
     this.name = 'BusinessSettingsPersistenceError';
   }
 }
-
-const PUBLIC_BOOKING_SETTINGS_COLUMNS = `
-  business_id,
-  business_name,
-  slug,
-  buffer_minutes,
-  min_notice_minutes,
-  slot_interval_minutes,
-  working_hours,
-  auto_confirm,
-  cancellation_window_minutes,
-  allow_client_professional_selection
-`;
 
 @Injectable({
   providedIn: 'root'
@@ -272,9 +268,9 @@ export class BusinessService {
     return {
       businessName: business.name || '',
       slug: business.slug || '',
-      bufferMinutes: settings?.buffer_minutes ?? 15,
-      minNoticeMinutes: settings?.min_notice_minutes ?? 120,
-      slotIntervalMinutes: settings?.slot_interval_minutes ?? 30,
+      bufferMinutes: settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
+      minNoticeMinutes: settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
+      slotIntervalMinutes: settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
       workingHours: settings?.working_hours ?? defaultHours,
       logoUrl: settings?.logo_url,
       coverUrl: settings?.cover_url,
@@ -327,7 +323,10 @@ export class BusinessService {
   }
 
   async resolveBusinessBySlug(businessSlug: string): Promise<ApiResponse<BusinessPublicView>> {
-    if (!this.supabaseClient) return { status: 500, error: { code: 'CONFIG_ERROR', message: 'Supabase not configured' } };
+    if (!this.supabaseClient) {
+      emitPublicBookingFailureEvent({ stage: 'resolver', code: 'CONFIG_ERROR', status: 500 });
+      return { status: 500, error: { code: 'CONFIG_ERROR', message: 'Supabase not configured' } };
+    }
 
     try {
       const normalizedSlug = normalizePublicBookingSlug(businessSlug);
@@ -340,7 +339,31 @@ export class BusinessService {
         business_slug: normalizedSlug
       });
 
-      if (error || !data) {
+      if (error) {
+        const errorCode = typeof error.code === 'string' ? error.code : '';
+        const errorMessage = typeof error.message === 'string' ? error.message : '';
+
+        if (errorCode === 'BUSINESS_NOT_FOUND' || errorMessage.includes('BUSINESS_NOT_FOUND')) {
+          return {
+            status: 404,
+            error: {
+              code: 'BUSINESS_NOT_FOUND',
+              message: `Business not found for slug: ${businessSlug}`
+            }
+          };
+        }
+
+        emitPublicBookingFailureEvent({ stage: 'resolver', code: 'PUBLIC_RESOLVER_UNAVAILABLE', status: 503 });
+        return {
+          status: 503,
+          error: {
+            code: 'PUBLIC_RESOLVER_UNAVAILABLE',
+            message: 'Public booking is temporarily unavailable.'
+          }
+        };
+      }
+
+      if (!data) {
         return {
           status: 404,
           error: {
@@ -350,44 +373,41 @@ export class BusinessService {
         };
       }
 
-      const { data: settingsData } = await this.supabaseClient
-        .from('business_settings')
-        .select(PUBLIC_BOOKING_SETTINGS_COLUMNS)
-        .eq('business_id', data.id)
-        .maybeSingle();
-
       return {
         status: 200,
-        data: this.mapToPublicView(data, settingsData)
+        data: this.mapToPublicView(data)
       };
-    } catch (err) {
+    } catch {
+      emitPublicBookingFailureEvent({ stage: 'resolver', code: 'PUBLIC_RESOLVER_UNAVAILABLE', status: 503 });
       return {
-        status: 404,
-        error: { code: 'UNKNOWN_ERROR', message: (err as Error).message }
+        status: 503,
+        error: { code: 'PUBLIC_RESOLVER_UNAVAILABLE', message: 'Public booking is temporarily unavailable.' }
       };
     }
   }
 
-  private mapToPublicView(record: any, settings?: any): BusinessPublicView {
-    const displayName = (settings?.business_name && settings.business_name.trim()) 
-      ? settings.business_name 
+  private mapToPublicView(record: any): BusinessPublicView {
+    const settings = record?.settings ?? {};
+    const bookingPolicy = record?.bookingPolicy ?? record?.booking_policy ?? {};
+    const displayName = (record?.businessName && record.businessName.trim())
+      ? record.businessName
       : record.name;
 
     return {
       id: record.id,
-      slug: settings?.slug || record.slug,
+      slug: record.slug,
       displayName: displayName,
-      timezone: record.timezone || 'America/Argentina/Buenos_Aires',
+      timezone: record.timezone || DEFAULT_BOOKING_POLICY.timezone,
       settings: {
-        bufferMinutes: settings?.buffer_minutes ?? 15,
-        minNoticeMinutes: settings?.min_notice_minutes ?? 120,
-        slotIntervalMinutes: settings?.slot_interval_minutes ?? 30,
-        workingHours: settings?.working_hours ?? this.getDefaultWorkingHours()
+        bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
+        minNoticeMinutes: settings?.minNoticeMinutes ?? settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
+        slotIntervalMinutes: settings?.slotIntervalMinutes ?? settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
+        workingHours: settings?.workingHours ?? settings?.working_hours ?? this.getDefaultWorkingHours()
       },
       bookingPolicy: {
-        autoConfirm: settings?.auto_confirm ?? true,
-        cancellationWindowMinutes: settings?.cancellation_window_minutes ?? 60,
-        allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false
+        autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,
+        cancellationWindowMinutes: bookingPolicy?.cancellationWindowMinutes ?? bookingPolicy?.cancellation_window_minutes ?? DEFAULT_BOOKING_POLICY.cancellationWindowMinutes,
+        allowClientProfessionalSelection: bookingPolicy?.allowClientProfessionalSelection ?? bookingPolicy?.allow_client_professional_selection ?? false
       }
     };
   }

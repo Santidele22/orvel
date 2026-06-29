@@ -34,6 +34,41 @@ type AdminRescheduleFormState = {
   reason: string;
 };
 
+const ADMIN_CANCEL_FAILURE_FEEDBACK = 'No pudimos cancelar el turno. Revisá el alcance activo e intentá nuevamente.';
+
+export type AdminCancelFailurePresentation = {
+  feedback: string;
+  telemetryCode: 'PERMISSION_OR_STATE_GUARD' | 'UNEXPECTED_FAILURE';
+};
+
+export type AdminRescheduleFailurePresentation = {
+  feedback: string;
+  telemetryCode: 'PERMISSION_OR_STATE_GUARD' | 'SLOT_UNAVAILABLE' | 'UNEXPECTED_FAILURE';
+};
+
+export function buildAdminCancelFailurePresentation(error: unknown): AdminCancelFailurePresentation {
+  const message = error instanceof Error ? error.message : String(error ?? 'unknown');
+  const isGuardFailure = /BRANCH|UNAUTHORIZED|TURNO_NOT_FOUND|INVALID_STATUS|TRANSITION|ACTIVE_BRANCH_REQUIRED/i.test(message);
+
+  return {
+    feedback: ADMIN_CANCEL_FAILURE_FEEDBACK,
+    telemetryCode: isGuardFailure ? 'PERMISSION_OR_STATE_GUARD' : 'UNEXPECTED_FAILURE'
+  };
+}
+
+export function buildAdminRescheduleFailurePresentation(error: unknown): AdminRescheduleFailurePresentation {
+  const message = error instanceof Error ? error.message : String(error ?? 'unknown');
+  const isGuardFailure = /BRANCH|UNAUTHORIZED|TURNO_NOT_FOUND|INVALID_STATUS|TRANSITION|ACTIVE_BRANCH_REQUIRED/i.test(message);
+  const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(message);
+
+  return {
+    feedback: isConflict
+      ? 'Ese horario ya no está disponible o está bloqueado. Elegí otro horario.'
+      : 'No pudimos reprogramar el turno. Revisá disponibilidad e intentá nuevamente.',
+    telemetryCode: isGuardFailure ? 'PERMISSION_OR_STATE_GUARD' : (isConflict ? 'SLOT_UNAVAILABLE' : 'UNEXPECTED_FAILURE')
+  };
+}
+
 // Static legacy marker for adapter-based contracts only: createAdminManualBooking(
 
 interface CalendarioEvento {
@@ -108,6 +143,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected adminRescheduleLoading = signal(false);
   protected adminRescheduleSubmitting = signal(false);
   protected adminRescheduleFeedback = signal<string | null>(null);
+  protected adminCancelFeedback = signal<string | null>(null);
   protected availabilityError = signal<string | null>(null);
   protected hasLoadedAvailability = signal(false);
   protected blockedTimeForm: BlockedTimeFormState = {
@@ -395,17 +431,23 @@ export class TurnosListPage implements OnInit, OnDestroy {
       this.closeAdminReschedulePicker();
     } catch (error) {
       this.adminRescheduleSubmitting.set(false);
-      const isConflict = /TURNO_SLOT_COLLISION|SLOT_CONFLICT|conflict|no disponible|bloqueado/i.test(String(error));
-      this.adminRescheduleFeedback.set(isConflict
-        ? 'Ese horario ya no está disponible o está bloqueado. Elegí otro horario.'
-        : 'No pudimos reprogramar el turno. Revisá disponibilidad e intentá nuevamente.');
+      const failure = buildAdminRescheduleFailurePresentation(error);
+      console.warn('Admin booking reschedule failed', {
+        action: 'admin_booking_reschedule',
+        reason: failure.telemetryCode
+      });
+      this.adminRescheduleFeedback.set(failure.feedback);
     }
   }
 
   protected async cancelTurno(turno: TurnoWithRelations) {
     if (!confirm(`¿Estás seguro de que deseas cancelar el turno de ${turno.clienteNombre}?`)) return;
+    this.adminCancelFeedback.set(null);
     const performedBy = this.currentAdminActorId();
-    if (!performedBy) return;
+    if (!performedBy) {
+      this.adminCancelFeedback.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+      return;
+    }
 
     try {
       await firstValueFrom(this.turnoService.cancelByAdmin(turno.id, {
@@ -414,8 +456,18 @@ export class TurnosListPage implements OnInit, OnDestroy {
       }));
 
       await this.refreshTurnosFromSource();
-    } catch {
-      // Keep runtime details out of logs/UI for admin actions.
+    } catch (error) {
+      const failure = buildAdminCancelFailurePresentation(error);
+      console.warn('Admin booking cancellation failed', {
+        action: 'admin_booking_cancel',
+        reason: failure.telemetryCode
+      });
+      void this.turnoService.recordAdminCancelFailureTelemetry({
+        stage: 'rpc',
+        code: failure.telemetryCode,
+        retryable: true
+      });
+      this.adminCancelFeedback.set(failure.feedback);
     }
   }
 

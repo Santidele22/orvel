@@ -30,6 +30,19 @@
               </button>
            </div>
         </section>
+      } @else if (errorMessage() && !resolvedBusinessId()) {
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-portal-error-state">
+          <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-[28px] flex items-center justify-center mx-auto text-amber-300">
+            <i class="ri-error-warning-line text-4xl"></i>
+          </div>
+          <div class="space-y-3">
+            <h2 class="text-3xl font-black text-white tracking-tight">No pudimos cargar las reservas</h2>
+            <p class="text-slate-400 font-medium leading-relaxed">{{ errorMessage() }}</p>
+          </div>
+          <button type="button" (click)="retryPortalLoad()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+            Reintentar
+          </button>
+        </section>
       } @else {
         
         <!-- Booking Form -->
@@ -63,6 +76,7 @@
                   (change)="onServiceChange()"
                   name="selectedService"
                   required
+                  [disabled]="!!serviceErrorMessage() || publicServices().length === 0"
                   [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
                           (fieldErrors()['service'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
                 >
@@ -77,6 +91,19 @@
               </div>
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
+              }
+              @if (serviceErrorMessage()) {
+                <div class="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-5 py-4 rounded-2xl text-xs font-bold flex items-start gap-3" role="status" aria-live="polite" data-testid="booking-services-error">
+                  <i class="ri-error-warning-line text-lg mt-0.5"></i>
+                  <div class="space-y-3">
+                    <p>{{ serviceErrorMessage() }}</p>
+                    @if (resolvedBusinessId()) {
+                      <button type="button" (click)="retryLoadServices()" class="text-[10px] uppercase tracking-widest text-white underline decoration-amber-300/50 underline-offset-4">
+                        Reintentar
+                      </button>
+                    }
+                  </div>
+                </div>
               }
             </div>
 
@@ -96,12 +123,14 @@
                   @for (day of availableDays(); track day.date) {
                     <button
                       type="button"
+                      data-testid="booking-day-option"
                       (click)="selectDate(day.date)"
+                      [disabled]="isDayDisabled(day)"
                       [class]="'flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all border ' + 
-                              (selectedDate() === day.date ? 
+                              (selectedDate() === day.date && day.hasAvailability ?
                                'bg-[#7C3AED] border-[#7C3AED] text-white shadow-lg shadow-purple-900/40 scale-105' : 
                                !day.hasAvailability ?
-                               'bg-red-500/5 border-red-500/20 text-red-400' :
+                               'bg-red-500/5 border-red-500/20 text-red-400 cursor-not-allowed opacity-50' :
                                'bg-black/20 border-white/5 text-slate-400 hover:border-purple-500/30 hover:bg-purple-500/5')"
                     >
                       <span class="text-[9px] font-black uppercase tracking-tighter mb-1 opacity-60">{{ day.weekday }}</span>
@@ -130,7 +159,9 @@
                     [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer disabled:opacity-30 ' + 
                             (fieldErrors()['slot'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
                   >
-                    @if (availabilitySlots().length === 0 && !loadingSlots()) {
+                    @if (availabilityErrorMessage() && !loadingSlots()) {
+                      <option value="" class="bg-[#1E293B]">No pudimos consultar los horarios. Intentá nuevamente.</option>
+                    } @else if (availabilitySlots().length === 0 && !loadingSlots()) {
                       <option value="" class="bg-[#1E293B]">No hay turnos disponibles para este día</option>
                     } @else {
                       <option value="" disabled class="bg-[#1E293B]">Selecciona un horario disponible</option>
@@ -148,7 +179,19 @@
                 @if (fieldErrors()['slot']) {
                   <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['slot'] }}</p>
                 }
-                
+
+                @if (availabilityErrorMessage()) {
+                  <div class="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-5 py-4 rounded-2xl text-xs font-bold flex items-start gap-3" role="status" aria-live="polite" data-testid="booking-availability-error">
+                    <i class="ri-error-warning-line text-lg mt-0.5"></i>
+                    <div class="space-y-3">
+                      <p>{{ availabilityErrorMessage() }}</p>
+                      <button type="button" (click)="loadAvailability()" class="text-[10px] uppercase tracking-widest text-white underline decoration-amber-300/50 underline-offset-4">
+                        Reintentar
+                      </button>
+                    </div>
+                  </div>
+                }
+
                 @if (availabilitySlots().length > 0) {
                   <p class="text-[10px] text-slate-500 ml-1 italic font-medium">
                     * Todos los horarios se muestran en hora local.
