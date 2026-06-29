@@ -98,6 +98,37 @@ describe('public booking operational observability', () => {
     );
   });
 
+  it('supports sanitized admin reschedule auth fallback telemetry through the unauthenticated public sink', async () => {
+    // Arrange
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    setPublicBookingFailureTelemetryClientFactoryForTests(() => ({ rpc }));
+
+    // Act
+    const event = emitPublicBookingFailureEvent({
+      stage: 'service',
+      code: 'ADMIN_RESCHEDULE_AUTH_REQUIRED',
+      status: 401,
+      retryable: true
+    });
+    await flushPromises();
+
+    // Assert
+    expect(event).toEqual<PublicBookingFailureEvent>({
+      feature: 'public-booking',
+      stage: 'service',
+      code: 'ADMIN_RESCHEDULE_AUTH_REQUIRED',
+      status: 401,
+      retryable: true
+    });
+    expect(rpc).toHaveBeenCalledWith('record_public_booking_failure', {
+      p_stage: 'service',
+      p_code: 'ADMIN_RESCHEDULE_AUTH_REQUIRED',
+      p_status: 401,
+      p_retryable: true
+    });
+  });
+
   it('checks in a narrow Supabase RPC sink without table grants or raw message columns', () => {
     // Arrange / Act
     const migration = readFileSync(TELEMETRY_MIGRATION, 'utf-8');
