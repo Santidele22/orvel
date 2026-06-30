@@ -21,14 +21,14 @@
       @if (invalidToken()) {
         <div data-testid="manage-token-invalid-state" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-bold text-red-400 flex items-center gap-3" role="alert">
           <i class="ri-error-warning-line text-lg"></i>
-          Invalid or malformed booking link.
+          El link del turno no es válido.
         </div>
       }
 
       @if (expiredToken()) {
         <div data-testid="manage-token-expired-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-6 py-4 text-sm font-bold text-amber-400 flex items-center gap-3" role="alert">
           <i class="ri-time-line text-lg"></i>
-          This booking link has expired.
+          Este link del turno venció.
         </div>
       }
 
@@ -49,7 +49,7 @@
       @if (policyWindowClosed()) {
         <div data-testid="manage-policy-window-state" class="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-bold text-slate-400 flex items-center gap-3" role="status">
           <i class="ri-information-line text-lg"></i>
-          This booking can no longer be changed online.
+          Este turno ya no se puede modificar online.
         </div>
       }
 
@@ -91,7 +91,7 @@
       @if (canCancelOrReschedule()) {
         <div class="space-y-6">
           <p class="text-sm font-medium text-slate-400 leading-relaxed">
-            La reserva <span class="text-white font-bold">{{ bookingId() }}</span> es elegible para cambios o cancelación.
+            Este turno se puede cancelar o reprogramar desde este link privado.
           </p>
           <div class="flex flex-wrap gap-4 pt-6 border-t border-white/5">
             <button

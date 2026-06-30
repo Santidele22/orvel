@@ -137,17 +137,18 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     );
   });
 
-  it('maps public create RPC manage_token to manageToken and preserves canonical confirmed status', async () => {
+  it('maps public create RPC manage_token to manageToken only when DB atomic visibility marker and branch_id are present', async () => {
     const rpc = vi.fn(async (fn: string) => {
       if (fn === 'create_public_booking') {
         return {
-          data: { booking_id: 'booking-public-1', manage_token: 'raw-token-once' },
+          data: {
+            booking_id: 'booking-public-1',
+            branch_id: 'branch-public-1',
+            manage_token: 'raw-token-once',
+            db_atomic_visibility_notifications: true
+          },
           error: null
         };
-      }
-
-      if (fn === 'get_booking_notification_context') {
-        return { data: null, error: null };
       }
 
       return {
@@ -176,19 +177,15 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     });
 
     expect(rpc).toHaveBeenNthCalledWith(1, 'create_public_booking', expect.any(Object));
-    expect(rpc).toHaveBeenNthCalledWith(2, 'get_booking_notification_context', {
-      p_booking_id: 'booking-public-1',
-      p_manage_token: 'raw-token-once'
-    });
-    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenCalledTimes(1);
 
     const createPublicBookingBody = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), 'createPublicBooking');
-    expect(createPublicBookingBody, 'post-create notification context must be loaded by RPC, not direct bookings SELECT').not.toMatch(
+    expect(createPublicBookingBody, 'post-create visibility must not be verified with direct bookings SELECT').not.toMatch(
       /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
     );
   });
 
-  it('keeps public create success visible when notification context side effects fail after the create RPC commits', async () => {
+  it('fails closed when old public create RPC response lacks DB atomic marker or branch_id', async () => {
     const rpc = vi.fn(async (fn: string) => {
       if (fn === 'create_public_booking') {
         return {
@@ -197,9 +194,45 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
         };
       }
 
-      throw new Error('notification context unavailable');
+      throw new Error(`unexpected RPC ${fn}`);
     });
-    const from = vi.fn(() => maybeSingleChain(null));
+    createClientMock.mockReturnValue({ rpc });
+
+    await expect(
+      realSupabaseGateway.createPublicBooking({
+        businessSlug: 'demo-salon',
+        serviceId: 'service-1',
+        startsAtIso: '2026-06-01T10:00:00.000Z',
+        client: { fullName: 'Ada Lovelace', email: 'ada@example.test' }
+      })
+    ).resolves.toEqual({
+      status: 503,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Booking database contract is not available. Please try again later.'
+      }
+    });
+  });
+
+  it('does not queue public create emails or bell notifications from the browser after RPC success', async () => {
+    const rpc = vi.fn(async (fn: string) => {
+      if (fn === 'create_public_booking') {
+        return {
+          data: {
+            booking_id: 'booking-public-1',
+            branch_id: 'branch-public-1',
+            manage_token: 'raw-token-once',
+            db_atomic_visibility_notifications: true
+          },
+          error: null
+        };
+      }
+
+      throw new Error(`unexpected RPC ${fn}`);
+    });
+    const from = vi.fn(() => ({
+      insert: vi.fn(async () => ({ data: null, error: null }))
+    }));
     createClientMock.mockReturnValue({ rpc, from });
 
     await expect(
@@ -218,6 +251,14 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
         source: 'client-self-service'
       }
     });
+
+    expect(from).not.toHaveBeenCalledWith('notification_email_outbox');
+    expect(rpc).not.toHaveBeenCalledWith('create_dashboard_notification_for_appointment_created', expect.any(Object));
+
+    const createPublicBookingBody = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), 'createPublicBooking');
+    expect(createPublicBookingBody, 'public create side effects must be owned by the database transaction').not.toMatch(
+      /notification_email_outbox|create_dashboard_notification_for_appointment_created|get_booking_notification_context/i
+    );
   });
 
   it.each([

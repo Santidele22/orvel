@@ -43,9 +43,9 @@ describe('Mini Calendly manage-by-token UI route RED contract', () => {
     expect(source).toMatch(/data-testid=["']manage-token-expired-state["']/i);
     expect(source).toMatch(/data-testid=["']manage-policy-window-state["']/i);
 
-    expect(source).toMatch(/Invalid or malformed booking link\./);
-    expect(source).toMatch(/This booking link has expired\./);
-    expect(source).toMatch(/This booking can no longer be changed online\./);
+    expect(source).toMatch(/El link del turno no es válido\./);
+    expect(source).toMatch(/Este link del turno venció\./);
+    expect(source).toMatch(/Este turno ya no se puede modificar online\./);
   });
 
   it('supports cancel/reschedule actions when policy allows changes', () => {

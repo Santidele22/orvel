@@ -56,13 +56,13 @@ function gatewayMethodSource(methodName: string, nextMethodName: string): string
   return source.slice(start, end);
 }
 
-function expectCustomerEmailPath(source: string, templateNames: RegExp, recipientPath: RegExp): void {
+function expectEmailPath(source: string, templateNames: RegExp, recipientPath: RegExp): void {
   const hasSendPath = /queueHtmlEmail\s*\(|sendHtmlEmail\s*\(/.test(source) && templateNames.test(source) && recipientPath.test(source);
   const hasOutboxPath = /notification_email_outbox/.test(source) && /template_key/.test(source) && templateNames.test(source);
 
   expect(
     hasSendPath || hasOutboxPath,
-    'Expected the real appointment flow to enqueue notification_email_outbox or queue repository-rendered email to the customer.',
+    'Expected the real appointment flow to enqueue notification_email_outbox or queue repository-rendered email to the intended recipient.',
   ).toBe(true);
 }
 
@@ -72,28 +72,35 @@ function expectAdminDashboardNotificationPath(source: string, eventRpcName: stri
 }
 
 describe('Orvel REAL appointment flows notification wiring RED contracts', () => {
-  it('public appointment creation enqueues/sends customer confirmation email and creates an admin dashboard notification', () => {
+  it('public appointment creation relies on DB-owned confirmation/business emails and admin dashboard notification', () => {
     const createPublicBookingSource = gatewayMethodSource('createPublicBooking', 'manageBookingByToken');
     const sql = readSqlCorpus();
 
     expect(createPublicBookingSource).toMatch(/rpc\(\s*['"]create_public_booking['"]/);
-    expectCustomerEmailPath(`${createPublicBookingSource}\n${sql}`, /booking_created|appointment_confirmation|renderAppointmentConfirmationEmail/i, /payload\.client\.email|client->>'email'|to_email/i);
-    expectAdminDashboardNotificationPath(createPublicBookingSource, 'create_dashboard_notification_for_appointment_created');
+    expect(createPublicBookingSource).toMatch(/db_atomic_visibility_notifications/);
+    expect(createPublicBookingSource).not.toMatch(/create_dashboard_notification_for_appointment_created|notification_email_outbox|get_booking_notification_context/i);
+    expectEmailPath(sql, /appointment_confirmation/i, /v_customer_email|to_email/i);
+    expectEmailPath(sql, /appointment_created_business/i, /v_business_email|to_email/i);
+    expect(sql).toMatch(/INSERT\s+INTO\s+public\.dashboard_notifications[\s\S]*appointment\.created/i);
   });
 
-  it('customer cancellation by token enqueues/sends customer cancellation email and creates an admin dashboard notification', () => {
+  it('customer cancellation by token enqueues business-client cancellation email and creates an admin dashboard notification', () => {
     const cancelByTokenSource = gatewayMethodSource('cancelBookingByToken', 'rescheduleBookingByToken');
+    const sql = readSqlCorpus();
 
     expect(cancelByTokenSource).toMatch(/rpc\(\s*['"]cancel_booking_by_token['"]/);
-    expectCustomerEmailPath(cancelByTokenSource, /booking_cancelled|appointment_cancellation|renderAppointmentCancellationEmail/i, /customer\.email|toEmail|to_email|email/i);
+    expect(cancelByTokenSource).not.toMatch(/notification_email_outbox|booking_cancelled|appointment_cancellation|renderAppointmentCancellationEmail/i);
+    expectEmailPath(sql, /booking_cancelled_business/i, /v_business_email|to_email/i);
     expectAdminDashboardNotificationPath(cancelByTokenSource, 'create_dashboard_notification_for_appointment_cancelled');
   });
 
-  it('customer reschedule by token enqueues/sends customer reschedule email and creates an admin dashboard notification', () => {
+  it('customer reschedule by token enqueues booking-user reschedule email and creates an admin dashboard notification', () => {
     const rescheduleByTokenSource = gatewayMethodSource('rescheduleBookingByToken', 'createAdminManualBooking');
+    const sql = readSqlCorpus();
 
     expect(rescheduleByTokenSource).toMatch(/rpc\(\s*['"]reschedule_booking_by_token['"]/);
-    expectCustomerEmailPath(rescheduleByTokenSource, /booking_rescheduled|appointment_reschedule|renderAppointmentRescheduleEmail/i, /customer\.email|toEmail|to_email|email/i);
+    expect(rescheduleByTokenSource).not.toMatch(/notification_email_outbox|booking_rescheduled|appointment_reschedule(?:\b|_email)|renderAppointmentRescheduleEmail/i);
+    expectEmailPath(sql, /booking_rescheduled/i, /v_customer_email|to_email/i);
     expectAdminDashboardNotificationPath(rescheduleByTokenSource, 'create_dashboard_notification_for_appointment_rescheduled');
   });
 
