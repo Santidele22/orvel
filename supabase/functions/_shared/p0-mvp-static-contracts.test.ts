@@ -557,9 +557,45 @@ Deno.test("P0 booking management link contract: process-email-outbox does not se
   );
 });
 
+Deno.test("P0 booking management link contract: process-email-outbox normalizes fallback appointment links before rendering", async () => {
+  const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
+  const bookingFallbackIndex = source.indexOf("// Fallback if booking query failed");
+  const noBookingFallbackIndex = source.indexOf("// No booking_id, ensure minimal structure for template");
+  const renderIndex = source.indexOf("// 3. Render Template based on key");
+  const bookingFallbackPath = bookingFallbackIndex >= 0 && noBookingFallbackIndex > bookingFallbackIndex
+    ? source.slice(bookingFallbackIndex, noBookingFallbackIndex)
+    : "";
+  const noBookingFallbackPath = noBookingFallbackIndex >= 0 && renderIndex > noBookingFallbackIndex
+    ? source.slice(noBookingFallbackIndex, renderIndex)
+    : "";
+  const normalizeHelper = source.slice(
+    source.indexOf("function normalizeAppointmentLinks"),
+    source.indexOf("function relationOne"),
+  );
+
+  assert(bookingFallbackPath.length > 0, "Guard must inspect the booking-query-failed fallback path");
+  assert(noBookingFallbackPath.length > 0, "Guard must inspect the no-booking-id fallback path");
+  assert(
+    /fullData\.links\s*=\s*normalizeAppointmentLinks\(fullData\.links,\s*dashboardUrl\)/.test(bookingFallbackPath),
+    "Booking enrichment failure fallback must normalize relative appointment links before template rendering",
+  );
+  assert(
+    /fullData\.links\s*=\s*normalizeAppointmentLinks\(fullData\.links,\s*dashboardUrl\)/.test(noBookingFallbackPath),
+    "No-booking-id fallback must normalize relative appointment links before template rendering",
+  );
+  assert(
+    !/view:\s*["']#["']|cancel:\s*["']#["']|reschedule:\s*["']#["']/.test(source),
+    "process-email-outbox must not inject inert appointment href placeholders; templates omit unavailable links",
+  );
+  assert(
+    normalizeHelper.length > 0 && !/return\s+["']#["']/.test(normalizeHelper),
+    "normalizeAppointmentLinks must not convert unavailable appointment links into inert # URLs",
+  );
+});
+
 Deno.test("P0 customer appointment confirmation email is minimal and links to the exact booking manager", async () => {
   const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
-  const dashboardGatewaySource = await readText(new URL("apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts", repoRoot));
+  const migrationsSource = await readAllSqlMigrations();
   const confirmationSection = templateSource.slice(
     templateSource.indexOf("export function renderAppointmentConfirmationEmail"),
     templateSource.indexOf("export function renderAppointmentBusinessNotificationEmail"),
@@ -574,26 +610,22 @@ Deno.test("P0 customer appointment confirmation email is minimal and links to th
   assert(!/cancelar|reprogramar/i.test(confirmationSection), "Customer confirmation email should contain one management link, not separate cancel/reschedule links");
   assert(!/href=\"#\"|return '#'/i.test(confirmationSection), "Customer confirmation email must not render inert links");
   assert(
-    /template_key:\s*['"]appointment_confirmation['"][\s\S]{0,180}payload:\s*notificationPayload\(booking,\s*manageToken\)/.test(dashboardGatewaySource),
+    /'appointment_confirmation'[\s\S]*\/booking\/manage\?token=/.test(migrationsSource),
     "Customer confirmation payload must receive the tokenized management link",
   );
 });
 
 Deno.test("P0 business appointment notification never receives or renders customer management bearer links", async () => {
   const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
-  const dashboardGatewaySource = await readText(new URL("apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts", repoRoot));
-  const businessOutboxInsert = dashboardGatewaySource.match(
-    /template_key:\s*['"]appointment_created_business['"][\s\S]*?payload:\s*notificationPayload\(([^)]*)\)/,
+  const migrationsSource = await readAllSqlMigrations();
+  const businessOutboxInsert = migrationsSource.match(
+    /'appointment_created_business'[\s\S]*?jsonb_build_object\([\s\S]*?\)\s*\n\s*WHERE NOT EXISTS/,
   )?.[0] ?? "";
 
   assert(businessOutboxInsert.length > 0, "Guard must inspect business appointment notification outbox insert");
   assert(
-    /payload:\s*notificationPayload\(booking\)/.test(businessOutboxInsert),
-    "Business appointment notification payload must not include the public manage token",
-  );
-  assert(
-    !/manageToken/.test(businessOutboxInsert),
-    "Business appointment notification payload must not pass the public manage token",
+    !/\/booking\/manage\?token=|cancel|reschedule|v_management_bearer/.test(businessOutboxInsert),
+    "Business appointment notification payload must not include public management links or bearer tokens",
   );
   assert(
     /const\s+canRenderSelfServiceLinks\s*=\s*kind\s*!==\s*['"]business_notification['"]/.test(templateSource),
@@ -791,6 +823,58 @@ Deno.test("P0 public booking contract: create_public_booking validates branch_id
     /br\.id\s*=\s*v_branch_id/i.test(body) &&
       /br\.business_id\s*=\s*v_business_id/i.test(body),
     "create_public_booking must reject branch_id values that do not belong to the resolved business",
+  );
+});
+
+Deno.test("P0 public booking contract: anon RPC never creates or repairs tenant branches", async () => {
+  const body = latestFunctionBodyMatching(
+    await readAllSqlMigrations(),
+    "create_public_booking",
+    (body) => /INSERT\s+INTO\s+public\.bookings/i.test(body),
+  );
+
+  assert(
+    !/INSERT\s+INTO\s+public\.branches/i.test(body),
+    "create_public_booking is granted to anon/authenticated and must not insert tenant branches at runtime",
+  );
+  assert(
+    /BRANCH_NOT_FOUND/.test(body),
+    "create_public_booking must fail closed when no existing active tenant-owned branch can be selected",
+  );
+});
+
+Deno.test("P0 public booking contract: create_public_booking uses canonical active branch predicate", async () => {
+  const body = latestFunctionBodyMatching(
+    await readAllSqlMigrations(),
+    "create_public_booking",
+    (body) => /FROM\s+public\.branches\s+br/i.test(body) &&
+      /INSERT\s+INTO\s+public\.bookings/i.test(body),
+  );
+
+  assert(
+    /br\.active\s+IS\s+TRUE/i.test(body),
+    "create_public_booking branch selection/validation must follow the canonical dashboard visibility predicate branches.active IS TRUE",
+  );
+  assert(
+    /COALESCE\(br\.is_active,\s*true\)\s*=\s*true/i.test(body),
+    "create_public_booking must also honor branches.is_active when that compatibility column exists",
+  );
+});
+
+Deno.test("P0 public booking contract: create_public_booking returns DB atomic side-effect marker and branch_id", async () => {
+  const body = latestFunctionBodyMatching(
+    await readAllSqlMigrations(),
+    "create_public_booking",
+    (body) => /jsonb_build_object/i.test(body) && /INSERT\s+INTO\s+public\.bookings/i.test(body),
+  );
+
+  assert(
+    /'branch_id'\s*,\s*v_branch_id/i.test(body),
+    "create_public_booking response must include the selected branch_id for runtime deployment-order fail-closed checks",
+  );
+  assert(
+    /'db_atomic_visibility_notifications'\s*,\s*true/i.test(body),
+    "create_public_booking response must include a marker proving DB-owned visibility/notification side effects are active",
   );
 });
 

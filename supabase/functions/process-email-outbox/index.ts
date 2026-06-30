@@ -163,11 +163,11 @@ function renderFallbackEmail(title: string, message: string): string {
 function normalizeAppointmentLinks(rawLinks: unknown, baseUrl: string): AppointmentLinks {
   const links = rawLinks && typeof rawLinks === "object" ? rawLinks as Partial<AppointmentLinks> : {};
   const toAbsolute = (value: unknown): string => {
-    if (typeof value !== "string" || !value.trim()) return "#";
+    if (typeof value !== "string" || !value.trim()) return "";
     try {
       return new URL(value.trim(), baseUrl).toString();
     } catch {
-      return "#";
+      return "";
     }
   };
 
@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
               fullData.business = fullData.business || { name: fullData.business_name || "Orvel", address: "Consultar dirección" };
               fullData.service = fullData.service || { name: fullData.service_name || "Servicio" };
               fullData.contact = fullData.contact || { phone: "No especificado", email: fromEmail };
-              fullData.links = fullData.links || { view: "#", cancel: "#", reschedule: "#" };
+              fullData.links = normalizeAppointmentLinks(fullData.links, dashboardUrl);
             }
           } else {
             // No booking_id, ensure minimal structure for template
@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
             fullData.business = fullData.business || { name: fullData.business_name || "Orvel", address: "Consultar dirección" };
             fullData.service = fullData.service || { name: fullData.service_name || "Servicio" };
             fullData.contact = fullData.contact || { phone: "No especificado", email: fromEmail };
-            fullData.links = fullData.links || { view: "#", cancel: "#", reschedule: "#" };
+            fullData.links = normalizeAppointmentLinks(fullData.links, dashboardUrl);
           }
 
           // 3. Render Template based on key
