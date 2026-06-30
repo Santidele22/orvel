@@ -235,7 +235,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
     try {
       const supabase = createSupabaseClient();
       const { data, error } = await supabase.rpc('create_public_booking', {
-        business_slug: normalizePublicBookingSlug(payload.businessSlug),
+        business_slug: normalizePublicBookingSlug(businessSlug),
         service_id: payload.serviceId,
         starts_at_iso: payload.startsAtIso,
         client: {
@@ -395,16 +395,6 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         const customer = booking?.customer;
 
         if (booking) {
-          if (customer?.email) {
-            await supabase.from('notification_email_outbox').insert({
-              business_id: booking.business_id,
-              booking_id: bookingId,
-              to_email: customer.email,
-              template_key: 'booking_cancelled',
-              payload: notificationPayload(booking),
-            });
-          }
-
           await supabase.rpc('create_dashboard_notification_for_appointment_cancelled', {
             p_business_id: booking.business_id,
             p_appointment_id: bookingId,
@@ -462,16 +452,6 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         const customer = booking?.customer;
 
         if (booking) {
-          if (customer?.email) {
-            await supabase.from('notification_email_outbox').insert({
-              business_id: booking.business_id,
-              booking_id: bookingId,
-              to_email: customer.email,
-              template_key: 'booking_rescheduled',
-              payload: notificationPayload(booking),
-            });
-          }
-
           await supabase.rpc('create_dashboard_notification_for_appointment_rescheduled', {
             p_business_id: booking.business_id,
             p_appointment_id: bookingId,

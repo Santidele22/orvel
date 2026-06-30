@@ -1,4 +1,5 @@
 DROP FUNCTION IF EXISTS public.cancel_admin_booking(uuid, uuid, text, text);
+
 CREATE OR REPLACE FUNCTION public.cancel_admin_booking(
   booking_id uuid,
   branch_id uuid DEFAULT NULL,
@@ -57,6 +58,7 @@ BEGIN
   );
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) TO authenticated, service_role;

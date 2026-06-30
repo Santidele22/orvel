@@ -73,6 +73,12 @@
         <div
           class="flex-1 bg-surface/40 backdrop-blur-sm rounded-zen-card shadow-2xl overflow-hidden flex flex-col"
           data-testid="turnos-admin-list">
+          @if (adminCancelFeedback()) {
+          <p role="alert" data-testid="turnos-admin-cancel-feedback"
+            class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+            {{ adminCancelFeedback() }}
+          </p>
+          }
           <div class="flex-1 overflow-y-auto p-zen-xl space-y-px relative custom-scrollbar">
             @for (hour of timelineHours(); track hour) {
             <div class="relative py-zen-xl flex gap-zen-xl group transition-all duration-300">

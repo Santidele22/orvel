@@ -7,7 +7,7 @@ export interface AppointmentTemplateData {
   duration: number;
   price: number;
   contact: { phone: string; email: string };
-  links: { view: string; cancel: string; reschedule: string };
+  links?: { view?: string | null; cancel?: string | null; reschedule?: string | null };
 }
 
 export interface EmailPayload {
@@ -15,7 +15,7 @@ export interface EmailPayload {
   html: string;
 }
 
-type AppointmentEmailKind = 'confirmation' | 'reminder' | 'cancellation' | 'reschedule' | 'business_notification';
+type AppointmentEmailKind = 'confirmation' | 'reminder' | 'cancellation' | 'reschedule' | 'business_notification' | 'business_cancellation';
 
 const ORVEL_DARK = '#0A0A0A';
 const ORVEL_SURFACE = '#121212';
@@ -69,6 +69,10 @@ export function renderAppointmentBusinessNotificationEmail(data: AppointmentTemp
   return renderAppointmentEmail(data, 'business_notification', 'Nuevo turno agendado');
 }
 
+export function renderAppointmentBusinessCancellationEmail(data: AppointmentTemplateData): EmailPayload {
+  return renderAppointmentEmail(data, 'business_cancellation', 'Turno cancelado');
+}
+
 export function renderAppointmentReminder24hEmail(data: AppointmentTemplateData): EmailPayload {
   return renderAppointmentEmail(data, 'reminder', 'Recordatorio 24 h de tu turno');
 }
@@ -89,28 +93,25 @@ function renderAppointmentEmail(
   const copy = copyFor(kind);
   const date = formatArgentinaAppointmentDate(data.date);
   const price = formatPrice(data.price);
-  const canRenderSelfServiceLinks = kind !== 'business_notification';
+  const canRenderSelfServiceLinks = kind !== 'business_notification' && kind !== 'business_cancellation';
   const viewLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.view) : null;
   const cancelLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.cancel) : null;
   const rescheduleLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.reschedule) : null;
-  const viewAction = viewLink
+  const primaryAction = viewLink
     ? `<p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
-              </p>`
+                 <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+               </p>`
     : '';
-  const secondaryActions = cancelLink && rescheduleLink
-    ? `<p style="font-size:14px;color:${ORVEL_MUTED};">
-                También podés <a href="${escapeAttribute(cancelLink)}" style="color:#A78BFA;text-decoration:underline;">cancelar</a> o
-                <a href="${escapeAttribute(rescheduleLink)}" style="color:#A78BFA;text-decoration:underline;">reprogramar</a> tu turno.
-              </p>`
-    : '';
+  const secondaryActions = renderSecondaryActions(cancelLink, rescheduleLink);
 
-  const greeting = kind === 'business_notification' 
+  const isBusinessRecipient = kind === 'business_notification' || kind === 'business_cancellation';
+
+  const greeting = isBusinessRecipient
     ? `Hola,` 
     : `Hola ${escapeHtml(data.customer.name)},`;
 
-  const introText = kind === 'business_notification'
-    ? `${copy.intro} El cliente <strong>${escapeHtml(data.customer.name)}</strong> reservó el siguiente servicio:`
+  const introText = isBusinessRecipient
+    ? `${copy.intro} Cliente: <strong>${escapeHtml(data.customer.name)}</strong>. Detalle del turno:`
     : copy.intro;
 
   return {
@@ -134,7 +135,7 @@ function renderAppointmentEmail(
                 <li><strong>Precio:</strong> ${price}</li>
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
-              ${viewAction}
+              ${primaryAction}
               ${secondaryActions}
             </section>
           </main>
@@ -156,6 +157,8 @@ function copyFor(kind: AppointmentEmailKind): { heading: string; intro: string }
       return { heading: 'Turno reprogramado', intro: 'actualizamos tu reserva con un nuevo horario.' };
     case 'business_notification':
       return { heading: 'Nuevo turno agendado', intro: 'se ha agendado un nuevo turno en tu negocio.' };
+    case 'business_cancellation':
+      return { heading: 'Turno cancelado', intro: 'se ha cancelado un turno en tu negocio.' };
   }
 }
 
@@ -177,9 +180,10 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value);
 }
 
-function safeAppointmentLink(value: string): string | null {
+function safeAppointmentLink(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
+  if (!trimmed || trimmed === '#') return null;
 
   try {
     const url = new URL(trimmed);
@@ -187,8 +191,27 @@ function safeAppointmentLink(value: string): string | null {
       return url.toString();
     }
   } catch {
-    // Fall through. Appointment action links must be absolute.
+    // Fall through to no action link. Appointment action links must be absolute.
   }
 
   return null;
+}
+
+function renderSecondaryActions(cancelLink: string | null, rescheduleLink: string | null): string {
+  const actions: string[] = [];
+  if (cancelLink) {
+    actions.push(`<a href="${escapeAttribute(cancelLink)}" style="color:#A78BFA;text-decoration:underline;">cancelar</a>`);
+  }
+  if (rescheduleLink) {
+    actions.push(`<a href="${escapeAttribute(rescheduleLink)}" style="color:#A78BFA;text-decoration:underline;">reprogramar</a>`);
+  }
+
+  if (actions.length === 0) return '';
+
+  return `<p style="font-size:14px;color:${ORVEL_MUTED};">También podés ${joinSpanishActions(actions)} tu turno.</p>`;
+}
+
+function joinSpanishActions(actions: string[]): string {
+  if (actions.length === 1) return actions[0];
+  return `${actions.slice(0, -1).join(', ')} o ${actions.at(-1)}`;
 }

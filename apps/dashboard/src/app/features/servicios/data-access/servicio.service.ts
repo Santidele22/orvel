@@ -143,7 +143,7 @@ export class ServicioService {
     this.loading.set(true);
     const supabase = this.getSupabaseClient();
     if (!supabase) return of([]);
-    return from(this.loadServiciosFromSupabase(supabase, businessId)).pipe(
+    return from(this.loadServiciosFromSupabase(supabase, businessId, { activeOnly: true })).pipe(
       tap({
         next: (servicios) => {
           this.syncStateFromRead(servicios);
@@ -491,7 +491,11 @@ export class ServicioService {
     }
   }
 
-  private async loadServiciosFromSupabase(supabaseClient: SupabaseClient, explicitBusinessId?: string): Promise<Servicio[]> {
+  private async loadServiciosFromSupabase(
+    supabaseClient: SupabaseClient,
+    explicitBusinessId?: string,
+    options: { activeOnly?: boolean } = {}
+  ): Promise<Servicio[]> {
     const businessId = explicitBusinessId ?? await this.resolveBusinessId(supabaseClient);
 
     if (!businessId) {
@@ -499,11 +503,16 @@ export class ServicioService {
       return [];
     }
 
-    const { data: rows, error } = await supabaseClient
+    let query = supabaseClient
       .from('services')
       .select('*')
-      .eq('business_id', businessId)
-      .order('name', { ascending: true });
+      .eq('business_id', businessId);
+
+    if (options.activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data: rows, error } = await query.order('name', { ascending: true });
 
     if (error) {
       if (this.isSupabaseSchemaUnavailableError(error.message)) {

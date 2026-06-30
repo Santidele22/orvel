@@ -2,6 +2,7 @@
 -- availability helper as public/admin slot lookup before mutating bookings.
 
 BEGIN;
+
 CREATE OR REPLACE FUNCTION public._load_manageable_booking(p_token text, p_now timestamptz)
 RETURNS public.bookings
 LANGUAGE plpgsql
@@ -51,6 +52,7 @@ BEGIN
   RETURN v_booking;
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.reschedule_booking_by_token(token text, now_iso text, starts_at_iso text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -132,6 +134,7 @@ BEGIN
   );
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.manage_booking_by_token(token text, now_iso text)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -165,6 +168,7 @@ BEGIN
   );
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.cancel_booking_by_token(token text, now_iso text)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER
@@ -198,6 +202,7 @@ BEGIN
   RETURN jsonb_build_object('booking_id', v_booking.id, 'status', 'cancelled');
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.reschedule_admin_booking(
   booking_id uuid,
   starts_at_iso text,
@@ -293,6 +298,7 @@ BEGIN
   );
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.reschedule_admin_booking(
   booking_id uuid,
   starts_at_iso text,
@@ -307,10 +313,12 @@ SET search_path = public, pg_temp
 AS $$
   SELECT public.reschedule_admin_booking(booking_id, starts_at_iso, NULLIF(btrim(performed_by), '')::uuid, notes, reason);
 $$;
+
 GRANT EXECUTE ON FUNCTION public.reschedule_booking_by_token(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.manage_booking_by_token(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_booking_by_token(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.reschedule_admin_booking(uuid, text, text, text, text) TO authenticated, service_role;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

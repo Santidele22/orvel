@@ -1,4 +1,9 @@
-CREATE OR REPLACE FUNCTION public.cancel_admin_booking(booking_id uuid, performed_by uuid DEFAULT NULL, notes text DEFAULT NULL, reason text DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.cancel_admin_booking(
+  booking_id uuid,
+  performed_by uuid DEFAULT NULL,
+  notes text DEFAULT NULL,
+  reason text DEFAULT NULL
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -34,6 +39,7 @@ BEGIN
 
   RETURN jsonb_build_object(
     'booking_id', v_booking.id,
+    'branch_id', v_booking.branch_id,
     'status', v_booking.status,
     'updated_at', v_booking.updated_at,
     'reason', reason,
@@ -41,6 +47,7 @@ BEGIN
   );
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) TO authenticated, service_role;

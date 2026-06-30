@@ -4,6 +4,7 @@
 -- Failure telemetry stores only sanitized operational metadata.
 
 BEGIN;
+
 CREATE TABLE IF NOT EXISTS public.admin_booking_reschedule_failure_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -13,9 +14,12 @@ CREATE TABLE IF NOT EXISTS public.admin_booking_reschedule_failure_events (
   status integer CHECK (status BETWEEN 100 AND 599),
   retryable boolean NOT NULL DEFAULT true
 );
+
 ALTER TABLE public.admin_booking_reschedule_failure_events ENABLE ROW LEVEL SECURITY;
+
 REVOKE ALL ON TABLE public.admin_booking_reschedule_failure_events FROM PUBLIC;
 REVOKE ALL ON TABLE public.admin_booking_reschedule_failure_events FROM anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.record_admin_booking_reschedule_failure(
   p_stage text,
   p_code text,
@@ -52,8 +56,10 @@ BEGIN
   VALUES (v_stage, v_code, v_status, coalesce(p_retryable, true));
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.record_admin_booking_reschedule_failure(text, text, integer, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.record_admin_booking_reschedule_failure(text, text, integer, boolean) TO authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.reschedule_admin_booking(
   booking_id uuid,
   starts_at_iso text,
@@ -161,6 +167,7 @@ BEGIN
   );
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.reschedule_admin_booking(
   booking_id uuid,
   starts_at_iso text,
@@ -182,6 +189,7 @@ BEGIN
   RETURN public.reschedule_admin_booking(booking_id, starts_at_iso, NULL::uuid, performed_by, notes, reason);
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.reschedule_admin_booking(
   booking_id uuid,
   starts_at_iso text,
@@ -203,14 +211,18 @@ BEGIN
   RETURN public.reschedule_admin_booking(booking_id, starts_at_iso, NULLIF(btrim(performed_by), '')::uuid, notes, reason);
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, uuid, text, text) TO authenticated, service_role;
+
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, text, text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reschedule_admin_booking(uuid, text, uuid, text, text) TO service_role;
+
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.reschedule_admin_booking(uuid, text, text, text, text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reschedule_admin_booking(uuid, text, text, text, text) TO service_role;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

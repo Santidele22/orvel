@@ -5,11 +5,14 @@
 -- - cancelled: business_client only
 
 BEGIN;
+
 ALTER TABLE public.notification_email_outbox
   ADD COLUMN IF NOT EXISTS lifecycle_event_key text;
+
 CREATE UNIQUE INDEX IF NOT EXISTS notification_email_outbox_lifecycle_event_key_idx
   ON public.notification_email_outbox (lifecycle_event_key)
   WHERE lifecycle_event_key IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION public._resolve_booking_business_email(p_business_id uuid)
 RETURNS text
 LANGUAGE plpgsql
@@ -48,6 +51,7 @@ BEGIN
   RETURN v_email;
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public._booking_lifecycle_email_payload(p_booking public.bookings)
 RETURNS jsonb
 LANGUAGE sql
@@ -69,6 +73,7 @@ AS $$
   LEFT JOIN public.services s ON s.id::text = p_booking.service_id::text
   WHERE b.id = p_booking.business_id;
 $$;
+
 CREATE OR REPLACE FUNCTION public._enqueue_booking_lifecycle_email(
   p_booking public.bookings,
   p_recipient_role text,
@@ -108,6 +113,7 @@ BEGIN
   ON CONFLICT (lifecycle_event_key) WHERE lifecycle_event_key IS NOT NULL DO NOTHING;
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION public.handle_booking_notifications()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -193,19 +199,23 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
 DROP TRIGGER IF EXISTS trigger_booking_notifications ON public.bookings;
 CREATE TRIGGER trigger_booking_notifications
 AFTER INSERT ON public.bookings
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_booking_notifications();
+
 DROP TRIGGER IF EXISTS trigger_booking_lifecycle_email_updates ON public.bookings;
 CREATE TRIGGER trigger_booking_lifecycle_email_updates
 AFTER UPDATE OF status, starts_at ON public.bookings
 FOR EACH ROW
 WHEN (OLD.status IS DISTINCT FROM NEW.status OR OLD.starts_at IS DISTINCT FROM NEW.starts_at)
 EXECUTE FUNCTION public.handle_booking_notifications();
+
 REVOKE ALL ON FUNCTION public._resolve_booking_business_email(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public._booking_lifecycle_email_payload(public.bookings) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public._enqueue_booking_lifecycle_email(public.bookings, text, text, text, text) FROM PUBLIC;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

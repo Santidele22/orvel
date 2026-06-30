@@ -3,6 +3,7 @@
 -- provider messages, stack traces, customer data, or branch/business identifiers.
 
 BEGIN;
+
 CREATE TABLE IF NOT EXISTS public.admin_booking_cancel_failure_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -12,9 +13,12 @@ CREATE TABLE IF NOT EXISTS public.admin_booking_cancel_failure_events (
   status integer CHECK (status BETWEEN 100 AND 599),
   retryable boolean NOT NULL DEFAULT true
 );
+
 ALTER TABLE public.admin_booking_cancel_failure_events ENABLE ROW LEVEL SECURITY;
+
 REVOKE ALL ON TABLE public.admin_booking_cancel_failure_events FROM PUBLIC;
 REVOKE ALL ON TABLE public.admin_booking_cancel_failure_events FROM anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.record_admin_booking_cancel_failure(
   p_stage text,
   p_code text,
@@ -51,8 +55,10 @@ BEGIN
   VALUES (v_stage, v_code, v_status, coalesce(p_retryable, true));
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.record_admin_booking_cancel_failure(text, text, integer, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.record_admin_booking_cancel_failure(text, text, integer, boolean) TO authenticated, service_role;
+
 -- Restore the old 4-arg signature for cached dashboard bundles without
 -- reintroducing unscoped cross-branch cancellation. Old clients must upgrade to
 -- the 5-arg branch-scoped RPC; the wrapper records a sanitized durable event
@@ -87,8 +93,10 @@ BEGIN
   );
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) TO authenticated, service_role;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

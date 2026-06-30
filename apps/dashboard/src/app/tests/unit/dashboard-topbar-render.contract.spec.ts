@@ -8,6 +8,7 @@ import { CommonModule, NgComponentOutlet } from '@angular/common';
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
+import { provideRouter } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
@@ -30,6 +31,10 @@ class DashboardTopbarWrapperHostComponent {
 }
 
 describe('Dashboard topbar rendered behavior', () => {
+  const authenticated = signal(true);
+  const notificationError = signal<string | null>(null);
+  let refreshForAdmin: ReturnType<typeof vi.fn>;
+
   const authenticatedUser = signal({
     id: 'user-123',
     email: 'santi@example.com',
@@ -54,16 +59,21 @@ describe('Dashboard topbar rendered behavior', () => {
   });
 
   beforeEach(() => {
+    authenticated.set(true);
+    notificationError.set(null);
+    refreshForAdmin = vi.fn().mockResolvedValue(undefined);
+
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [ZenTopbarComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
             user: authenticatedUser.asReadonly(),
-            authenticated: signal(true).asReadonly(),
+            authenticated: authenticated.asReadonly(),
             logout: vi.fn()
           }
         },
@@ -80,7 +90,8 @@ describe('Dashboard topbar rendered behavior', () => {
             notificationsUnread: signal(false).asReadonly(),
             notifications: signal([]).asReadonly(),
             unreadNotificationCount: signal(0).asReadonly(),
-            refreshForAdmin: vi.fn().mockResolvedValue(undefined),
+            error: notificationError.asReadonly(),
+            refreshForAdmin,
             readNotification: vi.fn().mockResolvedValue(undefined),
             archiveAdminNotification: vi.fn().mockResolvedValue(undefined),
             clearAll: vi.fn().mockResolvedValue(undefined)
@@ -120,6 +131,103 @@ describe('Dashboard topbar rendered behavior', () => {
     expect(topbar.textContent).not.toContain('Usuario');
   });
 
+  it('opens the user menu with functional profile, settings, and logout actions', async () => {
+    const logoutSpy = vi.fn();
+    const fixture = TestBed.createComponent(ZenTopbarComponent);
+    fixture.componentRef.setInput('onLogout', logoutSpy);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const userMenuButton = fixture.nativeElement.querySelector('button.group') as HTMLButtonElement;
+    userMenuButton.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const profileAction = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-profile-action"]') as HTMLAnchorElement | null;
+    const settingsAction = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-settings-action"]') as HTMLAnchorElement | null;
+    const logoutAction = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-logout-action"]') as HTMLButtonElement | null;
+
+    expect(profileAction?.getAttribute('href')).toBe('/dashboard/configuracion?tab=perfil');
+    expect(settingsAction?.getAttribute('href')).toBe('/dashboard/configuracion?tab=negocio');
+
+    logoutAction?.click();
+    expect(logoutSpy).toHaveBeenCalledOnce();
+  });
+
+  it('opens the notifications empty state from the bell button', async () => {
+    const fixture = TestBed.createComponent(ZenTopbarComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const notifications = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLButtonElement;
+    notifications.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const topbar = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-responsive"]') as HTMLElement;
+    expect(notifications.getAttribute('aria-expanded')).toBe('true');
+    expect(topbar.textContent).toContain('No hay notificaciones');
+  });
+
+  it('opens the notifications panel in an empty degraded state when auth is not ready', async () => {
+    authenticated.set(false);
+
+    const fixture = TestBed.createComponent(ZenTopbarComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const notifications = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLButtonElement;
+    notifications.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const topbar = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-responsive"]') as HTMLElement;
+    expect(notifications.getAttribute('aria-expanded')).toBe('true');
+    expect(topbar.textContent).toContain('No hay notificaciones');
+    expect(refreshForAdmin).not.toHaveBeenCalled();
+  });
+
+  it('shows retryable degraded copy when refreshing notifications rejects', async () => {
+    authenticated.set(false);
+
+    const fixture = TestBed.createComponent(ZenTopbarComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    authenticated.set(true);
+    refreshForAdmin.mockRejectedValueOnce(new Error('remote table secret failure'));
+
+    const notifications = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLButtonElement;
+    notifications.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const topbar = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-responsive"]') as HTMLElement;
+    expect(topbar.textContent).toContain('No pudimos cargar las notificaciones');
+    expect(topbar.textContent).toContain('Intentá de nuevo en unos segundos');
+    expect(topbar.textContent).not.toContain('No hay notificaciones');
+    expect(topbar.textContent).not.toContain('remote table secret failure');
+  });
+
+  it('shows retryable degraded copy when the notifications service reports an error state', async () => {
+    notificationError.set('remote table secret failure');
+
+    const fixture = TestBed.createComponent(ZenTopbarComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const notifications = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLButtonElement;
+    notifications.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const topbar = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-responsive"]') as HTMLElement;
+    expect(topbar.textContent).toContain('No pudimos cargar las notificaciones');
+    expect(topbar.textContent).not.toContain('No hay notificaciones');
+    expect(topbar.textContent).not.toContain('remote table secret failure');
+  });
+
   it.each([
     ['tablet', 768],
     ['desktop', 1280]
@@ -131,6 +239,7 @@ describe('Dashboard topbar rendered behavior', () => {
       imports: [DashboardTopbarWrapperHostComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideRouter([]),
         {
           provide: AuthService,
           useValue: {
@@ -152,6 +261,7 @@ describe('Dashboard topbar rendered behavior', () => {
             notificationsUnread: signal(false).asReadonly(),
             notifications: signal([]).asReadonly(),
             unreadNotificationCount: signal(0).asReadonly(),
+            error: signal(null).asReadonly(),
             refreshForAdmin: vi.fn().mockResolvedValue(undefined),
             readNotification: vi.fn().mockResolvedValue(undefined),
             archiveAdminNotification: vi.fn().mockResolvedValue(undefined),

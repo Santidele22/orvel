@@ -2,7 +2,9 @@
 -- wrapper optional, but make the branch-scoped 5-arg RPC require branch_id.
 
 BEGIN;
+
 DROP FUNCTION IF EXISTS public.cancel_admin_booking(uuid, uuid, uuid, text, text);
+
 CREATE OR REPLACE FUNCTION public.cancel_admin_booking(
   booking_id uuid,
   branch_id uuid,
@@ -61,8 +63,10 @@ BEGIN
   );
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.cancel_admin_booking(uuid, uuid, uuid, text, text) TO authenticated, service_role;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

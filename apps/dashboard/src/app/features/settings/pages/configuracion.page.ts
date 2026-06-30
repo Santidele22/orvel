@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, effect } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
 import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import {
@@ -34,6 +36,7 @@ type WeekdayRow = {
 })
 export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
   private readonly facade = inject(BusinessService);
   protected readonly themeService = inject(ThemeService);
   protected readonly authService = inject(AuthService);
@@ -106,6 +109,15 @@ export class ConfiguracionPage {
   private hydratedUserId: string | null = null;
 
   constructor() {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed())
+      .subscribe((params) => {
+        const tab = params.get('tab');
+        if (tab === 'perfil' || tab === 'negocio') {
+          this.activeSettingsTab.set(tab);
+        }
+      });
+
     effect(() => {
       const userId = this.authService.user()?.id;
       if (userId) {

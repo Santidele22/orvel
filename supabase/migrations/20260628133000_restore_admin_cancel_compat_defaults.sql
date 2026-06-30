@@ -2,6 +2,7 @@
 -- dashboard clients calling the legacy 4-arg admin cancel RPC signature.
 
 BEGIN;
+
 CREATE OR REPLACE FUNCTION public.cancel_admin_booking(
   booking_id uuid,
   performed_by uuid DEFAULT NULL,
@@ -32,8 +33,10 @@ BEGIN
   );
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.cancel_admin_booking(uuid, uuid, text, text) TO authenticated, service_role;
+
 COMMIT;
 NOTIFY pgrst, 'reload schema';

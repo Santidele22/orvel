@@ -8,6 +8,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { 
   ApiErrorCode, 
   ApiError, 
@@ -24,6 +25,17 @@ type AdminSessionContext = {
   userId: string;
   businessId: string | null;
 };
+
+type AdminCancelFailureTelemetryStage = 'rpc' | 'ui';
+
+type AdminCancelFailureTelemetryInput = {
+  stage: AdminCancelFailureTelemetryStage;
+  code: unknown;
+  status?: unknown;
+  retryable?: boolean;
+};
+
+type AdminRescheduleFailureTelemetryInput = AdminCancelFailureTelemetryInput;
 
 // Map Supabase RPC error to ApiError
 function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiError {
@@ -244,10 +256,11 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
-    await this.assertBookingInActiveBranch(supabase, payload.bookingId);
+    const branchScope = await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
     const { data, error } = await supabase.rpc('cancel_admin_booking', {
       booking_id: payload.bookingId,
+      branch_id: branchScope.branchId,
       performed_by: payload.performedBy,
       notes: payload.notes,
       reason: payload.reason
@@ -264,15 +277,60 @@ export class TurnoService {
     };
   }
 
+  async recordAdminCancelFailureTelemetry(input: AdminCancelFailureTelemetryInput): Promise<void> {
+    const supabase = this.getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      await supabase.rpc('record_admin_booking_cancel_failure', {
+        p_stage: input.stage,
+        p_code: this.sanitizeAdminCancelTelemetryCode(input.code),
+        p_status: this.sanitizeAdminCancelTelemetryStatus(input.status),
+        p_retryable: input.retryable ?? true
+      });
+    } catch {
+      // Telemetry must never block or alter the admin cancellation UX.
+    }
+  }
+
+  private sanitizeAdminCancelTelemetryCode(code: unknown): string {
+    if (typeof code !== 'string') return 'UNKNOWN';
+
+    const normalized = code.trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '_').slice(0, 64);
+    return normalized || 'UNKNOWN';
+  }
+
+  private sanitizeAdminCancelTelemetryStatus(status: unknown): number | undefined {
+    return typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? status : undefined;
+  }
+
+  private adminRescheduleTelemetryCode(error: ApiError | Error | unknown): 'PERMISSION_OR_STATE_GUARD' | 'SLOT_UNAVAILABLE' | 'UNEXPECTED_FAILURE' {
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && ('message' in error || 'code' in error)
+        ? `${(error as { message?: unknown; code?: unknown }).message ?? (error as { code?: unknown }).code ?? ''}`
+        : String(error ?? '');
+    if (/BRANCH|UNAUTHORIZED|TURNO_NOT_FOUND|INVALID_STATUS|TRANSITION|ACTIVE_BRANCH_REQUIRED/i.test(message)) {
+      return 'PERMISSION_OR_STATE_GUARD';
+    }
+
+    if (/TURNO_SLOT_COLLISION|SLOT_CONFLICT|BLOCKED_TIME_COLLISION|conflict|no disponible|bloqueado/i.test(message)) {
+      return 'SLOT_UNAVAILABLE';
+    }
+
+    return 'UNEXPECTED_FAILURE';
+  }
+
   private async rescheduleAdminBooking(payload: AdminRescheduleBookingPayload): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
-    await this.assertBookingInActiveBranch(supabase, payload.bookingId);
+    const branchScope = await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
     const { data, error } = await supabase.rpc('reschedule_admin_booking', {
       booking_id: payload.bookingId,
       starts_at_iso: payload.startsAtIso,
+      branch_id: branchScope.branchId,
       performed_by: payload.performedBy,
       notes: payload.notes,
       reason: payload.reason
@@ -287,6 +345,56 @@ export class TurnoService {
         startsAtIso: row.starts_at_iso || payload.startsAtIso 
       } 
     };
+  }
+
+  async recordAdminRescheduleFailureTelemetry(input: AdminRescheduleFailureTelemetryInput): Promise<void> {
+    const supabase = this.getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      await supabase.rpc('record_admin_booking_reschedule_failure', {
+        p_stage: input.stage,
+        p_code: this.sanitizeAdminCancelTelemetryCode(input.code),
+        p_status: this.sanitizeAdminCancelTelemetryStatus(input.status),
+        p_retryable: input.retryable ?? true
+      });
+    } catch {
+      // Telemetry must never block or alter the admin reschedule UX.
+    }
+  }
+
+  private recordAdminRescheduleServiceFailureTelemetry(error: unknown, status?: number): void {
+    const resolvedStatus = status ?? this.adminRescheduleServiceFailureStatus(error);
+
+    if (this.isAdminRescheduleAuthRequiredFailure(error, resolvedStatus)) {
+      emitPublicBookingFailureEvent({
+        stage: 'service',
+        code: 'ADMIN_RESCHEDULE_AUTH_REQUIRED',
+        status: 401,
+        retryable: true
+      });
+      return;
+    }
+
+    void this.recordAdminRescheduleFailureTelemetry({
+      stage: 'rpc',
+      code: this.adminRescheduleTelemetryCode(error),
+      status: resolvedStatus,
+      retryable: false
+    });
+  }
+
+  private isAdminRescheduleAuthRequiredFailure(error: unknown, status: number): boolean {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return status === 401 && /AUTH_REQUIRED|SUPABASE_UNAVAILABLE/i.test(message);
+  }
+
+  private adminRescheduleServiceFailureStatus(error: unknown): number {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    if (/TURNO_NOT_FOUND/i.test(message)) return 404;
+    if (/AUTH_REQUIRED|SUPABASE_UNAVAILABLE/i.test(message)) return 401;
+    if (/BRANCH_FORBIDDEN|INVALID_BRANCH|UNAUTHORIZED/i.test(message)) return 403;
+    return 400;
   }
 
   private async updateBookingStatus(payload: AdminStatusUpdatePayload): Promise<ApiResponse<{ bookingId: string; status: string }>> {
@@ -1016,17 +1124,6 @@ export class TurnoService {
 
     // Use Supabase provider
     return from(this.cancelByAdminWithSupabase(id, payload)).pipe(
-      tap(updated => {
-        this.notificationService?.emit({
-          eventKey: `booking.cancelled:admin:${updated.id}`,
-          eventType: 'booking.cancelled',
-          channel: 'email',
-          recipientRole: 'client',
-          sourceRole: 'admin',
-          appointmentId: updated.id,
-          occurredAt: updated.updatedAt.toISOString()
-        });
-      }),
       tap(() => this.invalidateAdminAvailabilityForLoadAvailability())
     );
   }
@@ -1071,6 +1168,7 @@ export class TurnoService {
 
     const payloadSupabase: AdminCancelBookingPayload = {
       bookingId: id,
+      // Supabase session is authoritative; the caller payload only proves admin UI intent.
       performedBy: adminSession.userId,
       notes: payload.reason
     };
@@ -1171,31 +1269,49 @@ export class TurnoService {
   }
 
   private async rescheduleByAdminWithSupabase(id: string, payload: AdminReschedulePayload): Promise<Turno> {
-    const existing = this.turnos().find(t => t.id === id);
+    let existing!: Turno;
+    let adminSession!: AdminSessionContext;
+    let response!: ApiResponse<{ bookingId: string; startsAtIso: string }>;
+    let startsAtIso!: string;
 
-    if (!existing) {
-      throw new Error(TURNO_NOT_FOUND_MESSAGE);
+    try {
+      const localExisting = this.turnos().find(t => t.id === id);
+
+      if (!localExisting) {
+        throw new Error(TURNO_NOT_FOUND_MESSAGE);
+      }
+
+      existing = localExisting;
+
+      // Convert fecha + hora to ISO 8601
+      const startDateTime = new Date(payload.fecha);
+      const [horaHours, horaMinutes] = payload.hora.split(':').map(Number);
+      startDateTime.setHours(horaHours, horaMinutes, 0, 0);
+      startsAtIso = startDateTime.toISOString();
+
+      const supabase = this.getSupabaseClient();
+      adminSession = await this.requireAdminSession(supabase);
+
+      const payloadSupabase: AdminRescheduleBookingPayload = {
+        bookingId: id,
+        performedBy: adminSession.userId,
+        notes: payload.reason,
+        startsAtIso
+      };
+
+      response = await this.rescheduleAdminBooking(payloadSupabase);
+    } catch (error) {
+      this.recordAdminRescheduleServiceFailureTelemetry(error);
+      throw error;
     }
 
-    // Convert fecha + hora to ISO 8601
-    const startDateTime = new Date(payload.fecha);
-    const [horaHours, horaMinutes] = payload.hora.split(':').map(Number);
-    startDateTime.setHours(horaHours, horaMinutes, 0, 0);
-    const startsAtIso = startDateTime.toISOString();
-
-    const supabase = this.getSupabaseClient();
-    const adminSession = await this.requireAdminSession(supabase);
-
-    const payloadSupabase: AdminRescheduleBookingPayload = {
-      bookingId: id,
-      performedBy: adminSession.userId,
-      notes: payload.reason,
-      startsAtIso
-    };
-
-    const response = await this.rescheduleAdminBooking(payloadSupabase);
-
     if (response.error) {
+      void this.recordAdminRescheduleFailureTelemetry({
+        stage: 'rpc',
+        code: this.adminRescheduleTelemetryCode(response.error),
+        status: response.status,
+        retryable: true
+      });
       const errorMessage = response.error.message;
       if (errorMessage.includes('TURNO_NOT_FOUND')) {
         throw new Error(TURNO_NOT_FOUND_MESSAGE);
