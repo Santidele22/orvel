@@ -82,14 +82,17 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
     const migrationSql = readSource('supabase/migrations/20260629234000_atomic_public_booking_visibility_notifications.sql');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.create_public_booking/i);
+    expect(migrationSql).toMatch(/alter\s+table\s+public\.branches[\s\S]*add\s+column\s+if\s+not\s+exists\s+is_active\s+boolean/i);
     expect(migrationSql).toMatch(/if\s+v_branch_id\s+is\s+null/i);
     expect(migrationSql).not.toMatch(/insert\s+into\s+public\.branches/i);
-    expect(migrationSql).toMatch(/br\.active\s+is\s+true[\s\S]*coalesce\(br\.is_active,\s*true\)\s*=\s*true/i);
+    expect(migrationSql).not.toMatch(/br\.active\s+is\s+true|branches\.active/i);
+    expect(migrationSql).toMatch(/coalesce\(br\.is_active,\s*true\)\s*=\s*true/i);
     expect(migrationSql).toMatch(/insert\s+into\s+public\.bookings[\s\S]*v_branch_id/i);
     expect(migrationSql).toMatch(/insert\s+into\s+public\.dashboard_notifications/i);
     expect(migrationSql).toMatch(/template_key,\s*payload\)[\s\S]*'appointment_confirmation'/i);
     expect(migrationSql).toMatch(/template_key,\s*payload\)[\s\S]*'appointment_created_business'/i);
     expect(migrationSql).toMatch(/update\s+public\.bookings[\s\S]*set\s+branch_id\s*=\s*pb\.branch_id/i);
+    expect(migrationSql).toMatch(/left\s+join\s+public\.services\s+s\s+on\s+s\.id::text\s*=\s*bk\.service_id/i);
     expect(migrationSql).toMatch(/not\s+exists[\s\S]*dashboard_notifications[\s\S]*appointment\.created/i);
     expect(migrationSql).toMatch(/'db_atomic_visibility_notifications',\s*true/i);
   });

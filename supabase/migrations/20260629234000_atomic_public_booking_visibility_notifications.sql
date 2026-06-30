@@ -124,7 +124,6 @@ BEGIN
     SELECT br.id INTO v_branch_id
     FROM public.branches br
     WHERE br.business_id = v_business_id
-      AND br.active IS TRUE
       AND COALESCE(br.is_active, true) = true
     ORDER BY CASE WHEN br.slug = 'principal' THEN 0 ELSE 1 END, br.created_at ASC, br.id ASC
     LIMIT 1;
@@ -137,7 +136,6 @@ BEGIN
     FROM public.branches br
     WHERE br.id = v_branch_id
       AND br.business_id = v_business_id
-      AND br.active IS TRUE
       AND COALESCE(br.is_active, true) = true
   ) THEN
     PERFORM public._raise_rpc('BRANCH_TENANT_MISMATCH');
@@ -271,8 +269,7 @@ $$;
 WITH principal_branches AS (
   SELECT DISTINCT ON (br.business_id) br.business_id, br.id AS branch_id
   FROM public.branches br
-  WHERE br.active IS TRUE
-    AND COALESCE(br.is_active, true) = true
+  WHERE COALESCE(br.is_active, true) = true
   ORDER BY br.business_id, CASE WHEN br.slug = 'principal' THEN 0 ELSE 1 END, br.created_at ASC, br.id ASC
 )
 UPDATE public.bookings bk
@@ -292,7 +289,7 @@ SELECT
   jsonb_build_object('customer_name', c.full_name, 'service_name', s.name, 'starts_at', bk.starts_at)
 FROM public.bookings bk
 LEFT JOIN public.customers c ON c.id = bk.customer_id
-LEFT JOIN public.services s ON s.id = bk.service_id
+LEFT JOIN public.services s ON s.id::text = bk.service_id
 WHERE bk.source = 'client-self-service'
   AND bk.branch_id IS NOT NULL
   AND NOT EXISTS (

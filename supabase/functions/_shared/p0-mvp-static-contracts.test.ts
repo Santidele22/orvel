@@ -843,7 +843,7 @@ Deno.test("P0 public booking contract: anon RPC never creates or repairs tenant 
   );
 });
 
-Deno.test("P0 public booking contract: create_public_booking uses canonical active branch predicate", async () => {
+Deno.test("P0 public booking contract: create_public_booking uses deployed is_active branch predicate", async () => {
   const body = latestFunctionBodyMatching(
     await readAllSqlMigrations(),
     "create_public_booking",
@@ -852,12 +852,12 @@ Deno.test("P0 public booking contract: create_public_booking uses canonical acti
   );
 
   assert(
-    /br\.active\s+IS\s+TRUE/i.test(body),
-    "create_public_booking branch selection/validation must follow the canonical dashboard visibility predicate branches.active IS TRUE",
+    !/br\.active\s+IS\s+TRUE|branches\.active/i.test(body),
+    "create_public_booking must not depend on branches.active because the deployed remote schema uses branches.is_active",
   );
   assert(
     /COALESCE\(br\.is_active,\s*true\)\s*=\s*true/i.test(body),
-    "create_public_booking must also honor branches.is_active when that compatibility column exists",
+    "create_public_booking branch selection/validation must use the deployed remote-compatible branches.is_active predicate",
   );
 });
 
