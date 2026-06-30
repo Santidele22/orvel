@@ -34,7 +34,7 @@ describe('Booking lifecycle email notifications contract', () => {
 
     // Act / Assert
     expect(gateway).not.toMatch(/\.from\(['"]notification_email_outbox['"]\)\.insert\(/);
-    expect(gateway).toMatch(/create_dashboard_notification_for_appointment_created/);
+    expect(gateway).not.toMatch(/create_dashboard_notification_for_appointment_created/);
     expect(gateway).toMatch(/create_dashboard_notification_for_appointment_cancelled/);
     expect(gateway).toMatch(/create_dashboard_notification_for_appointment_rescheduled/);
   });

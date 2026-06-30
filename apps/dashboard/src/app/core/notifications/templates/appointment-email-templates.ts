@@ -36,7 +36,30 @@ export function formatArgentinaAppointmentDate(date: Date): string {
 }
 
 export function renderAppointmentConfirmationEmail(data: AppointmentTemplateData): EmailPayload {
-  return renderAppointmentEmail(data, 'confirmation', 'Confirmación de tu turno en Orvel');
+  const viewLink = safeAbsoluteHttpUrl(data.links.view);
+
+  return {
+    subject: 'Turno confirmado',
+    html: `
+      <!doctype html>
+      <html lang="es-AR">
+        <body style="margin:0;background:${ORVEL_EMAIL_PALETTE.black};color:${ORVEL_EMAIL_PALETTE.text};font-family:Arial,sans-serif;">
+          <main style="max-width:640px;margin:0 auto;padding:32px;">
+            <section style="background:${ORVEL_EMAIL_PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${ORVEL_EMAIL_PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${ORVEL_EMAIL_PALETTE.violetSoft};font-size:12px;">Orvel</p>
+              <h1 style="font-size:28px;margin:0 0 12px;color:${ORVEL_EMAIL_PALETTE.text};">Turno confirmado</h1>
+              <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
+              ${viewLink ? `
+                <p style="margin-top:28px;">
+                  <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_EMAIL_PALETTE.violet};color:${ORVEL_EMAIL_PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
+                </p>
+              ` : ''}
+            </section>
+          </main>
+        </body>
+      </html>
+    `,
+  };
 }
 
 export function renderAppointmentReminder24hEmail(data: AppointmentTemplateData): EmailPayload {
@@ -60,6 +83,17 @@ function renderAppointmentEmail(
   const viewLink = safeAbsoluteHttpUrl(data.links.view);
   const cancelLink = safeAbsoluteHttpUrl(data.links.cancel);
   const rescheduleLink = safeAbsoluteHttpUrl(data.links.reschedule);
+  const viewAction = viewLink
+    ? `<p style="margin-top:28px;">
+                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_EMAIL_PALETTE.violet};color:${ORVEL_EMAIL_PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+              </p>`
+    : '';
+  const secondaryActions = cancelLink && rescheduleLink
+    ? `<p style="font-size:14px;color:${ORVEL_EMAIL_PALETTE.muted};">
+                También podés <a href="${escapeAttribute(cancelLink)}">cancelar</a> o
+                <a href="${escapeAttribute(rescheduleLink)}">reprogramar</a> tu turno.
+              </p>`
+    : '';
 
   return {
     subject,
@@ -82,13 +116,8 @@ function renderAppointmentEmail(
                 <li><strong>Precio:</strong> ${formatPrice(data.price)}</li>
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
-              <p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_EMAIL_PALETTE.violet};color:${ORVEL_EMAIL_PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
-              </p>
-              <p style="font-size:14px;color:${ORVEL_EMAIL_PALETTE.muted};">
-                También podés <a href="${escapeAttribute(cancelLink)}">cancelar</a> o
-                <a href="${escapeAttribute(rescheduleLink)}">reprogramar</a> tu turno.
-              </p>
+              ${viewAction}
+              ${secondaryActions}
             </section>
           </main>
         </body>
@@ -114,12 +143,12 @@ function formatPrice(price: number): string {
   return `$${Math.round(price).toLocaleString('es-AR')}`;
 }
 
-function safeAbsoluteHttpUrl(value: string): string {
+function safeAbsoluteHttpUrl(value: string): string | null {
   try {
     const url = new URL(value.trim());
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '#';
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
   } catch {
-    return '#';
+    return null;
   }
 }
 

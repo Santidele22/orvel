@@ -150,7 +150,7 @@ function appointmentTemplateFixture(): AppointmentTemplateData {
   };
 }
 
-function expectAppointmentTemplatePayload(payload: { subject: string; html: string }, expectedKeyword: RegExp): void {
+function expectDetailedAppointmentTemplatePayload(payload: { subject: string; html: string }, expectedKeyword: RegExp): void {
   expect(payload.subject).toMatch(expectedKeyword);
   expect(payload.html).toMatch(/Camila Pérez/);
   expect(payload.html).toMatch(/Orvel Studio/);
@@ -165,9 +165,35 @@ function expectAppointmentTemplatePayload(payload: { subject: string; html: stri
   expect(payload.html).toMatch(/reprogramar\?token=secure-token/);
 }
 
-function expectActiveOrvelEmailBranding(payload: { subject: string; html: string }): void {
-  const requiredPalette = ['#0A0A0A', '#121212', '#F1F5F9', '#94A3B8', '#7C3AED', '#6D28D9', '#A78BFA'];
+function expectMinimalConfirmationPayload(payload: { subject: string; html: string }): void {
+  const links = Array.from(payload.html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi));
+
+  expect(payload.subject).toBe('Turno confirmado');
+  expect(payload.html).toMatch(/<h1[^>]*>\s*Turno confirmado\s*<\/h1>/i);
+  expect(payload.html).toMatch(/Camila Pérez/);
+  expect(payload.html).toMatch(/gracias por confiar en nosotros/i);
+  expect(payload.html.match(/Ver y gestionar turno/g)).toHaveLength(1);
+  expect(links.map(([, href]) => href)).toEqual(['https://orvel.test/turnos/abc']);
+  expect(payload.html).not.toMatch(/href=["']#["']/i);
+
+  expect(payload.html).not.toMatch(/Orvel Studio/);
+  expect(payload.html).not.toMatch(/Corte y peinado/);
+  expect(payload.html).not.toMatch(/03\/05\/2026/);
+  expect(payload.html).not.toMatch(/15:30/);
+  expect(payload.html).not.toMatch(/45\s*(min|minutos)/i);
+  expect(payload.html).not.toMatch(/\$?\s*12\.?500|12500/);
+  expect(payload.html).not.toMatch(/\+54 11 5555-5555|hola@orvel\.test/);
+  expect(payload.html).not.toMatch(/cancelar\?token=secure-token/);
+  expect(payload.html).not.toMatch(/reprogramar\?token=secure-token/);
+}
+
+function expectActiveOrvelEmailBranding(payload: { subject: string; html: string }, options?: { includeMuted?: boolean }): void {
+  const requiredPalette = ['#0A0A0A', '#121212', '#F1F5F9', '#7C3AED', '#6D28D9', '#A78BFA'];
   const rejectedOldPalette = ['#f6efe7', '#f7f0e8', '#30251d', '#2b2118', '#fffaf5', '#ead8c7', '#9a6b43', '#8a5a36'];
+
+  if (options?.includeMuted) {
+    requiredPalette.push('#94A3B8');
+  }
 
   for (const color of requiredPalette) {
     expect(payload.html, `Expected active Orvel dark/violet email palette color ${color}`).toContain(color);
@@ -239,14 +265,20 @@ describe('Orvel notification system RED contracts', () => {
       expect(templates.formatArgentinaAppointmentDate(new Date('2026-05-03T15:30:00.000-03:00'))).toBe('03/05/2026');
     });
 
-    it('renders confirmation, 24h reminder, cancellation, and reschedule templates with required appointment data and links', async () => {
+    it('renders minimal customer confirmation email with only the manage appointment CTA', async () => {
       const templates = await loadAppointmentTemplatesModule();
       const data = appointmentTemplateFixture();
 
-      expectAppointmentTemplatePayload(templates.renderAppointmentConfirmationEmail(data), /confirmad[ao]|confirmación/i);
-      expectAppointmentTemplatePayload(templates.renderAppointmentReminder24hEmail(data), /recordatorio|24\s*h/i);
-      expectAppointmentTemplatePayload(templates.renderAppointmentCancellationEmail(data), /cancelad[ao]|cancelación/i);
-      expectAppointmentTemplatePayload(templates.renderAppointmentRescheduleEmail(data), /reprogramad[ao]|nuevo horario/i);
+      expectMinimalConfirmationPayload(templates.renderAppointmentConfirmationEmail(data));
+    });
+
+    it('renders reminder, cancellation, and reschedule templates with required appointment data and links', async () => {
+      const templates = await loadAppointmentTemplatesModule();
+      const data = appointmentTemplateFixture();
+
+      expectDetailedAppointmentTemplatePayload(templates.renderAppointmentReminder24hEmail(data), /recordatorio|24\s*h/i);
+      expectDetailedAppointmentTemplatePayload(templates.renderAppointmentCancellationEmail(data), /cancelad[ao]|cancelación/i);
+      expectDetailedAppointmentTemplatePayload(templates.renderAppointmentRescheduleEmail(data), /reprogramad[ao]|nuevo horario/i);
     });
 
     it('uses the active Orvel dark/violet palette for customer appointment email templates', async () => {
@@ -254,9 +286,9 @@ describe('Orvel notification system RED contracts', () => {
       const data = appointmentTemplateFixture();
 
       expectActiveOrvelEmailBranding(templates.renderAppointmentConfirmationEmail(data));
-      expectActiveOrvelEmailBranding(templates.renderAppointmentReminder24hEmail(data));
-      expectActiveOrvelEmailBranding(templates.renderAppointmentCancellationEmail(data));
-      expectActiveOrvelEmailBranding(templates.renderAppointmentRescheduleEmail(data));
+      expectActiveOrvelEmailBranding(templates.renderAppointmentReminder24hEmail(data), { includeMuted: true });
+      expectActiveOrvelEmailBranding(templates.renderAppointmentCancellationEmail(data), { includeMuted: true });
+      expectActiveOrvelEmailBranding(templates.renderAppointmentRescheduleEmail(data), { includeMuted: true });
     });
   });
 

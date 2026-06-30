@@ -18,6 +18,7 @@ type BookingNotificationRow = {
   starts_at: string;
   customer?: { full_name?: string | null; email?: string | null } | null;
   service?: { name?: string | null } | null;
+  business?: { support_email?: string | null } | null;
 };
 
 type BookingNotificationContextRpcRow = {
@@ -27,6 +28,7 @@ type BookingNotificationContextRpcRow = {
   starts_at?: string;
   customer?: { full_name?: string | null; email?: string | null } | null;
   service?: { name?: string | null } | null;
+  business?: { support_email?: string | null } | null;
 };
 
 async function loadBookingNotificationRow(
@@ -53,6 +55,27 @@ async function loadBookingNotificationRow(
     starts_at: row.starts_at,
     customer: row.customer ?? null,
     service: row.service ?? null,
+    business: row.business ?? null,
+  };
+}
+
+function notificationPayload(row: BookingNotificationRow, manageToken?: string | null): Record<string, unknown> {
+  const manageBaseUrl = manageToken?.trim()
+    ? `/booking/manage?token=${encodeURIComponent(manageToken.trim())}`
+    : null;
+
+  return {
+    booking_id: row.id,
+    starts_at: row.starts_at,
+    customer_name: row.customer?.full_name ?? null,
+    service_name: row.service?.name ?? null,
+    links: manageBaseUrl
+      ? {
+        view: manageBaseUrl,
+        cancel: `${manageBaseUrl}&action=cancel`,
+        reschedule: `${manageBaseUrl}&action=reschedule`,
+      }
+      : undefined,
   };
 }
 
@@ -230,22 +253,26 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         return { status: statusCode, error: apiError };
       }
 
-      const bookingId = (data as { booking_id: string }).booking_id;
-      const manageToken = (data as { manage_token?: string; manageToken?: string }).manage_token ?? (data as { manageToken?: string }).manageToken;
+      const bookingResult = data as {
+        booking_id?: string;
+        branch_id?: string;
+        manage_token?: string;
+        manageToken?: string;
+        db_atomic_visibility_notifications?: boolean;
+      };
+      const bookingId = bookingResult.booking_id;
+      const branchId = bookingResult.branch_id;
+      const manageToken = bookingResult.manage_token ?? bookingResult.manageToken;
 
-      await runPostBookingSideEffect('createPublicBooking notification/context', async () => {
-        const booking = await loadBookingNotificationRow(supabase, bookingId, manageToken);
-
-        if (booking) {
-          await supabase.rpc('create_dashboard_notification_for_appointment_created', {
-            p_business_id: booking.business_id,
-            p_appointment_id: bookingId,
-            p_customer_name: payload.client.fullName,
-            p_service_name: booking.service?.name ?? null,
-            p_starts_at: booking.starts_at,
-          });
-        }
-      });
+      if (!bookingId || !branchId || bookingResult.db_atomic_visibility_notifications !== true) {
+        return {
+          status: 503,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Booking database contract is not available. Please try again later.'
+          }
+        };
+      }
 
       const responseData: { bookingId: string; status: 'confirmed'; source: 'client-self-service'; manageToken?: string } = {
         bookingId,

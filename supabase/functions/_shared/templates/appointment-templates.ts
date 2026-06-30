@@ -39,7 +39,30 @@ export function formatArgentinaAppointmentDate(dateInput: Date | string): string
 }
 
 export function renderAppointmentConfirmationEmail(data: AppointmentTemplateData): EmailPayload {
-  return renderAppointmentEmail(data, 'confirmation', 'Tu turno está confirmado en Orvel');
+  const viewLink = safeAppointmentLink(data.links?.view);
+
+  return {
+    subject: 'Turno confirmado',
+    html: `
+      <!doctype html>
+      <html lang="es-AR">
+        <body style="margin:0;background:${ORVEL_DARK};color:${ORVEL_TEXT};font-family:Arial,sans-serif;">
+          <main style="max-width:640px;margin:0 auto;padding:32px;">
+            <section style="background:${ORVEL_SURFACE};border-radius:24px;padding:32px;border:1px solid ${ORVEL_VIOLET_DARK};">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${ORVEL_VIOLET_SOFT};font-size:12px;">Orvel</p>
+              <h1 style="font-size:28px;margin:0 0 12px;">Turno confirmado</h1>
+              <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
+              ${viewLink ? `
+                <p style="margin-top:28px;">
+                  <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
+                </p>
+              ` : ''}
+            </section>
+          </main>
+        </body>
+      </html>
+    `,
+  };
 }
 
 export function renderAppointmentBusinessNotificationEmail(data: AppointmentTemplateData): EmailPayload {
@@ -70,9 +93,10 @@ function renderAppointmentEmail(
   const copy = copyFor(kind);
   const date = formatArgentinaAppointmentDate(data.date);
   const price = formatPrice(data.price);
-  const viewLink = safeAppointmentLink(data.links?.view);
-  const cancelLink = safeAppointmentLink(data.links?.cancel);
-  const rescheduleLink = safeAppointmentLink(data.links?.reschedule);
+  const canRenderSelfServiceLinks = kind !== 'business_notification' && kind !== 'business_cancellation';
+  const viewLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.view) : null;
+  const cancelLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.cancel) : null;
+  const rescheduleLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.reschedule) : null;
   const primaryAction = viewLink
     ? `<p style="margin-top:28px;">
                  <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
