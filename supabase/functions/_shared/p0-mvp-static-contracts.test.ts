@@ -1,6 +1,7 @@
 const migrationsDir = new URL("../../migrations/", import.meta.url);
 const functionsDir = new URL("../", import.meta.url);
 const supabaseConfigUrl = new URL("../../config.toml", import.meta.url);
+const repoRoot = new URL("../../../", import.meta.url);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -525,6 +526,7 @@ Deno.test("P0 Mailtrap migration contract: provider success only follows Mailtra
 
 Deno.test("P0 booking management link contract: process-email-outbox does not select or render plaintext booking bearer values", async () => {
   const source = await readText(new URL("process-email-outbox/index.ts", functionsDir));
+  const dashboardGatewaySource = await readText(new URL("apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts", repoRoot));
   const bookingQuery = source.match(
     /\.from\("bookings"\)[\s\S]*?\.single\(\)/,
   )?.[0] ?? "";
@@ -544,6 +546,58 @@ Deno.test("P0 booking management link contract: process-email-outbox does not se
   assert(
     !/booking\.manage_token\b/.test(source),
     "process-email-outbox must not build public management links from persisted plaintext booking values",
+  );
+  assert(
+    /\/booking\/manage\?token=/.test(dashboardGatewaySource),
+    "Public booking notification payload must point to the routed per-booking management page",
+  );
+  assert(
+    !/\/turnos\/gestionar\?token=/.test(dashboardGatewaySource),
+    "Public booking notification payload must not point to the legacy unrouted manage path",
+  );
+});
+
+Deno.test("P0 customer appointment confirmation email is minimal and links to the exact booking manager", async () => {
+  const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
+  const dashboardGatewaySource = await readText(new URL("apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts", repoRoot));
+  const confirmationSection = templateSource.slice(
+    templateSource.indexOf("export function renderAppointmentConfirmationEmail"),
+    templateSource.indexOf("export function renderAppointmentBusinessNotificationEmail"),
+  );
+
+  assert(confirmationSection.length > 0, "Guard must inspect the appointment confirmation renderer");
+  assert(confirmationSection.includes("subject: 'Turno confirmado'"), "Customer confirmation email subject must be Turno confirmado");
+  assert(confirmationSection.includes("Turno confirmado"), "Customer confirmation email must show Turno confirmado");
+  assert(confirmationSection.includes("gracias por confiar en nosotros"), "Customer confirmation email must thank the customer for trusting Orvel/us");
+  assert(confirmationSection.includes("Ver y gestionar turno"), "Customer confirmation email must include a single management link CTA");
+  assert(!/Negocio:|Dirección:|Servicio:|Fecha:|Horario:|Duración:|Precio:/.test(confirmationSection), "Customer confirmation email must not render appointment detail list");
+  assert(!/cancelar|reprogramar/i.test(confirmationSection), "Customer confirmation email should contain one management link, not separate cancel/reschedule links");
+  assert(!/href=\"#\"|return '#'/i.test(confirmationSection), "Customer confirmation email must not render inert links");
+  assert(
+    /template_key:\s*['"]appointment_confirmation['"][\s\S]{0,180}payload:\s*notificationPayload\(booking,\s*manageToken\)/.test(dashboardGatewaySource),
+    "Customer confirmation payload must receive the tokenized management link",
+  );
+});
+
+Deno.test("P0 business appointment notification never receives or renders customer management bearer links", async () => {
+  const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
+  const dashboardGatewaySource = await readText(new URL("apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts", repoRoot));
+  const businessOutboxInsert = dashboardGatewaySource.match(
+    /template_key:\s*['"]appointment_created_business['"][\s\S]*?payload:\s*notificationPayload\(([^)]*)\)/,
+  )?.[0] ?? "";
+
+  assert(businessOutboxInsert.length > 0, "Guard must inspect business appointment notification outbox insert");
+  assert(
+    /payload:\s*notificationPayload\(booking\)/.test(businessOutboxInsert),
+    "Business appointment notification payload must not include the public manage token",
+  );
+  assert(
+    !/manageToken/.test(businessOutboxInsert),
+    "Business appointment notification payload must not pass the public manage token",
+  );
+  assert(
+    /const\s+canRenderSelfServiceLinks\s*=\s*kind\s*!==\s*['"]business_notification['"]/.test(templateSource),
+    "Business appointment template must suppress self-service action links even if links are present",
   );
 });
 

@@ -61,7 +61,7 @@ async function loadBookingNotificationRow(
 
 function notificationPayload(row: BookingNotificationRow, manageToken?: string | null): Record<string, unknown> {
   const manageBaseUrl = manageToken?.trim()
-    ? `/turnos/gestionar?token=${encodeURIComponent(manageToken.trim())}`
+    ? `/booking/manage?token=${encodeURIComponent(manageToken.trim())}`
     : null;
 
   return {
@@ -291,7 +291,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
               booking_id: bookingId,
               to_email: businessEmail,
               template_key: 'appointment_created_business',
-              payload: notificationPayload(booking, manageToken),
+              payload: notificationPayload(booking),
             });
           }
 

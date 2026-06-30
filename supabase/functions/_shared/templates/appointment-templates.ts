@@ -39,7 +39,30 @@ export function formatArgentinaAppointmentDate(dateInput: Date | string): string
 }
 
 export function renderAppointmentConfirmationEmail(data: AppointmentTemplateData): EmailPayload {
-  return renderAppointmentEmail(data, 'confirmation', 'Tu turno está confirmado en Orvel');
+  const viewLink = safeAppointmentLink(data.links?.view);
+
+  return {
+    subject: 'Turno confirmado',
+    html: `
+      <!doctype html>
+      <html lang="es-AR">
+        <body style="margin:0;background:${ORVEL_DARK};color:${ORVEL_TEXT};font-family:Arial,sans-serif;">
+          <main style="max-width:640px;margin:0 auto;padding:32px;">
+            <section style="background:${ORVEL_SURFACE};border-radius:24px;padding:32px;border:1px solid ${ORVEL_VIOLET_DARK};">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${ORVEL_VIOLET_SOFT};font-size:12px;">Orvel</p>
+              <h1 style="font-size:28px;margin:0 0 12px;">Turno confirmado</h1>
+              <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
+              ${viewLink ? `
+                <p style="margin-top:28px;">
+                  <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
+                </p>
+              ` : ''}
+            </section>
+          </main>
+        </body>
+      </html>
+    `,
+  };
 }
 
 export function renderAppointmentBusinessNotificationEmail(data: AppointmentTemplateData): EmailPayload {
@@ -66,9 +89,21 @@ function renderAppointmentEmail(
   const copy = copyFor(kind);
   const date = formatArgentinaAppointmentDate(data.date);
   const price = formatPrice(data.price);
-  const viewLink = safeAppointmentLink(data.links?.view);
-  const cancelLink = safeAppointmentLink(data.links?.cancel);
-  const rescheduleLink = safeAppointmentLink(data.links?.reschedule);
+  const canRenderSelfServiceLinks = kind !== 'business_notification';
+  const viewLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.view) : null;
+  const cancelLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.cancel) : null;
+  const rescheduleLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.reschedule) : null;
+  const viewAction = viewLink
+    ? `<p style="margin-top:28px;">
+                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+              </p>`
+    : '';
+  const secondaryActions = cancelLink && rescheduleLink
+    ? `<p style="font-size:14px;color:${ORVEL_MUTED};">
+                También podés <a href="${escapeAttribute(cancelLink)}" style="color:#A78BFA;text-decoration:underline;">cancelar</a> o
+                <a href="${escapeAttribute(rescheduleLink)}" style="color:#A78BFA;text-decoration:underline;">reprogramar</a> tu turno.
+              </p>`
+    : '';
 
   const greeting = kind === 'business_notification' 
     ? `Hola,` 
@@ -99,13 +134,8 @@ function renderAppointmentEmail(
                 <li><strong>Precio:</strong> ${price}</li>
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
-              <p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:${ORVEL_VIOLET};color:${ORVEL_TEXT};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
-              </p>
-              <p style="font-size:14px;color:${ORVEL_MUTED};">
-                También podés <a href="${escapeAttribute(cancelLink)}" style="color:#A78BFA;text-decoration:underline;">cancelar</a> o
-                <a href="${escapeAttribute(rescheduleLink)}" style="color:#A78BFA;text-decoration:underline;">reprogramar</a> tu turno.
-              </p>
+              ${viewAction}
+              ${secondaryActions}
             </section>
           </main>
         </body>
@@ -147,8 +177,8 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value);
 }
 
-function safeAppointmentLink(value: string): string {
-  if (!value) return '#';
+function safeAppointmentLink(value: string): string | null {
+  if (!value) return null;
   const trimmed = value.trim();
 
   try {
@@ -157,8 +187,8 @@ function safeAppointmentLink(value: string): string {
       return url.toString();
     }
   } catch {
-    // Fall through to an inert href. Appointment action links must be absolute.
+    // Fall through. Appointment action links must be absolute.
   }
 
-  return '#';
+  return null;
 }
