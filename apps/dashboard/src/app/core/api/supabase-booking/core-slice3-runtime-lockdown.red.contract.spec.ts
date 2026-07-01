@@ -208,8 +208,47 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     ).resolves.toEqual({
       status: 503,
       error: {
-        code: 'VALIDATION_ERROR',
+        code: 'DATABASE_CONTRACT_UNAVAILABLE',
         message: 'Booking database contract is not available. Please try again later.'
+      }
+    });
+  });
+
+  it('preserves real public create RPC diagnostics when mapper returns submit failures', async () => {
+    const rpc = vi.fn(async (fn: string) => {
+      if (fn === 'create_public_booking') {
+        return {
+          data: null,
+          error: {
+            code: 'P0001',
+            message: 'SLOT_CONFLICT from create_public_booking',
+            details: 'Conflicts with public.bookings exclusion constraint',
+            hint: 'Pick another slot'
+          }
+        };
+      }
+
+      throw new Error(`unexpected RPC ${fn}`);
+    });
+    createClientMock.mockReturnValue({ rpc });
+
+    await expect(
+      realSupabaseGateway.createPublicBooking({
+        businessSlug: 'demo-salon',
+        serviceId: 'service-1',
+        startsAtIso: '2026-06-01T10:00:00.000Z',
+        client: { fullName: 'Ada Lovelace', email: 'ada@example.test' }
+      })
+    ).resolves.toEqual({
+      status: 409,
+      error: {
+        code: 'SLOT_CONFLICT',
+        message: 'SLOT_CONFLICT from create_public_booking',
+        details: {
+          rpcCode: 'P0001',
+          rpcDetails: 'Conflicts with public.bookings exclusion constraint',
+          rpcHint: 'Pick another slot'
+        }
       }
     });
   });

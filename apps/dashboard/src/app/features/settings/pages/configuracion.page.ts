@@ -15,6 +15,7 @@ import { ConfiguracionTimePickerModalComponent } from './components/configuracio
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { AuthService } from '../../../services/auth.service';
 import { validateConfiguracionForm } from './configuracion.validation';
+import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 
 type WeekdayRow = {
   key: WeekdayKey;
@@ -96,7 +97,7 @@ export class ConfiguracionPage {
       return 'Link de reservas no disponible';
     }
 
-    return `${window.location.origin}/booking/${slug}`;
+    return buildPublicBookingUrl(slug);
   });
 
   readonly hasPublicBookingUrl = computed(() => Boolean(this.publicBookingSlug()));
