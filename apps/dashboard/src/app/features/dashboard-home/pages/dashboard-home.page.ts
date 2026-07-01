@@ -5,6 +5,7 @@ import { ThemeService } from '../../../core/theming/theme.service';
 import { AuthService } from '../../../services/auth.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
+import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -107,7 +108,7 @@ export class DashboardHomeComponent {
       return 'Link de reservas no disponible';
     }
 
-    return `${window.location.origin}/booking/${slug}`;
+    return buildPublicBookingUrl(slug);
   }
 
   protected hasBookingUrl(): boolean {

@@ -268,7 +268,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         return {
           status: 503,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'DATABASE_CONTRACT_UNAVAILABLE',
             message: 'Booking database contract is not available. Please try again later.'
           }
         };

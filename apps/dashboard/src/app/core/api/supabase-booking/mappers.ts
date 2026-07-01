@@ -1,5 +1,30 @@
 import { ApiErrorCode, ApiError, BusinessPublicView } from './types';
 
+type RpcErrorLike = {
+  message?: string;
+  code?: string;
+  details?: unknown;
+  hint?: unknown;
+  name?: string;
+};
+
+function rpcDiagnostics(error: RpcErrorLike): Record<string, unknown> | undefined {
+  const details: Record<string, unknown> = {};
+
+  if (error.details !== undefined) details['rpcDetails'] = error.details;
+  if (error.hint !== undefined) details['rpcHint'] = error.hint;
+  if (error.name) details['rpcName'] = error.name;
+  if (Object.keys(details).length > 0 && error.code) details['rpcCode'] = error.code;
+
+  return Object.keys(details).length > 0 ? details : undefined;
+}
+
+function apiError(code: ApiErrorCode, message: string, error: RpcErrorLike): ApiError {
+  const details = rpcDiagnostics(error);
+
+  return details ? { code, message, details } : { code, message };
+}
+
 export function isIsoDate(input: string): boolean {
   const parsed = Date.parse(input);
   return Number.isFinite(parsed);
@@ -51,47 +76,51 @@ export function mapBusinessToPublicView(
   };
 }
 
-// Map Supabase RPC error to ApiError
-export function mapRpcErrorToApiError(error: { message?: string; code?: string }): ApiError {
+// Map Supabase RPC error to ApiError while preserving safe diagnostics for operational logs.
+export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
   const code = error.code || '';
   const message = error.message || 'Unknown error';
+  const knownDomainCodes: ApiErrorCode[] = [
+    'BUSINESS_NOT_FOUND',
+    'BOOKING_VALIDATION_ERROR',
+    'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN',
+    'BRANCH_NOT_FOUND',
+    'BRANCH_TENANT_MISMATCH',
+    'INVALID_SERVICE',
+    'SERVICE_NOT_FOUND',
+    'SLOT_CONFLICT',
+    'BLOCKED_TIME_COLLISION'
+  ];
   
   // Supabase plpgsql RPCs raise domain errors as P0001, so inspect the
   // message before falling back to a generic P0001 business-not-found mapping.
-  if (message.includes('BUSINESS_NOT_FOUND')) {
-    return { code: 'BUSINESS_NOT_FOUND', message: 'Business not found. Please check the booking link.' };
+  for (const domainCode of knownDomainCodes) {
+    if (code === domainCode || message.includes(domainCode)) {
+      return apiError(domainCode, message, error);
+    }
   }
   if (code === 'TOKEN_REVOKED' || message.includes('TOKEN_REVOKED')) {
-    return { code: 'TOKEN_REVOKED', message };
+    return apiError('TOKEN_REVOKED', message, error);
   }
   if (code === 'BOOKING_ALREADY_CANCELLED' || message.includes('BOOKING_ALREADY_CANCELLED')) {
-    return { code: 'BOOKING_ALREADY_CANCELLED', message };
+    return apiError('BOOKING_ALREADY_CANCELLED', message, error);
   }
   if (code === 'P0002' || message.includes('BOOKING_VALIDATION_ERROR')) {
-    return { code: 'VALIDATION_ERROR', message };
-  }
-  if (message.includes('CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN')) {
-    return { code: 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN', message };
+    return apiError('VALIDATION_ERROR', message, error);
   }
   if (message.includes('INVALID_TOKEN')) {
-    return { code: 'INVALID_TOKEN', message: 'Invalid token' };
+    return apiError('INVALID_TOKEN', 'Invalid token', error);
   }
   if (message.includes('TOKEN_EXPIRED')) {
-    return { code: 'TOKEN_EXPIRED', message };
+    return apiError('TOKEN_EXPIRED', message, error);
   }
   if (message.includes('POLICY_WINDOW_CLOSED')) {
-    return { code: 'POLICY_WINDOW_CLOSED', message };
-  }
-  if (message.includes('SLOT_CONFLICT')) {
-    return { code: 'SLOT_CONFLICT', message };
-  }
-  if (message.includes('BLOCKED_TIME_COLLISION')) {
-    return { code: 'BLOCKED_TIME_COLLISION', message };
+    return apiError('POLICY_WINDOW_CLOSED', message, error);
   }
   if (code === 'P0001') {
-    return { code: 'VALIDATION_ERROR', message };
+    return apiError('VALIDATION_ERROR', message, error);
   }
-  return { code: 'VALIDATION_ERROR', message };
+  return apiError('VALIDATION_ERROR', message, error);
 }
 
 export const KNOWN_BUSINESS: BusinessPublicView = {
