@@ -67,17 +67,18 @@ Use this section for migration `20260702110000_ensure_business_principal_branch_
    ```bash
    npx supabase@latest migration list --linked
    ```
-2. Confirm branchless businesses received exactly one active `principal` branch:
+2. Confirm businesses that should accept public bookings have exactly one active `principal` branch:
    ```sql
-   select b.id, b.slug, count(br.id) as principal_branches
+   select b.id, b.slug, count(br.id) as active_principal_branches
    from public.businesses b
-   join public.branches br on br.business_id = b.id
-   where br.slug = 'principal'
-     and br.is_active is true
+   left join public.branches br
+     on br.business_id = b.id
+    and br.slug = 'principal'
+    and br.is_active is true
    group by b.id, b.slug
    having count(br.id) <> 1;
    ```
-   Expected result: no rows for healthy businesses that previously had no branch rows.
+   Expected result: no rows for businesses that should currently accept public bookings.
 3. For the affected booking, verify `create_public_booking` no longer fails with `BRANCH_NOT_FOUND` after selecting a visible service and available slot.
 
 ### Stop Conditions
