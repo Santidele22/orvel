@@ -1,14 +1,15 @@
-<main class="h-screen overflow-y-auto no-scrollbar bg-[#0F172A] font-['Inter'] selection:bg-purple-500/30 selection:text-white pb-40 overflow-x-hidden">
+<main class="min-h-screen overflow-y-auto no-scrollbar bg-[#0F172A] font-['Inter'] selection:bg-purple-500/30 selection:text-white pb-40 overflow-x-hidden">
   
   <!-- Decorative background elements -->
   <div class="fixed top-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
   <div class="fixed bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
   <div class="relative z-10 max-w-xl mx-auto px-6 py-12 md:py-20">
-    <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-8 md:p-12 shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
-      <header class="mb-10 space-y-2">
-        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-purple-500/60">Gestionar Reserva</p>
-        <h1 class="text-3xl font-black text-white tracking-tight">Cambios de autoservicio</h1>
+    <section class="or-card bg-slate-900/95 border border-white/10 rounded-[32px] p-6 md:p-10 shadow-2xl">
+      <header class="mb-8 space-y-3">
+        <p class="text-xs font-bold uppercase tracking-[0.22em] text-purple-300">Gestionar reserva</p>
+        <h1 class="text-3xl font-black text-white tracking-tight">Tu turno</h1>
+        <p class="text-sm leading-6 text-slate-300">Revisá los datos del turno y, si la política del negocio lo permite, cancelá o cambiá la fecha desde este link privado.</p>
       </header>
 
       @if (loading()) {
@@ -90,8 +91,8 @@
 
       @if (canCancelOrReschedule()) {
         <div class="space-y-6">
-          <p class="text-sm font-medium text-slate-400 leading-relaxed">
-            Este turno se puede cancelar o reprogramar desde este link privado.
+          <p class="text-sm font-medium text-slate-300 leading-relaxed">
+            Este turno se puede cancelar o cambiar de fecha y horario desde este link privado.
           </p>
           <div class="flex flex-wrap gap-4 pt-6 border-t border-white/5">
             <button
@@ -107,10 +108,11 @@
               <button
                 data-testid="manage-reschedule-action"
                 type="button"
-                class="px-6 py-3 rounded-xl bg-[#7C3AED] text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[#6D28D9] shadow-lg shadow-purple-900/40 active:scale-95"
+                class="px-6 py-3 rounded-xl bg-[#7C3AED] text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[#6D28D9] shadow-lg shadow-purple-900/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                [disabled]="loadingRescheduleAvailability() || submittingReschedule()"
                 (click)="handleReschedule()"
               >
-                Reprogramar cita
+                Cambiar fecha u horario
               </button>
             }
           </div>
@@ -119,6 +121,9 @@
 
       @if (reschedulePickerOpen()) {
         <section data-testid="manage-reschedule-picker" class="mt-8 space-y-6 rounded-3xl border border-purple-500/20 bg-purple-500/10 p-5" aria-label="Reprogramar reserva">
+          <div data-testid="manage-reschedule-guidance" class="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm leading-6 text-slate-200">
+            Elegí una nueva fecha y horario disponible. El cambio se confirma recién cuando presionás “Confirmar reprogramación”.
+          </div>
           <div class="space-y-2">
             <label for="manage-reschedule-date" class="text-[10px] font-black uppercase tracking-[0.25em] text-purple-200">Nueva fecha</label>
             <input

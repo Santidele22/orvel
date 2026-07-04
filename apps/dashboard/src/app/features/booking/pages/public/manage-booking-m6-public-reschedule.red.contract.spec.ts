@@ -1,6 +1,11 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import '@angular/compiler';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { describe, expect, it, vi } from 'vitest';
+import { ManageBookingPage } from './manage-booking.page';
+import { PublicBookingService } from '../../data-access/public-booking.service';
 
 const appRoot = resolve(process.cwd(), 'src/app');
 const pageTsPath = resolve(appRoot, 'features/booking/pages/public/manage-booking.page.ts');
@@ -37,6 +42,83 @@ function productiveTsFiles(dir: string): string[] {
 }
 
 describe('M6 public manage link reschedule UI RED contract', () => {
+  function createManagePage(service: Partial<PublicBookingService>, query: Record<string, string>) {
+    const injector = Injector.create({
+      providers: [
+        { provide: PublicBookingService, useValue: service },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap(query) } },
+        },
+      ],
+    });
+
+    return runInInjectionContext(injector, () => new ManageBookingPage()) as any;
+  }
+
+  it('behavior: action=reschedule opens the guided picker only after successful token load and allowed policy', async () => {
+    const queryPublicSlotAvailability = vi.fn(async () => ({
+      data: { slots: [{ startsAtIso: '2026-07-10T15:00:00.000Z', endsAtIso: '2026-07-10T15:30:00.000Z' }] },
+      status: 200,
+    }));
+    const page = createManagePage({
+      manageBookingByToken: vi.fn(async () => ({
+        data: {
+          bookingId: 'booking-reschedule-001',
+          businessId: 'business-001',
+          serviceId: 'service-001',
+          startsAtIso: '2026-07-10T14:00:00.000Z',
+          status: 'booked',
+          canCancelOrReschedule: true,
+          business: { slug: 'studio-roma', name: 'Studio Roma' },
+          actions: { canReschedule: true },
+        },
+        status: 200,
+      })),
+      queryPublicSlotAvailability,
+    }, { token: 'private-token', action: 'reschedule' });
+
+    await page.ngOnInit();
+
+    expect(page.invalidToken()).toBe(false);
+    expect(page.reschedulePickerOpen()).toBe(true);
+    expect(page.policyWindowClosed()).toBe(false);
+    expect(queryPublicSlotAvailability).toHaveBeenCalledWith({
+      businessSlug: 'studio-roma',
+      serviceId: 'service-001',
+      dateIso: '2026-07-10',
+    });
+    expect(page.availableRescheduleSlots()).toEqual([
+      { startsAtIso: '2026-07-10T15:00:00.000Z', endsAtIso: '2026-07-10T15:30:00.000Z' },
+    ]);
+  });
+
+  it('behavior: action=reschedule does not label cancel-allowed/reschedule-blocked state as fully policy-window closed', async () => {
+    const page = createManagePage({
+      manageBookingByToken: vi.fn(async () => ({
+        data: {
+          bookingId: 'booking-cancel-only-001',
+          businessId: 'business-001',
+          serviceId: 'service-001',
+          startsAtIso: '2026-07-10T14:00:00.000Z',
+          status: 'booked',
+          canCancelOrReschedule: true,
+          business: { slug: 'studio-roma', name: 'Studio Roma' },
+          actions: { canReschedule: false },
+        },
+        status: 200,
+      })),
+      queryPublicSlotAvailability: vi.fn(),
+    }, { token: 'private-token', action: 'reschedule' });
+
+    await page.ngOnInit();
+
+    expect(page.canCancelOrReschedule()).toBe(true);
+    expect(page.canReschedule()).toBe(false);
+    expect(page.reschedulePickerOpen()).toBe(false);
+    expect(page.policyWindowClosed()).toBe(false);
+  });
+
   it('exposes the reschedule action only from backend-provided policy/actions and never for closed token states', () => {
     const source = pageSource();
 
@@ -59,6 +141,16 @@ describe('M6 public manage link reschedule UI RED contract', () => {
     );
     expect(source, 'reschedule flow must retain token as private input/context but never render it').toMatch(/queryParamMap\.get\(['"]token['"]\)/);
     expect(source, 'private token must not be interpolated into picker or visible UI').not.toMatch(/{{\s*(?:token|manageToken|managementKey)\s*(?:\(\))?\s*}}/i);
+  });
+
+  it('honors action=reschedule by opening the guided reschedule flow after token validation', () => {
+    const source = pageSource();
+
+    expect(source).toMatch(/queryParamMap\.get\(['"]action['"]\)/);
+    expect(source).toMatch(/requestedAction|action=reschedule|rescheduleRequested/i);
+    expect(source).toMatch(/openRequestedRescheduleAction|handleReschedule\(\)/);
+    expect(source).toMatch(/data-testid=["']manage-reschedule-guidance["']/i);
+    expect(source).toMatch(/Elegí una nueva fecha y horario|Nueva fecha/i);
   });
 
   it('loads reschedule availability from backend/gateway or fails closed instead of inventing local slots', () => {
@@ -139,10 +231,11 @@ describe('M6 public manage link reschedule UI RED contract', () => {
       .map((file) => `\n/* ${relative(appRoot, file)} */\n${readFileSync(file, 'utf8')}`)
       .join('\n');
     const source = pageSource();
+    const templateSource = readRequired(pageHtmlPath);
     const serviceSource = readRequired(servicePath);
 
     expect(source, 'public page must not log private manage tokens').not.toMatch(/console\.(?:log|info|warn|error|debug)\([^)]*token/i);
-    expect(source, 'public page must not render private manage token fields').not.toMatch(/manageToken|manage_token|management_key/i);
+    expect(templateSource, 'public page must not render private manage token fields').not.toMatch(/manageToken|manage_token|management_key/i);
     expect(serviceSource, 'PublicBookingService must remain gateway-only').not.toMatch(/createClient|\.rpc\(|\.from\(/);
     expect(combinedProductiveSource, 'frontend productive code must not authenticate by raw manage_token equality lookup').not.toMatch(
       /\.eq\(\s*['"]manage_token['"]\s*,\s*(?:token|manageToken|managementKey)/i

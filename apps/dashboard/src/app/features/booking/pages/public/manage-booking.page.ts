@@ -68,12 +68,15 @@ export class ManageBookingPage implements OnInit {
   protected readonly availableRescheduleSlots = signal<PublicSlot[]>([]);
   protected readonly selectedDate = signal('');
   protected readonly selectedSlot = signal('');
+  protected readonly requestedAction = signal<'reschedule' | null>(null);
   protected readonly bookingId = signal('');
   protected readonly bookingDetails = signal<ManageBookingDetails | null>(null);
   protected readonly hasLoadedAvailability = signal(false);
 
   async ngOnInit(): Promise<void> {
     const token = this.route.snapshot.queryParamMap.get('token') ?? '';
+    const action = this.route.snapshot.queryParamMap.get('action') ?? '';
+    this.requestedAction.set(action.toLowerCase() === 'reschedule' ? 'reschedule' : null);
 
     if (!token) {
       this.invalidToken.set(true);
@@ -89,6 +92,7 @@ export class ManageBookingPage implements OnInit {
     if (response.data) {
       this.applyManageDetails(response.data);
       this.loading.set(false);
+      await this.openRequestedRescheduleAction();
       return;
     }
 
@@ -137,6 +141,18 @@ export class ManageBookingPage implements OnInit {
     this.rescheduleAvailabilityUnavailable.set(false);
     this.selectedDate.set(this.currentDateInputValue());
     await this.loadPublicRescheduleSlots();
+  }
+
+  private async openRequestedRescheduleAction(): Promise<void> {
+    if (this.requestedAction() !== 'reschedule') return;
+
+    if (!this.canReschedule()) {
+      if (this.canCancelOrReschedule()) return;
+      this.policyWindowClosed.set(true);
+      return;
+    }
+
+    await this.handleReschedule();
   }
 
   protected async onRescheduleDateChange(event: Event): Promise<void> {
