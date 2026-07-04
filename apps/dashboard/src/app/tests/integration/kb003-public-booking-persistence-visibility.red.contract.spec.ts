@@ -97,6 +97,28 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
     expect(migrationSql).toMatch(/'db_atomic_visibility_notifications',\s*true/i);
   });
 
+  it('fix-forward migration keeps public bookings listable under default branch context and backfills bell notifications', () => {
+    const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+
+    expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.list_admin_bookings/i);
+    expect(migrationSql).toMatch(/coalesce\(br\.is_active,\s*true\)\s+is\s+true/i);
+    expect(migrationSql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*bk\.source\s*=\s*'client-self-service'/i);
+    expect(migrationSql).toMatch(/not\s+exists[\s\S]*dashboard_notifications[\s\S]*appointment\.created/i);
+    expect(turnoServiceSource).toMatch(/loadBookingsFromSupabase[\s\S]*resolveInternalDefaultBranchScope\(supabaseClient\)/i);
+    expect(turnoServiceSource).not.toMatch(/const activeBranchId = this\.resolveActiveBranchId\(\);\s*if \(!activeBranchId\) return \[\];/i);
+  });
+
+  it('manage-reservation contract returns service display data instead of only service UUID', () => {
+    const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
+    const pageSource = readSource('src/app/features/booking/pages/public/manage-booking.page.ts');
+
+    expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.manage_booking_by_token/i);
+    expect(migrationSql).toMatch(/left\s+join\s+public\.services\s+s\s+on\s+s\.id::text\s*=\s*v_booking\.service_id::text/i);
+    expect(migrationSql).toMatch(/'service',[\s\S]*jsonb_build_object\([\s\S]*'name',[\s\S]*v_row\.service_name/i);
+    expect(pageSource).toMatch(/serviceLabel\(\)[\s\S]*\['name', 'displayName', 'display_name', 'serviceName', 'service_name'\]/i);
+  });
+
   it('browser public create fails closed unless RPC response proves DB-owned atomic side effects are active', async () => {
     const rpcSpy = vi.fn(async () => ({
       data: { booking_id: 'booking-qa-legacy' },
@@ -129,7 +151,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
     ).resolves.toEqual({
       status: 503,
       error: {
-        code: 'VALIDATION_ERROR',
+        code: 'DATABASE_CONTRACT_UNAVAILABLE',
         message: 'Booking database contract is not available. Please try again later.'
       }
     });

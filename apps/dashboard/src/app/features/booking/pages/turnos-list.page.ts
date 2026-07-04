@@ -144,6 +144,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected adminRescheduleSubmitting = signal(false);
   protected adminRescheduleFeedback = signal<string | null>(null);
   protected adminCancelFeedback = signal<string | null>(null);
+  protected turnosLoadError = signal<string | null>(null);
   protected availabilityError = signal<string | null>(null);
   protected hasLoadedAvailability = signal(false);
   protected blockedTimeForm: BlockedTimeFormState = {
@@ -242,6 +243,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
         return;
       }
 
+      this.turnosLoadError.set(null);
       await firstValueFrom(this.turnoService.getAll());
       
       await firstValueFrom(this.clienteService.getAll());
@@ -255,6 +257,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
       
       this.loading.set(false);
     } catch {
+      this.turnosLoadError.set(this.turnoService.loadError() ?? this.branchContext.error() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
       this.loading.set(false);
     }
   }
@@ -263,11 +266,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
     if (!this.branchContext.setActiveBranch(branchId)) return;
     this.loading.set(true);
     try {
+      this.turnosLoadError.set(null);
       await firstValueFrom(this.clienteService.getAll());
       await firstValueFrom(this.servicioService.getAll());
       this.clientes.set(this.clienteService.items());
       this.servicios.set(this.servicioService.items());
       await this.refreshTurnosFromSource();
+    } catch {
+      this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
     } finally {
       this.loading.set(false);
     }
@@ -278,8 +284,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   private async refreshTurnosFromSource() {
-    await this.turnoService.getAll().toPromise();
-    await this.processTurnos();
+    try {
+      this.turnosLoadError.set(null);
+      await this.turnoService.getAll().toPromise();
+      await this.processTurnos();
+    } catch {
+      this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+    }
   }
 
   private async processTurnos() {

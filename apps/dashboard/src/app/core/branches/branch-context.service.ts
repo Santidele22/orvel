@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
-import { ACTIVE_BRANCH_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
 
 export type DashboardBranch = {
   id: string;
@@ -34,26 +35,17 @@ export class BranchContextService {
 
     try {
       const supabase = this.getSupabaseClient();
-      const businessId = await this.resolveBusinessId(supabase);
-
+      const businessId = await this.resolveActiveBusinessId(supabase);
       if (!businessId) {
-        this.clearActiveBranch();
-        this.branchesState.set([]);
-        this.errorState.set('No pudimos identificar la cuenta activa para cargar sucursales.');
-        return;
+        throw new Error('ACCOUNT_SETUP_REQUIRED: active business context is required');
       }
 
-      const { data, error } = await supabase
-        .from('branches')
-        .select('id, name, business_id, is_active')
-        .eq('business_id', businessId)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+      const { data, error } = await supabase.rpc('get_dashboard_branches', { p_business_id: businessId });
 
       if (error) throw error;
 
       const branches = ((data ?? []) as Array<Record<string, unknown>>)
-        .filter((branch) => branch['id'] && branch['business_id'] === businessId)
+        .filter((branch) => branch['id'] && branch['business_id'])
         .map((branch) => ({
           id: String(branch['id']),
           name: String(branch['name'] ?? 'Sucursal'),
@@ -63,8 +55,12 @@ export class BranchContextService {
       this.branchesState.set(branches);
       this.reconcileActiveBranch(branches);
     } catch {
-      this.clearActiveBranch();
-      this.branchesState.set([]);
+      emitPublicBookingFailureEvent({
+        stage: 'service',
+        code: 'DASHBOARD_BRANCHES_RPC_FAILED',
+        status: 503,
+        retryable: true
+      });
       this.errorState.set('No pudimos cargar sucursales. Reintentá antes de operar turnos.');
     } finally {
       this.loadingState.set(false);
@@ -134,15 +130,6 @@ export class BranchContextService {
     this.storage()?.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   }
 
-  private async resolveBusinessId(supabase: SupabaseClient): Promise<string | null> {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) return null;
-
-    const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
-    const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
-  }
-
   private getSupabaseClient(): SupabaseClient {
     if (!this.supabaseClient) {
       const env = loadDashboardRuntimeEnv();
@@ -150,6 +137,22 @@ export class BranchContextService {
     }
 
     return this.supabaseClient;
+  }
+
+  private async resolveActiveBusinessId(supabase: SupabaseClient): Promise<string | null> {
+    try {
+      const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim();
+      if (storedBusinessId) return storedBusinessId;
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return null;
+
+      const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
+      const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+      return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
+    } catch {
+      return null;
+    }
   }
 
   private storage(): Storage | null {
