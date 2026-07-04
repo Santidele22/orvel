@@ -88,6 +88,20 @@ function createSupabaseClientDouble() {
   };
 
   const rpc = (fn: string, args: Record<string, unknown>) => {
+    if (fn === 'get_dashboard_branches') {
+      return Promise.resolve({
+        data: [{ id: QA_BRANCH_ID, name: 'Principal', business_id: QA_BUSINESS_ID, is_active: true }],
+        error: null
+      });
+    }
+
+    if (fn === 'list_admin_bookings') {
+      return Promise.resolve({
+        data: String(args['p_branch_id'] ?? '') === QA_BRANCH_ID ? qaBookings : [],
+        error: null
+      });
+    }
+
     const bookingId = String(args['booking_id'] ?? '');
     const targetBooking = qaBookings.find(booking => booking.id === bookingId);
     const currentStatus = bookingStatuses.get(bookingId) ?? targetBooking?.status;

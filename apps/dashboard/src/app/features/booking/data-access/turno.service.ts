@@ -8,6 +8,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { resolveVerifiedDashboardBranches, type VerifiedDashboardBranch } from '../../../core/business/verified-dashboard-business-context';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { 
   ApiErrorCode, 
@@ -23,7 +24,6 @@ import {
 
 type AdminSessionContext = {
   userId: string;
-  businessId: string | null;
 };
 
 type AdminCancelFailureTelemetryStage = 'rpc' | 'ui';
@@ -181,13 +181,7 @@ export class TurnoService {
     const userId = user?.id?.trim();
     if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
 
-    const metadata = user?.user_metadata as Record<string, unknown> | undefined;
-    const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    const businessId = typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
-      ? metadataBusinessId.trim()
-      : null;
-
-    return { userId, businessId };
+    return { userId };
   }
 
   // --- Private RPC Implementations (Flattened from Gateway) ---
@@ -722,20 +716,22 @@ export class TurnoService {
     return null;
   }
 
-  private async resolveBusinessId(supabaseClient: SupabaseClient | null): Promise<string | null> {
-    if (!supabaseClient) return null;
+  private selectDefaultVerifiedBranch(branches: VerifiedDashboardBranch[]): VerifiedDashboardBranch | null {
+    if (!this.resolveBackendOwnedBusinessId(branches)) return null;
 
-    const adminSession = await this.requireAdminSession(supabaseClient);
-    if (adminSession.businessId) return adminSession.businessId;
+    return branches.find((branch) => {
+      const name = branch.name.toLowerCase();
+      return name.includes('principal');
+    }) ?? (branches.length === 1 ? branches[0] : null);
+  }
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const metadata = session?.user?.user_metadata as Record<string, unknown> | undefined;
-    const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    if (typeof businessId === 'string' && businessId.trim()) {
-      return businessId.trim();
-    }
+  private resolveBackendOwnedBusinessId(branches: VerifiedDashboardBranch[]): string | null {
+    const businessIds = new Set(branches.map((branch) => branch.businessId));
+    return businessIds.size === 1 ? [...businessIds][0] : null;
+  }
 
-    return null;
+  private async resolveBackendOwnedBusinessBranches(supabaseClient: SupabaseClient): Promise<VerifiedDashboardBranch[]> {
+    return resolveVerifiedDashboardBranches(supabaseClient, 'calendar');
   }
 
   private async validateBranchTenant(
@@ -746,30 +742,18 @@ export class TurnoService {
     if (!supabaseClient) return null;
     if (!branchId?.trim()) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
+    if (!adminSession) await this.requireAdminSession(supabaseClient);
 
-    const { data: branch, error } = await supabaseClient
-      .from('branches')
-      .select('id, business_id')
-      .eq('id', branchId.trim())
-      .maybeSingle();
+    const dashboardBranches = await this.resolveBackendOwnedBusinessBranches(supabaseClient);
+    const branch = dashboardBranches.find((candidate) => candidate.id === branchId.trim());
 
-    if (error) {
-      throw new Error('BRANCH_FORBIDDEN: No se pudo validar la sucursal contra la cuenta activa');
-    }
-
-    if (!branch?.id || !branch?.business_id) {
+    if (!branch) {
       throw new Error('BRANCH_NOT_FOUND: Sucursal inválida para el tenant activo');
     }
 
-    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
-    if (!businessId || String(branch.business_id) !== businessId) {
-      throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
-    }
-
     return {
-      branchId: String(branch.id),
-      businessId: String(branch.business_id)
+      branchId: branch.id,
+      businessId: branch.businessId,
     };
   }
 
@@ -805,28 +789,11 @@ export class TurnoService {
     }
 
     const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
-    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
-    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
+    const ownedBranches = await this.resolveBackendOwnedBusinessBranches(supabaseClient);
+    const defaultBranch = this.selectDefaultVerifiedBranch(ownedBranches);
 
-    const { data: branches, error } = await supabaseClient
-      .from('branches')
-      .select('id, business_id, slug, name, created_at')
-      .eq('business_id', businessId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: true });
-
-    if (error) throw new Error('BRANCH_FORBIDDEN: No se pudo preparar el alcance interno de la cuenta');
-
-    const ownedBranches = ((branches ?? []) as Array<Record<string, unknown>>)
-      .filter((branch) => branch['id'] && String(branch['business_id']) === businessId);
-    const defaultBranch = ownedBranches.find((branch) => {
-      const slug = String(branch['slug'] ?? '').toLowerCase();
-      const name = String(branch['name'] ?? '').toLowerCase();
-      return slug === 'principal' || slug === 'default' || slug === 'internal-default' || name.includes('principal');
-    }) ?? (ownedBranches.length === 1 ? ownedBranches[0] : null);
-
-    if (defaultBranch?.['id']) {
-      const branchScope = await this.validateBranchTenant(supabaseClient, String(defaultBranch['id']), sessionContext);
+    if (defaultBranch?.id) {
+      const branchScope = await this.validateBranchTenant(supabaseClient, defaultBranch.id, sessionContext);
       if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
       this.rememberResolvedBranchScope(branchScope.branchId);
       return branchScope;
@@ -836,26 +803,7 @@ export class TurnoService {
       throw new Error('ACTIVE_BRANCH_REQUIRED: No se pudo resolver una sucursal interna única para esta cuenta');
     }
 
-    const { data: createdBranch, error: createError } = await supabaseClient
-      .from('branches')
-      .insert({
-        business_id: businessId,
-        name: 'Principal',
-        slug: null,
-        is_active: true,
-        timezone: TIMEZONE
-      })
-      .select('id, business_id')
-      .single();
-
-    if (createError || !createdBranch?.id) {
-      throw new Error('ACCOUNT_SETUP_REQUIRED: No pudimos preparar la configuración de cuenta');
-    }
-
-    const branchScope = await this.validateBranchTenant(supabaseClient, String(createdBranch.id), sessionContext);
-    if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
-    this.rememberResolvedBranchScope(branchScope.branchId);
-    return branchScope;
+    throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo resolver una sucursal propia para esta cuenta');
   }
 
   private rememberResolvedBranchScope(branchId: string): void {

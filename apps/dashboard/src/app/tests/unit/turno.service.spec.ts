@@ -459,11 +459,22 @@ describe('TurnoService - Unit Tests', () => {
   });
 
   describe('createBlockedTime()', () => {
-    function installSupabaseBlockedTimeDouble(serviceUnderTest: TurnoService) {
-      const rpc = vi.fn(() => Promise.resolve({
-        data: { blocked_time_id: 'block-qa-001' },
-        error: null
-      }));
+    function installSupabaseBlockedTimeDouble(serviceUnderTest: TurnoService, ownerHasBranches = true) {
+      const rpc = vi.fn((fn: string) => {
+        if (fn === 'get_dashboard_branches') {
+          return Promise.resolve({
+            data: ownerHasBranches
+              ? [{ id: 'branch-qa-001', name: 'Principal', business_id: 'biz-from-branch-tenant', is_active: true }]
+              : [],
+            error: null
+          });
+        }
+
+        return Promise.resolve({
+          data: { blocked_time_id: 'block-qa-001' },
+          error: null
+        });
+      });
       const branchBuilder = {
         select: () => branchBuilder,
         eq: () => branchBuilder,
@@ -514,7 +525,7 @@ describe('TurnoService - Unit Tests', () => {
     });
 
     it('falla cerrado y no llama RPC si no hay sucursal activa/default', async () => {
-      const rpc = installSupabaseBlockedTimeDouble(service);
+      const rpc = installSupabaseBlockedTimeDouble(service, false);
       (service as unknown as { authService: { user: () => unknown } }).authService = {
         user: () => ({ id: 'qa-user-001', nombre: 'QA Admin' })
       };
@@ -527,8 +538,8 @@ describe('TurnoService - Unit Tests', () => {
         endsAtIso: '2035-01-15T14:00:00.000Z',
         reason: 'Capacitación interna',
         performedBy: 'qa-user-001'
-      }).toPromise()).rejects.toThrow(/ACTIVE_BRANCH_REQUIRED/);
-      expect(rpc).not.toHaveBeenCalled();
+      }).toPromise()).rejects.toThrow(/ACCOUNT_SETUP_REQUIRED/);
+      expect(rpc).not.toHaveBeenCalledWith('create_admin_blocked_time', expect.anything());
     });
   });
 

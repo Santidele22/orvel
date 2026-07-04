@@ -48,8 +48,11 @@ export async function listAdminNotifications(
 
   const { data, error } = await query;
   if (error) {
-    console.error('Error fetching dashboard notifications:', error);
-    return [];
+    console.error('Error fetching dashboard notifications:', {
+      code: error.code,
+      message: error.message,
+    });
+    throw new Error('No se pudieron cargar las notificaciones');
   }
 
   return (data || []).map(row => ({
@@ -75,8 +78,11 @@ export async function getUnreadNotificationCount(businessId: string): Promise<nu
     .eq('status', 'unread');
     
   if (error) {
-    console.error('Error counting unread notifications:', error);
-    return 0;
+    console.error('Error counting unread notifications:', {
+      code: error.code,
+      message: error.message,
+    });
+    throw new Error('No se pudo cargar el contador de notificaciones');
   }
   return count || 0;
 }
@@ -133,20 +139,4 @@ export async function archiveNotification(notificationId: string): Promise<Dashb
     readAt: data.read_at,
     archivedAt: data.archived_at
   };
-}
-
-export async function archiveAllNotifications(businessId: string): Promise<void> {
-  const supabase = createSupabaseClient();
-  console.log('[API] Archiving all notifications via RPC for business:', businessId);
-  
-  const { data, error } = await supabase.rpc('archive_all_dashboard_notifications', {
-    p_business_id: businessId
-  });
-
-  if (error) {
-    console.error('[API] RPC Error archiving notifications:', error);
-    throw new Error(`Failed to archive all notifications: ${error.message}`);
-  }
-  
-  console.log(`[API] RPC Success: ${data || 0} notifications archived.`);
 }

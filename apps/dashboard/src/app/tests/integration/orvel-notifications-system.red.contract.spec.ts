@@ -321,6 +321,46 @@ describe('Orvel notification system RED contracts', () => {
   });
 
   describe('5) Existing bell wiring contract', () => {
+    it('resolves the dashboard notification tenant from business context, not the raw auth user id', () => {
+      const serviceSource = fs.readFileSync(
+        path.join(ROOT, 'src', 'app', 'core', 'notifications', 'dashboard-notifications.service.ts'),
+        'utf8',
+      );
+      const verifiedBusinessContextSource = fs.readFileSync(
+        path.join(ROOT, 'src', 'app', 'core', 'business', 'verified-dashboard-business-context.ts'),
+        'utf8',
+      );
+      const tenantResolutionSource = `${serviceSource}\n${verifiedBusinessContextSource}`;
+
+      expect(serviceSource).toMatch(/resolve(?:Dashboard)?BusinessId/i);
+      expect(tenantResolutionSource).toMatch(/get_dashboard_branches/i);
+      expect(tenantResolutionSource).not.toMatch(/user_metadata|\.from\(['"]businesses['"]\)|\.from\(['"]branches['"]\)/i);
+      expect(serviceSource).not.toMatch(/authService\.user\(\)\?\.id/);
+      expect(serviceSource).toMatch(/listAdminNotifications\(\{\s*businessId/);
+      expect(serviceSource).toMatch(/business_id=eq\.\$\{businessId\}/);
+    });
+
+    it('does not silently render zero notifications when verified branch RPC resolution fails', () => {
+      const serviceSource = fs.readFileSync(
+        path.join(ROOT, 'src', 'app', 'core', 'notifications', 'dashboard-notifications.service.ts'),
+        'utf8',
+      );
+      const apiSource = fs.readFileSync(
+        path.join(ROOT, 'src', 'app', 'core', 'notifications', 'internal-dashboard-notifications.api.ts'),
+        'utf8',
+      );
+      const topbarSource = fs.readFileSync(
+        path.join(ROOT, 'src', 'app', 'shared', 'dashboard-topbar', 'templates', 'zen-topbar.component.ts'),
+        'utf8',
+      );
+
+      expect(serviceSource).toMatch(/DashboardBranchContextError/);
+      expect(serviceSource).toMatch(/handleDashboardBusinessResolutionError/);
+      expect(apiSource).not.toMatch(/return\s+\[\]\s*;[\s\S]{0,120}Error fetching dashboard notifications/);
+      expect(apiSource).not.toMatch(/return\s+0\s*;[\s\S]{0,120}Error counting unread notifications/);
+      expect(topbarSource).toMatch(/showNotificationRefreshFailed|No pudimos cargar las notificaciones/);
+    });
+
     it('preserves the existing topbar bell UI and only wires count/list/read/archive data/actions', () => {
       const mergedTopbarSource = [TOPBAR_COMPONENT, TOPBAR_HTML, ZEN_TOPBAR_COMPONENT]
         .map((filePath) => fs.readFileSync(filePath, 'utf8'))

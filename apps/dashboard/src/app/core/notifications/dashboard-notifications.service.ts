@@ -1,19 +1,17 @@
-import { Injectable, computed, signal, inject, OnDestroy } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
+import { Injectable, computed, signal, OnDestroy } from '@angular/core';
 import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
 import {
   archiveNotification,
   getUnreadNotificationCount,
   listAdminNotifications,
   markNotificationRead,
-  archiveAllNotifications,
   type DashboardNotification,
 } from './internal-dashboard-notifications.api';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { DashboardBranchContextError, resolveVerifiedDashboardBusinessId } from '../business/verified-dashboard-business-context';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardNotificationsService implements OnDestroy {
-  private readonly authService = inject(AuthService);
   private readonly notificationsState = signal<DashboardNotification[]>([]);
   private readonly unreadNotificationCountState = signal(0);
   private readonly loadingState = signal(false);
@@ -36,10 +34,14 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   private async init() {
-    const businessId = this.authService.user()?.id;
-    if (businessId) {
-      await this.refreshForAdmin();
-      this.startSubscription(businessId);
+    try {
+      const businessId = await this.resolveDashboardBusinessId();
+      if (businessId) {
+        await this.refreshForAdmin();
+        this.startSubscription(businessId);
+      }
+    } catch (error) {
+      this.handleDashboardBusinessResolutionError(error);
     }
   }
 
@@ -73,17 +75,17 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   async refreshForAdmin(): Promise<void> {
-    const businessId = this.authService.user()?.id;
-    if (!businessId) {
-      this.notificationsState.set([]);
-      this.unreadNotificationCountState.set(0);
-      return;
-    }
-
     this.loadingState.set(true);
     this.errorState.set(null);
 
     try {
+      const businessId = await this.resolveDashboardBusinessId();
+      if (!businessId) {
+        this.notificationsState.set([]);
+        this.unreadNotificationCountState.set(0);
+        return;
+      }
+
       const [notificationList, notificationCount] = await Promise.all([
         listAdminNotifications({ businessId }),
         getUnreadNotificationCount(businessId),
@@ -92,7 +94,7 @@ export class DashboardNotificationsService implements OnDestroy {
       this.notificationsState.set(notificationList);
       this.unreadNotificationCountState.set(notificationCount);
     } catch (error) {
-      this.errorState.set(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones');
+      this.handleDashboardBusinessResolutionError(error);
       this.notificationsState.set([]);
       this.unreadNotificationCountState.set(0);
     } finally {
@@ -101,20 +103,57 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   async clearAll(): Promise<void> {
-    const businessId = this.authService.user()?.id;
-    if (!businessId) return;
-
-    // Optimistic update
-    this.notificationsState.set([]);
-    this.unreadNotificationCountState.set(0);
-
     try {
-      await archiveAllNotifications(businessId);
+      const businessId = await this.resolveDashboardBusinessId();
+      if (!businessId) return;
+      const notificationsToArchive = this.notificationsState()
+        .filter((notification) => notification.businessId === businessId && notification.status !== 'archived');
+      if (notificationsToArchive.length === 0) return;
+
+      // Optimistic update
+      this.notificationsState.update((notificationList) =>
+        notificationList.filter((notification) => notification.businessId !== businessId),
+      );
+      this.unreadNotificationCountState.set(0);
+
+      await Promise.all(notificationsToArchive.map((notification) => archiveNotification(notification.id)));
     } catch (error) {
-      console.error('Failed to archive notifications:', error);
+      if (error instanceof DashboardBranchContextError) {
+        this.handleDashboardBusinessResolutionError(error);
+        this.notificationsState.set([]);
+        this.unreadNotificationCountState.set(0);
+        return;
+      }
+
+      console.warn('[Notifications] Failed to archive notifications', { code: this.sanitizeErrorCode(error) });
       this.errorState.set('No se pudieron archivar las notificaciones en el servidor');
       await this.refreshForAdmin(); // Revert on error
     }
+  }
+
+  private sanitizeErrorCode(error: unknown): string {
+    const code = typeof (error as { code?: unknown } | null)?.code === 'string'
+      ? (error as { code: string }).code
+      : error instanceof Error
+        ? error.name
+        : 'UNKNOWN';
+
+    return code.trim().toUpperCase().replace(/[^A-Z0-9_:-]/g, '_').slice(0, 64) || 'UNKNOWN';
+  }
+
+  private async resolveDashboardBusinessId(): Promise<string | null> {
+    const supabase = createSupabaseClient();
+    return resolveVerifiedDashboardBusinessId(supabase);
+  }
+
+  private handleDashboardBusinessResolutionError(error: unknown): void {
+    if (error instanceof DashboardBranchContextError) {
+      console.warn('[Notifications] Verified dashboard branch context failed', { code: error.code });
+      this.errorState.set('No pudimos verificar la configuración de notificaciones. Revisá la conexión o la publicación del RPC.');
+      return;
+    }
+
+    this.errorState.set(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones');
   }
 
   async readNotification(notificationId: string): Promise<void> {
