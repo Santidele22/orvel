@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 
 import { BillingSubscriptionPage } from './billing-subscription.page';
 
@@ -11,11 +12,13 @@ import { BillingSubscriptionPage } from './billing-subscription.page';
   styleUrl: './billing-subscription.page.scss'
 })
 export class BillingSubscriptionComponent extends BillingSubscriptionPage implements OnInit {
-  constructor() {
-    super();
+  constructor(route: ActivatedRoute) {
+    super({
+      mode: route.snapshot.routeConfig?.path === 'billing/subscription/cancel' ? 'cancellation' : 'activation'
+    });
   }
 
   async ngOnInit(): Promise<void> {
-    await this.startSubscription();
+    await this.initialize();
   }
 }
