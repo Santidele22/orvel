@@ -53,11 +53,15 @@ Record:
 - Whether push/update succeeded.
 - Any blocker and exact error summary, without secrets.
 
-## Recovery: create_public_booking Canonical Availability Enforcement
+## Recovery Playbooks
+
+The sections below are independent fix-forward playbooks. Do not treat a later section as a subsection of the previous migration.
+
+### Recovery: create_public_booking Canonical Availability Enforcement
 
 Use this section for migration `20260627210000_enforce_public_booking_canonical_availability.sql`.
 
-### Verify After Push
+#### Verify After Push
 
 1. Confirm migration status:
    ```bash
@@ -86,14 +90,14 @@ Use this section for migration `20260627210000_enforce_public_booking_canonical_
    ```
    Passing evidence is an RPC error with code/message `SLOT_CONFLICT` before any booking insert. If the disposable fixture is missing, stop and create/choose a safe fixture; do not mutate production data outside the rollback transaction.
 
-### Stop Conditions
+#### Stop Conditions
 
 - `migration list --linked` reports a mismatch.
 - The RPC returns confirmed booking data for a slot absent from `_query_booking_slot_availability`.
 - The RPC exposes `manage_token` storage in `public.bookings` instead of only `manage_token_hash`.
 - PostgREST cannot resolve either `create_public_booking` overload after `NOTIFY pgrst, 'reload schema'`.
 
-### Fix-Forward / Recovery
+#### Fix-Forward / Recovery
 
 Do not repair migration history or rewrite the pushed migration. Create a new full-timestamp migration that:
 
@@ -106,7 +110,102 @@ Do not repair migration history or rewrite the pushed migration. Create a new fu
    ```
 5. Re-run the rollback smoke check above and record the result in the PR notes.
 
-## Recovery: Reschedule Canonical Availability and RPC Grants
+### Recovery: Public Booking Principal Branch Backfill
+
+Use this section for migration `20260702110000_ensure_business_principal_branch_for_public_booking.sql`.
+
+#### Verify After Push
+
+1. Confirm migration status:
+   ```bash
+   npx supabase@latest migration list --linked
+   ```
+2. Confirm businesses that should accept public bookings have exactly one active `principal` branch:
+   ```sql
+   select b.id, b.slug, count(br.id) as active_principal_branches
+   from public.businesses b
+   left join public.branches br
+     on br.business_id = b.id
+    and br.slug = 'principal'
+    and br.is_active is true
+   group by b.id, b.slug
+   having count(br.id) <> 1;
+   ```
+   Expected result: no rows for businesses that should currently accept public bookings.
+3. For the affected booking, verify `create_public_booking` no longer fails with `BRANCH_NOT_FOUND` after selecting a visible service and available slot.
+
+#### Stop Conditions
+
+- `migration list --linked` reports a mismatch.
+- Any business with existing inactive branch rows becomes active unexpectedly.
+- Public booking still returns `BRANCH_NOT_FOUND` for a business with visible active services.
+- PostgREST does not reload after `NOTIFY pgrst, 'reload schema'`.
+
+#### Fix-forward / Recovery
+
+- Do not repair migration history or rewrite a pushed migration.
+- If inactive branches were reactivated, ship a forward-only migration that restores the intended inactive branch state from audit evidence before accepting bookings.
+- If branchless businesses were missed, ship a narrower forward-only migration for the affected business ids and re-run the verification queries.
+- Record the verification query results in the PR or deployment notes without customer data.
+
+### Recovery: Dashboard-Owned Branch RPC and PostgREST Schema Cache
+
+Use this section for migrations `20260703143000_dashboard_owned_branches_rpc.sql` and `20260703153000_reload_dashboard_branches_rpc_schema.sql`.
+
+The first migration defines `public.get_dashboard_branches()` for backend-owned dashboard branch context. The follow-up migration validates that the RPC exists and sends `NOTIFY pgrst, 'reload schema'` so PostgREST refreshes its schema cache. Do not rewrite `20260703143000` after it has already been applied remotely; use a new full-timestamp fix-forward migration instead.
+
+#### Deploy / Verify
+
+1. Push the forward-only follow-up migration after local validation:
+   ```bash
+   npx supabase@latest db push --linked --include-all
+   ```
+   Expected successful context: the CLI applies `20260703153000_reload_dashboard_branches_rpc_schema.sql` without migration-history mismatch or repair prompts.
+2. Verify migration history only after the push succeeds:
+   ```bash
+   npx supabase@latest migration list --linked
+   ```
+   Expected result: local and remote lists include `20260703143000` and `20260703153000` in order and report no drift.
+3. Verify PostgREST can resolve the RPC with the authenticated dashboard client path. A stale schema cache commonly appears as `PGRST202` / "Could not find the function public.get_dashboard_branches". The dashboard must surface this as setup/connectivity failure, not as zero bookings or zero notifications.
+4. Optional SQL-side sanity check when an approved linked SQL shell is available:
+   ```sql
+   select proname
+   from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname = 'get_dashboard_branches'
+     and pg_get_function_identity_arguments(p.oid) = '';
+    ```
+    Expected result: one row named `get_dashboard_branches`.
+5. Monitor dashboard runtime observability for the sanitized `get_dashboard_branches.rpc_failed` event:
+   - Browser event: `orvel.dashboard.operational`.
+   - Event fields: `event`, `feature`, `source`, `rpc`, `errorCode`, and `errorCategory` only.
+   - Expected sources: `branch-context`, `notifications`, and `calendar`.
+   - Expected stale PostgREST schema-cache category: `RPC_SCHEMA_CACHE_MISS` with safe code such as `PGRST202`.
+   - Current limitation: there is no checked-in external telemetry sink for dashboard context failures yet. The dashboard exposes an injectable subscriber hook (`subscribeDashboardOperationalEvents`) for production integration and falls back to a sanitized console warning only when no subscriber is registered.
+6. To verify locally without secrets, run the dashboard unit contract that simulates the RPC failure and asserts sanitized telemetry:
+   ```bash
+   pnpm --dir apps/dashboard vitest run src/app/tests/unit/dashboard-branch-rpc-observability.contract.spec.ts
+   ```
+
+#### Stop Conditions
+
+- `db push --linked --include-all` reports migration-history mismatch or asks for repair.
+- The follow-up migration cannot find `public.get_dashboard_branches()`.
+- PostgREST still returns `PGRST202` for `get_dashboard_branches()` after the reload notification and a short propagation wait.
+- Dashboard notifications or calendar show empty states while the RPC resolution path is failing.
+- Dashboard runtime does not emit `get_dashboard_branches.rpc_failed` with `source=branch-context`, `source=notifications`, or `source=calendar` for the affected path.
+- Any emitted dashboard operational event contains tokens, session data, raw Supabase error objects, raw error details, or customer/person data.
+
+#### Fix-forward / Recovery
+
+- Do not run migration repair unless Santi explicitly approves it for this incident.
+- Do not rewrite `20260703143000` if remote already applied it.
+- If only schema cache exposure is stale, ship another forward-only full-timestamp migration that validates the RPC signature and sends `NOTIFY pgrst, 'reload schema'` again.
+- If the RPC definition is missing or wrong, ship a forward-only full-timestamp `CREATE OR REPLACE FUNCTION public.get_dashboard_branches()` migration that preserves `SECURITY DEFINER`, `search_path`, grants, and owner-scoped `auth.uid()` behavior, then notify PostgREST.
+- Record the CLI command, migration-list result, and any PostgREST error code in PR/deployment notes without secrets or customer data.
+
+### Recovery: Reschedule Canonical Availability and RPC Grants
 
 Use this section for migrations `20260628143000_enforce_reschedule_canonical_availability.sql`, `20260628145500_harden_reschedule_rpc_execute_grants.sql`, `20260628152000_admin_reschedule_branch_scope_telemetry.sql`, and `20260628161000_document_admin_reschedule_branch_guard.sql`.
 
@@ -115,11 +214,11 @@ Use this section for migrations `20260628143000_enforce_reschedule_canonical_ava
 - Preserve anonymous access only to public token manage/cancel/reschedule RPCs. Helper/admin RPC grant changes must explicitly revoke unintended `PUBLIC`/`anon` execute before granting intended roles.
 - Browser/admin dashboard reschedule calls must use `reschedule_admin_booking(uuid, text, uuid, uuid, text, text)`. Authorization remains business-level through `can_manage_business`; the `branch_id` argument is a stale-context/target consistency guard, not a branch-level permission boundary. Branchless admin reschedule overloads are service-role compatibility only and must fail closed for authenticated callers.
 
-## Booking Lifecycle Email Outbox Deploy and Recovery
+### Booking Lifecycle Email Outbox Deploy and Recovery
 
 Use this section for changes that add or rename `notification_email_outbox.template_key` values, including booking created, rescheduled, and cancelled lifecycle emails.
 
-### Deploy Order
+#### Deploy Order
 
 1. Deploy `process-email-outbox` first so the Edge Function can render any new template keys before database triggers enqueue them:
    `supabase functions deploy process-email-outbox`.
@@ -134,7 +233,7 @@ Use this section for changes that add or rename `notification_email_outbox.templ
    limit 50;
    ```
 
-### Manual Drain or Retry
+#### Manual Drain or Retry
 
 The processor expects the same payload shape as the database webhook: `type = INSERT`, `table = notification_email_outbox`, and `record = <row>`. Use a service-role authorized request only; never use anon or publishable keys.
 
@@ -159,17 +258,17 @@ The processor expects the same payload shape as the database webhook: `type = IN
    ```
 3. Reinvoke the function with the selected row as the `record` payload. Keep credentials outside docs and shell history; use your approved secret handling for the service-role bearer.
 
-### Rollback / Fix-forward
+#### Rollback / Fix-forward
 
 - Prefer fix-forward for template rendering mistakes: deploy the corrected function first, then manually retry unsent rows.
 - If a migration enqueues the wrong lifecycle matrix, stop the trigger or ship a corrective migration before replaying. Do not delete sent rows to fake rollback.
 - Created and cancelled lifecycle keys are intentionally stable per booking/recipient. Rescheduled keys include the update event timestamp so each real reschedule sends once while duplicate processing of the same event remains idempotent.
 
-## Admin Booking Cancel RPC Compatibility
+### Admin Booking Cancel RPC Compatibility
 
 Use this section for migration `20260628131500_admin_cancel_failure_telemetry_compat.sql`.
 
-### Deploy / Verify
+#### Deploy / Verify
 
 1. Push the forward-only migration:
    ```bash
@@ -180,7 +279,7 @@ Use this section for migration `20260628131500_admin_cancel_failure_telemetry_co
    - `public.cancel_admin_booking(uuid, uuid, text, text)` is a cached-client compatibility wrapper only.
 3. Verify the 4-arg wrapper returns `CLIENT_UPGRADE_REQUIRED` and records only sanitized telemetry in `public.admin_booking_cancel_failure_events`.
 
-### Safety Notes
+#### Safety Notes
 
 - Do not make the 4-arg wrapper infer branch scope. Cached clients cannot safely prove active branch context, so the wrapper must fail closed.
 - The 5-arg RPC remains the only direct authenticated cancellation path and must keep rejecting missing or mismatched branch scope.
