@@ -74,6 +74,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/billing/pages/billing-subscription.component').then(m => m.BillingSubscriptionComponent)
   },
   {
+    path: 'billing/subscription/cancel',
+    canActivate: [dashboardAuthGuard],
+    loadComponent: () => import('./features/billing/pages/billing-subscription.component').then(m => m.BillingSubscriptionComponent)
+  },
+  {
     path: 'dashboard',
     component: DashboardShellComponent,
     canActivate: [dashboardAuthGuard],

@@ -1,14 +1,28 @@
 <main class="billing-subscription" aria-live="polite">
   <section class="billing-subscription__card">
-    <p class="billing-subscription__kicker">Suscripción</p>
-    <h1>Activación de plan</h1>
+    <p class="billing-subscription__kicker">{{ heading().kicker }}</p>
+    <h1>{{ heading().title }}</h1>
     <p class="billing-subscription__message">{{ state().message }}</p>
 
     @if (state().status === 'loading') {
       <div class="billing-subscription__spinner" aria-hidden="true"></div>
     }
 
+    @if (state().status === 'cancellation_ready') {
+      <button class="billing-subscription__support" type="button" (click)="requestCancellation()">
+        Solicitar baja manual
+      </button>
+    }
+
+    @if (state().status === 'cancellation_loading') {
+      <div class="billing-subscription__spinner" aria-hidden="true"></div>
+    }
+
     @if (state().status === 'unavailable' || state().status === 'error') {
+      <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
+    }
+
+    @if (state().status === 'cancellation_requested') {
       <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
     }
   </section>
