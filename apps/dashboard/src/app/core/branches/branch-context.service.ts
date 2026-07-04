@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { DashboardBranchContextError, resolveVerifiedDashboardBranches } from '../business/verified-dashboard-business-context';
 
 export type DashboardBranch = {
   id: string;
@@ -34,38 +35,31 @@ export class BranchContextService {
 
     try {
       const supabase = this.getSupabaseClient();
-      const businessId = await this.resolveBusinessId(supabase);
+      const branches = (await resolveVerifiedDashboardBranches(supabase, 'branch-context'))
+        .map((branch) => ({
+          id: branch.id,
+          name: branch.name,
+          businessId: branch.businessId,
+        }));
 
-      if (!businessId) {
+      if (branches.length === 0) {
         this.clearActiveBranch();
         this.branchesState.set([]);
-        this.errorState.set('No pudimos identificar la cuenta activa para cargar sucursales.');
+        this.errorState.set('No pudimos identificar sucursales propias para esta cuenta.');
         return;
       }
 
-      const { data, error } = await supabase
-        .from('branches')
-        .select('id, name, business_id, is_active')
-        .eq('business_id', businessId)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      const branches = ((data ?? []) as Array<Record<string, unknown>>)
-        .filter((branch) => branch['id'] && branch['business_id'] === businessId)
-        .map((branch) => ({
-          id: String(branch['id']),
-          name: String(branch['name'] ?? 'Sucursal'),
-          businessId: String(branch['business_id'])
-        }));
-
       this.branchesState.set(branches);
       this.reconcileActiveBranch(branches);
-    } catch {
+    } catch (error) {
+      if (error instanceof DashboardBranchContextError) {
+        console.warn('[BranchContext] Verified dashboard branch context failed', { code: error.code });
+      }
       this.clearActiveBranch();
       this.branchesState.set([]);
-      this.errorState.set('No pudimos cargar sucursales. Reintentá antes de operar turnos.');
+      this.errorState.set(error instanceof DashboardBranchContextError
+        ? error.message
+        : 'No pudimos cargar sucursales. Reintentá antes de operar turnos.');
     } finally {
       this.loadingState.set(false);
     }
@@ -132,15 +126,6 @@ export class BranchContextService {
   private clearActiveBranch(): void {
     this.activeBranchIdState.set(null);
     this.storage()?.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
-  }
-
-  private async resolveBusinessId(supabase: SupabaseClient): Promise<string | null> {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) return null;
-
-    const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
-    const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
   }
 
   private getSupabaseClient(): SupabaseClient {
