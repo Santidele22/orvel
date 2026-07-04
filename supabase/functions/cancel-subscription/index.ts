@@ -1,9 +1,13 @@
 // cancel-subscription Edge Function
-// Handles subscription cancellation
+// Records manual subscription cancellation requests for MVP support processing.
 // Endpoint: POST /functions/v1/cancel-subscription
 
 import { createClient } from "@supabase/supabase-js";
-import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
+import {
+  getBillingCorsHeaders,
+  rejectDisallowedBrowserOrigin,
+  requireServerSecret,
+} from "../_shared/billing-security.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -21,7 +25,9 @@ function getClientIp(req: Request): string {
 function isRateLimited(req: Request): boolean {
   const now = Date.now();
   const ip = getClientIp(req);
-  const recent = (rateLimitStore.get(ip) || []).filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+  const recent = (rateLimitStore.get(ip) || []).filter((ts) =>
+    now - ts < RATE_LIMIT_WINDOW_MS
+  );
 
   if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
     rateLimitStore.set(ip, recent);
@@ -38,228 +44,355 @@ interface CancelSubscriptionRequest {
   reason?: string;
 }
 
-Deno.serve(async (req) => {
-  const corsHeaders = getBillingCorsHeaders(req);
+interface CancelSubscriptionHandlerDependencies {
+  createSupabaseAdminClient?: () => any;
+  getCorsHeaders?: (req: Request) => Record<string, string>;
+  rejectDisallowedOrigin?: (req: Request) => Response | null;
+  isRateLimitedRequest?: (req: Request) => boolean;
+  now?: () => Date;
+  logError?: (...args: unknown[]) => void;
+}
 
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
 
-  const disallowedOrigin = rejectDisallowedBrowserOrigin(req);
-  if (disallowedOrigin) return disallowedOrigin;
+function createDefaultSupabaseAdminClient() {
+  return createClient(
+    requireServerSecret("SUPABASE_URL"),
+    requireServerSecret("SUPABASE_SERVICE_ROLE_KEY"),
+  );
+}
 
-  if (isRateLimited(req)) {
-    return new Response(
-      JSON.stringify({ error: "RATE_LIMIT_EXCEEDED", message: "Too many requests" }),
-      {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": "60",
-        },
-      }
-    );
-  }
+export function createCancelSubscriptionHandler(
+  dependencies: CancelSubscriptionHandlerDependencies = {},
+) {
+  const createSupabaseAdminClient = dependencies.createSupabaseAdminClient ??
+    createDefaultSupabaseAdminClient;
+  const getCorsHeaders = dependencies.getCorsHeaders ?? getBillingCorsHeaders;
+  const rejectDisallowedOrigin = dependencies.rejectDisallowedOrigin ??
+    rejectDisallowedBrowserOrigin;
+  const isRateLimitedRequest = dependencies.isRateLimitedRequest ??
+    isRateLimited;
+  const now = dependencies.now ?? (() => new Date());
+  const logError = dependencies.logError ?? console.error;
 
-  try {
-    // =============================================================================
-    // 1. VERIFY USER AUTHENTICATION
-    // =============================================================================
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "AUTHORIZATION_REQUIRED", message: "Token de autenticación requerido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+  return async (req: Request): Promise<Response> => {
+    const corsHeaders = getCorsHeaders(req);
+
+    // Handle CORS preflight
+    if (req.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Create Supabase client with admin privileges to bypass RLS
-    const supabaseAdmin = createClient(
-      requireServerSecret("SUPABASE_URL"),
-      requireServerSecret("SUPABASE_SERVICE_ROLE_KEY")
-    );
+    const disallowedOrigin = rejectDisallowedOrigin(req);
+    if (disallowedOrigin) return disallowedOrigin;
 
-    // Verify JWT and get user
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
+    if (isRateLimitedRequest(req)) {
       return new Response(
-        JSON.stringify({ error: "INVALID_TOKEN", message: "Token inválido o expirado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // =============================================================================
-    // 2. PARSE AND VALIDATE REQUEST
-    // =============================================================================
-    let body: CancelSubscriptionRequest;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "INVALID_JSON", message: "Cuerpo de solicitud inválido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { business_id, reason } = body;
-    if (!business_id || typeof business_id !== "string") {
-      return new Response(
-        JSON.stringify({ error: "BUSINESS_ID_REQUIRED", message: "El campo business_id es requerido" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // =============================================================================
-    // 3. VERIFY USER OWNS THE BUSINESS
-    // =============================================================================
-    const { data: business, error: businessError } = await supabaseAdmin
-      .from("businesses")
-      .select("id, name, owner_id")
-      .eq("id", business_id)
-      .eq("owner_id", user.id)
-      .single();
-
-    if (businessError || !business) {
-      return new Response(
-        JSON.stringify({ error: "BUSINESS_NOT_FOUND", message: "Negocio no encontrado o no te pertenece" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // =============================================================================
-    // 4. GET CURRENT ACTIVE SUBSCRIPTION
-    // =============================================================================
-    const { data: currentSubscription, error: subError } = await supabaseAdmin
-      .from("business_subscriptions")
-      .select("*")
-      .eq("business_id", business_id)
-      .in("status", ["active", "pending"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (subError || !currentSubscription) {
-      return new Response(
-        JSON.stringify({ error: "NO_ACTIVE_SUBSCRIPTION", message: "No tienes una suscripción activa para cancelar" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // =============================================================================
-    // 5. CHECK IF ALREADY CANCELLED
-    // =============================================================================
-    if (currentSubscription.status === "cancelled" || currentSubscription.cancelled_at) {
-      const periodEnd = currentSubscription.period_end 
-        ? new Date(currentSubscription.period_end).toLocaleDateString("es-AR") 
-        : "N/A";
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: "Tu suscripción ya está cancelada",
-          cancellation: {
-            cancelled_at: currentSubscription.cancelled_at,
-            period_end: currentSubscription.period_end,
-            display_date: periodEnd,
-          }
+        JSON.stringify({
+          error: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": "60",
+          },
+        },
       );
     }
 
-    // =============================================================================
-    // 6. SET CANCEL_AT_PERIOD_END
-    // =============================================================================
-    const now = new Date();
-    const periodEnd = currentSubscription.period_end 
-      ? new Date(currentSubscription.period_end) 
-      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    try {
+      // =============================================================================
+      // 1. VERIFY USER AUTHENTICATION
+      // =============================================================================
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({
+            error: "AUTHORIZATION_REQUIRED",
+            message: "Token de autenticación requerido",
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
-    // Determine if we should cancel immediately or at period end
-    // If there's no MP subscription, cancel immediately
-    // If there's an MP subscription with an active payment, set cancel_at_period_end
-    const shouldCancelImmediately = !currentSubscription.mp_preapproval_id || 
-      currentSubscription.status === "pending";
+      const token = authHeader.replace("Bearer ", "");
 
-    const updateData: Record<string, unknown> = {
-      status: "cancelled",
-      cancelled_at: now.toISOString(),
-      cancel_reason: reason || "user_request",
-      updated_at: now.toISOString(),
-    };
+      // Create Supabase client with admin privileges to bypass RLS
+      const supabaseAdmin = createSupabaseAdminClient();
 
-    // Only set period_end for scheduled cancellation
-    if (!shouldCancelImmediately && periodEnd > now) {
-      // Keep the current period_end - cancellation happens automatically
-      updateData.period_end = currentSubscription.period_end;
-    } else {
-      // Cancel immediately - set period_end to now
-      updateData.period_end = now.toISOString();
-    }
+      // Verify JWT and get user
+      const { data: { user }, error: authError } = await supabaseAdmin.auth
+        .getUser(token);
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({
+            error: "INVALID_TOKEN",
+            message: "Token inválido o expirado",
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
-    // =============================================================================
-    // 7. UPDATE SUBSCRIPTION
-    // =============================================================================
-    const { data: updatedSubscription, error: updateError } = await supabaseAdmin
-      .from("business_subscriptions")
-      .update(updateData)
-      .eq("id", currentSubscription.id)
-      .select()
-      .single();
+      // =============================================================================
+      // 2. PARSE AND VALIDATE REQUEST
+      // =============================================================================
+      let body: CancelSubscriptionRequest;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(
+          JSON.stringify({
+            error: "INVALID_JSON",
+            message: "Cuerpo de solicitud inválido",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
-    if (updateError) {
-      console.error("Error cancelling subscription:", updateError);
+      const { business_id, reason } = body;
+      if (!business_id || typeof business_id !== "string") {
+        return new Response(
+          JSON.stringify({
+            error: "BUSINESS_ID_REQUIRED",
+            message: "El campo business_id es requerido",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // =============================================================================
+      // 3. VERIFY USER OWNS THE BUSINESS
+      // =============================================================================
+      const { data: business, error: businessError } = await supabaseAdmin
+        .from("businesses")
+        .select("id, name, owner_id")
+        .eq("id", business_id)
+        .eq("owner_id", user.id)
+        .single();
+
+      if (businessError || !business) {
+        return new Response(
+          JSON.stringify({
+            error: "BUSINESS_NOT_FOUND",
+            message: "Negocio no encontrado o no te pertenece",
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // =============================================================================
+      // 4. GET CURRENT ACTIVE SUBSCRIPTION
+      // =============================================================================
+      const { data: currentSubscription, error: subError } = await supabaseAdmin
+        .from("business_subscriptions")
+        .select("*")
+        .eq("business_id", business_id)
+        .in("status", ["active", "pending"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (subError || !currentSubscription) {
+        return new Response(
+          JSON.stringify({
+            error: "NO_ACTIVE_SUBSCRIPTION",
+            message: "No tienes una suscripción activa para cancelar",
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // =============================================================================
+      // 5. RECORD MANUAL CANCELLATION REQUEST
+      // =============================================================================
+      const requestedAt = now().toISOString();
+      const providerSubscriptionId =
+        currentSubscription.provider_subscription_id ||
+        currentSubscription.mp_preapproval_id ||
+        null;
+      const eventProvider = "orvel_manual";
+      const cancellationRequestProviderEventId =
+        `manual-cancel-request:${currentSubscription.id}`;
+
+      const { data: existingRequest } = await supabaseAdmin
+        .from("subscription_events")
+        .select("occurred_at")
+        .eq("provider", eventProvider)
+        .eq("provider_event_id", cancellationRequestProviderEventId)
+        .order("occurred_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingRequest) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message:
+              "Solicitud de baja ya recibida. La vamos a procesar manualmente antes del próximo ciclo de facturación.",
+            request: {
+              status: "already_requested",
+              requested_at: existingRequest.occurred_at,
+              reason: reason || "manual_request",
+            },
+            subscription: {
+              id: currentSubscription.id,
+              status: currentSubscription.status,
+              plan_code: currentSubscription.plan_code,
+              provider_subscription_id: providerSubscriptionId,
+              period_end: currentSubscription.period_end ||
+                currentSubscription.current_period_end || null,
+            },
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const payload = {
+        business_id,
+        reason: reason || "manual_request",
+        requested_by: user.id,
+        requested_at: requestedAt,
+        provider_subscription_id: providerSubscriptionId,
+        mode: "manual_support_processing",
+      };
+
+      const { error: eventError } = await supabaseAdmin
+        .from("subscription_events")
+        .insert({
+          tenant_id: currentSubscription.tenant_id || business_id,
+          business_id,
+          subscription_id: currentSubscription.id,
+          provider: eventProvider,
+          provider_event_id: cancellationRequestProviderEventId,
+          provider_subscription_id: providerSubscriptionId,
+          event_type: "subscription.cancellation_requested",
+          occurred_at: requestedAt,
+          payload_hash: `sha256:${await sha256Hex(JSON.stringify(payload))}`,
+          transition_action: "REQUEST_MANUAL_CANCELLATION",
+          previous_status: currentSubscription.status,
+          next_status: currentSubscription.status,
+          previous_version: currentSubscription.version ?? null,
+          next_version: currentSubscription.version ?? null,
+        });
+
+      if (eventError?.code === "23505") {
+        const { data: duplicateRequest } = await supabaseAdmin
+          .from("subscription_events")
+          .select("occurred_at")
+          .eq("provider", eventProvider)
+          .eq("provider_event_id", cancellationRequestProviderEventId)
+          .order("occurred_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message:
+              "Solicitud de baja ya recibida. La vamos a procesar manualmente antes del próximo ciclo de facturación.",
+            request: {
+              status: "already_requested",
+              requested_at: duplicateRequest?.occurred_at || null,
+              reason: reason || "manual_request",
+            },
+            subscription: {
+              id: currentSubscription.id,
+              status: currentSubscription.status,
+              plan_code: currentSubscription.plan_code,
+              provider_subscription_id: providerSubscriptionId,
+              period_end: currentSubscription.period_end ||
+                currentSubscription.current_period_end || null,
+            },
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      if (eventError) {
+        logError("Error recording cancellation request:", eventError);
+        return new Response(
+          JSON.stringify({
+            error: "CANCELLATION_REQUEST_FAILED",
+            message: "Error al registrar solicitud de baja",
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // =============================================================================
+      // 6. RETURN RESPONSE WITHOUT MUTATING PROVIDER OR LOCAL SUBSCRIPTION STATUS
+      // =============================================================================
       return new Response(
-        JSON.stringify({ error: "CANCEL_FAILED", message: "Error al cancelar suscripción" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          success: true,
+          message:
+            "Solicitud de baja recibida. La vamos a procesar manualmente con soporte y Mercado Pago antes del próximo ciclo de facturación.",
+          request: {
+            status: "manual_review",
+            requested_at: requestedAt,
+            reason: reason || "manual_request",
+          },
+          subscription: {
+            id: currentSubscription.id,
+            status: currentSubscription.status,
+            plan_code: currentSubscription.plan_code,
+            provider_subscription_id: providerSubscriptionId,
+            period_end: currentSubscription.period_end ||
+              currentSubscription.current_period_end || null,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    } catch (error) {
+      logError("Unexpected error:", error);
+      return new Response(
+        JSON.stringify({
+          error: "INTERNAL_ERROR",
+          message: "Error interno del servidor",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
+  };
+}
 
-    // =============================================================================
-    // 8. OPTIONAL: NOTIFY MP TO PAUSE (but not cancel immediately)
-    // We don't cancel in MP - let the subscription expire naturally
-    // This is intentional per the requirements
-    // =============================================================================
+export const handleCancelSubscription = createCancelSubscriptionHandler();
 
-    // =============================================================================
-    // 9. RETURN RESPONSE
-    // =============================================================================
-    const displayCancelDate = shouldCancelImmediately 
-      ? now.toLocaleDateString("es-AR")
-      : periodEnd.toLocaleDateString("es-AR");
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: shouldCancelImmediately 
-          ? "Suscripción cancelada inmediatamente" 
-          : "Suscripción cancelada. Se cancelará al final del período de facturación actual.",
-        cancellation: {
-          cancelled_at: updatedSubscription.cancelled_at,
-          period_end: updatedSubscription.period_end,
-          display_date: displayCancelDate,
-          immediate: shouldCancelImmediately,
-          reason: reason || "user_request",
-        },
-        subscription: {
-          id: updatedSubscription.id,
-          status: updatedSubscription.status,
-          plan_code: updatedSubscription.plan_code,
-          period_end: updatedSubscription.period_end,
-        },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    return new Response(
-      JSON.stringify({ error: "INTERNAL_ERROR", message: "Error interno del servidor" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
+if (import.meta.main) {
+  Deno.serve(handleCancelSubscription);
+}
