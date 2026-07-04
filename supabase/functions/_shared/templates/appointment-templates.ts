@@ -24,6 +24,7 @@ const ORVEL_MUTED = '#94A3B8';
 const ORVEL_VIOLET = '#7C3AED';
 const ORVEL_VIOLET_DARK = '#6D28D9';
 const ORVEL_VIOLET_SOFT = '#A78BFA';
+const ARGENTINA_BUSINESS_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 export function formatArgentinaAppointmentDate(dateInput: Date | string): string {
   if (!dateInput) return "--/--/----";
@@ -32,9 +33,16 @@ export function formatArgentinaAppointmentDate(dateInput: Date | string): string
   
   if (isNaN(date.getTime())) return "--/--/----";
 
-  const day = `${date.getDate()}`.padStart(2, '0');
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const year = date.getFullYear();
+  const parts = new Intl.DateTimeFormat('es-AR', {
+    timeZone: ARGENTINA_BUSINESS_TIME_ZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).formatToParts(date);
+
+  const day = parts.find((part) => part.type === 'day')?.value ?? '--';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '--';
+  const year = parts.find((part) => part.type === 'year')?.value ?? '----';
   return `${day}/${month}/${year}`;
 }
 
@@ -93,6 +101,7 @@ function renderAppointmentEmail(
   const copy = copyFor(kind);
   const date = formatArgentinaAppointmentDate(data.date);
   const price = formatPrice(data.price);
+  const duration = formatDuration(data.duration);
   const canRenderSelfServiceLinks = kind !== 'business_notification' && kind !== 'business_cancellation';
   const viewLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.view) : null;
   const cancelLink = canRenderSelfServiceLinks ? safeAppointmentLink(data.links?.cancel) : null;
@@ -131,7 +140,7 @@ function renderAppointmentEmail(
                 <li><strong>Servicio:</strong> ${escapeHtml(data.service.name)}</li>
                 <li><strong>Fecha:</strong> ${date}</li>
                 <li><strong>Horario:</strong> ${escapeHtml(data.time)}</li>
-                <li><strong>Duración:</strong> ${data.duration} minutos</li>
+                <li><strong>Duración:</strong> ${duration}</li>
                 <li><strong>Precio:</strong> ${price}</li>
               </ul>
               <p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>
@@ -163,7 +172,13 @@ function copyFor(kind: AppointmentEmailKind): { heading: string; intro: string }
 }
 
 function formatPrice(price: number): string {
+  if (!Number.isFinite(price)) return '$0';
   return `$${Math.round(price).toLocaleString('es-AR')}`;
+}
+
+function formatDuration(duration: number): string {
+  if (!Number.isFinite(duration) || duration <= 0) return '30 minutos';
+  return `${Math.round(duration)} minutos`;
 }
 
 function escapeHtml(value: string): string {

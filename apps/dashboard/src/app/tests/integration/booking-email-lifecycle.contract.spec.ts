@@ -67,6 +67,23 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(templates).toMatch(/renderSecondaryActions/);
   });
 
+  it('safely formats business notification address, price, duration, and schedule fields', () => {
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql'));
+    const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
+    const templates = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/_shared/templates/appointment-templates.ts'));
+
+    expect(migration).toMatch(/'business_address'[\s\S]*COALESCE\(br\.address, ''\)/i);
+    expect(migration).toMatch(/'duration_minutes'[\s\S]*EXTRACT\(EPOCH FROM \(p_booking\.ends_at - p_booking\.starts_at\)\)/i);
+    expect(migration).toMatch(/'price'[\s\S]*COALESCE\(s\.price, 0\)/i);
+    expect(migration).toMatch(/'time'[\s\S]*to_char\(p_booking\.starts_at AT TIME ZONE/i);
+    expect(processor).toMatch(/branch:branches\(address\)/);
+    expect(processor).toMatch(/firstNonBlank\(branch\?\.address, fullData\.business_address, fullData\.branch_address\)/);
+    expect(processor).toMatch(/finiteNumber\(bookingRow\.price_at_booking\) \?\? finiteNumber\(service\?\.price\)/);
+    expect(processor).toMatch(/minutesBetween\(bookingRow\.starts_at, bookingRow\.ends_at\)/);
+    expect(templates).toMatch(/Number\.isFinite\(price\)/);
+    expect(templates).toMatch(/Number\.isFinite\(duration\)/);
+  });
+
   it('documents deployment order and concrete outbox recovery operations', () => {
     const runbook = readRequiredFile(path.join(REPO_ROOT, 'docs/runbooks/supabase-migrations.md'));
 
