@@ -8,7 +8,8 @@ export type ApiErrorCode =
   | 'BOOKING_ALREADY_CANCELLED'
   | 'POLICY_WINDOW_CLOSED'
   | 'SLOT_CONFLICT'
-  | 'BLOCKED_TIME_COLLISION';
+  | 'BLOCKED_TIME_COLLISION'
+  | 'DATABASE_CONTRACT_UNAVAILABLE';
 
 export type ApiError = {
   code: ApiErrorCode;
