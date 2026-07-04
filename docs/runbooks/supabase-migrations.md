@@ -57,6 +57,44 @@ Record:
 
 Use this section for migration `20260627210000_enforce_public_booking_canonical_availability.sql`.
 
+## Recovery: Public Booking Principal Branch Backfill
+
+Use this section for migration `20260702110000_ensure_business_principal_branch_for_public_booking.sql`.
+
+### Verify After Push
+
+1. Confirm migration status:
+   ```bash
+   npx supabase@latest migration list --linked
+   ```
+2. Confirm businesses that should accept public bookings have exactly one active `principal` branch:
+   ```sql
+   select b.id, b.slug, count(br.id) as active_principal_branches
+   from public.businesses b
+   left join public.branches br
+     on br.business_id = b.id
+    and br.slug = 'principal'
+    and br.is_active is true
+   group by b.id, b.slug
+   having count(br.id) <> 1;
+   ```
+   Expected result: no rows for businesses that should currently accept public bookings.
+3. For the affected booking, verify `create_public_booking` no longer fails with `BRANCH_NOT_FOUND` after selecting a visible service and available slot.
+
+### Stop Conditions
+
+- `migration list --linked` reports a mismatch.
+- Any business with existing inactive branch rows becomes active unexpectedly.
+- Public booking still returns `BRANCH_NOT_FOUND` for a business with visible active services.
+- PostgREST does not reload after `NOTIFY pgrst, 'reload schema'`.
+
+### Fix-forward / Recovery
+
+- Do not repair migration history or rewrite a pushed migration.
+- If inactive branches were reactivated, ship a forward-only migration that restores the intended inactive branch state from audit evidence before accepting bookings.
+- If branchless businesses were missed, ship a narrower forward-only migration for the affected business ids and re-run the verification queries.
+- Record the verification query results in the PR or deployment notes without customer data.
+
 ### Verify After Push
 
 1. Confirm migration status:
