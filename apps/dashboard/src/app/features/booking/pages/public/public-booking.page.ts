@@ -11,6 +11,7 @@ import type { PublicSlot } from '../../../../core/api/supabase-booking.api';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
 import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
+import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 
 @Component({
   selector: 'app-public-booking-page',
@@ -276,12 +277,14 @@ export class PublicBookingPage implements OnInit {
         }));
       } else {
         emitPublicBookingFailureEvent({ stage: 'submit', status: response.status, code: response.error?.code, retryable: true });
-        this.errorMessage.set('No pudimos confirmar la reserva. Revisá los datos e intentá nuevamente.');
+        logPublicBookingSubmitFailure({ response });
+        this.errorMessage.set(getPublicBookingSubmitErrorMessage(response.error));
         this.bookingConfirmed.set(false);
       }
-    } catch {
+    } catch (error) {
       emitPublicBookingFailureEvent({ stage: 'submit', status: 503, code: 'PUBLIC_BOOKING_SUBMIT_FAILED', retryable: true });
-      this.errorMessage.set('No pudimos confirmar la reserva. Revisá los datos e intentá nuevamente.');
+      logPublicBookingSubmitFailure({ caughtError: error });
+      this.errorMessage.set(getPublicBookingSubmitErrorMessage());
       this.bookingConfirmed.set(false);
     } finally {
       this.submitting.set(false);

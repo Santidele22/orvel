@@ -20,15 +20,16 @@ describe('Dashboard bugfix product decisions contract', () => {
     expect(settings).toMatch(/supportEmail|Email de Soporte/i);
   });
 
-  it('keeps public portal links same-origin at /booking/:slug and does not point to legacy signup/landing domains', () => {
+  it('keeps public portal links on the canonical root domain outside localhost', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
     const settingsTemplate = readDashboardFile('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
     const dashboardHome = readDashboardFile('src/app/features/dashboard-home/pages/dashboard-home.page.html');
+    const publicBookingUrlHelper = readDashboardFile('src/app/core/booking/public-booking-url.ts');
 
-    expect(settingsPage).toMatch(/window\.location\.origin[\s\S]*\/booking\/\$\{slug\}/);
-    expect(`${settingsPage}\n${settingsTemplate}\n${dashboardHome}`).not.toMatch(
-      /https?:\/\/(?!localhost)[^'"`\s]+\/booking|\/auth\/signup\/plan[\s\S]{0,160}(booking|reservas)/i
-    );
+    expect(`${settingsPage}\n${publicBookingUrlHelper}`).toMatch(/buildPublicBookingUrl/);
+    expect(publicBookingUrlHelper).toMatch(/https:\/\/orvel\.pro/);
+    expect(publicBookingUrlHelper).toMatch(/localhost|127\.0\.0\.1|0\.0\.0\.0/);
+    expect(`${settingsPage}\n${settingsTemplate}\n${dashboardHome}`).not.toMatch(/dashboard\.orvel\.pro\/booking|\/auth\/signup\/plan[\s\S]{0,160}(booking|reservas)/i);
     expect(settingsTemplate).not.toMatch(/localhost|href=["'][^"']*\/auth\/signup\/plan/i);
   });
 
@@ -127,14 +128,11 @@ describe('Dashboard bugfix product decisions contract', () => {
     expect(businessSettingsFacade).toMatch(/plan:\s*this\.resolveDisplayPlan\(\)/);
   });
 
-  it('public booking settings query uses an explicit public-safe allowlist without plan/internal fields', () => {
+  it('public booking resolver uses the RPC boundary instead of raw public settings queries', () => {
     const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
 
-    expect(businessService).toMatch(/PUBLIC_BOOKING_SETTINGS_COLUMNS/);
-    expect(businessService).toMatch(/\.from\(['"]business_settings['"]\)[\s\S]*\.select\(PUBLIC_BOOKING_SETTINGS_COLUMNS\)/);
+    expect(businessService).toMatch(/rpc\(['"]resolve_business_by_slug['"]/);
     expect(businessService).not.toMatch(/resolveBusinessBySlug[\s\S]*\.from\(['"]business_settings['"]\)[\s\S]*\.select\(['"]\*['"]\)/);
-
-    const allowlistMatch = businessService.match(/PUBLIC_BOOKING_SETTINGS_COLUMNS\s*=\s*`([\s\S]*?)`/);
-    expect(allowlistMatch?.[1]).not.toMatch(/\bplan\b|subscription|internal/i);
+    expect(businessService).not.toMatch(/resolveBusinessBySlug[\s\S]*\.from\(['"]business_settings['"]\)[\s\S]*\bplan\b/i);
   });
 });
