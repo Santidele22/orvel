@@ -10,6 +10,7 @@ const ROUTES_SOURCE = readFileSync(new URL('../../app.routes.ts', import.meta.ur
 const ROUTE_PROTECTION_SOURCE = readFileSync(new URL('../../core/auth/route-protection.ts', import.meta.url), 'utf8');
 const AUTH_SERVICE_SOURCE = readFileSync(new URL('../../services/auth.service.ts', import.meta.url), 'utf8');
 const TURNO_SERVICE_SOURCE = readFileSync(new URL('../../features/booking/data-access/turno.service.ts', import.meta.url), 'utf8');
+const VERIFIED_DASHBOARD_BUSINESS_CONTEXT_SOURCE = readFileSync(new URL('../../core/business/verified-dashboard-business-context.ts', import.meta.url), 'utf8');
 const TURNOS_LIST_SOURCE = readFileSync(new URL('../../features/booking/pages/turnos-list.page.ts', import.meta.url), 'utf8');
 const TURNO_FORM_SOURCE = readFileSync(new URL('../../features/booking/pages/turno-form.page.ts', import.meta.url), 'utf8');
 
@@ -83,6 +84,10 @@ function futureManualBooking(branchId = 'branch-qa-auth-001'): CreateTurnoDTO {
   };
 }
 
+function collectConsoleCalls(source: string): string[] {
+  return source.match(/console\.(?:log|warn|error)\([\s\S]*?\);/g) ?? [];
+}
+
 describe('RED Contract M7: minimal admin auth hardening', () => {
   it('protects every /dashboard child route with dashboard auth guards while public manage-token routes stay public', () => {
     const dashboardRoute = extractTopLevelRoute(ROUTES_SOURCE, 'dashboard');
@@ -128,15 +133,17 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
     expect(TURNO_SERVICE_SOURCE).not.toMatch(/performedBy:\s*['"]admin['"]/);
   });
 
-  it('tenant context is resolved from validated session/business metadata and not from auth user id fallback', () => {
-    const resolveBusinessIdSegment = TURNO_SERVICE_SOURCE.slice(
-      TURNO_SERVICE_SOURCE.indexOf('private async resolveBusinessId'),
-      TURNO_SERVICE_SOURCE.indexOf('private async validateBranchTenant')
-    );
+  it('tenant context is resolved from backend-owned dashboard branches and never from auth metadata or user id fallback', () => {
+    expect(TURNO_SERVICE_SOURCE).toMatch(/resolveVerifiedDashboardBranches/);
+    expect(TURNO_SERVICE_SOURCE).toMatch(/private async resolveBackendOwnedBusinessBranches/);
+    expect(TURNO_SERVICE_SOURCE).toMatch(/private async validateBranchTenant/);
+    expect(TURNO_SERVICE_SOURCE).not.toMatch(/private async resolveBusinessId/);
+    expect(TURNO_SERVICE_SOURCE).not.toMatch(/user_metadata|app_metadata/);
+    expect(TURNO_SERVICE_SOURCE).not.toMatch(/return\s+authUserId|businessId\s*=\s*authUserId/);
+    expect(TURNO_SERVICE_SOURCE).not.toMatch(/user\.id[\s\S]{0,160}businessId/);
 
-    expect(resolveBusinessIdSegment).toMatch(/user_metadata/);
-    expect(resolveBusinessIdSegment).not.toMatch(/return\s+authUserId|businessId\s*=\s*authUserId/);
-    expect(resolveBusinessIdSegment).not.toMatch(/user\.id[\s\S]{0,160}businessId/);
+    expect(VERIFIED_DASHBOARD_BUSINESS_CONTEXT_SOURCE).toMatch(/rpc\(['"]get_dashboard_branches['"]\)/);
+    expect(VERIFIED_DASHBOARD_BUSINESS_CONTEXT_SOURCE).not.toMatch(/user_metadata|app_metadata/);
   });
 
   it('manual booking, blocked time, reschedule, cancel, and status changes reject without a Supabase session and do not call admin RPCs', async () => {
@@ -162,8 +169,12 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
 
   it('sensitive admin route/action logging does not pass raw errors or token-bearing strings to console/UI', () => {
     const sensitiveRuntimeSource = [TURNO_SERVICE_SOURCE, TURNOS_LIST_SOURCE, TURNO_FORM_SOURCE].join('\n');
+    const consoleCalls = collectConsoleCalls(sensitiveRuntimeSource);
+    const rawSensitiveConsoleCalls = consoleCalls.filter((call) =>
+      /\b(?:error|err)\b|\.message|session|token|auth/i.test(call)
+    );
 
-    expect(sensitiveRuntimeSource).not.toMatch(/console\.(?:log|warn|error)\([^)]*(?:error|err|session|token|auth|booking)[^)]*\)/i);
+    expect(rawSensitiveConsoleCalls).toEqual([]);
     expect(sensitiveRuntimeSource).not.toMatch(/formError\s*=\s*(?:error|err)\.message/i);
     expect(sensitiveRuntimeSource).not.toMatch(/setLoginError\(\{\s*message:\s*(?:error|err)\.message/i);
   });

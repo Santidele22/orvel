@@ -155,4 +155,30 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
     expect(turnoServiceSource).not.toMatch(/authService\.user\(\)\?\.id/);
     expect(clienteServiceSource).not.toMatch(/authService\.user\(\)\?\.id/);
   });
+
+  it('dashboard branch readers use the backend-owned branch-context RPC that treats legacy null is_active branches as active', () => {
+    const branchContextSource = readSource('src/app/core/branches/branch-context.service.ts');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const migrationSql = readSource('supabase/migrations/20260703143000_dashboard_owned_branches_rpc.sql');
+    const branchesSchemaSql = readSource('supabase/migrations/20260524_branch_scoped_bookings.sql');
+    const branchesTableColumns = new Set(
+      (branchesSchemaSql.match(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+public\.branches\s*\(([\s\S]*?)\n\);/i)?.[1] ?? '')
+        .split('\n')
+        .map((line) => line.trim().match(/^([a-z_][a-z0-9_]*)\s/i)?.[1])
+        .filter(Boolean)
+    );
+    const referencedBranchColumns = Array.from(
+      new Set(Array.from(migrationSql.matchAll(/\bbr\.([a-z_][a-z0-9_]*)\b/gi), (match) => match[1]))
+    );
+
+    expect(migrationSql).toMatch(/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.get_dashboard_branches/i);
+    expect(readSource('supabase/migrations/20260703153000_reload_dashboard_branches_rpc_schema.sql')).toMatch(/NOTIFY\s+pgrst,\s*'reload schema'/i);
+    expect(migrationSql).toMatch(/b\.owner_id\s*=\s*\(SELECT\s+auth\.uid\(\)\)/i);
+    expect(migrationSql).toMatch(/COALESCE\(br\.is_active,\s*true\)\s*=\s*true/i);
+    expect(referencedBranchColumns.filter((column) => !branchesTableColumns.has(column))).toEqual([]);
+    expect(branchContextSource).toMatch(/resolveVerifiedDashboardBranches|get_dashboard_branches/);
+    expect(turnoServiceSource).toMatch(/resolveVerifiedDashboardBranches|get_dashboard_branches/);
+    expect(branchContextSource).toMatch(/storedBranch/);
+    expect(branchContextSource).not.toMatch(/\.eq\(['"]is_active['"],\s*true\)/);
+  });
 });
