@@ -84,6 +84,19 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(templates).toMatch(/Number\.isFinite\(duration\)/);
   });
 
+  it('hardens public booking business recipient resolution and logs skipped owner emails', () => {
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260704193000_harden_public_booking_business_email_recipient.sql'));
+
+    expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\._resolve_booking_business_email/);
+    expect(migration).toMatch(/bs\.support_email/);
+    expect(migration).toMatch(/JOIN auth\.users u ON u\.id = b\.owner_id/i);
+    expect(migration).toMatch(/public\.business_members bm[\s\S]*lower\(COALESCE\(bm\.role, ''\)\) = 'owner'/i);
+    expect(migration).toMatch(/v_business_email := public\._resolve_booking_business_email\(v_business_id\)/);
+    expect(migration).toMatch(/'appointment_created_business'/);
+    expect(migration).toMatch(/RAISE LOG 'Orvel public booking business email skipped/);
+    expect(migration).toMatch(/RAISE LOG 'Orvel booking lifecycle email skipped: missing recipient/);
+  });
+
   it('documents deployment order and concrete outbox recovery operations', () => {
     const runbook = readRequiredFile(path.join(REPO_ROOT, 'docs/runbooks/supabase-migrations.md'));
 

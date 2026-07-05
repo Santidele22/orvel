@@ -49,30 +49,28 @@ describe('M6 public manage link reschedule UI RED contract', () => {
     expect(source, 'cancelled bookings must not keep public reschedule enabled').toMatch(/CLOSED_STATUSES|BOOKING_ALREADY_CANCELLED|cancelled/i);
   });
 
-  it('opens a real reschedule picker with date and backend-provided slot/time choices in token context', () => {
+  it('redirects to the public booking flow with only the manage token and without service/date metadata storage or history state', () => {
     const source = pageSource();
+    const publicBookingSource = readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.ts'));
 
-    expect(source).toMatch(/data-testid=["']manage-reschedule-picker["']/i);
-    expect(source, 'picker must include a user-selectable date control').toMatch(/type=["']date["']|data-testid=["']manage-reschedule-date["']/i);
-    expect(source, 'picker must include user-selectable backend slot/time choices').toMatch(
-      /data-testid=["']manage-reschedule-slot["']|<select[\s\S]*slot|radio[\s\S]*(?:slot|time|horario)/i
-    );
-    expect(source, 'reschedule flow must retain token as private input/context but never render it').toMatch(/queryParamMap\.get\(['"]token['"]\)/);
-    expect(source, 'private token must not be interpolated into picker or visible UI').not.toMatch(/{{\s*(?:token|manageToken|managementKey)\s*(?:\(\))?\s*}}/i);
+    expect(source).toMatch(/router\.navigate\(\['\/booking',\s*businessSlug\]/);
+    expect(source).toMatch(/queryParams:\s*\{[\s\S]{0,160}mode:\s*'reschedule'[\s\S]{0,160}token/i);
+    expect(source, 'redirect URL must not leak sensitive booking metadata').not.toMatch(/queryParams:\s*\{[\s\S]{0,220}(?:serviceId|startsAtIso)/i);
+    expect(`${source}\n${publicBookingSource}`, 'reschedule context must not be persisted in Web Storage or history state').not.toMatch(/sessionStorage\.setItem|localStorage\.setItem|state:\s*\{\s*reschedulePreload/i);
+    expect(source, 'private token must not be interpolated into UI').not.toMatch(/{{\s*(?:token|manageToken|managementKey)\s*(?:\(\))?\s*}}/i);
+    expect(source).not.toMatch(/data-testid=["']manage-reschedule-picker["']/i);
   });
 
-  it('loads reschedule availability from backend/gateway or fails closed instead of inventing local slots', () => {
+  it('derives reschedule prefill from the token-backed backend details or fails closed instead of URL metadata/local slots', () => {
     const source = pageSource();
+    const publicBookingSource = readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.ts'));
     const serviceSource = readRequired(servicePath);
-    const availabilityPath = `${source}\n${serviceSource}`;
+    const availabilityPath = `${source}\n${publicBookingSource}\n${serviceSource}`;
 
-    expect(
-      availabilityPath,
-      'reschedule availability must be gateway-driven; if no public reschedule availability exists, implement a safe unavailable/fallback state'
-    ).toMatch(/(?:reschedule.*availability|availability.*reschedule|queryPublicSlotAvailability|loadPublicRescheduleSlots|manage-reschedule-unavailable-state)/i);
-    expect(source, 'UI must expose a safe fallback/message when backend availability cannot be loaded').toMatch(
-      /data-testid=["']manage-reschedule-unavailable-state["']|availability(?:Error|Unavailable|Failed)|No hay horarios disponibles/i
-    );
+    expect(availabilityPath).toMatch(/manageBookingByToken\(/i);
+    expect(publicBookingSource, 'service/date prefill must come from manageable booking details, not URL query params').not.toMatch(/getQueryParam\(['"](?:serviceId|startsAtIso)['"]\)/i);
+    expect(publicBookingSource, 'failed token detail loads must block submit and avoid duplicate create booking fallback').toMatch(/failClosedReschedulePreload|rescheduleTokenLoaded/i);
+    expect(availabilityPath).toMatch(/queryPublicSlotAvailability|loadAvailability/i);
     expect(source, 'reschedule slots must not come from hardcoded local business-hour arrays or fixtures').not.toMatch(
       /(?:availableSlots|slots|horarios)\s*=\s*\[[\s\S]{0,600}(?:09:00|10:00|11:00|12:00|13:00|14:00|15:00|16:00|17:00|18:00)|fixture|mockSlots|demoSlots/i
     );
@@ -81,31 +79,35 @@ describe('M6 public manage link reschedule UI RED contract', () => {
   it('submits via PublicBookingService.rescheduleBookingByToken with selected startsAtIso, never admin/direct table update', () => {
     const source = pageSource();
 
-    expect(source).toMatch(/await\s+this\.publicBookingService\.rescheduleBookingByToken\(/);
-    expect(source, 'public reschedule must pass token, nowIso, and the user-selected startsAtIso').toMatch(
-      /rescheduleBookingByToken\(\s*token\s*,\s*(?:nowIso|new Date\(\)\.toISOString\(\))\s*,\s*(?:selectedSlot|selectedStartsAt|startsAtIso|rescheduleStartsAt)/i
+    const publicBookingSource = readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.ts'));
+    expect(publicBookingSource).toMatch(/rescheduleMode\(\)/);
+    expect(publicBookingSource).toMatch(/await\s+this\.publicBookingService\.rescheduleBookingByToken\(/);
+    expect(publicBookingSource, 'public reschedule must pass token, nowIso, and the user-selected startsAtIso').toMatch(
+      /rescheduleBookingByToken\(\s*this\.rescheduleToken,\s*new Date\(\)\.toISOString\(\),\s*this\.selectedSlot/i
     );
     expect(source, 'submit must not synthesize the target time from current clock or fixture values').not.toMatch(
       /rescheduleBookingByToken\([^)]*(?:Date\.now\(\)|new Date\(\)|\+\s*(?:30|60|3600)|2026-\d{2}-\d{2}T\d{2}:\d{2})/i
     );
-    expect(source, 'public reschedule must not call admin lifecycle methods').not.toMatch(/rescheduleBooking\(|updateBooking|adminReschedule|createAdmin/i);
-    expect(source, 'public reschedule must not update bookings directly from the browser').not.toMatch(/\.from\(['"]bookings['"]\)[\s\S]{0,300}\.update\(/);
+    expect(`${source}\n${publicBookingSource}`, 'public reschedule must not call admin lifecycle methods').not.toMatch(/updateBooking|adminReschedule|createAdmin/i);
+    expect(`${source}\n${publicBookingSource}`, 'public reschedule must not update bookings directly from the browser').not.toMatch(/\.from\(['"]bookings['"]\)[\s\S]{0,300}\.update\(/);
   });
 
   it('validates required selection and blocks stale or unavailable selected slots before submit', () => {
-    const source = pageSource();
+    const source = readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.ts'))
+      + '\n'
+      + readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.html'));
 
     expect(source, 'date/slot selection must be required before submitting').toMatch(
-      /selected(?:Date|Slot|StartsAt)|required|manage-reschedule-required-state/i
+      /selected(?:Date|Slot|StartsAt)|required|Seleccioná un horario disponible/i
     );
     expect(source, 'submit guard must verify selected slot is still in current backend-provided availability').toMatch(
-      /available(?:Reschedule)?Slots\(\)\.(?:some|includes)|selectedSlot.*available|isSelectedSlotAvailable|hasLoadedAvailability/i
+      /availabilitySlots\(\)\.some|selectedSlot.*available|isSelectedDateAvailable/i
     );
     expect(source, 'stale availability must block submit after date/availability changes or backend failures').toMatch(
-      /stale|availability(?:Version|Request|Loaded|Error|Unavailable)|hasLoadedAvailability\.set\(false\)/i
+      /availability(?:Slots|ErrorMessage)|loadAvailability|queryPublicSlotAvailability/i
     );
     expect(source, 'template must render a deterministic validation/fail-closed message').toMatch(
-      /data-testid=["']manage-reschedule-required-state["']|data-testid=["']manage-reschedule-stale-state["']|Elegí un horario disponible|seleccion/i
+      /Seleccioná un horario disponible|Confirmar reprogramación|booking-availability-error/i
     );
   });
 
@@ -114,8 +116,7 @@ describe('M6 public manage link reschedule UI RED contract', () => {
     ['TOKEN_EXPIRED', 'manage-token-expired-state'],
     ['TOKEN_REVOKED', 'manage-token-revoked-state'],
     ['BOOKING_ALREADY_CANCELLED', 'manage-already-cancelled-state'],
-    ['POLICY_WINDOW_CLOSED', 'manage-policy-window-state'],
-    ['BACKEND_UNAVAILABLE', 'manage-reschedule-unavailable-state']
+    ['POLICY_WINDOW_CLOSED', 'manage-policy-window-state']
   ] as const)('fails closed for %s with a safe message and no enabled reschedule submit', (errorCode, testId) => {
     const source = pageSource();
 
@@ -125,13 +126,15 @@ describe('M6 public manage link reschedule UI RED contract', () => {
   });
 
   it('handles successful reschedule by refreshing manage state or rendering a terminal success state that hides unsafe actions', () => {
-    const source = pageSource();
+    const source = readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.ts'))
+      + '\n'
+      + readRequired(resolve(appRoot, 'features/booking/pages/public/public-booking.page.html'));
 
     expect(source).toMatch(/rescheduleBookingByToken\(/);
     expect(source, 'success must refresh manage state or show an explicit rescheduled terminal state').toMatch(
-      /manageBookingByToken\(\s*token\s*,\s*new Date\(\)\.toISOString\(\)\s*\)|data-testid=["']manage-rescheduled-state["']|rescheduled\.set\(true\)/i
+      /rescheduleConfirmed\.set\(true\)|Reserva reprogramada/i
     );
-    expect(source, 'after terminal success/revocation the unsafe actions must be hidden').toMatch(/canCancelOrReschedule\.set\(false\)|canReschedule\.set\(false\)/);
+    expect(source, 'reschedule submit must not create a duplicate booking in reschedule mode').toMatch(/if \(this\.rescheduleMode\(\)\)[\s\S]*rescheduleBookingByToken/);
   });
 
   it('does not leak raw manage tokens or perform productive direct manage_token lookup/update paths', () => {
@@ -139,10 +142,11 @@ describe('M6 public manage link reschedule UI RED contract', () => {
       .map((file) => `\n/* ${relative(appRoot, file)} */\n${readFileSync(file, 'utf8')}`)
       .join('\n');
     const source = pageSource();
+    const templateSource = readRequired(pageHtmlPath);
     const serviceSource = readRequired(servicePath);
 
     expect(source, 'public page must not log private manage tokens').not.toMatch(/console\.(?:log|info|warn|error|debug)\([^)]*token/i);
-    expect(source, 'public page must not render private manage token fields').not.toMatch(/manageToken|manage_token|management_key/i);
+    expect(templateSource, 'public page must not render private manage token fields').not.toMatch(/{{\s*(?:token|manageToken|manage_token|management_key)\s*(?:\(\))?\s*}}/i);
     expect(serviceSource, 'PublicBookingService must remain gateway-only').not.toMatch(/createClient|\.rpc\(|\.from\(/);
     expect(combinedProductiveSource, 'frontend productive code must not authenticate by raw manage_token equality lookup').not.toMatch(
       /\.eq\(\s*['"]manage_token['"]\s*,\s*(?:token|manageToken|managementKey)/i
