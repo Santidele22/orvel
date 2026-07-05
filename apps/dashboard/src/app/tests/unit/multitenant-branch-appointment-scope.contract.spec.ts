@@ -60,8 +60,18 @@ describe('Multitenant branch appointment scope RED contract', () => {
 
   it('scopes appointment reads by active branch and rejects legacy business-wide reads', () => {
     const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const branchContextService = readSource('src/app/core/branches/branch-context.service.ts');
 
     expect(turnoService).toMatch(/activeBranch|activeLocation|activeSalon|branchId|branch_id|salonId|salon_id|locationId|location_id/);
+    expect(branchContextService, 'dashboard branch loading must use the backend-owned RPC because browser branch SELECT grants are revoked').toMatch(
+      /\.rpc\(\s*['"]get_dashboard_branches['"]/i
+    );
+    expect(branchContextService, 'branch context must not depend on direct branch table reads in the browser').not.toMatch(
+      /\.from\(\s*['"](?:public\.)?branches['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
+    );
+    expect(turnoService, 'appointment branch validation must use the dashboard-owned branches RPC before list_admin_bookings').toMatch(
+      /validateBranchTenant[\s\S]*\.rpc\(\s*['"]get_dashboard_branches['"]/i
+    );
     expect(turnoService, 'appointment listing must use the least-privilege branch-scoped RPC').toMatch(
       /\.rpc\(\s*['"]list_admin_bookings['"]\s*,\s*\{[\s\S]{0,240}p_branch_id\s*:/i
     );
@@ -69,6 +79,17 @@ describe('Multitenant branch appointment scope RED contract', () => {
       /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
     );
     expect(turnoService).not.toMatch(/\.from\(['"]bookings['"]\)[\s\S]*\.eq\(['"]business_id['"],\s*businessId\)/);
+  });
+
+  it('keeps admin booking RPC migrations on the canonical branches.is_active column', () => {
+    const activeBranchMigration = readFileSync(
+      resolve(process.cwd(), '../../supabase/migrations/20260705193000_fix_admin_booking_active_branch_column.sql'),
+      'utf-8'
+    );
+
+    expect(activeBranchMigration).toMatch(/b\.is_active\s+IS\s+TRUE/i);
+    expect(activeBranchMigration).toMatch(/br\.is_active\s+AS\s+branch_active/i);
+    expect(activeBranchMigration).not.toMatch(/\bbranches\s+\w+[\s\S]{0,240}\b\w+\.active\b/i);
   });
 
   it('scopes appointment writes by branch and rejects missing or invalid branch context before RPC', () => {
