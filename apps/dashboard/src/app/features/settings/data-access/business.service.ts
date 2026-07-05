@@ -8,6 +8,7 @@ import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublic
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
+import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 
 export type ApiError = {
   code: string;
@@ -76,7 +77,7 @@ export class BusinessService {
 
   setActiveBusiness(id: string) {
     this.activeBusinessId.set(id);
-    localStorage.setItem('orvel.active_business_id', id);
+    localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, id);
   }
 
   loadBusinesses(): Observable<Business[]> {
@@ -98,7 +99,7 @@ export class BusinessService {
       tap(businesses => {
         this.businesses.set(businesses);
         if (businesses.length > 0) {
-          const stored = localStorage.getItem('orvel.active_business_id');
+          const stored = localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY);
           const exists = businesses.find(b => b.id === stored);
           if (exists) {
             this.activeBusinessId.set(stored);
@@ -223,7 +224,7 @@ export class BusinessService {
       throw new BusinessSettingsPersistenceError('No se encontró sesión de usuario.', 'AUTH_REQUIRED');
     }
 
-    const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem('orvel.active_business_id') ?? candidateBusinessOrUserId;
+    const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY) ?? candidateBusinessOrUserId;
 
     const { data: ownedBusinesses, error } = await this.supabaseClient
       .from('businesses')
@@ -245,7 +246,7 @@ export class BusinessService {
     }
 
     this.activeBusinessId.set(resolved.id);
-    localStorage.setItem('orvel.active_business_id', resolved.id);
+    localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved.id);
 
     return { businessId: resolved.id, ownerId, slug: resolved.slug };
   }

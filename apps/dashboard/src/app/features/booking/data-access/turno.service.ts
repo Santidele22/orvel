@@ -5,7 +5,7 @@ import { Turno, CreateTurnoDTO, UpdateTurnoDTO, TurnoEstado } from '../models/tu
 import { WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { ACTIVE_BRANCH_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
@@ -106,6 +106,17 @@ type BranchTenantScope = {
   businessId: string;
 };
 
+type DashboardBranchScope = BranchTenantScope & {
+  name: string;
+};
+
+type DashboardBranchRpcRow = {
+  id?: unknown;
+  name?: unknown;
+  business_id?: unknown;
+  is_active?: unknown;
+};
+
 type AdminBlockedTimeCreateInput = Omit<AdminBlockedTimePayload, 'businessId' | 'branchId'> & {
   branchId?: string | null;
   businessId?: string | null;
@@ -141,6 +152,7 @@ const ADMIN_INVALID_TRANSITION_CODE = ['TURNO', 'INVALID', 'STATUS', 'TRANSITION
 export class TurnoService {
   private turnos = signal<Turno[]>([]);
   private loading = signal<boolean>(false);
+  private loadErrorState = signal<string | null>(null);
   private provider: 'mock' | 'supabase' = 'supabase';
   private notificationService?: NotificationServicePort;
   private supabaseClient?: SupabaseClient;
@@ -155,6 +167,7 @@ export class TurnoService {
   // Readonly signals
   items = this.turnos.asReadonly();
   isLoading = this.loading.asReadonly();
+  loadError = this.loadErrorState.asReadonly();
 
   private getSupabaseClient(): SupabaseClient | null {
     try {
@@ -183,9 +196,10 @@ export class TurnoService {
 
     const metadata = user?.user_metadata as Record<string, unknown> | undefined;
     const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    const businessId = typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
+    const storedBusinessId = this.resolveStoredActiveBusinessId();
+    const businessId = storedBusinessId ?? (typeof metadataBusinessId === 'string' && metadataBusinessId.trim()
       ? metadataBusinessId.trim()
-      : null;
+      : null);
 
     return { userId, businessId };
   }
@@ -451,11 +465,13 @@ export class TurnoService {
 
   getAll(): Observable<Turno[]> {
     this.loading.set(true);
+    this.loadErrorState.set(null);
 
     if (this.provider === 'mock') {
       return of(this.getMockProviderTurnos()).pipe(
         tap(turnos => {
           this.turnos.set(turnos);
+          this.loadErrorState.set(null);
           this.loading.set(false);
         })
       );
@@ -464,23 +480,20 @@ export class TurnoService {
     // Supabase provider - load real data
     const supabase = this.getSupabaseClient();
     if (!supabase) {
-      // Supabase not configured, return empty array
-      return of([]).pipe(
-        tap(turnos => {
-          this.turnos.set(turnos);
-          this.loading.set(false);
-        })
-      );
+      this.loadErrorState.set('No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+      this.loading.set(false);
+      return throwError(() => new Error('SUPABASE_UNAVAILABLE: Supabase client not available'));
     }
 
     return from(this.loadBookingsFromSupabase(supabase)).pipe(
       tap({
         next: (turnos) => {
           this.turnos.set(turnos);
+          this.loadErrorState.set(null);
           this.loading.set(false);
         },
-        error: () => {
-          this.turnos.set([]);
+        error: (error) => {
+          this.loadErrorState.set(this.getBookingsLoadErrorMessage(error));
           this.loading.set(false);
         }
       })
@@ -488,10 +501,7 @@ export class TurnoService {
   }
 
   private async loadBookingsFromSupabase(supabaseClient: SupabaseClient): Promise<Turno[]> {
-    const activeBranchId = this.resolveActiveBranchId();
-    if (!activeBranchId) return [];
-
-    const branchScope = await this.validateBranchTenant(supabaseClient, activeBranchId);
+    const branchScope = await this.resolveInternalDefaultBranchScope(supabaseClient);
     if (!branchScope) return [];
 
     // Query bookings through the least-privilege RPC. Direct bookings table
@@ -502,7 +512,13 @@ export class TurnoService {
 
 
     if (error) {
-      return [];
+      emitPublicBookingFailureEvent({
+        stage: 'service',
+        code: 'ADMIN_BOOKINGS_LOAD_FAILED',
+        status: 503,
+        retryable: true
+      });
+      throw new Error('BOOKINGS_LOAD_FAILED: No pudimos cargar turnos desde Supabase');
     }
 
     if (!bookings || bookings.length === 0) {
@@ -558,6 +574,15 @@ export class TurnoService {
         updatedAt: new Date((booking['updated_at'] || booking['updatedAt'] || booking['created_at'] || new Date()) as string)
       };
     });
+  }
+
+  private getBookingsLoadErrorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    if (/ACTIVE_BRANCH_REQUIRED|BRANCH_FORBIDDEN|INVALID_BRANCH|ACCOUNT_SETUP_REQUIRED|SUPABASE_UNAVAILABLE/i.test(message)) {
+      return 'No pudimos validar el alcance de sucursal. Reintentá antes de operar turnos.';
+    }
+
+    return 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.';
   }
 
   getById(id: string): Observable<Turno | undefined> {
@@ -728,6 +753,9 @@ export class TurnoService {
     const adminSession = await this.requireAdminSession(supabaseClient);
     if (adminSession.businessId) return adminSession.businessId;
 
+    const storedBusinessId = this.resolveStoredActiveBusinessId();
+    if (storedBusinessId) return storedBusinessId;
+
     const { data: { session } } = await supabaseClient.auth.getSession();
     const metadata = session?.user?.user_metadata as Record<string, unknown> | undefined;
     const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
@@ -746,31 +774,43 @@ export class TurnoService {
     if (!supabaseClient) return null;
     if (!branchId?.trim()) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
+    if (!adminSession) await this.requireAdminSession(supabaseClient);
 
-    const { data: branch, error } = await supabaseClient
-      .from('branches')
-      .select('id, business_id')
-      .eq('id', branchId.trim())
-      .maybeSingle();
-
-    if (error) {
-      throw new Error('BRANCH_FORBIDDEN: No se pudo validar la sucursal contra la cuenta activa');
-    }
-
-    if (!branch?.id || !branch?.business_id) {
+    const branch = (await this.listDashboardBranches(supabaseClient, adminSession))
+      .find((candidate) => candidate.branchId === branchId.trim());
+    if (!branch) {
       throw new Error('BRANCH_NOT_FOUND: Sucursal inválida para el tenant activo');
     }
 
+    return branch;
+  }
+
+  private async listDashboardBranches(
+    supabaseClient: SupabaseClient,
+    adminSession?: AdminSessionContext
+  ): Promise<DashboardBranchScope[]> {
+    const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
     const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
-    if (!businessId || String(branch.business_id) !== businessId) {
-      throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
+    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
+
+    const { data, error } = await supabaseClient.rpc('get_dashboard_branches', { p_business_id: businessId });
+    if (error) {
+      emitPublicBookingFailureEvent({
+        stage: 'service',
+        code: 'DASHBOARD_BRANCHES_RPC_FAILED',
+        status: 503,
+        retryable: true
+      });
+      throw new Error('BRANCH_FORBIDDEN: No se pudo validar la sucursal contra la cuenta activa');
     }
 
-    return {
-      branchId: String(branch.id),
-      businessId: String(branch.business_id)
-    };
+    return ((data ?? []) as DashboardBranchRpcRow[])
+      .filter((branch) => branch.id && branch.business_id)
+      .map((branch) => ({
+        branchId: String(branch.id),
+        businessId: String(branch.business_id),
+        name: String(branch.name ?? 'Sucursal')
+      }));
   }
 
   private async resolveInternalDefaultBranchScope(
@@ -805,36 +845,23 @@ export class TurnoService {
     }
 
     const sessionContext = adminSession ?? await this.requireAdminSession(supabaseClient);
-    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
-    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
-
-    const { data: branches, error } = await supabaseClient
-      .from('branches')
-      .select('id, business_id, slug, name, created_at')
-      .eq('business_id', businessId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: true });
-
-    if (error) throw new Error('BRANCH_FORBIDDEN: No se pudo preparar el alcance interno de la cuenta');
-
-    const ownedBranches = ((branches ?? []) as Array<Record<string, unknown>>)
-      .filter((branch) => branch['id'] && String(branch['business_id']) === businessId);
+    const ownedBranches = await this.listDashboardBranches(supabaseClient, sessionContext);
     const defaultBranch = ownedBranches.find((branch) => {
-      const slug = String(branch['slug'] ?? '').toLowerCase();
-      const name = String(branch['name'] ?? '').toLowerCase();
-      return slug === 'principal' || slug === 'default' || slug === 'internal-default' || name.includes('principal');
+      const name = branch.name.toLowerCase();
+      return name.includes('principal') || name.includes('default');
     }) ?? (ownedBranches.length === 1 ? ownedBranches[0] : null);
 
-    if (defaultBranch?.['id']) {
-      const branchScope = await this.validateBranchTenant(supabaseClient, String(defaultBranch['id']), sessionContext);
-      if (!branchScope) throw new Error('INVALID_BRANCH: La sucursal no pertenece a esta cuenta');
-      this.rememberResolvedBranchScope(branchScope.branchId);
-      return branchScope;
+    if (defaultBranch?.branchId) {
+      this.rememberResolvedBranchScope(defaultBranch.branchId);
+      return defaultBranch;
     }
 
     if (ownedBranches.length > 1) {
       throw new Error('ACTIVE_BRANCH_REQUIRED: No se pudo resolver una sucursal interna única para esta cuenta');
     }
+
+    const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
+    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
 
     const { data: createdBranch, error: createError } = await supabaseClient
       .from('branches')
@@ -874,6 +901,12 @@ export class TurnoService {
       window.localStorage.removeItem('activeSalonId');
       window.localStorage.removeItem('activeLocationId');
     }
+  }
+
+  private resolveStoredActiveBusinessId(): string | null {
+    if (typeof window === 'undefined') return null;
+    const storedBusinessId = window.localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim();
+    return storedBusinessId || null;
   }
 
   private isImplicitBranchValidationFailure(error: unknown): boolean {

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as AppointmentTemplates from "../_shared/templates/appointment-templates.ts";
 import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
+import { appointmentTimeLabel, normalizeAppointmentTemplateData, scrubTokenBearingOutboxPayload } from "../_shared/process-email-outbox-helpers.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send";
@@ -21,7 +22,8 @@ type BookingEmailProjection = {
   duration_minutes?: number | null;
   price_at_booking?: number | null;
   customer?: MaybeArray<{ full_name?: string | null; email?: string | null }>;
-  business?: MaybeArray<{ name?: string | null; address?: string | null }>;
+  business?: MaybeArray<{ name?: string | null }>;
+  branch?: MaybeArray<{ address?: string | null }>;
   service?: MaybeArray<{ name?: string | null; duration_minutes?: number | null; price?: number | null }>;
 };
 
@@ -64,23 +66,6 @@ function safeLogContext(record: { id?: unknown; template_key?: unknown; booking_
     template_key: typeof record?.template_key === "string" ? record.template_key : undefined,
     booking_id: typeof record?.booking_id === "string" ? record.booking_id : undefined,
   };
-}
-
-function scrubTokenBearingOutboxPayload(payload: Record<string, any> | undefined): Record<string, any> {
-  const sensitiveFields = new Set(["confirmation_url", "set_password_url", "first_login_url", "action_link"]);
-  const scrubbed: Record<string, any> = {};
-  for (const [key, value] of Object.entries(payload ?? {})) {
-    const lowerKey = key.toLowerCase();
-    const isNamedSensitive = sensitiveFields.has(lowerKey);
-    const isRawTokenBearingUrl = typeof value === "string" && /^https?:\/\//i.test(value) && /(?:[?&](?:token|code|access_token|refresh_token)=|\/confirm-email\b|\/auth\/callback\b|\/recovery\b)/i.test(value);
-    if (isNamedSensitive || isRawTokenBearingUrl) {
-      scrubbed[key] = null;
-    } else {
-      scrubbed[key] = value;
-    }
-  }
-  scrubbed.sensitive_payload_scrubbed_at = new Date().toISOString();
-  return scrubbed;
 }
 
 function getBearerToken(authorizationHeader: string | null): string | null {
@@ -181,6 +166,30 @@ function normalizeAppointmentLinks(rawLinks: unknown, baseUrl: string): Appointm
 
 function relationOne<T>(value: MaybeArray<T>): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+function firstNonBlank(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function minutesBetween(start: unknown, end: unknown): number | null {
+  if (typeof start !== "string" || typeof end !== "string") return null;
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  return Math.round((endMs - startMs) / 60000);
 }
 
 async function claimOutboxRecordBeforeProviderSend(
@@ -357,7 +366,7 @@ Deno.serve(async (req) => {
           if (booking_id) {
             const { data: booking, error } = await supabase
               .from("bookings")
-              .select("id, business_id, customer_id, service_id, starts_at, ends_at, duration_minutes, price_at_booking, customer:customers(full_name,email), business:businesses(name,address), service:services(name,duration_minutes,price)")
+              .select("id, business_id, customer_id, service_id, branch_id, starts_at, ends_at, duration_minutes, price_at_booking, customer:customers(full_name,email), business:businesses(name), branch:branches(address), service:services(name,duration_minutes,price)")
               .eq("id", booking_id)
               .single();
             
@@ -365,6 +374,7 @@ Deno.serve(async (req) => {
               const bookingRow = booking as BookingEmailProjection;
               const customer = relationOne(bookingRow.customer);
               const business = relationOne(bookingRow.business);
+              const branch = relationOne(bookingRow.branch);
               const service = relationOne(bookingRow.service);
               // 2. Fetch Business Settings for contact info
               const { data: settings } = await supabase
@@ -383,17 +393,15 @@ Deno.serve(async (req) => {
                 },
                 business: {
                   name: business?.name || fullData.business_name || "Orvel",
-                  address: business?.address || settings?.address || "Consultar dirección"
+                  address: firstNonBlank(branch?.address, fullData.business_address, fullData.branch_address) || "Consultar dirección"
                 },
                 service: {
                   name: service?.name || fullData.service_name || "Servicio"
                 },
                 date: bookingRow.starts_at || fullData.starts_at || fullData.date,
-                time: bookingRow.starts_at 
-                  ? new Date(bookingRow.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) 
-                  : (fullData.time || (fullData.starts_at ? new Date(fullData.starts_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : "--:--")),
-                duration: service?.duration_minutes || bookingRow.duration_minutes || fullData.duration || DEFAULT_APPOINTMENT_DURATION_MINUTES,
-                price: bookingRow.price_at_booking || service?.price || fullData.price || 0,
+                time: appointmentTimeLabel(bookingRow.starts_at, fullData.starts_at || fullData.date),
+                duration: finiteNumber(service?.duration_minutes) ?? finiteNumber(bookingRow.duration_minutes) ?? minutesBetween(bookingRow.starts_at, bookingRow.ends_at) ?? finiteNumber(fullData.duration) ?? DEFAULT_APPOINTMENT_DURATION_MINUTES,
+                price: finiteNumber(bookingRow.price_at_booking) ?? finiteNumber(service?.price) ?? finiteNumber(fullData.price) ?? 0,
                 contact: {
                   phone: settings?.support_phone || fullData.business_phone || "No especificado",
                   email: settings?.support_email || fromEmail
@@ -418,6 +426,8 @@ Deno.serve(async (req) => {
             fullData.contact = fullData.contact || { phone: "No especificado", email: fromEmail };
             fullData.links = normalizeAppointmentLinks(fullData.links, dashboardUrl);
           }
+
+          fullData = normalizeAppointmentTemplateData(fullData, to_email, fromEmail, dashboardUrl) as any;
 
           // 3. Render Template based on key
           if (template_key === "appointment_confirmation" || template_key === "booking_created") {

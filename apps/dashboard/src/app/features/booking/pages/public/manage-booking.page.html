@@ -60,13 +60,6 @@
         </div>
       }
 
-      @if (rescheduled()) {
-        <div data-testid="manage-rescheduled-state" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm font-bold text-emerald-300 flex items-center gap-3" role="status">
-          <i class="ri-checkbox-circle-line text-lg"></i>
-          Reserva reprogramada. No hay más acciones disponibles desde este link.
-        </div>
-      }
-
       @if (bookingDetails()) {
         <section data-testid="manage-booking-summary" class="mb-8 grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300" aria-label="Resumen seguro de reserva">
           <div class="flex items-center justify-between gap-4">
@@ -117,73 +110,6 @@
         </div>
       }
 
-      @if (reschedulePickerOpen()) {
-        <section data-testid="manage-reschedule-picker" class="mt-8 space-y-6 rounded-3xl border border-purple-500/20 bg-purple-500/10 p-5" aria-label="Reprogramar reserva">
-          <div class="space-y-2">
-            <label for="manage-reschedule-date" class="text-[10px] font-black uppercase tracking-[0.25em] text-purple-200">Nueva fecha</label>
-            <input
-              id="manage-reschedule-date"
-              data-testid="manage-reschedule-date"
-              type="date"
-              class="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-white outline-none focus:border-purple-400"
-              [value]="selectedDate()"
-              (change)="onRescheduleDateChange($event)"
-              required
-            />
-          </div>
-
-          @if (loadingRescheduleAvailability()) {
-            <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Buscando horarios disponibles...</p>
-          }
-
-          @if (rescheduleAvailabilityUnavailable()) {
-            <div data-testid="manage-reschedule-unavailable-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300" role="alert">
-              No hay horarios disponibles o no pudimos cargar disponibilidad para esta fecha. Probá otra fecha o contactá al negocio.
-            </div>
-          }
-
-          @if (rescheduleRequired()) {
-            <div data-testid="manage-reschedule-required-state" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300" role="alert">
-              Elegí una fecha y un horario disponible antes de confirmar.
-            </div>
-          }
-
-          @if (rescheduleStale()) {
-            <div data-testid="manage-reschedule-stale-state" class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300" role="alert">
-              Ese horario ya no está disponible. Volvé a elegir un horario de la lista actualizada.
-            </div>
-          }
-
-          @if (availableRescheduleSlots().length > 0) {
-            <div class="grid gap-3" role="radiogroup" aria-label="Horarios disponibles">
-              @for (slot of availableRescheduleSlots(); track slot.startsAtIso) {
-                <label class="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition hover:border-purple-400/70">
-                  <span>{{ slotLabel(slot.startsAtIso) }}</span>
-                  <input
-                    data-testid="manage-reschedule-slot"
-                    type="radio"
-                    name="manage-reschedule-slot"
-                    [value]="slot.startsAtIso"
-                    [checked]="selectedSlot() === slot.startsAtIso"
-                    (change)="selectRescheduleSlot(slot.startsAtIso)"
-                    required
-                  />
-                </label>
-              }
-            </div>
-          }
-
-          <button
-            data-testid="manage-reschedule-submit"
-            type="button"
-            class="w-full rounded-2xl bg-[#7C3AED] px-6 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-purple-900/40 transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-50"
-            [disabled]="!canSubmitReschedule()"
-            (click)="submitReschedule()"
-          >
-            {{ submittingReschedule() ? 'Reprogramando...' : 'Confirmar reprogramación' }}
-          </button>
-        </section>
-      }
     </section>
 
     <footer class="mt-12 text-center">
