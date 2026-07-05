@@ -21,12 +21,12 @@
               <i class="ri-checkbox-circle-fill text-4xl"></i>
            </div>
            <div class="space-y-3">
-              <h2 class="text-3xl font-black text-white tracking-tight">Reserva confirmada</h2>
-              <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> ha sido confirmada. Te esperamos para brindarte la mejor atención.</p>
+               <h2 class="text-3xl font-black text-white tracking-tight">{{ rescheduleConfirmed() ? 'Reserva reprogramada' : 'Reserva confirmada' }}</h2>
+               <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : 'ha sido confirmada' }}. Te esperamos para brindarte la mejor atención.</p>
            </div>
            <div class="pt-8 border-t border-white/5">
               <button (click)="bookingConfirmed.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
-                Reservar Otro
+                 {{ rescheduleConfirmed() ? 'Volver' : 'Reservar Otro' }}
               </button>
            </div>
         </section>
@@ -49,14 +49,14 @@
         <header class="text-center mb-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-black uppercase tracking-widest border border-purple-500/20">
             <i class="ri-sparkling-2-fill"></i>
-            Portal de Reservas Online
+            {{ rescheduleMode() ? 'Reprogramar Reserva' : 'Portal de Reservas Online' }}
           </div>
           <div class="space-y-3">
             <h1 class="text-4xl md:text-6xl font-black text-white tracking-tighter">
               Bienvenido a <span class="text-purple-500" data-testid="booking-business-name">{{ businessName() }}</span>
             </h1>
             <p class="text-slate-400 text-base md:text-lg max-w-md mx-auto leading-relaxed font-medium">
-              Reserva tu próximo tratamiento en segundos y disfruta de una experiencia premium.
+              {{ rescheduleMode() ? 'Elegí una nueva fecha y horario disponible para tu cita.' : 'Reserva tu próximo tratamiento en segundos y disfruta de una experiencia premium.' }}
             </p>
           </div>
         </header>
@@ -200,6 +200,7 @@
               </div>
             </div>
             
+            @if (!rescheduleMode()) {
             <!-- Client Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div class="space-y-4">
@@ -302,6 +303,7 @@
                 class="w-full bg-black/20 border border-white/5 rounded-[32px] p-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all resize-none"
               ></textarea>
             </div>
+            }
 
             <!-- Error Message -->
             @if (errorMessage()) {
@@ -319,10 +321,10 @@
             >
               @if (submitting()) {
                 <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>Confirmando...</span>
+                <span>{{ rescheduleMode() ? 'Reprogramando...' : 'Confirmando...' }}</span>
               } @else {
                 <i class="ri-calendar-check-fill text-2xl group-hover:rotate-12 transition-transform"></i>
-                <span>Confirmar Reserva</span>
+                <span>{{ rescheduleMode() ? 'Confirmar reprogramación' : 'Confirmar Reserva' }}</span>
               }
             </button>
           </form>

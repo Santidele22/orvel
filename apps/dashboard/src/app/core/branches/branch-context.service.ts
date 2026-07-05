@@ -85,6 +85,10 @@ export class BranchContextService {
     return this.activeBranchIdState();
   }
 
+  async getActiveBusinessId(): Promise<string | null> {
+    return this.resolveActiveBusinessId(this.getSupabaseClient());
+  }
+
   hasMultipleBranches(): boolean {
     return this.branchesState().length > 1;
   }

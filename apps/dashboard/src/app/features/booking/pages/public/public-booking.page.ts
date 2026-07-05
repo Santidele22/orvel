@@ -13,6 +13,11 @@ import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLoc
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 
+type ReschedulePreload = {
+  mode: 'reschedule';
+  token: string;
+};
+
 @Component({
   selector: 'app-public-booking-page',
   standalone: true,
@@ -45,6 +50,8 @@ export class PublicBookingPage implements OnInit {
   protected readonly availableDays = signal<DayAvailability[]>([]);
   protected readonly selectedDate = signal<string>(toLocalCivilDate(new Date(), DEFAULT_BUSINESS_TIMEZONE));
   protected readonly resolvedBusinessId = signal<string | null>(null);
+  protected readonly rescheduleMode = signal(false);
+  protected readonly rescheduleConfirmed = signal(false);
 
   // Validation errors per field
   protected readonly fieldErrors = signal<Record<string, string>>({});
@@ -56,6 +63,10 @@ export class PublicBookingPage implements OnInit {
   protected whatsapp = '';
   protected email = '';
   protected notes = '';
+  private rescheduleToken = '';
+  private rescheduleTokenLoaded = false;
+  private preloadServiceId = '';
+  private preloadStartsAtIso = '';
 
   async ngOnInit(): Promise<void> {
     await this.loadPortal();
@@ -71,6 +82,7 @@ export class PublicBookingPage implements OnInit {
     this.availabilityErrorMessage.set('');
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
+    this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
     this.availabilitySlots.set([]);
@@ -80,6 +92,7 @@ export class PublicBookingPage implements OnInit {
     this.businessName.set('');
     this.workingHours.set(null);
     this.selectedSlot = '';
+    this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
     const response = await this.businessService.resolveBusinessBySlug(slug);
@@ -92,6 +105,14 @@ export class PublicBookingPage implements OnInit {
       
       this.workingHours.set(response.data.settings.workingHours);
       this.initAvailableDays();
+      if (this.rescheduleMode()) {
+        const loaded = await this.loadTokenBackedReschedulePreload(response.data.id);
+        if (!loaded) {
+          this.loading.set(false);
+          return;
+        }
+      }
+
       await this.loadServices(response.data.id);
     } else {
       emitPublicBookingFailureEvent({
@@ -135,7 +156,13 @@ export class PublicBookingPage implements OnInit {
         }
 
         this.publicServices.set(mapped);
-        this.selectedServiceId.set(mapped[0].id);
+        const preloadService = this.preloadServiceId && mapped.some((service) => service.id === this.preloadServiceId)
+          ? this.preloadServiceId
+          : mapped[0].id;
+        this.selectedServiceId.set(preloadService);
+        if (this.preloadStartsAtIso) {
+          this.selectedDate.set(this.preloadStartsAtIso.split('T')[0]);
+        }
         await this.loadAvailability();
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
@@ -201,7 +228,10 @@ export class PublicBookingPage implements OnInit {
         }));
         this.availabilitySlots.set(slots);
         this.updateDayAvailability(date, true);
-        this.selectedSlot = slots[0]?.startsAtIso || '';
+        const preloadedSlot = this.preloadStartsAtIso && slots.some(slot => slot.startsAtIso === this.preloadStartsAtIso)
+          ? this.preloadStartsAtIso
+          : '';
+        this.selectedSlot = preloadedSlot || slots[0]?.startsAtIso || '';
       } else {
         // No slots available for this date - clear slots but don't block the dropdown
         this.availabilitySlots.set([]);
@@ -238,6 +268,12 @@ export class PublicBookingPage implements OnInit {
   }
 
   protected async submitBooking(): Promise<void> {
+    if (this.rescheduleMode() && (!this.rescheduleToken || !this.rescheduleTokenLoaded)) {
+      this.errorMessage.set('No pudimos validar el link de reprogramación. Volvé a abrir el link privado de gestión del turno.');
+      this.submitting.set(false);
+      return;
+    }
+
     // Validate form before submitting
     if (!this.validateForm()) {
       this.errorMessage.set('Por favor completa todos los campos requeridos.');
@@ -255,6 +291,27 @@ export class PublicBookingPage implements OnInit {
     this.errorMessage.set('');
 
     try {
+      if (this.rescheduleMode()) {
+        const response = await this.publicBookingService.rescheduleBookingByToken(
+          this.rescheduleToken,
+          new Date().toISOString(),
+          this.selectedSlot
+        );
+
+        if (response.data?.startsAtIso) {
+          this.bookingConfirmed.set(true);
+          this.rescheduleConfirmed.set(true);
+          this.preloadStartsAtIso = response.data.startsAtIso;
+          this.clearTransientRescheduleTokenFromUrl();
+          return;
+        }
+
+        emitPublicBookingFailureEvent({ stage: 'submit', status: response.status, code: response.error?.code, retryable: true });
+        this.errorMessage.set(getPublicBookingSubmitErrorMessage(response.error));
+        this.bookingConfirmed.set(false);
+        return;
+      }
+
       const response = await this.publicBookingService.createPublicBooking({
         businessSlug: (this.resolvedSlug() || this.route.snapshot.paramMap.get('slug')) ?? '',
         serviceId: this.selectedServiceId(),
@@ -393,6 +450,14 @@ export class PublicBookingPage implements OnInit {
 
   // Validate all required fields
   private validateForm(): boolean {
+    if (this.rescheduleMode()) {
+      const errors: Record<string, string> = {};
+      if (!this.selectedServiceId()) errors['service'] = 'Seleccioná un servicio.';
+      if (!this.selectedSlot) errors['slot'] = 'Seleccioná un horario disponible.';
+      this.fieldErrors.set(errors);
+      return Object.keys(errors).length === 0;
+    }
+
     const result = validatePublicBookingForm(this.getValidationInput());
     this.fieldErrors.set(result.fieldErrors);
     return result.isValid;
@@ -460,8 +525,107 @@ export class PublicBookingPage implements OnInit {
     };
   }
 
+  private getQueryParam(name: string): string {
+    return this.route.snapshot.queryParamMap?.get(name) ?? '';
+  }
+
+  private clearTransientRescheduleTokenFromUrl(): void {
+    if (typeof window === 'undefined' || typeof window.history?.replaceState !== 'function') return;
+
+    const slug = this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '';
+    window.history.replaceState(null, '', slug ? `/booking/${slug}` : window.location.pathname);
+  }
+
+  private applyReschedulePreload(): void {
+    const preload = this.readReschedulePreload();
+    if (!preload) {
+      this.rescheduleMode.set(false);
+      this.rescheduleToken = '';
+      this.rescheduleTokenLoaded = false;
+      this.preloadServiceId = '';
+      this.preloadStartsAtIso = '';
+      return;
+    }
+
+    this.rescheduleMode.set(true);
+    this.rescheduleToken = preload.token.trim();
+    this.rescheduleTokenLoaded = false;
+    this.preloadServiceId = '';
+    this.preloadStartsAtIso = '';
+    if (!this.rescheduleToken) {
+      this.errorMessage.set('No pudimos validar el link de reprogramación. Volvé a abrir el link privado de gestión del turno.');
+    }
+  }
+
+  private async loadTokenBackedReschedulePreload(expectedBusinessId: string): Promise<boolean> {
+    if (!this.rescheduleToken) {
+      this.failClosedReschedulePreload();
+      return false;
+    }
+
+    const response = await this.publicBookingService.manageBookingByToken(
+      this.rescheduleToken,
+      new Date().toISOString()
+    );
+
+    const details = response.data;
+    if (
+      response.error ||
+      !details?.serviceId ||
+      !details.startsAtIso ||
+      (details.businessId && details.businessId !== expectedBusinessId)
+    ) {
+      emitPublicBookingFailureEvent({
+        stage: 'service',
+        status: response.status,
+        code: response.error?.code ?? 'RESCHEDULE_TOKEN_LOAD_FAILED',
+        retryable: response.status >= 500 || !response.error?.code
+      });
+      this.failClosedReschedulePreload();
+      return false;
+    }
+
+    this.preloadServiceId = details.serviceId;
+    this.preloadStartsAtIso = details.startsAtIso;
+    this.rescheduleTokenLoaded = true;
+    return true;
+  }
+
+  private failClosedReschedulePreload(): void {
+    this.rescheduleTokenLoaded = false;
+    this.preloadServiceId = '';
+    this.preloadStartsAtIso = '';
+    this.selectedServiceId.set('');
+    this.availabilitySlots.set([]);
+    this.selectedSlot = '';
+    this.errorMessage.set('No pudimos validar el link de reprogramación. Volvé a abrir el link privado de gestión del turno.');
+  }
+
+  private readReschedulePreload(): ReschedulePreload | null {
+    if (this.getQueryParam('mode') !== 'reschedule') return null;
+
+    return {
+      mode: 'reschedule',
+      token: this.getQueryParam('token')
+    };
+  }
+
   // Check if form is ready for submission
   canSubmit(): boolean {
+    if (this.rescheduleMode()) {
+      return !!(
+        !this.submitting() &&
+        this.rescheduleToken &&
+        this.rescheduleTokenLoaded &&
+        this.selectedSlot &&
+        this.isSelectedDateAvailable() &&
+        this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
+        this.selectedServiceId() &&
+        this.hasSelectedPublicService(this.selectedServiceId()) &&
+        Object.keys(this.fieldErrors()).length === 0
+      );
+    }
+
     return !!(
       !this.submitting() && 
       this.selectedSlot && 

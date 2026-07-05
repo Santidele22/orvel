@@ -10,10 +10,13 @@ import {
   type DashboardNotification,
 } from './internal-dashboard-notifications.api';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { getBranchContextService } from '../branches/branch-context.service';
+import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardNotificationsService implements OnDestroy {
   private readonly authService = inject(AuthService);
+  private readonly branchContext = getBranchContextService();
   private readonly notificationsState = signal<DashboardNotification[]>([]);
   private readonly unreadNotificationCountState = signal(0);
   private readonly loadingState = signal(false);
@@ -36,10 +39,12 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   private async init() {
-    const businessId = this.authService.user()?.id;
+    const businessId = await this.resolveBusinessId();
     if (businessId) {
       await this.refreshForAdmin();
       this.startSubscription(businessId);
+    } else {
+      this.applyMissingBusinessContext();
     }
   }
 
@@ -73,10 +78,9 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   async refreshForAdmin(): Promise<void> {
-    const businessId = this.authService.user()?.id;
+    const businessId = await this.resolveBusinessId();
     if (!businessId) {
-      this.notificationsState.set([]);
-      this.unreadNotificationCountState.set(0);
+      this.applyMissingBusinessContext();
       return;
     }
 
@@ -101,8 +105,11 @@ export class DashboardNotificationsService implements OnDestroy {
   }
 
   async clearAll(): Promise<void> {
-    const businessId = this.authService.user()?.id;
-    if (!businessId) return;
+    const businessId = await this.resolveBusinessId();
+    if (!businessId) {
+      this.applyMissingBusinessContext();
+      return;
+    }
 
     // Optimistic update
     this.notificationsState.set([]);
@@ -139,5 +146,24 @@ export class DashboardNotificationsService implements OnDestroy {
     } catch (error) {
       console.error('Error archiving notification:', error);
     }
+  }
+
+  private async resolveBusinessId(): Promise<string | null> {
+    if (!this.authService.user()?.id) return null;
+    return this.branchContext.getActiveBusinessId();
+  }
+
+  private applyMissingBusinessContext(): void {
+    emitPublicBookingFailureEvent({
+      stage: 'service',
+      code: 'DASHBOARD_NOTIFICATIONS_BUSINESS_CONTEXT_MISSING',
+      status: 409,
+      retryable: true
+    });
+    this.stopSubscription();
+    this.notificationsState.set([]);
+    this.unreadNotificationCountState.set(0);
+    this.loadingState.set(false);
+    this.errorState.set('No se pudo resolver el negocio activo para cargar notificaciones.');
   }
 }

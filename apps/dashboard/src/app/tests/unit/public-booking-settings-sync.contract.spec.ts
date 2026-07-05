@@ -600,6 +600,173 @@ describe('public booking settings synchronization', () => {
     expect(component.canSubmit()).toBe(false);
   });
 
+  it('fails closed for reschedule mode without a valid token and never creates a duplicate booking', async () => {
+    // Arrange
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(),
+      createPublicBooking: vi.fn(),
+      rescheduleBookingByToken: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: BusinessService,
+          useValue: { resolveBusinessBySlug: vi.fn(), getDefaultWorkingHours: vi.fn() }
+        },
+        {
+          provide: ServicioService,
+          useValue: { getByBusinessId: vi.fn() }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: { get: vi.fn(() => 'studio-roma') },
+              queryParamMap: { get: vi.fn((key: string) => key === 'mode' ? 'reschedule' : '') }
+            }
+          }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    const component = fixture.componentInstance as unknown as {
+      rescheduleMode: { set: (enabled: boolean) => void };
+      publicServices: { set: (services: Array<{ id: string; name: string; price: number; duration: number }>) => void };
+      selectedServiceId: { set: (serviceId: string) => void };
+      selectedDate: { set: (dateIso: string) => void };
+      workingHours: { set: (hours: Record<WeekdayKey, WorkingDayHours>) => void };
+      availableDays: { set: (days: Array<{ date: string; label: string; weekday: string; isWorkingDay: boolean; hasAvailability: boolean }>) => void };
+      availabilitySlots: { set: (slots: Array<{ startsAtIso: string; remainingCapacity: number }>) => void };
+      errorMessage: () => string;
+      selectedSlot: string;
+      canSubmit: () => boolean;
+      submitBooking: () => Promise<void>;
+    };
+    component.rescheduleMode.set(true);
+    component.publicServices.set([{ id: 'service-1', name: 'Corte', price: 1000, duration: 30 }]);
+    component.selectedServiceId.set('service-1');
+    component.selectedDate.set('2026-06-29');
+    component.workingHours.set(createWorkingHours(['monday']));
+    component.availableDays.set([{ date: '2026-06-29', label: '29', weekday: 'LUN', isWorkingDay: true, hasAvailability: true }]);
+    component.availabilitySlots.set([{ startsAtIso: '2026-06-29T13:00:00.000Z', remainingCapacity: 1 }]);
+    component.selectedSlot = '2026-06-29T13:00:00.000Z';
+
+    // Act
+    await component.submitBooking();
+
+    // Assert
+    expect(component.canSubmit()).toBe(false);
+    expect(component.errorMessage()).toContain('Volvé a abrir el link privado de gestión del turno');
+    expect(publicBookingService.createPublicBooking).not.toHaveBeenCalled();
+    expect(publicBookingService.rescheduleBookingByToken).not.toHaveBeenCalled();
+  });
+
+  it('submits valid reschedules through the token API instead of creating a new public booking', async () => {
+    // Arrange
+    const workingHours = createWorkingHours(['monday']);
+    const businessService = {
+      resolveBusinessBySlug: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          displayName: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: {
+            bufferMinutes: 0,
+            minNoticeMinutes: 0,
+            slotIntervalMinutes: 30,
+            workingHours
+          },
+          bookingPolicy: {
+            autoConfirm: true,
+            cancellationWindowMinutes: 60,
+            allowClientProfessionalSelection: false
+          }
+        }
+      })),
+      getDefaultWorkingHours: vi.fn()
+    };
+    const publicBookingService = {
+      manageBookingByToken: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: {
+          bookingId: 'booking-1',
+          businessId: 'business-1',
+          serviceId: 'service-1',
+          startsAtIso: '2026-06-29T13:00:00.000Z',
+          canCancelOrReschedule: true
+        }
+      })),
+      queryPublicSlotAvailability: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: { slots: [{ startsAtIso: '2026-06-29T13:00:00.000Z', remainingCapacity: 1 }] }
+      })),
+      createPublicBooking: vi.fn(),
+      rescheduleBookingByToken: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: { bookingId: 'booking-1', startsAtIso: '2026-06-29T13:00:00.000Z' }
+      }))
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: { getByBusinessId: vi.fn(() => of([{ id: 'service-1', nombre: 'Corte', precio: 1000, duration_minutes: 30, activo: true }])) }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: { get: vi.fn(() => 'studio-roma') },
+              queryParamMap: { get: vi.fn((key: string) => key === 'mode' ? 'reschedule' : key === 'token' ? 'manage-token-1' : '') }
+            }
+          }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    const component = fixture.componentInstance as unknown as {
+      rescheduleMode: { set: (enabled: boolean) => void };
+      publicServices: { set: (services: Array<{ id: string; name: string; price: number; duration: number }>) => void };
+      selectedServiceId: { set: (serviceId: string) => void };
+      selectedDate: { set: (dateIso: string) => void };
+      workingHours: { set: (hours: Record<WeekdayKey, WorkingDayHours>) => void };
+      availableDays: { set: (days: Array<{ date: string; label: string; weekday: string; isWorkingDay: boolean; hasAvailability: boolean }>) => void };
+      availabilitySlots: { set: (slots: Array<{ startsAtIso: string; remainingCapacity: number }>) => void };
+      bookingConfirmed: () => boolean;
+      rescheduleConfirmed: () => boolean;
+      selectedSlot: string;
+      submitBooking: () => Promise<void>;
+    };
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    fixture.detectChanges();
+
+    // Act
+    await component.submitBooking();
+
+    // Assert
+    expect(publicBookingService.rescheduleBookingByToken).toHaveBeenCalledWith(
+      'manage-token-1',
+      expect.any(String),
+      '2026-06-29T13:00:00.000Z'
+    );
+    expect(publicBookingService.createPublicBooking).not.toHaveBeenCalled();
+    expect(component.bookingConfirmed()).toBe(true);
+    expect(component.rescheduleConfirmed()).toBe(true);
+  });
+
   it('shows retryable portal error when public resolver returns a non-404 failure', async () => {
     // Arrange
     const businessService = {
