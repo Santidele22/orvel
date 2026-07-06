@@ -832,14 +832,42 @@ Deno.test("P0 public booking contract: anon RPC never creates or repairs tenant 
     "create_public_booking",
     (body) => /INSERT\s+INTO\s+public\.bookings/i.test(body),
   );
+  const branchResolution = body.match(
+    /IF\s+v_branch_id\s+IS\s+NULL\s+THEN[\s\S]*?ELSIF\s+NOT\s+EXISTS\s*\([\s\S]*?END\s+IF;/i,
+  )?.[0] ?? "";
+  const branchResolutionIndex = body.indexOf(branchResolution);
+  const bookingInsertIndex = body.search(/INSERT\s+INTO\s+public\.bookings/i);
+
+  assert(
+    branchResolution.length > 0,
+    "Guard must inspect the exact branch resolution/validation block inside create_public_booking",
+  );
+  assert(
+    branchResolutionIndex >= 0 && branchResolutionIndex < bookingInsertIndex,
+    "create_public_booking must resolve/validate an existing branch before inserting bookings",
+  );
 
   assert(
     !/INSERT\s+INTO\s+public\.branches/i.test(body),
     "create_public_booking is granted to anon/authenticated and must not insert tenant branches at runtime",
   );
   assert(
-    /BRANCH_NOT_FOUND/.test(body),
-    "create_public_booking must fail closed when no existing active tenant-owned branch can be selected",
+    !/UPDATE\s+public\.branches/i.test(body),
+    "create_public_booking is granted to anon/authenticated and must not reactivate or repair tenant branches at runtime",
+  );
+  assert(
+    !/ON\s+CONFLICT\s*\(\s*business_id\s*,\s*slug\s*\)[\s\S]*?DO\s+UPDATE/i.test(body),
+    "create_public_booking must not upsert-and-repair public.branches via ON CONFLICT DO UPDATE",
+  );
+  assert(
+    /FROM\s+public\.branches\s+br/i.test(branchResolution) &&
+      /br\.business_id\s*=\s*v_business_id/i.test(branchResolution) &&
+      /br\.slug\s*=\s*'principal'/i.test(branchResolution),
+    "create_public_booking must select the fallback branch from existing tenant-owned principal branches",
+  );
+  assert(
+    /BOOKING_BRANCH_CONFIGURATION_REQUIRED|PRINCIPAL_BRANCH_REQUIRED|BRANCH_NOT_FOUND/.test(branchResolution),
+    "create_public_booking must fail closed with a clear configuration error when no existing active tenant-owned branch can be selected",
   );
 });
 
