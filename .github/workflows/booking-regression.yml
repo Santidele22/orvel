@@ -44,5 +44,24 @@ jobs:
       - name: Run branch booking resilience contract
         run: pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/dashboard-branch-booking-resilience.contract.spec.ts
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run public booking Supabase reliability regression
+        run: deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/public-booking-reliability-regression.test.ts
+
+      - name: Reject focused Deno tests
+        run: |
+          if grep -RIn --include='*.ts' 'Deno\.test\.only' supabase/functions; then
+            echo "Committed Deno.test.only is not allowed under supabase/functions." >&2
+            exit 1
+          fi
+
+      - name: Run focused P0 public booking Supabase contracts
+        run: |
+          deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/p0-public-booking-static-contracts.test.ts
+
       - name: Typecheck dashboard app
         run: pnpm --dir apps/dashboard exec tsc -p tsconfig.app.json --noEmit
