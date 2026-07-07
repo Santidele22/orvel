@@ -12,14 +12,14 @@ const protectedPendingSignupIntent = {
   email_hmac: 'email-hmac',
   first_name_encrypted: '{"v":"pending_signup_pii_v1","alg":"AES-GCM","iv":"first-iv","ct":"first-ct"}',
   first_name_hmac: 'first-hmac',
-  plan_code: 'STARTER',
+  plan_code: 'PREMIUM',
   billing_period: 'monthly',
 };
 
 describe('RED contract: visible subscription page start recovery', () => {
   it('turns an exact pending_signup URL without protected browser state into a signup recovery CTA before retrying start', () => {
     const recovery = getInitialSubscriptionPageRecovery({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       billing: 'monthly',
       signupIntent: 'pending_signup',
       pendingSignupIntent: null,
@@ -28,13 +28,13 @@ describe('RED contract: visible subscription page start recovery', () => {
     expect(recovery).toEqual({
       code: 'pending_signup_missing',
       message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
-      recoveryHref: '/auth/signup/credentials?plan=STARTER&billing=monthly&resume=credentials_first',
+      recoveryHref: '/auth/signup/credentials?plan=PREMIUM&billing=monthly&resume=credentials_first',
     });
   });
 
   it('blocks paid anonymous subscription start when the browser lost the protected pending signup intent', () => {
     const readiness = getSubscriptionStartReadiness({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       pendingSignupIntent: null,
       accessToken: null,
     });
@@ -43,14 +43,14 @@ describe('RED contract: visible subscription page start recovery', () => {
       ok: false,
       code: 'pending_signup_missing',
       message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
-      recoveryHref: '/auth/signup/credentials?plan=STARTER&billing=monthly&resume=credentials_first',
+      recoveryHref: '/auth/signup/credentials?plan=PREMIUM&billing=monthly&resume=credentials_first',
     });
   });
 
   it('treats intent_id-only or malformed pending signup markers as stale before calling /api/subscriptions/start', () => {
     const readiness = getSubscriptionStartReadiness({
-      plan: 'STARTER',
-      billing: 'annual',
+      plan: 'PREMIUM',
+      billing: 'monthly',
       pendingSignupIntent: { intent_id: 'psi_123' },
       accessToken: null,
     });
@@ -58,13 +58,13 @@ describe('RED contract: visible subscription page start recovery', () => {
     expect(readiness.ok).toBe(false);
     expect(readiness).toMatchObject({
       code: 'pending_signup_missing',
-      recoveryHref: '/auth/signup/credentials?plan=STARTER&billing=annual&resume=credentials_first',
+      recoveryHref: '/auth/signup/credentials?plan=PREMIUM&billing=monthly&resume=credentials_first',
     });
   });
 
   it('allows fresh protected pending signup intent mode and forwards only protected fields', () => {
     const readiness = getSubscriptionStartReadiness({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       billing: 'monthly',
       pendingSignupIntent: protectedPendingSignupIntent,
       accessToken: null,
@@ -84,13 +84,13 @@ describe('RED contract: visible subscription page start recovery', () => {
 
   it('allows existing-user subscription start only with a JWT-shaped access token', () => {
     expect(getSubscriptionStartReadiness({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       pendingSignupIntent: null,
       accessToken: 'not-a-jwt',
     }).ok).toBe(false);
 
     expect(getSubscriptionStartReadiness({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       pendingSignupIntent: null,
       accessToken: 'aaa.bbb.ccc',
     })).toEqual({ ok: true, mode: 'existing_user' });

@@ -331,13 +331,13 @@ describe('Path 2: New User Onboarding Flow', () => {
   // --------------------------------------------------------------------------
 
   describe('Step 1: Select plan (/auth/signup/plan)', () => {
-    it('AUTH-E2E-012 - Should have 4 plan options available', () => {
-      const plans: PlanCode[] = ['FREE', 'BASIC', 'MEDIUM', 'PRO'];
-      expect(plans.length).toBe(4);
+    it('AUTH-E2E-012 - Should have 2 canonical plan options available', () => {
+      const plans: PlanCode[] = ['FREE', 'PREMIUM'];
+      expect(plans).toEqual(['FREE', 'PREMIUM']);
     });
 
     it('AUTH-E2E-013 - Should select a plan and persist to storage', () => {
-      const plan: PlanCode = 'PRO';
+      const plan: PlanCode = 'PREMIUM';
 
       storage.setItem(ONBOARDING_PLAN_KEY, plan);
       const stored = storage.getItem(ONBOARDING_PLAN_KEY);
@@ -346,18 +346,18 @@ describe('Path 2: New User Onboarding Flow', () => {
     });
 
     it('AUTH-E2E-014 - Should allow changing plan selection', () => {
-      storage.setItem(ONBOARDING_PLAN_KEY, 'BASIC');
-      storage.setItem(ONBOARDING_PLAN_KEY, 'PRO');
+      storage.setItem(ONBOARDING_PLAN_KEY, 'FREE');
+      storage.setItem(ONBOARDING_PLAN_KEY, 'PREMIUM');
 
       const stored = storage.getItem(ONBOARDING_PLAN_KEY);
-      expect(stored).toBe('PRO');
+      expect(stored).toBe('PREMIUM');
     });
 
     it('AUTH-E2E-015 - Should read plan from storage', () => {
-      storage.setItem(ONBOARDING_PLAN_KEY, 'MEDIUM');
+      storage.setItem(ONBOARDING_PLAN_KEY, 'PREMIUM');
 
       const plan = storage.getItem(ONBOARDING_PLAN_KEY);
-      expect(['FREE', 'BASIC', 'MEDIUM', 'PRO']).toContain(plan);
+      expect(['FREE', 'PREMIUM']).toContain(plan);
     });
   });
 
@@ -379,7 +379,7 @@ describe('Path 2: New User Onboarding Flow', () => {
     });
 
     it('AUTH-E2E-018 - Plan selection is required before proceeding', () => {
-      const plans: PlanCode[] = ['FREE', 'BASIC', 'MEDIUM', 'PRO'];
+      const plans: PlanCode[] = ['FREE', 'PREMIUM'];
       const selectedPlan = storage.getItem(ONBOARDING_PLAN_KEY) as PlanCode | null;
 
       if (selectedPlan) {
@@ -495,42 +495,26 @@ describe('Path 2: New User Onboarding Flow', () => {
   // --------------------------------------------------------------------------
 
   describe('Step 3: Select business types (/auth/signup/complete)', () => {
-    // Business types by plan (per spec)
+    // MVP supports the same onboardable business type catalog for FREE and PREMIUM.
     const PLAN_TYPES: Record<PlanCode, string[]> = {
-      FREE: ['peluqueria'],
-      BASIC: ['peluqueria', 'unas'],
-      MEDIUM: ['peluqueria', 'unas', 'barberia'],
-      PRO: ['peluqueria', 'unas', 'barberia', 'spa']
+      FREE: ['unas', 'peluqueria', 'barberia', 'spa', 'pestanas', 'cejas', 'masajes', 'otro'],
+      PREMIUM: ['unas', 'peluqueria', 'barberia', 'spa', 'pestanas', 'cejas', 'masajes', 'otro']
     };
 
-    it('AUTH-E2E-027 - FREE plan shows only peluqueria', () => {
+    it('AUTH-E2E-027 - FREE plan shows the MVP onboardable business type catalog', () => {
       const allowed = PLAN_TYPES['FREE'];
       expect(allowed).toContain('peluqueria');
-      expect(allowed.length).toBe(1);
-    });
-
-    it('AUTH-E2E-028 - BASIC plan shows peluqueria and uñas', () => {
-      const allowed = PLAN_TYPES['BASIC'];
-      expect(allowed).toContain('peluqueria');
       expect(allowed).toContain('unas');
-      expect(allowed.length).toBe(2);
+      expect(allowed.length).toBe(8);
     });
 
-    it('AUTH-E2E-029 - MEDIUM plan adds barbería', () => {
-      const allowed = PLAN_TYPES['MEDIUM'];
-      expect(allowed).toContain('peluqueria');
-      expect(allowed).toContain('unas');
-      expect(allowed).toContain('barberia');
-      expect(allowed.length).toBe(3);
-    });
-
-    it('AUTH-E2E-030 - PRO plan adds spa', () => {
-      const allowed = PLAN_TYPES['PRO'];
+    it('AUTH-E2E-028 - PREMIUM plan shows the same MVP onboardable business type catalog', () => {
+      const allowed = PLAN_TYPES['PREMIUM'];
       expect(allowed).toContain('peluqueria');
       expect(allowed).toContain('unas');
       expect(allowed).toContain('barberia');
       expect(allowed).toContain('spa');
-      expect(allowed.length).toBe(4);
+      expect(allowed.length).toBe(8);
     });
   });
 
@@ -583,38 +567,12 @@ describe('Path 2: New User Onboarding Flow', () => {
   });
 
   // --------------------------------------------------------------------------
-  // TEST 11: BASIC/MEDIUM/PRO → routes to /billing/subscription
+  // TEST 11: PREMIUM → routes to /billing/subscription
   // --------------------------------------------------------------------------
 
-  describe('11. BASIC/MEDIUM/PRO → routes to /billing/subscription', () => {
-    it('AUTH-E2E-035 - BASIC plan navigates to /billing/subscription', () => {
-      const plan = 'BASIC';
-      let navigateUrl: string;
-
-      if (plan === 'FREE') {
-        navigateUrl = '/dashboard/inicio';
-      } else {
-        navigateUrl = '/billing/subscription';
-      }
-
-      expect(navigateUrl).toBe('/billing/subscription');
-    });
-
-    it('AUTH-E2E-036 - MEDIUM plan navigates to /billing/subscription', () => {
-      const plan = 'MEDIUM';
-      let navigateUrl: string;
-
-      if (plan === 'FREE') {
-        navigateUrl = '/dashboard/inicio';
-      } else {
-        navigateUrl = '/billing/subscription';
-      }
-
-      expect(navigateUrl).toBe('/billing/subscription');
-    });
-
-    it('AUTH-E2E-037 - PRO plan navigates to /billing/subscription', () => {
-      const plan = 'PRO';
+  describe('11. PREMIUM → routes to /billing/subscription', () => {
+    it('AUTH-E2E-035 - PREMIUM plan navigates to /billing/subscription', () => {
+      const plan = 'PREMIUM';
       let navigateUrl: string;
 
       if (plan === 'FREE') {
@@ -747,15 +705,15 @@ describe('Cross-path Cases', () => {
  * ✅ AUTH-E2E-019-022: Fill valid credentials → can proceed
  * ✅ AUTH-E2E-023-026: Form validation blocks invalid
  *
- * Path 2: New User Onboarding - Step 3 (Business Types) (9 tests)
- * ✅ AUTH-E2E-027-030: Only allowed types shown per plan
+ * Path 2: New User Onboarding - Step 3 (Business Types) (6 tests)
+ * ✅ AUTH-E2E-027-028: MVP business type catalog shown per canonical plan
  * ✅ AUTH-E2E-031-033: Must select at least one type
  * ✅ AUTH-E2E-034: FREE plan → routes to /dashboard/inicio
-  * ✅ AUTH-E2E-035-037: BASIC/MEDIUM/PRO → routes to /billing/subscription
+ * ✅ AUTH-E2E-035: PREMIUM → routes to /billing/subscription
  *
  * Cross-path Cases (6 tests)
  * ✅ AUTH-E2E-038-040: Logged in user accessing /auth/login → redirects
  * ✅ AUTH-E2E-041-044: Logged in user accessing /auth/signup/* → redirects
  *
- * TOTAL: 30 tests covering all auth paths
+ * TOTAL: 26 tests covering all auth paths
  */

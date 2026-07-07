@@ -26,8 +26,8 @@ export interface Plan {
   updated_at: string;
 }
 
-// Billing period types for display
-export type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
+// MVP billing supports monthly pricing only.
+export type BillingPeriod = 'monthly';
 
 // Extended plan with calculated prices for different billing periods
 export interface PlanWithBilling extends Plan {
@@ -36,26 +36,20 @@ export interface PlanWithBilling extends Plan {
   annual_price: number;
 }
 
-const CANONICAL_PLAN_ORDER = ['FREE', 'STARTER', 'GROWTH', 'PRO'] as const;
+const CANONICAL_PLAN_ORDER = ['FREE', 'PREMIUM'] as const;
 const CANONICAL_PLAN_NAMES: Record<string, string> = {
   FREE: 'Gratis',
-  STARTER: 'Starter',
-  GROWTH: 'Growth',
-  PRO: 'Pro'
+  PREMIUM: 'Premium'
 };
 
 const CANONICAL_PLAN_DESCRIPTIONS: Record<string, string> = {
-  FREE: 'Para probar Orvel sin riesgo.',
-  STARTER: 'Para profesionales y negocios chicos que quieren dejar de manejar todo por WhatsApp.',
-  GROWTH: 'Para equipos que necesitan más organización y menos ausencias.',
-  PRO: 'Para negocios con varias agendas y operación avanzada.'
+  FREE: 'Para empezar con una agenda online y un local principal.',
+  PREMIUM: 'Para recibir turnos ilimitados en tu local principal.'
 };
 
 function normalizeStaticPlanCode(code: string): string {
   const normalized = code.trim().toUpperCase();
-  if (normalized === 'BASIC' || normalized === 'STARTED' || normalized === 'SIMPLE' || normalized === 'STARTER') return 'STARTER';
-  if (normalized === 'MEDIUM' || normalized === 'CRECE') return 'GROWTH';
-  if (normalized === 'ESCALA') return 'PRO';
+  if (['BASIC', 'STARTED', 'SIMPLE', 'STARTER', 'MEDIUM', 'CRECE', 'GROWTH', 'ESCALA', 'PRO'].includes(normalized)) return 'PREMIUM';
   return normalized;
 }
 
@@ -65,9 +59,10 @@ function normalizePlanCode(plan: Pick<Plan, 'code' | 'name'>): string | null {
   const tokens = new Set(normalized.split(/\s+/).filter(Boolean));
 
   if (tokens.has('FREE') || tokens.has('GRATIS')) return 'FREE';
-  if (tokens.has('STARTER') || tokens.has('STARTED') || tokens.has('BASIC') || tokens.has('SIMPLE')) return 'STARTER';
-  if (tokens.has('GROWTH') || tokens.has('MEDIUM') || tokens.has('CRECE')) return 'GROWTH';
-  if (tokens.has('PRO') || tokens.has('ESCALA')) return 'PRO';
+  if (tokens.has('PREMIUM')) return 'PREMIUM';
+  if (tokens.has('STARTER') || tokens.has('STARTED') || tokens.has('BASIC') || tokens.has('SIMPLE')) return 'PREMIUM';
+  if (tokens.has('GROWTH') || tokens.has('MEDIUM') || tokens.has('CRECE')) return 'PREMIUM';
+  if (tokens.has('PRO') || tokens.has('ESCALA')) return 'PREMIUM';
 
   return null;
 }
@@ -95,7 +90,7 @@ function canonicalizePlan(plan: Plan, canonicalCode: string): Plan {
     code: canonicalCode,
     name: CANONICAL_PLAN_NAMES[canonicalCode] ?? plan.name,
     description: plan.description || CANONICAL_PLAN_DESCRIPTIONS[canonicalCode] || null,
-    is_featured: canonicalCode === 'STARTER' ? true : Boolean(plan.is_featured && canonicalCode !== 'FREE')
+    is_featured: canonicalCode === 'PREMIUM' ? true : Boolean(plan.is_featured && canonicalCode !== 'FREE')
   };
 }
 
@@ -221,36 +216,13 @@ export async function getPlanByCode(code: string): Promise<Plan | null> {
 /**
  * Calculate prices for different billing periods
  * monthly: price as-is
- * quarterly: 3 months at a slight discount (price * 3 * 0.95)
- * annual: 12 months at a significant discount (price * 12 * 0.85)
+ * MVP billing supports monthly pricing only.
  */
 export function calculateBillingPrices(plan: Plan): PlanWithBilling {
   const monthly_price = plan.price;
   
-  // Use DB values if available, otherwise use hardcoded fallbacks
-  let quarterly_price = plan.price_quarterly ?? 0;
-  let annual_price = plan.price_annual ?? 0;
-
-  if (!plan.price_quarterly || !plan.price_annual) {
-    switch (plan.code) {
-      case 'STARTER':
-        quarterly_price = Math.round(plan.price * 3 * 0.85);
-        annual_price = Math.round(plan.price * 12 * 0.70);
-        break;
-      case 'GROWTH':
-        quarterly_price = Math.round(plan.price * 3 * 0.85);
-        annual_price = Math.round(plan.price * 12 * 0.70);
-        break;
-      case 'PRO':
-        quarterly_price = Math.round(plan.price * 3 * 0.85);
-        annual_price = Math.round(plan.price * 12 * 0.70);
-        break;
-      default:
-        quarterly_price = 0;
-        annual_price = 0;
-        break;
-    }
-  }
+  const quarterly_price = 0;
+  const annual_price = 0;
 
   return {
     ...plan,
@@ -261,20 +233,13 @@ export function calculateBillingPrices(plan: Plan): PlanWithBilling {
 }
 
 /**
- * Get billing prices based on period
+ * Get billing prices for the monthly-only MVP billing model.
  */
 export function getBillingPrice(
   plan: PlanWithBilling,
-  period: BillingPeriod
+  _period: BillingPeriod
 ): { price: number; label: string } {
-  switch (period) {
-    case 'monthly':
-      return { price: plan.monthly_price, label: '/mes' };
-    case 'quarterly':
-      return { price: plan.quarterly_price, label: '/trimestre' };
-    case 'annual':
-      return { price: plan.annual_price, label: '/año' };
-  }
+  return { price: plan.monthly_price, label: '/mes' };
 }
 
 /**
@@ -282,15 +247,9 @@ export function getBillingPrice(
  */
 export function getSavingsAmount(
   plan: PlanWithBilling,
-  period: BillingPeriod
+  _period: BillingPeriod
 ): number {
-  if (period === 'monthly') return 0;
-
-  const { price } = getBillingPrice(plan, period);
-  const monthlyEquivalent = period === 'quarterly' ? price / 3 : price / 12;
-  const monthlyTotal = plan.monthly_price * (period === 'quarterly' ? 3 : 12);
-
-  return Math.round(monthlyTotal - price);
+  return 0;
 }
 
 /**
@@ -303,7 +262,7 @@ function getStaticPlans(): Plan[] {
       id: 'static-free',
       code: 'FREE',
       name: 'Gratis',
-      description: 'Para probar Orvel sin riesgo.',
+      description: 'Para empezar con una agenda online y un local principal.',
       price: 0,
       price_quarterly: 0,
       price_annual: 0,
@@ -317,53 +276,19 @@ function getStaticPlans(): Plan[] {
       updated_at: new Date().toISOString()
     },
     {
-      id: 'static-starter',
-      code: 'STARTER',
-      name: 'Starter',
-      description: 'Para profesionales y negocios chicos que quieren dejar de manejar todo por WhatsApp.',
-      price: 12900,
-      price_quarterly: 32895, // aprox -15%
-      price_annual: 108360, // aprox -30%
+      id: 'static-premium',
+      code: 'PREMIUM',
+      name: 'Premium',
+      description: 'Para recibir turnos ilimitados en tu local principal.',
+      price: 25000,
+      price_quarterly: 0,
+      price_annual: 0,
       currency: 'ARS',
       billing_frequency: 1,
       billing_frequency_type: 'months',
       duration_days: 30,
       is_active: true,
       is_featured: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'static-growth',
-      code: 'GROWTH',
-      name: 'Growth',
-      description: 'Para equipos que necesitan más organización y menos ausencias.',
-      price: 24900,
-      price_quarterly: 63495,
-      price_annual: 209160,
-      currency: 'ARS',
-      billing_frequency: 1,
-      billing_frequency_type: 'months',
-      duration_days: 30,
-      is_active: true,
-      is_featured: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 'static-pro',
-      code: 'PRO',
-      name: 'Pro',
-      description: 'Para negocios con varias agendas y operación avanzada.',
-      price: 44900,
-      price_quarterly: 114495,
-      price_annual: 377160,
-      currency: 'ARS',
-      billing_frequency: 1,
-      billing_frequency_type: 'months',
-      duration_days: 30,
-      is_active: true,
-      is_featured: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -423,12 +348,8 @@ export function getPlanButtonLabel(code: string): string {
   switch (code) {
     case 'FREE':
       return 'Empezar gratis';
-    case 'STARTER':
-      return 'Elegir Starter';
-    case 'GROWTH':
-      return 'Elegir Growth';
-    case 'PRO':
-      return 'Elegir Pro';
+    case 'PREMIUM':
+      return 'Elegir Premium';
     default:
       return 'Elegir Plan';
   }

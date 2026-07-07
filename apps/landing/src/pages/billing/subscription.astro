@@ -41,7 +41,7 @@ import Layout from '../../layouts/Layout.astro';
               <h2 id="planSummaryName" class="font-headline text-3xl font-black tracking-tight text-white">FREE</h2>
               <p id="planSummaryPrice" class="text-lg font-semibold text-primary-light mt-1">$0 / mes</p>
             </div>
-            <p id="planSummaryDetail" class="text-sm text-text-secondary leading-relaxed border-t border-border/50 pt-3 mt-3">Hasta 15 turnos por mes para empezar.</p>
+            <p id="planSummaryDetail" class="text-sm text-text-secondary leading-relaxed border-t border-border/50 pt-3 mt-3">Hasta 30 turnos por mes para empezar.</p>
           </article>
 
           <!-- Trust Items -->
@@ -224,6 +224,8 @@ import Layout from '../../layouts/Layout.astro';
   import { SIGNUP_STORAGE_KEYS, subscriptionAttemptStorageKey } from '../../lib/browser-storage-keys';
   import {
     getInitialSubscriptionPageRecovery,
+    normalizeSubscriptionBilling,
+    normalizeSubscriptionPlan,
     getSubscriptionStartReadiness,
     SUBSCRIPTION_RECOVERY_ERRORS
   } from '../../lib/subscription-page-controller';
@@ -233,40 +235,22 @@ import Layout from '../../layouts/Layout.astro';
       FREE: {
         name: 'FREE',
         price: '$0 / mes',
-        detail: 'Hasta 15 turnos por mes para empezar.'
+        detail: 'Hasta 30 turnos por mes para empezar.'
       },
-      STARTER: {
-        name: 'Starter',
-        price: '$12 / mes',
-        detail: 'Turnos ilimitados para un local. Sin branding Orvel.'
-      },
-      GROWTH: {
-        name: 'Growth',
-        price: '$22 / mes',
-        detail: 'Incluye 1 local con métricas, recordatorios y gestión de personal.'
-      },
-      PRO: {
-        name: 'Pro',
-        price: '$39 / mes',
-        detail: 'Incluye 1 local con soporte prioritario, reportes avanzados y API opcional.'
+      PREMIUM: {
+        name: 'Premium',
+        price: '$25.000 / mes',
+        detail: 'Turnos ilimitados para un local principal.'
       }
     } as const;
 
     // Read plan and error from URL
     const params = new URLSearchParams(window.location.search);
     const rawPlan = (params.get('plan') || '').trim().toUpperCase();
-    const normalizedPlan = (rawPlan === 'STARTED' || rawPlan === 'BASIC')
-      ? 'STARTER'
-      : rawPlan === 'MEDIUM'
-        ? 'GROWTH'
-        : rawPlan;
+    const normalizedPlan = normalizeSubscriptionPlan(rawPlan || 'FREE');
     const candidatePlan = normalizedPlan as keyof typeof plans;
     const plan = plans[candidatePlan] ? candidatePlan : 'FREE';
-    const normalizeBillingPeriod = (raw: string | null) => {
-      const normalized = raw?.trim().toLowerCase();
-      return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
-    };
-    const billing = normalizeBillingPeriod(params.get('billing') || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.billing));
+    const billing = normalizeSubscriptionBilling(params.get('billing') || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.billing));
     const pendingSignupReference = params.get('pending_signup_reference') || params.get('pending_signup_token') || params.get('intent_reference') || params.get('intent_token');
     sessionStorage.setItem(SIGNUP_STORAGE_KEYS.billing, billing);
 
@@ -306,6 +290,8 @@ import Layout from '../../layouts/Layout.astro';
       subscription_error: 'Ocurrió un error al procesar tu solicitud.',
       subscription_retry: 'Reintentá en unos segundos.',
       subscription_config_error: 'La suscripción no está configurada para este entorno.',
+      PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED: 'La suscripción Premium todavía requiere configurar manualmente el plan mensual de Mercado Pago para este entorno.',
+      preapproval_plan_manual_configuration_required: 'La suscripción Premium todavía requiere configurar manualmente el plan mensual de Mercado Pago para este entorno.',
       invalid_plan: 'El plan seleccionado no está disponible.',
        PLAN_MAPPING_REQUIRED: 'Falta la configuración del plan. Reintentá en unos minutos.',
        PLAN_MAPPING_INVALID: 'El plan está mal configurado. Contactá soporte.',

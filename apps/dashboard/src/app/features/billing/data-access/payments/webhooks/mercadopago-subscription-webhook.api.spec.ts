@@ -46,15 +46,16 @@ describe('RED contract: Mercado Pago subscription webhooks emit canonical catalo
     expect(source, 'Billing tests and webhook code must not use checkout as the primary plan source of truth').not.toMatch(
       /checkout[_-]?session|checkout\s+plan|checkout\s+id/i
     );
-    expect(source, 'BASIC/MEDIUM must not be returned as canonical plan codes from webhook mapping').not.toMatch(
-      /return\s+['"](?:BASIC|MEDIUM)['"]/
+    expect(source, 'Legacy paid plans must not be returned as canonical plan codes from webhook mapping').not.toMatch(
+      /return\s+['"](?:BASIC|MEDIUM|STARTER|GROWTH|PRO)['"]/
     );
   });
 
   it.each([
-    ['mp_preapproval_plan_starter_monthly', 'STARTER'],
-    ['mp_preapproval_plan_growth_monthly', 'GROWTH'],
-    ['mp_preapproval_plan_pro_monthly', 'PRO']
+    ['mp_preapproval_plan_premium_monthly', 'PREMIUM'],
+    ['mp_preapproval_plan_starter_monthly', 'PREMIUM'],
+    ['mp_preapproval_plan_growth_monthly', 'PREMIUM'],
+    ['mp_preapproval_plan_pro_monthly', 'PREMIUM']
   ])('maps Mercado Pago subscription preapproval plan %s to canonical %s', async (preapprovalPlanId, expectedPlanCode) => {
     await expect(
       handleMercadoPagoSubscriptionWebhook({
@@ -77,8 +78,8 @@ describe('RED contract: Mercado Pago subscription webhooks emit canonical catalo
   });
 
   it.each([
-    ['mp_preapproval_plan_basic_monthly', 'STARTER'],
-    ['mp_preapproval_plan_medium_monthly', 'GROWTH']
+    ['mp_preapproval_plan_basic_monthly', 'PREMIUM'],
+    ['mp_preapproval_plan_medium_monthly', 'PREMIUM']
   ])('accepts legacy subscription aliases %s but normalizes output to %s', async (preapprovalPlanId, expectedPlanCode) => {
     await expect(
       handleMercadoPagoSubscriptionWebhook({

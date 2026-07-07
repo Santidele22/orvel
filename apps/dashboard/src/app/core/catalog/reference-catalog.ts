@@ -46,19 +46,20 @@ const EMPTY_CATALOG: DashboardReferenceCatalog = {
 // Supabase get_dashboard_reference_catalog RPC via reference-catalog.gateway.ts.
 export const DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD = {
   plans: [
-    { code: 'FREE', name: 'Free', max_locales: 1, max_rubros: 1, max_monthly_bookings: 15, ai_credits_monthly: 0 },
-    { code: 'STARTER', name: 'Starter', max_locales: 1, max_rubros: 2, max_monthly_bookings: null, ai_credits_monthly: 100 },
-    { code: 'GROWTH', name: 'Growth', max_locales: 1, max_rubros: 5, max_monthly_bookings: null, ai_credits_monthly: 500 },
-    { code: 'PRO', name: 'Pro', max_locales: 1, max_rubros: 10, max_monthly_bookings: null, ai_credits_monthly: 2000 }
+    { code: 'FREE', name: 'Free', max_locales: 1, max_rubros: 1, max_monthly_bookings: 30, ai_credits_monthly: 0 },
+    { code: 'PREMIUM', name: 'Premium', max_locales: 1, max_rubros: 1, max_monthly_bookings: null, ai_credits_monthly: 0 }
   ],
-  add_ons: [
-    { code: 'MULTI_BRANCH', label: 'Sucursales adicionales / Multi-sucursal', price_monthly_cents: 2_000_000, billing_cadence: 'monthly' },
-    { code: 'EXTRA_BRANCH', label: 'Sucursal adicional', price_monthly_cents: 2_000_000, billing_cadence: 'monthly' }
-  ],
+  add_ons: [],
   plan_aliases: [
-    { alias: 'STARTER', plan_code: 'STARTER' },
-    { alias: 'BASIC', plan_code: 'STARTER' },
-    { alias: 'MEDIUM', plan_code: 'GROWTH' }
+    { alias: 'STARTER', plan_code: 'PREMIUM' },
+    { alias: 'BASIC', plan_code: 'PREMIUM' },
+    { alias: 'STARTED', plan_code: 'PREMIUM' },
+    { alias: 'MEDIUM', plan_code: 'PREMIUM' },
+    { alias: 'GROWTH', plan_code: 'PREMIUM' },
+    { alias: 'PRO', plan_code: 'PREMIUM' },
+    { alias: 'SIMPLE', plan_code: 'PREMIUM' },
+    { alias: 'CRECE', plan_code: 'PREMIUM' },
+    { alias: 'ESCALA', plan_code: 'PREMIUM' }
   ],
   business_types: [
     { code: 'peluqueria', label: 'Peluquería', theme_key: 'beauty', sort_order: 10, default_capacity: 2 },
@@ -93,30 +94,14 @@ export const DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD = {
     { plan_code: 'FREE', business_type_code: 'cejas' },
     { plan_code: 'FREE', business_type_code: 'masajes' },
     { plan_code: 'FREE', business_type_code: 'otro' },
-    { plan_code: 'STARTER', business_type_code: 'peluqueria' },
-    { plan_code: 'STARTER', business_type_code: 'unas' },
-    { plan_code: 'STARTER', business_type_code: 'barberia' },
-    { plan_code: 'STARTER', business_type_code: 'spa' },
-    { plan_code: 'STARTER', business_type_code: 'pestanas' },
-    { plan_code: 'STARTER', business_type_code: 'cejas' },
-    { plan_code: 'STARTER', business_type_code: 'masajes' },
-    { plan_code: 'STARTER', business_type_code: 'otro' },
-    { plan_code: 'GROWTH', business_type_code: 'peluqueria' },
-    { plan_code: 'GROWTH', business_type_code: 'unas' },
-    { plan_code: 'GROWTH', business_type_code: 'barberia' },
-    { plan_code: 'GROWTH', business_type_code: 'spa' },
-    { plan_code: 'GROWTH', business_type_code: 'pestanas' },
-    { plan_code: 'GROWTH', business_type_code: 'cejas' },
-    { plan_code: 'GROWTH', business_type_code: 'masajes' },
-    { plan_code: 'GROWTH', business_type_code: 'otro' },
-    { plan_code: 'PRO', business_type_code: 'peluqueria' },
-    { plan_code: 'PRO', business_type_code: 'unas' },
-    { plan_code: 'PRO', business_type_code: 'barberia' },
-    { plan_code: 'PRO', business_type_code: 'spa' },
-    { plan_code: 'PRO', business_type_code: 'pestanas' },
-    { plan_code: 'PRO', business_type_code: 'cejas' },
-    { plan_code: 'PRO', business_type_code: 'masajes' },
-    { plan_code: 'PRO', business_type_code: 'otro' }
+    { plan_code: 'PREMIUM', business_type_code: 'peluqueria' },
+    { plan_code: 'PREMIUM', business_type_code: 'unas' },
+    { plan_code: 'PREMIUM', business_type_code: 'barberia' },
+    { plan_code: 'PREMIUM', business_type_code: 'spa' },
+    { plan_code: 'PREMIUM', business_type_code: 'pestanas' },
+    { plan_code: 'PREMIUM', business_type_code: 'cejas' },
+    { plan_code: 'PREMIUM', business_type_code: 'masajes' },
+    { plan_code: 'PREMIUM', business_type_code: 'otro' }
   ]
 };
 

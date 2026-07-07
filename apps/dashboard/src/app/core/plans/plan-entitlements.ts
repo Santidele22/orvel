@@ -5,7 +5,7 @@ import {
 } from '../catalog/reference-catalog';
 import { getRuntimeReferenceCatalogSnapshot } from '../catalog/reference-catalog.gateway';
 
-export type CanonicalPlanCode = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
+export type CanonicalPlanCode = 'FREE' | 'PREMIUM';
 
 export type LegacyPlanCode = string;
 

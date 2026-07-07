@@ -97,7 +97,9 @@ describe('RED contract: FREE signup credentials controller submission', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/signup/create-account-business', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: expect.any(String)
+    }));
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual(expect.objectContaining({
         email: 'ana@example.com',
         password: 'password-segura-123',
         nombre: 'Ana',
@@ -106,7 +108,6 @@ describe('RED contract: FREE signup credentials controller submission', () => {
         rubro: 'estetica',
         telefono: '+54294667161',
         plan: 'FREE'
-      })
     }));
 
     const modal = document.getElementById('accountCreatedModal');

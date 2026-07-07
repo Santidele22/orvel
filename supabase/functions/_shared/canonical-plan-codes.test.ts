@@ -4,13 +4,12 @@ import { normalizeCanonicalPlanCode } from "./canonical-plan-codes.ts";
 
 Deno.test("normalizeCanonicalPlanCode keeps canonical plans canonical", () => {
   assertEquals(normalizeCanonicalPlanCode("FREE"), "FREE");
-  assertEquals(normalizeCanonicalPlanCode("STARTER"), "STARTER");
-  assertEquals(normalizeCanonicalPlanCode("GROWTH"), "GROWTH");
-  assertEquals(normalizeCanonicalPlanCode("PRO"), "PRO");
+  assertEquals(normalizeCanonicalPlanCode("PREMIUM"), "PREMIUM");
 });
 
-Deno.test("normalizeCanonicalPlanCode accepts legacy aliases only as input", () => {
-  assertEquals(normalizeCanonicalPlanCode("BASIC"), "STARTER");
-  assertEquals(normalizeCanonicalPlanCode("MEDIUM"), "GROWTH");
-  assertEquals(normalizeCanonicalPlanCode("started"), "STARTER");
+Deno.test("normalizeCanonicalPlanCode accepts legacy paid aliases as Premium input", () => {
+  assertEquals(normalizeCanonicalPlanCode("BASIC"), "PREMIUM");
+  assertEquals(normalizeCanonicalPlanCode("MEDIUM"), "PREMIUM");
+  assertEquals(normalizeCanonicalPlanCode("started"), "PREMIUM");
+  assertEquals(normalizeCanonicalPlanCode("pro"), "PREMIUM");
 });

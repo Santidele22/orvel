@@ -98,9 +98,10 @@ describe('Contract: onboarding landing step for business services', () => {
 
   it('uses native radio single-select semantics', async () => {
     const onboardingCandidates = await loadOnboardingSourceCandidates();
-    const source = onboardingCandidates.map((candidate) => candidate.source).join('\n\n');
+    const source = onboardingCandidates.find((candidate) => candidate.source.includes(ONBOARDING_TITLE))?.source ?? '';
 
     expect(onboardingCandidates.length, 'Missing onboarding UI source to validate selection semantics.').toBeGreaterThan(0);
+    expect(source, 'Missing onboarding step source to validate selection semantics.').not.toBe('');
 
     const checkboxCount = (source.match(/type\s*=\s*["']checkbox["']/gi) ?? []).length;
     const radioCount = (source.match(/type\s*=\s*["']radio["']/gi) ?? []).length;

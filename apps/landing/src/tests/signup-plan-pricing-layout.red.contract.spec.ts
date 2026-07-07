@@ -18,18 +18,14 @@ describe('RED contract: signup plan page reuses public pricing layout', () => {
     expect(signupCardsSource).toMatch(/<PlanCard\s+plan=\{plan\}\s+isSignupPage(?:=\{true\})?\s*\/>/);
   });
 
-  it('keeps the billing toggle above the cards with canonical public pricing options', async () => {
+  it('keeps signup cards monthly-only without quarterly or annual billing toggles', async () => {
     const signupCardsSource = await loadSource(SIGNUP_PLAN_CARDS_PATH);
 
-    const toggleIndex = signupCardsSource.indexOf('data-billing="monthly"');
     const cardsIndex = signupCardsSource.indexOf('id="plans-container"');
 
-    expect(toggleIndex).toBeGreaterThan(-1);
     expect(cardsIndex).toBeGreaterThan(-1);
-    expect(toggleIndex).toBeLessThan(cardsIndex);
-    expect(signupCardsSource).toContain('Mensual');
-    expect(signupCardsSource).toContain('Trimestral (-15%)');
-    expect(signupCardsSource).toContain('Anual (-30%)');
+    expect(signupCardsSource).not.toMatch(/data-billing=["'](?:quarterly|annual)["']/);
+    expect(signupCardsSource).not.toMatch(/Trimestral|Anual/);
   });
 
   it('centers signup cards responsively instead of using a separate fixed grid design', async () => {
@@ -53,11 +49,7 @@ describe('RED contract: signup plan page reuses public pricing layout', () => {
       'Horarios personalizados',
       'Descansos y bloqueos',
       'Reprogramaciones',
-      'Recordatorios automáticos',
-      'Métricas básicas',
-      'Elegir Starter',
-      'Elegir Growth',
-      'Elegir Pro',
+      'Elegir Premium',
     ]) {
       expect(effectiveSignupPlanSource).toContain(expected);
     }

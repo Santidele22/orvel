@@ -165,14 +165,14 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
         createClient: () => ({ auth: { signUp } }) as never
       });
 
-      const result = await signup(makeSignupAttempt({ plan: 'STARTER', tipoNegocio }));
+      const result = await signup(makeSignupAttempt({ plan: 'PREMIUM', tipoNegocio }));
 
       expect(result.ok).toBe(true);
       expect(signUp).toHaveBeenCalledWith(
         expect.objectContaining({
           options: expect.objectContaining({
             data: expect.objectContaining({
-              plan: 'STARTED',
+              plan: 'PREMIUM',
               tipoNegocio,
               onboardingCompleted: false,
               onboarding_completed: false

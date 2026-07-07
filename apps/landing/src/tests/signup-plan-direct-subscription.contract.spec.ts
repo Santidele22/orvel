@@ -20,7 +20,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     const source = await loadSource(PLAN_PAGE_PATH);
     const cardSource = await loadSource(PLAN_CARD_PATH);
 
-    for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
+    for (const plan of ['PREMIUM']) {
       expect(`${source}\n${cardSource}`).toContain('/auth/signup/credentials?plan=');
       expect(source).not.toContain(`href="/api/subscriptions/start?plan=${plan}"`);
     }
@@ -84,7 +84,7 @@ describe('Contract: signup paid plan deferred subscription flow', () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
     expect(source).toContain('URLSearchParams(window.location.search)');
-    expect(source).toMatch(/FREE|STARTER|GROWTH|PRO/);
+    expect(source).toMatch(/FREE|PREMIUM/);
     expect(source).toContain('redirigir a Mercado Pago');
     expect(source).toContain("fetch('/api/subscriptions/start'");
     expect(source).toContain("method: 'POST'");
@@ -118,13 +118,13 @@ describe('Contract: authenticated session handoff from landing plan selection', 
     expect(source).toContain('/auth/signup/onboarding?plan=FREE');
     expect(source).not.toContain('/auth/onboarding?plan=FREE');
     expect(source).not.toContain('/auth/signup/onboarding?plan=FREE&returnTo=/dashboard/inicio');
-    expect(source).not.toContain('/auth/onboarding?plan=STARTER');
+    expect(source).not.toContain('/auth/onboarding?plan=PREMIUM');
   });
 
   it('authenticated paid plan selections go to subscription/preapproval, not dashboard onboarding or credentials', async () => {
     const source = `${await loadSource(PLAN_PAGE_PATH)}\n${await loadSource(PLAN_CARD_PATH)}\n${await loadSource(SIGNUP_PLAN_CARDS_PATH)}`;
 
-    for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
+    for (const plan of ['PREMIUM']) {
       expect(source).toContain(`/billing/subscription?plan=${plan}`);
       expect(source).not.toContain(`/auth/onboarding?plan=${plan}`);
       expect(source).not.toContain(`/auth/signup/credentials?plan=${plan}`);

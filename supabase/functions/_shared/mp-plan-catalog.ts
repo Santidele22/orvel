@@ -1,20 +1,24 @@
-export type BillingTier = 'starter' | 'growth' | 'pro';
-export type BillingCadence = 'monthly' | 'quarterly' | 'annual';
+export type BillingTier = 'premium';
+export type BillingCadence = 'monthly';
 
 export type MpPlanCatalogRow = {
   tier: string;
   cadence: string;
   tier_code: string;
-  preapproval_plan_id: string;
+  preapproval_plan_id: string | null;
 };
 
 const TIER_ALIASES: Record<string, BillingTier> = {
-  basic: 'starter',
-  started: 'starter',
-  starter: 'starter',
-  medium: 'growth',
-  growth: 'growth',
-  pro: 'pro',
+  basic: 'premium',
+  started: 'premium',
+  starter: 'premium',
+  medium: 'premium',
+  growth: 'premium',
+  pro: 'premium',
+  simple: 'premium',
+  crece: 'premium',
+  escala: 'premium',
+  premium: 'premium',
 };
 
 export function normalizeTier(tier: string): BillingTier | null {
@@ -23,7 +27,7 @@ export function normalizeTier(tier: string): BillingTier | null {
 
 export function normalizeCadence(cadence: string): BillingCadence | null {
   const normalized = cadence.trim().toLowerCase();
-  if (normalized === 'monthly' || normalized === 'quarterly' || normalized === 'annual') return normalized;
+  if (normalized === 'monthly') return normalized;
   return null;
 }
 

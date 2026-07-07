@@ -80,11 +80,9 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
 
   it('keeps plan hints at one included salon for every base tier', () => {
     const free = getPlanUxContract('FREE');
-    const basic = getPlanUxContract('BASIC');
-    const medium = getPlanUxContract('MEDIUM');
-    const pro = getPlanUxContract('PRO');
+    const premium = getPlanUxContract('PREMIUM');
 
-    for (const contract of [free, basic, medium, pro]) {
+    for (const contract of [free, premium]) {
       expect(contract.maxSalons).toBe(1);
       expect(contract.multiSalonEnabled).toBe(false);
       expect(contract.salonNamesHint).toMatch(/1 salón incluido|1 local incluido/i);
@@ -94,7 +92,7 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
   });
 
   it('does not enable premium multi-salon input without an explicit add-on model', () => {
-    const premiumPlans = ['BASIC', 'MEDIUM', 'PRO'] as const;
+    const premiumPlans = ['PREMIUM'] as const;
 
     for (const plan of premiumPlans) {
       const contract = getPlanUxContract(plan);
@@ -106,7 +104,7 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
   it('rejects multiple salon names for paid base plans until add-on support is modeled', () => {
     const validation = validateOnboardingDraft(
       makeValidDraft({
-        selectedPlan: 'PRO',
+        selectedPlan: 'PREMIUM',
         salonNames: ['Salon Centro', 'Salon Norte']
       })
     );
@@ -127,7 +125,7 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
         lastName: '  Lopez ',
         businessType: '  Peluqueria ',
         salonNames: [' Salon Centro ', 'Salon Centro', ''],
-        selectedPlan: 'BASIC'
+        selectedPlan: 'PREMIUM'
       })
     );
 
@@ -136,7 +134,7 @@ describe('RED contract L-01: multi-step onboarding data capture', () => {
       lastName: 'Lopez',
       businessType: 'peluqueria',
       salonNames: ['Salon Centro'],
-      selectedPlan: 'BASIC'
+      selectedPlan: 'PREMIUM'
     });
   });
 

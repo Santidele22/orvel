@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
+type PlanCode = 'FREE' | 'PREMIUM' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
 
 type PlanEntitlements = {
   maxLocales: number;
@@ -62,16 +62,15 @@ function catalogEntitlementsByCode(catalog: ReturnType<ReferenceCatalogModule['g
 }
 
 describe('RED contract: shared plan entitlements matrix', () => {
-  it('matches canonical starter/growth/pro salon limits from the reference catalog', async () => {
+  it('matches canonical FREE/PREMIUM salon limits from the reference catalog', async () => {
     const [{ PLAN_ENTITLEMENTS }, referenceCatalog] = await Promise.all([
       loadPlanEntitlementsModule(),
       loadReferenceCatalogModule()
     ]);
     const catalogPlans = catalogEntitlementsByCode(referenceCatalog.getDefaultDashboardReferenceCatalog());
 
-    expect(PLAN_ENTITLEMENTS.STARTER).toEqual(catalogPlans['STARTER']);
-    expect(PLAN_ENTITLEMENTS.GROWTH).toEqual(catalogPlans['GROWTH']);
-    expect(PLAN_ENTITLEMENTS.PRO).toEqual(catalogPlans['PRO']);
+    expect(PLAN_ENTITLEMENTS.FREE).toEqual(catalogPlans['FREE']);
+    expect(PLAN_ENTITLEMENTS.PREMIUM).toEqual(catalogPlans['PREMIUM']);
   });
 
   it('resolves plan keys deterministically (case-insensitive) and falls back to the FREE catalog plan', async () => {
@@ -82,11 +81,12 @@ describe('RED contract: shared plan entitlements matrix', () => {
     const catalogPlans = catalogEntitlementsByCode(referenceCatalog.getDefaultDashboardReferenceCatalog());
 
     expect(getPlanEntitlements('free')).toEqual(catalogPlans['FREE']);
-    expect(getPlanEntitlements('BASIC')).toEqual(catalogPlans['STARTER']);
-    expect(getPlanEntitlements('medium')).toEqual(catalogPlans['GROWTH']);
-    expect(getPlanEntitlements('starter')).toEqual(catalogPlans['STARTER']);
-    expect(getPlanEntitlements('growth')).toEqual(catalogPlans['GROWTH']);
-    expect(getPlanEntitlements('PRO')).toEqual(catalogPlans['PRO']);
+    expect(getPlanEntitlements('premium')).toEqual(catalogPlans['PREMIUM']);
+    expect(getPlanEntitlements('BASIC')).toEqual(catalogPlans['PREMIUM']);
+    expect(getPlanEntitlements('medium')).toEqual(catalogPlans['PREMIUM']);
+    expect(getPlanEntitlements('starter')).toEqual(catalogPlans['PREMIUM']);
+    expect(getPlanEntitlements('growth')).toEqual(catalogPlans['PREMIUM']);
+    expect(getPlanEntitlements('PRO')).toEqual(catalogPlans['PREMIUM']);
     expect(getPlanEntitlements('enterprise')).toEqual(catalogPlans['FREE']);
     expect(getPlanEntitlements(null)).toEqual(catalogPlans['FREE']);
   });

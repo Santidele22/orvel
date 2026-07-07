@@ -47,13 +47,13 @@ describe('RED contract: paid signup uses server-side robust handoff into billing
 
   it('marker-only subscription URL with missing protected state shows recovery, not a generic temporary start failure', () => {
     const recovery = getInitialSubscriptionPageRecovery({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       billing: 'monthly',
       signupIntent: 'pending_signup',
       pendingSignupIntent: null,
     });
     const readiness = getSubscriptionStartReadiness({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       billing: 'monthly',
       pendingSignupIntent: null,
       accessToken: null,
@@ -62,7 +62,7 @@ describe('RED contract: paid signup uses server-side robust handoff into billing
     expect(recovery).toMatchObject({
       code: 'pending_signup_missing',
       message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
-      recoveryHref: '/auth/signup/credentials?plan=STARTER&billing=monthly&resume=credentials_first',
+      recoveryHref: '/auth/signup/credentials?plan=PREMIUM&billing=monthly&resume=credentials_first',
     });
     expect(readiness).toMatchObject({
       ok: false,

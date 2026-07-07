@@ -71,7 +71,7 @@ type BusinessTypeDefaults = {
   businessType: BusinessType;
   businessName: string;
   slugSeed: string;
-  plan: 'STARTER' | 'GROWTH' | 'PRO';
+  plan: 'FREE' | 'PREMIUM';
   capacity: number;
   bufferMinutes: number;
   minNoticeMinutes: number;
@@ -122,16 +122,26 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     supabaseAuthClientMock.signOut.mockClear();
   });
 
-  it('uses canonical STARTER/GROWTH/PRO plan codes for new onboarding and keeps legacy read aliases only', () => {
-    expect(CANONICAL_PLAN_CODES).toEqual(['FREE', 'STARTER', 'GROWTH', 'PRO']);
-    expect(PLAN_CODE_ALIASES).toEqual({ STARTER: 'STARTER', BASIC: 'STARTER', MEDIUM: 'GROWTH' });
+  it('uses canonical FREE/PREMIUM plan codes for new onboarding and keeps legacy paid aliases as Premium reads only', () => {
+    expect(CANONICAL_PLAN_CODES).toEqual(['FREE', 'PREMIUM']);
+    expect(PLAN_CODE_ALIASES).toEqual({
+      STARTER: 'PREMIUM',
+      BASIC: 'PREMIUM',
+      STARTED: 'PREMIUM',
+      MEDIUM: 'PREMIUM',
+      GROWTH: 'PREMIUM',
+      PRO: 'PREMIUM',
+      SIMPLE: 'PREMIUM',
+      CRECE: 'PREMIUM',
+      ESCALA: 'PREMIUM'
+    });
     expect(normalizePlanCode('FREE')).toBe('FREE');
-    expect(normalizePlanCode('medium')).toBe('GROWTH');
+    expect(normalizePlanCode('medium')).toBe('PREMIUM');
     expect(getPlanEntitlements('PRO')).toEqual({
       maxLocales: 1,
-      maxRubros: 10,
+      maxRubros: 1,
       maxMonthlyBookings: null,
-      aiCreditsMonthly: 2000
+      aiCreditsMonthly: 0
     });
   });
 
@@ -175,6 +185,13 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     expect(merged).not.toMatch(/businessName\s*\|\|\s*['"]Mi Negocio['"]|negocioNombre\s*\|\|\s*['"]Mi Negocio['"]/);
   });
 
+  it('settings auto-repair treats canonical FREE as completed onboarding when identity and business type are persisted', () => {
+    const { facade } = readDashboardOnboardingSources();
+
+    expect(facade).toMatch(/hasCompletedMandatoryOnboarding\(\)[\s\S]*\['FREE',\s*'PREMIUM'[\s\S]*\.includes\(plan\)/);
+    expect(facade).toMatch(/Boolean\(user\?\.negocioNombre\?\.trim\(\)\)\s*&&\s*hasPersistedPlan\s*&&\s*isAllowedOnboardingBusinessType\(user\?\.tipoNegocio\)/);
+  });
+
   it('security regression: forged legacy localStorage session does not grant dashboard access without Supabase onboarding', async () => {
     const now = new Date('2026-05-05T12:00:00.000Z').getTime();
     localStorage.setItem(
@@ -213,7 +230,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
             id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
-              plan: 'GROWTH',
+              plan: 'PREMIUM',
               tipoNegocio: 'peluqueria',
               onboardingCompleted: false
             }
@@ -223,7 +240,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
       error: null
     });
     supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
-      data: { dashboard_ready: false, selected_plan_code: 'GROWTH', business_type: 'peluqueria' },
+      data: { dashboard_ready: false, selected_plan_code: 'PREMIUM', business_type: 'peluqueria' },
       error: null
     });
 
@@ -240,7 +257,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
             id: 'supabase-user-1',
             email: 'santi@orvel.app',
             user_metadata: {
-              plan: 'GROWTH',
+              plan: 'PREMIUM',
               tipoNegocio: 'peluqueria',
               onboardingCompleted: true
             }
@@ -250,7 +267,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
       error: null
     });
     supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
-      data: { dashboard_ready: true, selected_plan_code: 'GROWTH', business_type: 'peluqueria' },
+      data: { dashboard_ready: true, selected_plan_code: 'PREMIUM', business_type: 'peluqueria' },
       error: null
     });
 
@@ -268,7 +285,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
             id: 'supabase-user-payment-pending',
             email: 'pending@orvel.app',
             user_metadata: {
-              plan: 'GROWTH',
+              plan: 'PREMIUM',
               tipoNegocio: 'peluqueria',
               onboardingCompleted: false,
               current_step: 'payment_pending'
@@ -281,7 +298,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     supabaseAuthClientMock.getDashboardAuthState.mockResolvedValueOnce({
       data: {
         dashboard_ready: false,
-        selected_plan_code: 'GROWTH',
+        selected_plan_code: 'PREMIUM',
         business_type: 'peluqueria',
         current_step: 'payment_pending'
       },

@@ -5,7 +5,7 @@ import {
   type CanonicalPlanCode,
   type PlanCode
 } from '../../../core/plans/plan-entitlements';
-import { getCatalogAddOn, type DashboardReferenceCatalog } from '../../../core/catalog/reference-catalog';
+import { type DashboardReferenceCatalog } from '../../../core/catalog/reference-catalog';
 import {
   createDashboardReferenceCatalogRepository,
   type DashboardReferenceCatalogRepository
@@ -27,8 +27,6 @@ export type LandingPlanViewModel = {
   priceMonthlyCents: number;
   billingCadences: {
     monthly: number;
-    quarterly: number;
-    annual: number;
   };
   maxLocales: number;
   maxRubros: number;
@@ -50,44 +48,20 @@ type FetchLandingPlansOptions = {
   allowUnavailableFallback?: boolean;
 };
 
-const LANDING_PLAN_ORDER: readonly Extract<CanonicalPlanCode, 'STARTER' | 'GROWTH' | 'PRO'>[] = [
-  'STARTER',
-  'GROWTH',
-  'PRO'
-];
+const LANDING_PLAN_ORDER: readonly Extract<CanonicalPlanCode, 'PREMIUM'>[] = ['PREMIUM'];
 
-const PLAN_COPY: Record<CanonicalPlanCode, { name: string; priceMonthlyCents: number; billingCadences: { monthly: number; quarterly: number; annual: number } }> = {
+const PLAN_COPY: Record<CanonicalPlanCode, { name: string; priceMonthlyCents: number; billingCadences: { monthly: number } }> = {
   FREE: { 
     name: 'Free', 
     priceMonthlyCents: 0, 
-    billingCadences: { monthly: 0, quarterly: 0, annual: 0 } 
+    billingCadences: { monthly: 0 }
   },
-  STARTER: { 
-    name: 'Starter', 
-    priceMonthlyCents: 1200, 
-    billingCadences: { 
-      monthly: 12, 
-      quarterly: 34,
-      annual: 122
-    } 
-  },
-  GROWTH: { 
-    name: 'Growth', 
-    priceMonthlyCents: 2200, 
-    billingCadences: { 
-      monthly: 22, 
-      quarterly: 63,
-      annual: 224
-    } 
-  },
-  PRO: { 
-    name: 'Pro', 
-    priceMonthlyCents: 3900, 
-    billingCadences: { 
-      monthly: 39, 
-      quarterly: 111,
-      annual: 398
-    } 
+  PREMIUM: {
+    name: 'Premium',
+    priceMonthlyCents: 2_500_000,
+    billingCadences: {
+      monthly: 25_000
+    }
   }
 };
 
@@ -97,14 +71,10 @@ function isTestRuntime(): boolean {
 }
 
 export function getMultiBranchAddOnFallback(catalog?: DashboardReferenceCatalog | null): BillingAddOnViewModel {
-  const catalogAddOn = catalog
-    ? getCatalogAddOn(catalog, MULTI_BRANCH_ADD_ON_CODE) ?? getCatalogAddOn(catalog, 'EXTRA_BRANCH')
-    : null;
-
   return {
-    code: (catalogAddOn?.code as BillingAddOnViewModel['code'] | undefined) ?? MULTI_BRANCH_ADD_ON_CODE,
-    label: catalogAddOn?.label ?? 'Sucursales adicionales / Multi-sucursal',
-    priceMonthlyCents: catalogAddOn?.priceMonthlyCents ?? 2_000_000,
+    code: MULTI_BRANCH_ADD_ON_CODE,
+    label: '',
+    priceMonthlyCents: 0,
     billingCadence: 'monthly'
   };
 }

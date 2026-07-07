@@ -53,21 +53,15 @@ describe('RED contract: billing subscription entitlements align with the referen
     );
   });
 
-  it('does not normalize STARTER/GROWTH into legacy BASIC/MEDIUM canonical outputs', () => {
+  it('does not expose legacy paid tiers as canonical outputs', () => {
     const source = readEntitlementsApiSource();
 
-    expect(source, 'STARTER must remain the canonical output; BASIC is only an accepted alias').not.toMatch(
-      /STARTER['"]?\s*\)?\s*return\s*['"]BASIC['"]|STARTER[\s\S]{0,80}=>\s*['"]BASIC['"]/
-    );
-    expect(source, 'GROWTH must remain the canonical output; MEDIUM is only an accepted alias').not.toMatch(
-      /GROWTH['"]?\s*\)?\s*return\s*['"]MEDIUM['"]|GROWTH[\s\S]{0,80}=>\s*['"]MEDIUM['"]/
-    );
+    expect(source, 'Only FREE/PREMIUM should be canonical plan outputs').not.toMatch(/return\s+['"](?:BASIC|MEDIUM|STARTER|GROWTH|PRO)['"]/);
   });
 
-  it('accepts legacy BASIC/MEDIUM aliases but returns STARTER/GROWTH and catalog limits', async () => {
+  it('accepts legacy paid aliases but returns PREMIUM and catalog limits', async () => {
     const catalog = getDefaultDashboardReferenceCatalog();
-    const starterEntitlements = getPlanEntitlementsFromCatalog(catalog, 'STARTER');
-    const growthEntitlements = getPlanEntitlementsFromCatalog(catalog, 'GROWTH');
+    const premiumEntitlements = getPlanEntitlementsFromCatalog(catalog, 'PREMIUM');
 
     await expect(
       createRepositoryFor({
@@ -81,8 +75,8 @@ describe('RED contract: billing subscription entitlements align with the referen
         ai_credits_monthly: null
       }).getActiveSnapshot({ businessId: 'business-1', tenantId: 'tenant-1' })
     ).resolves.toMatchObject({
-      planCode: 'STARTER',
-      limits: starterEntitlements
+      planCode: 'PREMIUM',
+      limits: premiumEntitlements
     });
 
     await expect(
@@ -93,12 +87,12 @@ describe('RED contract: billing subscription entitlements align with the referen
         plan_code: 'MEDIUM'
       }).getActiveSnapshot({ businessId: 'business-2', tenantId: 'tenant-2' })
     ).resolves.toMatchObject({
-      planCode: 'GROWTH',
-      limits: growthEntitlements
+      planCode: 'PREMIUM',
+      limits: premiumEntitlements
     });
   });
 
-  it('uses canonical STARTER/GROWTH for entitlement decisioning including monthly bookings', async () => {
+  it('uses canonical PREMIUM for unlimited monthly booking decisioning', async () => {
     configureEntitlementsRepository(
       createRepositoryFor({
         business_id: 'business-3',
@@ -124,21 +118,14 @@ describe('RED contract: billing subscription entitlements align with the referen
     configureEntitlementsRepository(null);
   });
 
-  it('keeps base plan maxLocales at one and represents multi-branch as ARS 20,000/month add-on', () => {
+  it('keeps base plan maxLocales at one and no visible multi-branch add-on in the MVP catalog', () => {
     const catalog = getDefaultDashboardReferenceCatalog();
 
-    expect(getPlanEntitlementsFromCatalog(catalog, 'GROWTH')?.maxLocales).toBe(1);
-    expect(getPlanEntitlementsFromCatalog(catalog, 'PRO')?.maxLocales).toBe(1);
-    expect(getCatalogAddOn(catalog, 'MULTI_BRANCH')).toMatchObject({
-      code: 'MULTI_BRANCH',
-      label: 'Sucursales adicionales / Multi-sucursal',
-      priceMonthlyCents: 2_000_000,
-      billingCadence: 'monthly'
-    });
-    expect(getCatalogAddOn(catalog, 'EXTRA_BRANCH')).toMatchObject({
-      code: 'EXTRA_BRANCH',
-      priceMonthlyCents: 2_000_000
-    });
+    expect(catalog.plans.map((plan) => plan.code)).toEqual(['FREE', 'PREMIUM']);
+    expect(getPlanEntitlementsFromCatalog(catalog, 'PREMIUM')?.maxLocales).toBe(1);
+    expect(getPlanEntitlementsFromCatalog(catalog, 'PREMIUM')?.maxMonthlyBookings).toBeNull();
+    expect(getCatalogAddOn(catalog, 'MULTI_BRANCH')).toBeNull();
+    expect(getCatalogAddOn(catalog, 'EXTRA_BRANCH')).toBeNull();
   });
 
   it.each([null, undefined, '', '   ', 'enterprise'])('falls back fail-closed to FREE for unknown plan %s', async (planCode) => {

@@ -28,17 +28,14 @@ const plansWithBilling = plans.map(p => calculateBillingPrices(p));
 // Store plans data for client-side use
 const PLANS_DATA = plansData;
 
-// Billing toggle state
+// MVP billing is monthly-only. Any stale billing toggle input is normalized to monthly.
 let currentBillingPeriod = 'monthly';
 
-// Update prices based on billing period
-function updatePrices(period) {
-  const nextPeriod = ['monthly', 'quarterly', 'annual'].includes(period) ? period : 'monthly';
-  currentBillingPeriod = nextPeriod;
+function updatePrices() {
+  currentBillingPeriod = 'monthly';
   
-  // Update button states
   document.querySelectorAll('.billing-option').forEach(btn => {
-    const isSelected = btn.dataset.billing === nextPeriod;
+    const isSelected = btn.dataset.billing === 'monthly';
     btn.setAttribute('aria-pressed', String(isSelected));
     if (isSelected) {
       btn.classList.add('bg-primary', 'text-on-secondary');
@@ -49,7 +46,6 @@ function updatePrices(period) {
     }
   });
 
-  // Update all price displays
   document.querySelectorAll('.plan-card').forEach(card => {
     const planCode = card.dataset.planCode;
     const plan = PLANS_DATA.find(p => p.code === planCode);
@@ -63,39 +59,17 @@ function updatePrices(period) {
       return;
     }
 
-    let price = 0;
-    let savings = 0;
-    let billingLabel = '';
-
-    switch (nextPeriod) {
-      case 'monthly':
-        price = plan.price;
-        billingLabel = '/mes';
-        break;
-      case 'quarterly':
-        price = plan.quarterly_price;
-        billingLabel = '/trimestre';
-        savings = (plan.price * 3) - plan.quarterly_price;
-        break;
-      case 'annual':
-        price = plan.annual_price;
-        billingLabel = '/año';
-        savings = (plan.price * 12) - plan.annual_price;
-        break;
-    }
+    const price = plan.price;
+    const billingLabel = '/mes';
 
     const priceEl = card.querySelector('.price-value');
     const labelEl = card.querySelector('.price-label');
     const savingsEl = card.querySelector('.price-savings');
-    const savingsAmountEl = card.querySelector('.savings-amount');
 
     if (priceEl) priceEl.textContent = price.toLocaleString('es-AR');
     if (labelEl) labelEl.textContent = billingLabel;
     
-    if (savings > 0 && savingsEl && savingsAmountEl) {
-      savingsAmountEl.textContent = savings.toLocaleString('es-AR');
-      savingsEl.classList.remove('hidden');
-    } else if (savingsEl) {
+    if (savingsEl) {
       savingsEl.classList.add('hidden');
     }
   });
@@ -125,9 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Billing toggle handlers
   document.querySelectorAll('.billing-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      updatePrices(btn.dataset.billing);
-    });
+    btn.addEventListener('click', () => updatePrices());
   });
 
   // Plan selection handlers use canonical landing auth + subscription/preapproval billing.

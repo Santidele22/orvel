@@ -58,6 +58,12 @@ function isRateLimited(req: Request): boolean {
 // Mercado Pago API URLs
 const MP_API_BASE = "https://api.mercadopago.com";
 
+export interface CreateSubscriptionDependencies {
+  createClient?: typeof createClient;
+  fetch?: typeof fetch;
+  envGet?: (key: string) => string | undefined;
+}
+
 interface Plan {
   id: string;
   code: string;
@@ -66,8 +72,6 @@ interface Plan {
   currency: string;
   billing_frequency: number;
   billing_frequency_type: string;
-  price_quarterly?: number | null;
-  price_annual?: number | null;
 }
 
 interface SubscriptionRequest {
@@ -176,12 +180,10 @@ function sanitizePendingSignupReference(value: unknown): string | null {
 
 function normalizeBillingCadence(
   value: unknown,
-): "monthly" | "quarterly" | "annual" {
+): "monthly" {
   if (typeof value !== "string") return "monthly";
   const normalized = value.trim().toLowerCase();
-  return normalized === "quarterly" || normalized === "annual"
-    ? normalized
-    : "monthly";
+  return normalized === "monthly" ? normalized : "monthly";
 }
 
 async function verifyOptionalProtectedPendingSignupField(
@@ -198,23 +200,15 @@ async function verifyOptionalProtectedPendingSignupField(
 
 function planPriceForCadence(
   plan: Plan,
-  cadence: "monthly" | "quarterly" | "annual",
+  cadence: "monthly",
 ): number {
-  if (cadence === "quarterly" && Number(plan.price_quarterly) > 0) {
-    return Number(plan.price_quarterly);
-  }
-  if (cadence === "annual" && Number(plan.price_annual) > 0) {
-    return Number(plan.price_annual);
-  }
   return Number(plan.price);
 }
 
 function planFrequencyForCadence(
   plan: Plan,
-  cadence: "monthly" | "quarterly" | "annual",
+  cadence: "monthly",
 ): { frequency: number; frequencyType: string } {
-  if (cadence === "quarterly") return { frequency: 3, frequencyType: "months" };
-  if (cadence === "annual") return { frequency: 12, frequencyType: "months" };
   return {
     frequency: plan.billing_frequency || 1,
     frequencyType: plan.billing_frequency_type || "months",
@@ -227,7 +221,13 @@ function getCanonicalIdempotencyKey(headers: Headers): string | null {
     null;
 }
 
-Deno.serve(async (req) => {
+export async function createSubscriptionHandler(
+  req: Request,
+  dependencies: CreateSubscriptionDependencies = {},
+): Promise<Response> {
+  const createSupabaseClient = dependencies.createClient ?? createClient;
+  const fetch = dependencies.fetch ?? globalThis.fetch;
+  const envGet = dependencies.envGet ?? ((key: string) => Deno.env.get(key));
   const corsHeaders = getBillingCorsHeaders(req);
   const requestStartedAt = Date.now();
   const correlationId = req.headers.get("x-correlation-id") ||
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
     let business = null;
 
     // Create Supabase client with admin privileges to bypass RLS
-    const supabaseAdmin = createClient(
+    const supabaseAdmin = createSupabaseClient(
       requireServerSecret("SUPABASE_URL"),
       requireServerSecret("SUPABASE_SERVICE_ROLE_KEY"),
     );
@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
       shouldValidateCreateSubscriptionAuthorization({
         authHeader,
         requestBody: body,
-        supabaseAnonKey: Deno.env.get("SUPABASE_ANON_KEY"),
+        supabaseAnonKey: envGet("SUPABASE_ANON_KEY"),
       })
     ) {
       const token = getBearerToken(authHeader || "");
@@ -438,11 +438,12 @@ Deno.serve(async (req) => {
         normalizedTier,
         normalizedCadence,
       );
-      if (!resolved || !resolved.preapproval_plan_id) {
+      if (!resolved || !String(resolved.preapproval_plan_id ?? "").trim()) {
         return new Response(
           JSON.stringify({
-            error: "PREAPPROVAL_PLAN_NOT_SYNCED",
-            message: "Plan no sincronizado con Mercado Pago",
+            error: "PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED",
+            message:
+              "El plan Premium mensual de Mercado Pago requiere configuración manual antes de iniciar la suscripción.",
           }),
           {
             status: 409,
@@ -457,18 +458,14 @@ Deno.serve(async (req) => {
         tier: String(resolvedRecord.tier ?? normalizedTier),
         cadence: String(resolvedRecord.cadence ?? normalizedCadence),
         tier_code: String(resolvedRecord.tier_code ?? ""),
-        preapproval_plan_id: String(resolvedRecord.preapproval_plan_id ?? ""),
+        preapproval_plan_id: String(resolvedRecord.preapproval_plan_id ?? "").trim(),
         amount: Number(resolvedRecord.amount || 0),
         currency: String(resolvedRecord.currency || ""),
         frequency: Number(resolvedRecord.frequency || 0),
         frequency_type: String(resolvedRecord.frequency_type || ""),
       };
 
-      effectivePlanCode = normalizedTier === "starter"
-        ? "STARTER"
-        : normalizedTier === "growth"
-        ? "GROWTH"
-        : "PRO";
+      effectivePlanCode = "PREMIUM";
     }
 
     if (!effectivePlanCode || typeof effectivePlanCode !== "string") {
@@ -512,9 +509,7 @@ Deno.serve(async (req) => {
     // If catalogRow is still null, try to resolve it from mp_plan_catalog using plan details
     if (!catalogRow && plan.price > 0) {
       let inferredTier = "";
-      if (canonicalPlanCode === "STARTER") inferredTier = "starter";
-      else if (canonicalPlanCode === "GROWTH") inferredTier = "growth";
-      else if (canonicalPlanCode === "PRO") inferredTier = "pro";
+      if (canonicalPlanCode === "PREMIUM") inferredTier = "premium";
 
       if (inferredTier) {
         const inferredCadence = requestedCadence;
@@ -535,7 +530,7 @@ Deno.serve(async (req) => {
             tier: String(row.tier),
             cadence: String(row.cadence),
             tier_code: String(row.tier_code),
-            preapproval_plan_id: String(row.preapproval_plan_id || ""),
+            preapproval_plan_id: String(row.preapproval_plan_id || "").trim(),
             amount: Number(row.amount || 0),
             currency: String(row.currency || ""),
             frequency: Number(row.frequency || 0),
@@ -605,10 +600,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!catalogRow?.preapproval_plan_id.trim()) {
+      return new Response(
+        JSON.stringify({
+          error: "PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED",
+          message:
+            "El plan Premium mensual de Mercado Pago requiere configuración manual antes de iniciar la suscripción.",
+          correlation_id: correlationId,
+        }),
+        {
+          status: 409,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "x-correlation-id": correlationId,
+          },
+        },
+      );
+    }
+
     // =============================================================================
     // 5. CREATE MERCADO PAGO PREAPPROVAL
     // =============================================================================
-    const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
+    const mpAccessToken = envGet("MP_ACCESS_TOKEN");
     if (!mpAccessToken) {
       return new Response(
         JSON.stringify({
@@ -905,7 +919,7 @@ Deno.serve(async (req) => {
         "pending_signup",
       userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
         "pending_signup",
-      environment: (Deno.env.get("DENO_ENV") as
+      environment: (envGet("DENO_ENV") as
         | "development"
         | "staging"
         | "production"
@@ -1061,8 +1075,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // We are using 'Suscripción sin plan asociado' so we build the plan dynamically.
-
     const catalogRecord = catalogRow as Record<string, unknown> | null;
     const recurring = catalogRecord && Number(catalogRecord.amount) > 0
       ? {
@@ -1089,6 +1101,7 @@ Deno.serve(async (req) => {
       reason: `${plan.name} - Orvel`,
       external_reference: externalReference,
       status: "pending",
+      preapproval_plan_id: catalogRow.preapproval_plan_id,
       auto_recurring: recurring,
     };
 
@@ -1341,4 +1354,8 @@ Deno.serve(async (req) => {
       },
     );
   }
-});
+}
+
+if (import.meta.main) {
+  Deno.serve((req) => createSubscriptionHandler(req));
+}

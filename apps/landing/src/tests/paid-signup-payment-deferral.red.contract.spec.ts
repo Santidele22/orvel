@@ -296,14 +296,14 @@ describe('RED contract: approved MercadoPago payment materializes pending paid s
     expect(statusSource).toMatch(/materialized|account_materialized|status/);
   });
 
-  it('create-subscription uses selected quarterly/annual cadence for MP recurring amount/frequency', async () => {
+  it('create-subscription keeps MVP subscriptions on monthly cadence only', async () => {
     const source = await loadSource(CREATE_SUBSCRIPTION_FN_PATH);
     const recurringSection = sliceBetween(source, 'const requestedCadence', 'const mpPreapprovalRequest');
 
     expect(recurringSection).toMatch(/normalizeBillingCadence/);
-    expect(recurringSection).toMatch(/price_quarterly|price_annual|catalogRow/);
-    expect(source).toMatch(/cadence === "quarterly"[\s\S]*frequency:\s*3/);
-    expect(source).toMatch(/cadence === "annual"[\s\S]*frequency:\s*12/);
+    expect(recurringSection).toMatch(/catalogRow/);
+    expect(source).not.toMatch(/cadence === "quarterly"[\s\S]*frequency:\s*3/);
+    expect(source).not.toMatch(/cadence === "annual"[\s\S]*frequency:\s*12/);
     expect(recurringSection).not.toMatch(/const inferredCadence = "monthly"/);
   });
 
