@@ -245,13 +245,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
       this.turnosLoadError.set(null);
       await firstValueFrom(this.turnoService.getAll());
-      
-      await firstValueFrom(this.clienteService.getAll());
-      
-      await firstValueFrom(this.servicioService.getAll());
-      
-      this.clientes.set(this.clienteService.items());
-      this.servicios.set(this.servicioService.items());
+      await this.loadSupportingAppointmentData();
       
       await this.processTurnos();
       
@@ -267,11 +261,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
     this.loading.set(true);
     try {
       this.turnosLoadError.set(null);
-      await firstValueFrom(this.clienteService.getAll());
-      await firstValueFrom(this.servicioService.getAll());
-      this.clientes.set(this.clienteService.items());
-      this.servicios.set(this.servicioService.items());
-      await this.refreshTurnosFromSource();
+      await firstValueFrom(this.turnoService.getAll());
+      await this.loadSupportingAppointmentData();
+      await this.processTurnos();
     } catch {
       this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
     } finally {
@@ -287,10 +279,21 @@ export class TurnosListPage implements OnInit, OnDestroy {
     try {
       this.turnosLoadError.set(null);
       await this.turnoService.getAll().toPromise();
+      await this.loadSupportingAppointmentData();
       await this.processTurnos();
     } catch {
       this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
     }
+  }
+
+  private async loadSupportingAppointmentData(): Promise<void> {
+    const [clientesResult, serviciosResult] = await Promise.allSettled([
+      firstValueFrom(this.clienteService.getAll()),
+      firstValueFrom(this.servicioService.getAll())
+    ]);
+
+    this.clientes.set(clientesResult.status === 'fulfilled' ? this.clienteService.items() : []);
+    this.servicios.set(serviciosResult.status === 'fulfilled' ? this.servicioService.items() : []);
   }
 
   private async processTurnos() {
@@ -302,23 +305,19 @@ export class TurnosListPage implements OnInit, OnDestroy {
       const cliente = clientes.find(c => c.id === turno.clienteId);
       const servicio = servicios.find(s => s.id === turno.servicioId);
       
-      let clienteNombre = cliente ? cliente.nombre : 'Cliente Desconocido';
-      
-      // Fallback for legacy bookings without customer_id
-      if (!cliente && turno.notas) {
-        // Simple heuristic: if notes contain "@", maybe it's the client info
-        const noteLines = turno.notas.split('\n');
-        if (noteLines[0].length > 0 && noteLines[0].length < 50) {
-          clienteNombre = noteLines[0];
-        }
-      }
+      const clienteNombre = cliente
+        ? cliente.nombre
+        : (turno.clienteId ? 'Cliente sin cargar' : 'Cliente desconocido');
+      const servicioNombre = servicio
+        ? (servicio.nombre || (servicio as any).name)
+        : (turno.servicioId ? 'Servicio sin cargar' : 'Servicio desconocido');
 
       return {
         ...turno,
         cliente,
         servicio,
         clienteNombre,
-        servicioNombre: servicio ? (servicio.nombre || (servicio as any).name) : 'Servicio Desconocido'
+        servicioNombre
       };
     });
     

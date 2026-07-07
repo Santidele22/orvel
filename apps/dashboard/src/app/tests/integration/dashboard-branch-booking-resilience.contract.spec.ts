@@ -1,17 +1,39 @@
+import '@angular/compiler';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Injector, runInInjectionContext } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { firstValueFrom, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BranchContextService } from '../../core/branches/branch-context.service';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
 import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
+import { BusinessService } from '../../features/settings/data-access/business.service';
+import { ThemeService } from '../../core/theming/theme.service';
 import { AuthService } from '../../services/auth.service';
 
 const BRANCH_ID = 'branch-r4-001';
 const BUSINESS_ID = 'business-r4-001';
 const OTHER_BRANCH_ID = 'branch-r4-other';
 const OTHER_BUSINESS_ID = 'business-r4-other';
+const PRODUCTION_BRANCH_ID = 'cef66912-741e-418f-8451-b4e25dbac034';
+const PRODUCTION_BUSINESS_ID = '47d4ef9a-c26a-46f0-bce3-81d5cbb31045';
+const PRODUCTION_BOOKING_ROW = {
+  id: 'cfe105b7-53a4-4841-a257-a44957e5608c',
+  business_id: PRODUCTION_BUSINESS_ID,
+  branch_id: PRODUCTION_BRANCH_ID,
+  customer_id: 'customer-production-regression',
+  service_id: 'c711254e-1804-4490-bd96-7a779f23c429',
+  starts_at: '2026-07-07T12:00:00.000Z',
+  ends_at: '2026-07-07T12:30:00.000Z',
+  status: 'confirmed',
+  notes: 'Regression row created from public booking',
+  created_at: '2026-07-07T12:00:00.000Z',
+  updated_at: '2026-07-07T12:00:00.000Z'
+};
 
 function createTurnoService() {
   const injector = Injector.create({
@@ -22,6 +44,34 @@ function createTurnoService() {
   });
 
   return runInInjectionContext(injector, () => new TurnoService());
+}
+
+function productionSupabaseDouble() {
+  return {
+    auth: {
+      getSession: () => Promise.resolve({
+        data: { session: { user: { id: 'owner-production-regression', user_metadata: { businessId: PRODUCTION_BUSINESS_ID } } } },
+        error: null
+      })
+    },
+    from: vi.fn(() => {
+      throw new Error('This regression must load bookings through RPCs only');
+    }),
+    rpc: vi.fn((fn: string) => {
+      if (fn === 'get_dashboard_branches') {
+        return Promise.resolve({
+          data: [{ id: PRODUCTION_BRANCH_ID, name: 'principal', business_id: PRODUCTION_BUSINESS_ID, is_active: true }],
+          error: null
+        });
+      }
+
+      if (fn === 'list_admin_bookings') {
+        return Promise.resolve({ data: [PRODUCTION_BOOKING_ROW], error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    })
+  };
 }
 
 function supabaseDouble(options: { failBookings?: boolean; failBranches?: boolean; businessId?: string | null } = {}) {
@@ -198,5 +248,94 @@ describe('R4 resilience: dashboard branch and booking loading', () => {
     expect(pageSource).toMatch(/turnoService\.loadError\(\)/);
     expect(templateSource).toMatch(/data-testid="turnos-load-error"/);
     expect(templateSource).toMatch(/role="alert"/);
+  });
+
+  it('maps the returned production booking shape to a confirmed Tuesday 09:00 card candidate', async () => {
+    const service = createTurnoService();
+    const supabase = productionSupabaseDouble();
+    (service as unknown as { supabaseClient: unknown }).supabaseClient = supabase;
+    service.setProvider('supabase');
+
+    const turnos = await firstValueFrom(service.getAll());
+    const turno = turnos[0];
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_admin_bookings', { p_branch_id: PRODUCTION_BRANCH_ID });
+    expect(turno).toMatchObject({
+      id: PRODUCTION_BOOKING_ROW.id,
+      branchId: PRODUCTION_BRANCH_ID,
+      servicioId: 'c711254e-1804-4490-bd96-7a779f23c429',
+      estado: 'confirmado',
+      hora: '09:00'
+    });
+    expect(turno.fecha.getFullYear()).toBe(2026);
+    expect(turno.fecha.getMonth()).toBe(6);
+    expect(turno.fecha.getDate()).toBe(7);
+    expect(service.loadError()).toBeNull();
+  });
+
+  it('keeps the booking visible with fallback labels when customer and service enrichment fail', async () => {
+    const sourceService = createTurnoService();
+    (sourceService as unknown as { supabaseClient: unknown }).supabaseClient = productionSupabaseDouble();
+    sourceService.setProvider('supabase');
+    const [turno] = await firstValueFrom(sourceService.getAll());
+    const turnosSignal = signal([turno]);
+
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: TurnoService,
+          useValue: {
+            getAll: vi.fn(() => of([turno])),
+            items: turnosSignal,
+            loadError: signal(null)
+          }
+        },
+        { provide: ClienteService, useValue: { getAll: vi.fn(() => throwError(() => new Error('customers unavailable'))), items: signal([]) } },
+        { provide: ServicioService, useValue: { getAll: vi.fn(() => throwError(() => new Error('services unavailable'))), items: signal([]) } },
+        { provide: ThemeService, useValue: { activeTheme: signal('zen') } },
+        {
+          provide: BusinessService,
+          useValue: {
+            settings: signal(null),
+            getDefaultWorkingHours: () => ({
+              sunday: null,
+              monday: null,
+              tuesday: null,
+              wednesday: null,
+              thursday: null,
+              friday: null,
+              saturday: null
+            })
+          }
+        },
+        { provide: AuthService, useValue: { user: () => ({ id: 'owner-production-regression' }) } },
+        { provide: Router, useValue: { navigate: vi.fn() } }
+      ]
+    });
+    const component = runInInjectionContext(injector, () => new TurnosListPage()) as any;
+    component.branchContext = {
+      ensureLoaded: vi.fn(() => Promise.resolve()),
+      requiresExplicitSelection: signal(false),
+      loading: signal(false),
+      error: signal(null),
+      branches: signal([{ id: PRODUCTION_BRANCH_ID, name: 'principal' }]),
+      activeBranchId: signal(PRODUCTION_BRANCH_ID),
+      setActiveBranch: vi.fn(() => true)
+    };
+    component.selectedDate.set(new Date(2026, 6, 7));
+    (window as unknown as { addEventListener: unknown }).addEventListener = vi.fn();
+
+    await component.ngOnInit();
+
+    expect(component.turnosLoadError()).toBeNull();
+    expect(component.daySummary()).toMatchObject({ total: 1, confirmados: 1 });
+    expect(component.getTurnosForHour('09:00')).toHaveLength(1);
+    expect(component.turnos()[0]).toMatchObject({
+      id: PRODUCTION_BOOKING_ROW.id,
+      estado: 'confirmado',
+      servicioNombre: 'Servicio sin cargar',
+      clienteNombre: 'Cliente sin cargar'
+    });
+    expect(component.turnos()[0].clienteNombre).not.toBe(PRODUCTION_BOOKING_ROW.notes);
   });
 });
