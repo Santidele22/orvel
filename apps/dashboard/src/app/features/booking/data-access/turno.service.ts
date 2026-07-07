@@ -1,10 +1,11 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, of, from, tap, switchMap, map, throwError, catchError } from 'rxjs';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { Turno, CreateTurnoDTO, UpdateTurnoDTO, TurnoEstado } from '../models/turno.model';
 import { WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
@@ -173,10 +174,7 @@ export class TurnoService {
     try {
       if (!this.supabaseClient) {
         const env = loadDashboardRuntimeEnv();
-        this.supabaseClient = createClient(
-          env.NEXT_PUBLIC_SUPABASE_URL,
-          env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
+        this.supabaseClient = createDashboardSupabaseClient({ env });
       }
       return this.supabaseClient;
     } catch {

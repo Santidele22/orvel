@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
 
@@ -137,7 +138,7 @@ export class BranchContextService {
   private getSupabaseClient(): SupabaseClient {
     if (!this.supabaseClient) {
       const env = loadDashboardRuntimeEnv();
-      this.supabaseClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      this.supabaseClient = createDashboardSupabaseClient({ env });
     }
 
     return this.supabaseClient;
