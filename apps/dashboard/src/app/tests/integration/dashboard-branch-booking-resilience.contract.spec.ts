@@ -257,6 +257,16 @@ describe('R4 resilience: dashboard branch and booking loading', () => {
     expect(migration).toMatch(/NOTIFY pgrst, 'reload schema'/i);
   });
 
+  it('uses the shared dashboard Supabase auth client for dashboard branch RPCs', () => {
+    const branchContextSource = readFileSync(resolve(process.cwd(), 'src/app/core/branches/branch-context.service.ts'), 'utf8');
+    const turnoServiceSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/data-access/turno.service.ts'), 'utf8');
+
+    expect(branchContextSource).toMatch(/createDashboardSupabaseClient\(\{ env \}\)/);
+    expect(turnoServiceSource).toMatch(/createDashboardSupabaseClient\(\{ env \}\)/);
+    expect(branchContextSource).not.toMatch(/createClient\(env\.NEXT_PUBLIC_SUPABASE_URL/);
+    expect(turnoServiceSource).not.toMatch(/createClient\(\s*env\.NEXT_PUBLIC_SUPABASE_URL/);
+  });
+
   it('renders a visible degraded load state instead of relying on the empty-state path', () => {
     const pageSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.ts'), 'utf8');
     const templateSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html'), 'utf8');
