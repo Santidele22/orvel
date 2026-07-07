@@ -165,12 +165,12 @@ describe('Sprint 2 RED - Business Settings form contract', () => {
     ).toEqual([]);
   });
 
-  it('includes the business slug when saving business_settings', () => {
+  it('does not include identity columns when saving business_settings', () => {
     const payloadColumns = extractBusinessSettingsUpsertPayloadColumns(readBusinessServiceSource());
 
-    expect(
-      payloadColumns,
-      'BusinessService.saveToSupabase must preserve business_settings.slug because production requires it for the public booking identity.'
-    ).toContain('slug');
+    expect(payloadColumns).not.toContain('slug');
+    expect(payloadColumns).not.toContain('business_name');
+    expect(payloadColumns).not.toContain('timezone');
+    expect(payloadColumns).toContain('capacity');
   });
 });

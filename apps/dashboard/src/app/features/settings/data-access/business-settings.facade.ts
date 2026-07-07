@@ -67,7 +67,6 @@ export type BusinessSettingsState = {
 type BusinessSettingsSupabaseRow = {
   id?: string;
   business_id?: string;
-  business_name?: string;
   buffer_minutes?: number;
   min_notice_minutes?: number;
   slot_interval_minutes?: number;
@@ -102,8 +101,12 @@ type BusinessSettingsSupabaseRow = {
   last_name?: string;
   profile_phone?: string;
 
-  slug?: string;
   updated_at?: string;
+};
+
+type BusinessIdentitySupabaseRow = {
+  name?: string;
+  slug?: string;
 };
 
 export type PersistedSettingsIdentity = {
@@ -122,6 +125,10 @@ const DEFAULT_WORKING_HOURS: Record<WeekdayKey, WorkingDayHours> = {
   saturday: { enabled: true, start: '10:00', end: '14:00' },
   sunday: { enabled: false, start: '00:00', end: '00:00' }
 };
+
+function businessIdSafeSuffix(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 @Injectable({ providedIn: 'root' })
 export class BusinessSettingsFacade {
@@ -230,17 +237,13 @@ export class BusinessSettingsFacade {
         if (!error && data) {
           const row = data as BusinessSettingsSupabaseRow;
           
-          // También cargar el slug desde la tabla businesses Y el perfil desde profiles
+          // También cargar identidad pública desde businesses Y el perfil desde profiles
           // OJO: Podríamos usar un JOIN pero para máxima compatibilidad y robustez hacemos consultas paralelas o secuenciales
           const { data: bizData } = await supabase
             .from('businesses')
             .select('name, slug')
             .eq('id', businessId)
             .maybeSingle();
-
-          if (bizData?.name) {
-            row.business_name = bizData.name;
-          }
 
           const { data: profileData } = await supabase
             .from('profiles')
@@ -254,7 +257,7 @@ export class BusinessSettingsFacade {
             row.profile_phone = profileData.phone;
           }
 
-          const persisted = this.mapFromSupabaseRow(row, businessId, bizData?.slug);
+          const persisted = this.mapFromSupabaseRow(row, businessId, bizData as BusinessIdentitySupabaseRow | null);
           this.settings.set(persisted);
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(persisted));
           return {
@@ -313,7 +316,6 @@ export class BusinessSettingsFacade {
 
         const savePayload = {
           business_id: businessId,
-          business_name: persistedLocal.businessName,
           buffer_minutes: persistedLocal.bufferMinutes,
           min_notice_minutes: persistedLocal.minNoticeMinutes,
           slot_interval_minutes: persistedLocal.slotIntervalMinutes,
@@ -337,10 +339,8 @@ export class BusinessSettingsFacade {
           updated_at: persistedLocal.updatedAt
         };
 
-        // 1. SIEMPRE intentar actualizar el nombre y slug en la tabla principal 'businesses'
-        // Lo hacemos PRIMERO para asegurar la identidad del negocio y la URL de booking.
-        // NOTA: Un TRIGGER en la base de datos (fn_sync_business_identity) se encargará de
-        // propagar estos cambios a 'business_settings' automáticamente, asegurando coherencia total.
+        // 1. SIEMPRE intentar actualizar el nombre en la tabla principal 'businesses'.
+        // Business identity/public routing lives there; business_settings keeps operational config only.
         console.log(`[Facade] Identity Sync: Updating businesses table for ${businessId}...`, { name: persistedLocal.businessName });
         
         const { error: bizUpdateError } = await supabase
@@ -381,7 +381,7 @@ export class BusinessSettingsFacade {
         const { data, error } = await supabase
           .from('business_settings')
           .upsert(savePayload, { onConflict: 'business_id' })
-          .select('business_id, updated_at, business_name, slug')
+          .select('business_id, updated_at')
           .maybeSingle();
 
         if (error) {
@@ -398,12 +398,6 @@ export class BusinessSettingsFacade {
 
         console.log('[Facade] Settings Save Success: business_settings updated.');
         const row = data as BusinessSettingsSupabaseRow;
-        
-        // Actualizamos el signal local con lo que realmente quedó en DB
-        const finalSlug = row?.slug || persistedLocal.slug;
-        const finalName = row?.business_name || persistedLocal.businessName;
-        
-        this.settings.update(s => s ? { ...s, businessName: finalName, slug: finalSlug } : s);
 
         return {
           id: businessId,
@@ -457,7 +451,7 @@ export class BusinessSettingsFacade {
       console.log(`[Facade] Business record already exists for ${businessId}: "${existing.name}" (${existing.slug})`);
       
       // Still ensure business_settings exists (can happen if businesses table was partially populated)
-      await this.ensureBusinessSettings(supabase, businessId, existing.slug, existing.name);
+      await this.ensureBusinessSettings(supabase, businessId);
       return;
     }
 
@@ -469,12 +463,14 @@ export class BusinessSettingsFacade {
     }
 
     console.log(`[Facade] Creating NEW business record: ${businessId} - "${name}"`);
+    const slug = this.generateSlugFromName(name);
     
     // DB-FIX: Sincronizar con el owner_id para formalizar la propiedad
     const { error: insertError } = await supabase
       .from('businesses')
         .insert({
           id: businessId,
+          slug,
           name: name,
           timezone: 'America/Argentina/Buenos_Aires',
           owner_id: businessId // Usamos el ID del usuario como propietario inicial
@@ -490,19 +486,22 @@ export class BusinessSettingsFacade {
         nombre: name.split(' ')[0], 
         apellido: name.split(' ').slice(1).join(' ') 
       });
-
-      // Now ensure default settings exist for this new business
-      const { data: createdBusiness } = await supabase
-        .from('businesses')
-        .select('slug')
-        .eq('id', businessId)
-        .maybeSingle();
-
-      await this.ensureBusinessSettings(supabase, businessId, createdBusiness?.slug ?? '', name);
+      await this.ensureBusinessSettings(supabase, businessId);
     }
   }
 
-  private async ensureBusinessSettings(supabase: SupabaseClient, businessId: string, slug: string, businessName: string): Promise<void> {
+  private generateSlugFromName(name: string): string {
+    const base = name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'mi-negocio';
+
+    return `${base}-${businessIdSafeSuffix()}`;
+  }
+
+  private async ensureBusinessSettings(supabase: SupabaseClient, businessId: string): Promise<void> {
     // Check if settings exist
     const { data: existing, error: fetchError } = await supabase
       .from('business_settings')
@@ -523,8 +522,6 @@ export class BusinessSettingsFacade {
         .from('business_settings')
         .insert({
           business_id: businessId,
-          slug: slug,
-          business_name: businessName,
           working_hours: defaultHours,
           buffer_minutes: 15,
           min_notice_minutes: 120,
@@ -562,10 +559,10 @@ export class BusinessSettingsFacade {
     }
   }
 
-  private mapFromSupabaseRow(row: BusinessSettingsSupabaseRow, businessId: string, slug?: string): BusinessSettingsState {
+  private mapFromSupabaseRow(row: BusinessSettingsSupabaseRow, businessId: string, business?: BusinessIdentitySupabaseRow | null): BusinessSettingsState {
     return {
-      businessName: (row.business_name && row.business_name.trim()) ? row.business_name : '',
-      slug: slug?.trim() || row.slug?.trim() || '',
+      businessName: business?.name?.trim() || '',
+      slug: business?.slug?.trim() || '',
       bufferMinutes: Number.isFinite(row.buffer_minutes) ? Number(row.buffer_minutes) : 10,
       minNoticeMinutes: Number.isFinite(row.min_notice_minutes) ? Number(row.min_notice_minutes) : 120,
       slotIntervalMinutes: Number.isFinite(row.slot_interval_minutes) ? Number(row.slot_interval_minutes) : 30,

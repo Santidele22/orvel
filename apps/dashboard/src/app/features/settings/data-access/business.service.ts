@@ -147,8 +147,6 @@ export class BusinessService {
 
     const context = await this.resolveActiveBusinessContext(businessId);
     const resolvedBusinessId = context.businessId;
-    const resolvedSlug = context.slug ?? this.currentSettings()?.slug;
-
     // Update businesses table
     if (settings.businessName) {
       const { error: businessUpdateError } = await this.supabaseClient
@@ -169,8 +167,6 @@ export class BusinessService {
       .from('business_settings')
       .upsert({
         business_id: resolvedBusinessId,
-        business_name: settings.businessName,
-        slug: resolvedSlug,
         support_email: settings.supportEmail,
         buffer_minutes: settings.bufferMinutes,
         min_notice_minutes: settings.minNoticeMinutes,
@@ -390,14 +386,11 @@ export class BusinessService {
   private mapToPublicView(record: any): BusinessPublicView {
     const settings = record?.settings ?? {};
     const bookingPolicy = record?.bookingPolicy ?? record?.booking_policy ?? {};
-    const displayName = (record?.businessName && record.businessName.trim())
-      ? record.businessName
-      : record.name;
 
     return {
       id: record.id,
       slug: record.slug,
-      displayName: displayName,
+      displayName: record.name,
       timezone: record.timezone || DEFAULT_BOOKING_POLICY.timezone,
       settings: {
         bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,

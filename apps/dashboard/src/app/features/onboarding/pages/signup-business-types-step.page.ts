@@ -137,7 +137,6 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
           slug: defaults.slugSeed,
           name: defaults.businessName,
           timezone: 'America/Argentina/Buenos_Aires',
-          capacity: defaults.capacity,
           owner_id: defaults.businessId
         },
         { onConflict: 'id' }
@@ -152,8 +151,6 @@ export function createSupabaseOnboardingCompletionHandler(): OnboardingCompletio
       .upsert(
         {
           business_id: defaults.businessId,
-          business_name: defaults.businessName,
-          slug: defaults.slugSeed,
           business_type: defaults.businessType,
           selected_business_types: selectedBusinessTypes,
           capacity: defaults.capacity,

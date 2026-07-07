@@ -5,7 +5,8 @@ const supabaseMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   updateUser: vi.fn(),
   businessUpsert: vi.fn(),
-  settingsUpsert: vi.fn()
+  settingsUpsert: vi.fn(),
+  rpc: vi.fn()
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -20,6 +21,7 @@ describe('free onboarding completion contract', () => {
     supabaseMocks.updateUser.mockReset();
     supabaseMocks.businessUpsert.mockReset();
     supabaseMocks.settingsUpsert.mockReset();
+    supabaseMocks.rpc.mockReset();
 
     Object.defineProperty(globalThis, 'window', {
       value: { localStorage: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() } },
@@ -34,7 +36,8 @@ describe('free onboarding completion contract', () => {
       },
       from: vi.fn((table: string) => ({
         upsert: table === 'businesses' ? supabaseMocks.businessUpsert : supabaseMocks.settingsUpsert
-      }))
+      })),
+      rpc: supabaseMocks.rpc
     });
     supabaseMocks.getSession.mockResolvedValue({
       data: {
@@ -47,6 +50,7 @@ describe('free onboarding completion contract', () => {
     });
     supabaseMocks.businessUpsert.mockResolvedValue({ error: null });
     supabaseMocks.settingsUpsert.mockResolvedValue({ error: null });
+    supabaseMocks.rpc.mockResolvedValue({ data: 1, error: null });
     supabaseMocks.updateUser.mockResolvedValue({ data: { user: { id: 'user-free-1' } }, error: null });
   });
 
@@ -86,13 +90,15 @@ describe('free onboarding completion contract', () => {
     expect(supabaseMocks.settingsUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         business_id: 'user-free-1',
-        business_name: 'Studio Free',
         business_type: 'peluqueria'
       }),
       { onConflict: 'business_id' }
     );
     const [settingsPayload] = supabaseMocks.settingsUpsert.mock.calls[0] as [Record<string, unknown>];
     expect(settingsPayload).not.toHaveProperty('plan');
+    expect(settingsPayload).not.toHaveProperty('business_name');
+    expect(settingsPayload).not.toHaveProperty('slug');
+    expect(settingsPayload).not.toHaveProperty('timezone');
     expect(supabaseMocks.updateUser).toHaveBeenCalledWith({
       data: {
         onboardingCompleted: true,

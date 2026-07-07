@@ -13,8 +13,8 @@ DECLARE
   v_active_count integer;
   v_inactive_count integer;
 BEGIN
-  INSERT INTO public.businesses (id, slug, name, timezone, capacity)
-  VALUES (v_business_id, 'orvel-smoke-public-services-rls', 'Orvel Smoke Public Services RLS', 'UTC', 1);
+  INSERT INTO public.businesses (id, slug, name, timezone)
+  VALUES (v_business_id, 'orvel-smoke-public-services-rls', 'Orvel Smoke Public Services RLS', 'UTC');
 
   INSERT INTO public.services (id, business_id, name, duration_minutes, price, is_active)
   VALUES
