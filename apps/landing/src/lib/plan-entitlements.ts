@@ -1,6 +1,6 @@
 import { SIGNUP_STORAGE_KEYS } from './browser-storage-keys';
 
-export type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'PRO';
+export type PlanCode = 'FREE' | 'PREMIUM';
 
 export type PlanEntitlements = {
   maxLocales: number;
@@ -12,17 +12,9 @@ export const PLAN_ENTITLEMENTS: Record<PlanCode, PlanEntitlements> = {
     maxLocales: 1,
     maxRubros: 1
   },
-  BASIC: {
+  PREMIUM: {
     maxLocales: 1,
-    maxRubros: 3
-  },
-  MEDIUM: {
-    maxLocales: 1,
-    maxRubros: 4
-  },
-  PRO: {
-    maxLocales: 1,
-    maxRubros: 5
+    maxRubros: 1
   }
 };
 
@@ -39,12 +31,8 @@ export function resolvePlanCode(rawPlan: unknown): PlanCode {
   }
 
   const normalizedPlan = rawPlan.trim().toUpperCase();
-  if (normalizedPlan === 'STARTED' || normalizedPlan === 'STARTER') {
-    return 'BASIC';
-  }
-
-  if (normalizedPlan === 'GROWTH') {
-    return 'MEDIUM';
+  if (['STARTED', 'STARTER', 'BASIC', 'MEDIUM', 'GROWTH', 'PRO', 'SIMPLE', 'CRECE', 'ESCALA'].includes(normalizedPlan)) {
+    return 'PREMIUM';
   }
 
   if (normalizedPlan in PLAN_ENTITLEMENTS) {

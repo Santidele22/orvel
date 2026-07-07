@@ -14,7 +14,7 @@ import { requestSubscriptionCancellation } from '../../features/billing/data-acc
 describe('BillingSubscriptionPage safe payment unavailable state', () => {
   it('surfaces a user-safe support message when subscription creation fails closed', async () => {
     const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'STARTER' },
+      storage: { getItem: () => 'PREMIUM' },
       createSubscription: vi.fn(async () => {
         throw new CreateSubscriptionError('SERVER_CONFIG_ERROR', 'internal server config details');
       }),
@@ -32,7 +32,7 @@ describe('BillingSubscriptionPage safe payment unavailable state', () => {
   it('does not redirect when the payment boundary returns no init point', async () => {
     const redirectTo = vi.fn();
     const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'GROWTH' },
+      storage: { getItem: () => 'PREMIUM' },
       createSubscription: vi.fn(async () => ({
         ok: false,
         initPoint: null,
@@ -50,7 +50,7 @@ describe('BillingSubscriptionPage safe payment unavailable state', () => {
   });
 
   it('does not expose a hidden multi-branch add-on activation prompt from billing', () => {
-    const page = new BillingSubscriptionPage({ storage: { getItem: () => 'PRO' } });
+    const page = new BillingSubscriptionPage({ storage: { getItem: () => 'PREMIUM' } });
 
     expect('multiBranchAddOn' in page).toBe(false);
     expect('multiBranchAddOnCta' in page).toBe(false);

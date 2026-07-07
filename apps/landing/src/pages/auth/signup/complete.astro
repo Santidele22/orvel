@@ -27,9 +27,8 @@ import Layout from '../../../layouts/Layout.astro';
       const normalized = rawPlan?.trim().toUpperCase();
       return normalized && normalized.length > 0 ? normalized : 'FREE';
     };
-    const normalizeBillingPeriod = (rawBilling: string | null) => {
-      const normalized = rawBilling?.trim().toLowerCase();
-      return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+    const normalizeBillingPeriod = (_rawBilling: string | null) => {
+      return 'monthly';
     };
     const plan = normalizeSelectedPlan(explicitPlan || sessionStorage.getItem(SIGNUP_STORAGE_KEYS.plan));
     const isExplicitFreePlan = explicitPlan?.trim().toUpperCase() === 'FREE';

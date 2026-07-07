@@ -164,9 +164,8 @@ import Layout from '../../../layouts/Layout.astro';
     const normalizeBusinessType = (value: string) => value === 'unas' ? 'uñas' : value === 'pestanas' ? 'pestañas' : value;
     const normalizePlanCode = (value: string | null) => {
       const normalized = value?.trim().toUpperCase();
-      if (normalized === 'BASIC' || normalized === 'STARTER') return 'STARTED';
-      if (normalized === 'MEDIUM') return 'GROWTH';
-      return ['FREE', 'STARTED', 'GROWTH', 'PRO'].includes(normalized ?? '') ? normalized : 'FREE';
+      if (['BASIC', 'STARTED', 'STARTER', 'MEDIUM', 'GROWTH', 'PRO', 'SIMPLE', 'CRECE', 'ESCALA'].includes(normalized ?? '')) return 'PREMIUM';
+      return normalized === 'FREE' || normalized === 'PREMIUM' ? normalized : 'FREE';
     };
     const currentPlan = normalizePlanCode(params.get('plan'));
     const isFreeSignupOnboarding = normalizedOnboardingSource === 'signup' && currentPlan === 'FREE';

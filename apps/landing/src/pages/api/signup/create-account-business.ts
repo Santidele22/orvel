@@ -3,9 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 
 import { protectPendingSignupPii } from "../../../lib/server/pending-signup-pii-protection";
 
-type SignupPlan = "FREE" | "STARTER" | "GROWTH" | "PRO";
+type SignupPlan = "FREE" | "PREMIUM";
 
-const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "STARTER", "GROWTH", "PRO"]);
+const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "PREMIUM"]);
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
 
@@ -47,8 +47,7 @@ function isDuplicateUserError(error: unknown): boolean {
 
 function normalizePlan(value: unknown): SignupPlan | null {
   const normalized = cleanText(value, 32)?.toUpperCase();
-  if (normalized === "BASIC" || normalized === "STARTED") return "STARTER";
-  if (normalized === "MEDIUM") return "GROWTH";
+  if (["BASIC", "STARTED", "STARTER", "MEDIUM", "GROWTH", "PRO", "SIMPLE", "CRECE", "ESCALA"].includes(normalized ?? "")) return "PREMIUM";
   return normalized && ALLOWED_PLANS.has(normalized as SignupPlan) ? (normalized as SignupPlan) : null;
 }
 

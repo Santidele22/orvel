@@ -6,7 +6,7 @@ import { resolvePendingSignupHandoff } from "../../../lib/server/pending-signup-
 // Paid signup handoff is bound by the protect endpoint with Set-Cookie: HttpOnly; SameSite=Lax
 // (Secure + __Host- on HTTPS). This API validates the opaque pending_signup_reference server-side.
 
-const ALLOWED_PLANS = new Set(["STARTER", "GROWTH", "PRO"]);
+const ALLOWED_PLANS = new Set(["PREMIUM"]);
 const FALLBACK_PATH = "/billing/subscription";
 
 type SubscriptionResult =
@@ -26,8 +26,7 @@ function normalizePlan(rawPlan: string | null): string | null {
   const normalized = rawPlan?.trim().toUpperCase();
   if (!normalized) return null;
 
-  if (normalized === "STARTED" || normalized === "BASIC") return "STARTER";
-  if (normalized === "MEDIUM") return "GROWTH";
+  if (["STARTED", "BASIC", "STARTER", "MEDIUM", "GROWTH", "PRO", "SIMPLE", "CRECE", "ESCALA"].includes(normalized)) return "PREMIUM";
   return normalized;
 }
 
@@ -50,9 +49,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function normalizeBillingPeriod(rawBilling: string | null | undefined): "monthly" | "quarterly" | "annual" {
-  const normalized = rawBilling?.trim().toLowerCase();
-  return normalized === "quarterly" || normalized === "annual" ? normalized : "monthly";
+function normalizeBillingPeriod(_rawBilling: string | null | undefined): "monthly" {
+  return "monthly";
 }
 
 function normalizeIdempotencyKey(...candidates: Array<string | null | undefined>): string | null {

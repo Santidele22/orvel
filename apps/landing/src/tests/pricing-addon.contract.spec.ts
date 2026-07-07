@@ -14,7 +14,7 @@ describe('Contract: Orvel pricing plans and MVP branch add-on deferral', () => {
     const basePlanSources = `${planCardSource}\n${billingSubscriptionSource}`;
     const visibleLandingSource = `${pricingSource}\n${planCardSource}`;
 
-    expect(pricingSource).toMatch(/Todos los planes incluyen 1 local|planes base incluyen 1 local/i);
+    expect(visibleLandingSource).toMatch(/Incluye 1 local|local principal/i);
     expect(visibleLandingSource).not.toMatch(/\bAdd-on\b/i);
     expect(visibleLandingSource).not.toMatch(/Multi-sucursal disponible como add-on/i);
     expect(visibleLandingSource).not.toMatch(/\+\s*\$?\s*(?:20\.000|20000)\s*(?:\/mes|por mes)?/i);
@@ -32,7 +32,7 @@ describe('Contract: Orvel pricing plans and MVP branch add-on deferral', () => {
     const pricingSource = await readFile(PRICING_PATH, 'utf8');
     const plansSource = await readFile(PLANS_PATH, 'utf8');
 
-    for (const expected of ['12900', '24900', '44900']) {
+    for (const expected of ['25000']) {
       expect(plansSource).toContain(expected);
     }
 

@@ -61,9 +61,9 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     const planCard = await source(PLAN_CARD_PATH);
     const pricing = await source(PRICING_PATH);
 
-    for (const plan of ['STARTER', 'GROWTH', 'PRO']) {
+    for (const [plan, label] of [['FREE', 'Empezar gratis'], ['PREMIUM', 'Elegir Premium']] as const) {
       expect(planCard).toContain(`data-plan={plan.code}`);
-      expect(planCard).toMatch(new RegExp(`Elegir\\s+${plan}`, 'i'));
+      expect(planCard).toMatch(new RegExp(label.replace(/\s+/g, '\\s+'), 'i'));
     }
 
     expect(`${pricing}\n${planCard}`).not.toMatch(/Disponible próximamente/i);
@@ -102,11 +102,11 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     const loginController = await source(LOGIN_CONTROLLER_PATH);
     const { sanitizeLandingAuthReturnTo } = await loadAuthReturnTo();
 
-    const paidPlanReturnTo = '/billing/subscription?plan=STARTER';
+    const paidPlanReturnTo = '/billing/subscription?plan=PREMIUM';
 
     expect(sanitizeLandingAuthReturnTo(paidPlanReturnTo, { currentOrigin: 'https://orvel.pro' })).toBe(paidPlanReturnTo);
-    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=STARTER&code=auth-code', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
-    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=STARTER', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('/billing/subscription?plan=PREMIUM&code=auth-code', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
+    expect(sanitizeLandingAuthReturnTo('https://evil.example/billing/subscription?plan=PREMIUM', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo(null, { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'https://orvel.pro' })).toBe('https://dashboard.orvel.pro/dashboard/inicio');
     expect(sanitizeLandingAuthReturnTo('/dashboard/inicio', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/inicio');

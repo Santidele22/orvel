@@ -4,8 +4,9 @@ export const SUBSCRIPTION_RECOVERY_ERRORS = {
   pending_signup_missing: 'No encontramos los datos protegidos de tu alta paga. Volvé al formulario para recuperar el intento y reintentá el pago.',
 } as const;
 
-type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
-type SubscriptionPlan = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO' | string;
+type BillingPeriod = 'monthly';
+type SubscriptionPlan = 'FREE' | 'PREMIUM' | string;
+const LEGACY_PAID_PLAN_ALIASES = new Set(['STARTER', 'STARTED', 'BASIC', 'MEDIUM', 'GROWTH', 'PRO', 'SIMPLE', 'CRECE', 'ESCALA']);
 
 export type PendingSignupIntentLike = Record<string, unknown> | null | undefined;
 export type PendingSignupReferenceLike = string | null | undefined;
@@ -26,7 +27,14 @@ function asNonEmptyString(value: unknown): string | undefined {
 
 export function normalizeSubscriptionBilling(rawBilling?: string | null): BillingPeriod {
   const normalized = rawBilling?.trim().toLowerCase();
-  return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+  return normalized === 'monthly' ? normalized : 'monthly';
+}
+
+export function normalizeSubscriptionPlan(rawPlan: SubscriptionPlan): 'FREE' | 'PREMIUM' {
+  const normalizedPlan = typeof rawPlan === 'string' && rawPlan.trim() ? rawPlan.trim().toUpperCase() : 'PREMIUM';
+  if (normalizedPlan === 'FREE') return 'FREE';
+  if (normalizedPlan === 'PREMIUM' || LEGACY_PAID_PLAN_ALIASES.has(normalizedPlan)) return 'PREMIUM';
+  return 'FREE';
 }
 
 export function isJwtShapedAccessToken(value: unknown): value is string {
@@ -44,7 +52,7 @@ export function hasProtectedPendingSignupIntent(intent: PendingSignupIntentLike)
 }
 
 export function buildPendingSignupRecoveryHref(plan: SubscriptionPlan, billing?: string | null): string {
-  const normalizedPlan = typeof plan === 'string' && plan.trim() ? plan.trim().toUpperCase() : 'STARTER';
+  const normalizedPlan = normalizeSubscriptionPlan(plan);
   const normalizedBilling = normalizeSubscriptionBilling(billing);
   return `/auth/signup/credentials?plan=${encodeURIComponent(normalizedPlan)}&billing=${encodeURIComponent(normalizedBilling)}&resume=credentials_first`;
 }
@@ -62,7 +70,7 @@ export function getInitialSubscriptionPageRecovery({
   pendingSignupIntent: PendingSignupIntentLike;
   pendingSignupReference?: PendingSignupReferenceLike;
 }): InitialSubscriptionPageRecovery {
-  const normalizedPlan = typeof plan === 'string' ? plan.trim().toUpperCase() : '';
+  const normalizedPlan = normalizeSubscriptionPlan(plan);
   const normalizedSignupIntent = signupIntent?.trim().toLowerCase();
 
   if (normalizedPlan === 'FREE') return null;
@@ -73,7 +81,7 @@ export function getInitialSubscriptionPageRecovery({
   return {
     code: 'pending_signup_missing',
     message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
-    recoveryHref: buildPendingSignupRecoveryHref(normalizedPlan || 'STARTER', billing),
+    recoveryHref: buildPendingSignupRecoveryHref(normalizedPlan || 'PREMIUM', billing),
   };
 }
 
@@ -90,7 +98,7 @@ export function getSubscriptionStartReadiness({
   pendingSignupReference?: PendingSignupReferenceLike;
   accessToken: unknown;
 }): SubscriptionStartReadiness {
-  const normalizedPlan = typeof plan === 'string' ? plan.trim().toUpperCase() : '';
+  const normalizedPlan = normalizeSubscriptionPlan(plan);
   if (normalizedPlan === 'FREE') return { ok: true, mode: 'free' };
   if (asNonEmptyString(pendingSignupReference)) return { ok: true, mode: 'pending_signup_intent' };
   if (hasProtectedPendingSignupIntent(pendingSignupIntent)) return { ok: true, mode: 'pending_signup_intent' };
@@ -100,7 +108,7 @@ export function getSubscriptionStartReadiness({
     ok: false,
     code: 'pending_signup_missing',
     message: SUBSCRIPTION_RECOVERY_ERRORS.pending_signup_missing,
-    recoveryHref: buildPendingSignupRecoveryHref(normalizedPlan || 'STARTER', billing),
+    recoveryHref: buildPendingSignupRecoveryHref(normalizedPlan || 'PREMIUM', billing),
   };
 }
 

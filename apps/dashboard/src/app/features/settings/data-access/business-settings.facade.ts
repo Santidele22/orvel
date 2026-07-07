@@ -598,6 +598,7 @@ export class BusinessSettingsFacade {
 
   private resolveDisplayPlan(): 'basic' | 'zen' | 'pro' {
     const authPlan = String(this.authService.user()?.plan ?? '').trim().toUpperCase();
+    if (authPlan === 'PREMIUM') return 'zen';
     if (authPlan === 'STARTER' || authPlan === 'BASIC') return 'basic';
     if (authPlan === 'PRO') return 'pro';
     if (authPlan === 'GROWTH' || authPlan === 'MEDIUM') return 'zen';
@@ -606,6 +607,7 @@ export class BusinessSettingsFacade {
       const localPlan = readPlanSelection({
         getItem: (key: string) => localStorage.getItem(key === ONBOARDING_PLAN_STORAGE_KEY ? key : ONBOARDING_PLAN_STORAGE_KEY)
       });
+      if (localPlan === 'PREMIUM') return 'zen';
       if (localPlan === 'STARTER') return 'basic';
       if (localPlan === 'PRO') return 'pro';
       if (localPlan === 'GROWTH') return 'zen';
@@ -644,7 +646,7 @@ export class BusinessSettingsFacade {
   private hasCompletedMandatoryOnboarding(): boolean {
     const user = this.authService.user();
     const plan = String(user?.plan ?? '').trim().toUpperCase();
-    const hasPersistedPlan = ['STARTER', 'GROWTH', 'PRO', 'BASIC', 'MEDIUM', 'FREE'].includes(plan) && plan !== 'FREE';
+    const hasPersistedPlan = ['FREE', 'PREMIUM', 'STARTER', 'GROWTH', 'PRO', 'BASIC', 'MEDIUM'].includes(plan);
     return Boolean(user?.negocioNombre?.trim()) && hasPersistedPlan && isAllowedOnboardingBusinessType(user?.tipoNegocio);
   }
 

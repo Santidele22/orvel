@@ -6,8 +6,8 @@ const HANDOFF_COOKIE_NAMES = ['__Host-orvel_paid_signup_handoff', 'orvel_paid_si
 const HANDOFF_MAX_AGE_SECONDS = 30 * 60;
 const ALLOWED_BUSINESS_TYPES = new Set(['peluqueria', 'barberia', 'unas', 'estetica', 'spa', 'maquillaje', 'pestanas', 'cejas', 'masajes', 'otro']);
 
-type BillingPeriod = 'monthly' | 'quarterly' | 'annual';
-type SignupPlan = 'STARTER' | 'GROWTH' | 'PRO';
+type BillingPeriod = 'monthly';
+type SignupPlan = 'PREMIUM';
 type PendingSignupStatus = 'created' | 'provider_created' | 'approved' | 'materializing' | 'materialized' | 'failed' | 'expired';
 
 type HandoffInput = {
@@ -84,14 +84,13 @@ function normalizeSelectedBusinessTypes(input: HandoffInput, fallbackPrimary: st
 
 function normalizePlan(value: unknown): SignupPlan | null {
   const normalized = cleanText(value, 32)?.toUpperCase();
-  if (normalized === 'BASIC' || normalized === 'STARTED') return 'STARTER';
-  if (normalized === 'MEDIUM') return 'GROWTH';
-  return normalized === 'STARTER' || normalized === 'GROWTH' || normalized === 'PRO' ? normalized : null;
+  if (['BASIC', 'STARTED', 'STARTER', 'MEDIUM', 'GROWTH', 'PRO', 'SIMPLE', 'CRECE', 'ESCALA'].includes(normalized ?? '')) return 'PREMIUM';
+  return normalized === 'PREMIUM' ? normalized : null;
 }
 
 function normalizeBillingPeriod(value: unknown): BillingPeriod {
   const normalized = cleanText(value, 32)?.toLowerCase();
-  return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+  return normalized === 'monthly' ? normalized : 'monthly';
 }
 
 function bytesToBase64Url(bytes: Uint8Array): string {

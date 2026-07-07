@@ -12,9 +12,7 @@ describe('Contract: landing plan entitlements and signup context resolution', ()
     expect(Object.entries(PLAN_ENTITLEMENTS)).toEqual(
       expect.arrayContaining([
         ['FREE', expect.objectContaining({ maxLocales: 1 })],
-        ['BASIC', expect.objectContaining({ maxLocales: 1 })],
-        ['MEDIUM', expect.objectContaining({ maxLocales: 1 })],
-        ['PRO', expect.objectContaining({ maxLocales: 1 })]
+        ['PREMIUM', expect.objectContaining({ maxLocales: 1 })]
       ])
     );
   });
@@ -27,39 +25,39 @@ describe('Contract: landing plan entitlements and signup context resolution', ()
 
   it('resolves plan from query first, then storage, then FREE fallback', () => {
     const sessionStorage = {
-      getItem: (key: string) => (key === 'orvel.signup.plan' ? 'pro' : null)
+        getItem: (key: string) => (key === 'orvel.signup.plan' ? 'premium' : null)
     };
 
     const localStorage = {
-      getItem: (key: string) => (key === 'orvel.plan' ? 'medium' : null)
+        getItem: (key: string) => (key === 'orvel.plan' ? 'premium' : null)
     };
 
     expect(
       resolvePlanCodeFromContext({
-        searchParams: new URLSearchParams('plan=basic'),
+        searchParams: new URLSearchParams('plan=premium'),
         sessionStorage,
         localStorage
       })
-    ).toBe('BASIC');
+    ).toBe('PREMIUM');
 
     expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams(), sessionStorage, localStorage })).toBe(
-      'PRO'
+      'PREMIUM'
     );
 
     expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams() })).toBe('FREE');
   });
 
   it('maps public.plans aliases to the same dashboard entitlement plan', () => {
-    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=STARTED') })).toBe('BASIC');
-    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=STARTER') })).toBe('BASIC');
-    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=basic') })).toBe('BASIC');
-    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=GROWTH') })).toBe('MEDIUM');
+    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=STARTED') })).toBe('PREMIUM');
+    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=STARTER') })).toBe('PREMIUM');
+    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=basic') })).toBe('PREMIUM');
+    expect(resolvePlanCodeFromContext({ searchParams: new URLSearchParams('plan=GROWTH') })).toBe('PREMIUM');
   });
 
   it('builds deterministic plan copy/error strings and exposes updated plan entitlements', () => {
     expect(formatPlanLimitCopy('FREE')).toBe('Plan FREE: seleccioná hasta 1 rubro o servicio.');
-    expect(formatPlanLimitCopy('MEDIUM')).toMatch(/Plan MEDIUM/i);
-    expect(formatPlanLimitError('PRO')).toMatch(/plan PRO/i);
+    expect(formatPlanLimitCopy('PREMIUM')).toMatch(/Plan PREMIUM/i);
+    expect(formatPlanLimitError('PREMIUM')).toMatch(/plan PREMIUM/i);
     expect(getPlanEntitlements('medium').maxLocales).toBe(1);
   });
 });

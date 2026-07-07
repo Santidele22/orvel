@@ -48,7 +48,7 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
     vi.stubGlobal('fetch', fetchSpy);
 
     const response = await postSubscriptionStart({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       pending_signup_intent: { intent_id: 'psi_123' },
     });
     const body = await response.json();
@@ -70,7 +70,7 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
     vi.stubGlobal('fetch', fetchSpy);
 
     const response = await postSubscriptionStart({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       email: 'plain@example.test',
       password: 'plain-password',
       firstName: 'Plain',
@@ -85,8 +85,8 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
     expect(url).toBe(SUPABASE_FUNCTION_URL);
     const payload = JSON.parse(String(init?.body));
     expect(payload).toMatchObject({
-      plan_code: 'STARTER',
-      plan_identifier: 'STARTER',
+      plan_code: 'PREMIUM',
+      plan_identifier: 'PREMIUM',
       mode: 'pending_signup_intent',
       pending_signup_intent: expect.objectContaining({
         email_encrypted: completeProtectedPendingSignupIntent.email_encrypted,
@@ -114,7 +114,7 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
     vi.stubGlobal('fetch', fetchSpy);
 
     const response = await postSubscriptionStart({
-      plan: 'STARTER',
+      plan: 'PREMIUM',
       pending_signup_intent: pendingSignupIntent,
     });
     const body = await response.json();
@@ -130,9 +130,12 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
 
 describe('RED contract: /api/subscriptions/start plan aliases use Edge-compatible plan codes', () => {
   it.each([
-    ['BASIC', 'STARTER'],
-    ['MEDIUM', 'GROWTH'],
-    ['STARTED', 'STARTER'],
+    ['BASIC', 'PREMIUM'],
+    ['MEDIUM', 'PREMIUM'],
+    ['STARTED', 'PREMIUM'],
+    ['STARTER', 'PREMIUM'],
+    ['GROWTH', 'PREMIUM'],
+    ['PRO', 'PREMIUM'],
   ])('maps %s to %s before calling create-subscription', async (inputPlan, expectedEdgePlan) => {
     stubSubscriptionEnv();
     const fetchSpy = vi.fn(async () => new Response(
@@ -148,6 +151,23 @@ describe('RED contract: /api/subscriptions/start plan aliases use Edge-compatibl
     const payload = JSON.parse(String(init?.body));
     expect(payload.plan_code).toBe(expectedEdgePlan);
     expect(payload.plan_identifier).toBe(expectedEdgePlan);
+  });
+
+  it.each(['quarterly', 'annual'])('normalizes unsupported %s billing to monthly before Edge', async (billing) => {
+    stubSubscriptionEnv();
+    const fetchSpy = vi.fn(async () => new Response(
+      JSON.stringify({ init_point: 'https://mercadopago.example.test/preapproval' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await postSubscriptionStart({ plan: 'PREMIUM', billing, businessType: 'peluqueria' });
+
+    expect(response.status).toBe(200);
+    const [, init] = fetchSpy.mock.calls[0]!;
+    const payload = JSON.parse(String(init?.body));
+    expect(payload.cadence).toBe('monthly');
+    expect(payload.billing_period).toBe('monthly');
   });
 
   it('fails unsupported plan values locally before Edge', async () => {

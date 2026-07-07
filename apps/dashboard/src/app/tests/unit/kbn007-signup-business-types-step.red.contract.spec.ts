@@ -9,7 +9,7 @@
  * Plan-to-Business-Type Rules:
  *  - Business type options are catalog-owned, not defined locally in the component.
  *  - Plans resolve through the Supabase/reference catalog aliases and planBusinessTypes mapping.
- *  - PRO/full-access catalog plans expose every catalog business type.
+ *  - MVP FREE/PREMIUM catalog plans expose every catalog business type.
  *
  * Scope:
  *  1) UI filters by plan - Only allowed types shown based on Step 1 plan
@@ -28,7 +28,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-type PlanCode = 'FREE' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
+type PlanCode = 'FREE' | 'PREMIUM' | 'BASIC' | 'MEDIUM' | 'STARTER' | 'GROWTH' | 'PRO';
 
 type BusinessTypeCode =
   | 'peluqueria'
@@ -260,9 +260,9 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
     );
   });
 
-  it('CAT-OBT-003 @RED - PRO plan exposes every catalog business type', async () => {
+  it('CAT-OBT-003 @RED - PREMIUM plan exposes every catalog business type', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
-    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PREMIUM' });
     installWindowLocalStorage(storage);
 
     const component = new SignupBusinessTypesStepPage();
@@ -283,7 +283,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
     const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage({
-      'turnea.onboarding.plan': 'PRO',
+      'turnea.onboarding.plan': 'PREMIUM',
       [ONBOARDING_BUSINESS_TYPES_STORAGE_KEY]: JSON.stringify(['uñas', 'pestañas'])
     });
     installWindowLocalStorage(storage);
@@ -296,7 +296,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
   it('CAT-OBT-005 @RED - selection and submit persist canonical ascii codes for expanded catalog types', async () => {
     const { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY } = await loadOnboardingBusinessTypesStorageModule();
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
-    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PRO' });
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PREMIUM' });
     installWindowLocalStorage(storage);
     const component = new SignupBusinessTypesStepPage();
     component.setOnboardingCompletionHandler(async () => true);
@@ -311,7 +311,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const catalogModule = await import('../../core/catalog/reference-catalog');
     const gatewayModule = await import('../../core/catalog/reference-catalog.gateway');
-    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'STARTER' });
+    const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PREMIUM' });
     installWindowLocalStorage(storage);
 
     gatewayModule.initializeRuntimeReferenceCatalogSnapshot(catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
@@ -330,7 +330,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
           ],
           plan_business_types: [
             ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.plan_business_types,
-            { plan_code: 'STARTER', business_type_code: 'depilacion' }
+            { plan_code: 'PREMIUM', business_type_code: 'depilacion' }
           ]
         });
       }
@@ -375,13 +375,13 @@ describe('KBN-007.1 - UI exposes catalog rubros as suggestions by plan', () => {
     expect(component.getMaxTypes()).toBeGreaterThan(1);
   });
 
-  it('KBN-007.1.2 @RED - BASIC plan shows peluqueria, unas', async () => {
+  it('KBN-007.1.2 @RED - legacy BASIC alias normalizes to PREMIUM and shows the MVP catalog types', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'BASIC');
-    expect(readPlanSelection(storage)).toBe('STARTER');
+    expect(readPlanSelection(storage)).toBe('PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     expect(component.allowedTypes.map((t) => t.code)).toContain('peluqueria');
@@ -389,13 +389,13 @@ describe('KBN-007.1 - UI exposes catalog rubros as suggestions by plan', () => {
     expect(component.allowedTypes.length).toBe(8);
   });
 
-  it('KBN-007.1.3 @RED - MEDIUM plan shows peluqueria, unas, barberia', async () => {
+  it('KBN-007.1.3 @RED - legacy MEDIUM alias normalizes to PREMIUM and shows the MVP catalog types', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
-    expect(readPlanSelection(storage)).toBe('GROWTH');
+    expect(readPlanSelection(storage)).toBe('PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     const codes = component.allowedTypes.map((t) => t.code);
@@ -405,13 +405,13 @@ describe('KBN-007.1 - UI exposes catalog rubros as suggestions by plan', () => {
     expect(component.allowedTypes.length).toBe(8);
   });
 
-  it('KBN-007.1.4 @RED - PRO plan shows all catalog business types', async () => {
+  it('KBN-007.1.4 @RED - PREMIUM plan shows all catalog business types', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
-    expect(readPlanSelection(storage)).toBe('PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
+    expect(readPlanSelection(storage)).toBe('PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     const codes = component.allowedTypes.map((t) => t.code);
@@ -468,10 +468,10 @@ describe('KBN-007.2 - Cannot select disallowed types', () => {
     const storage = createMemoryStorage();
     const { readPlanSelection } = await loadOnboardingPlanStorageModule();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
     const component = new SignupBusinessTypesStepPage();
 
-    // PRO plan: all types allowed
+    // PREMIUM plan: all types allowed
     expect(component.canSelect('peluqueria')).toBe(true);
     expect(component.canSelect('unas')).toBe(true);
     expect(component.canSelect('barberia')).toBe(true);
@@ -559,7 +559,7 @@ describe('KBN-007.3 - Multi-rubro selection', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
 
@@ -576,7 +576,7 @@ describe('KBN-007.4 - Required at least one type', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     expect(component.canContinue()).toBe(false);
@@ -586,7 +586,7 @@ describe('KBN-007.4 - Required at least one type', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     component.toggleType('peluqueria');
@@ -607,7 +607,7 @@ describe('KBN-007.5 - Visual feedback for selected types', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
 
@@ -670,7 +670,7 @@ describe('KBN-007.7 - Continue/Submit button state', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     expect(component.canContinue()).toBe(false);
@@ -680,7 +680,7 @@ describe('KBN-007.7 - Continue/Submit button state', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
 
     const component = new SignupBusinessTypesStepPage();
     component.toggleType('peluqueria');
@@ -701,7 +701,7 @@ describe('KBN-007.8 - Final submit completes onboarding', () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const storage = createMemoryStorage();
 
-    storage.setItem('turnea.onboarding.plan', 'PRO');
+    storage.setItem('turnea.onboarding.plan', 'PREMIUM');
     storage.setItem('turnea.onboarding.credentials', JSON.stringify({
       email: 'test@example.com',
       full_name: 'Test User',
@@ -783,7 +783,7 @@ describe('KBN-007.11 - Edge cases', () => {
     expect(readBusinessTypes(corruptedStorage)).toBeNull();
   });
 
-  it('KBN-007.11.2 @RED - when no plan in storage, defaults to catalog STARTER', async () => {
+  it('KBN-007.11.2 @RED - when no plan in storage, defaults to the MVP FREE catalog behavior', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
     const emptyStorage = createMemoryStorage();
 
@@ -814,6 +814,6 @@ describe('KBN-007.11 - Edge cases', () => {
     storage.setItem('turnea.onboarding.plan', 'MEDIUM');
     const plan = readPlanSelection(storage);
 
-    expect(plan).toBe('GROWTH');
+    expect(plan).toBe('PREMIUM');
   });
 });

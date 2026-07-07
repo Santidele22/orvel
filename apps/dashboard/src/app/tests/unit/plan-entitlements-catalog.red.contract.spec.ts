@@ -71,12 +71,12 @@ describe('RED contract: plan entitlements uses the core reference catalog', () =
     const catalog = referenceCatalog.getDefaultDashboardReferenceCatalog();
 
     expect(planEntitlements.CANONICAL_PLAN_CODES).toEqual(catalog.plans.map((plan) => plan.code));
-    expect(planEntitlements.CANONICAL_PLAN_CODES).toEqual(['FREE', 'STARTER', 'GROWTH', 'PRO']);
-    expect(planEntitlements.normalizePlanCode(' BASIC ')).toBe('STARTER');
-    expect(planEntitlements.normalizePlanCode('medium')).toBe('GROWTH');
+    expect(planEntitlements.CANONICAL_PLAN_CODES).toEqual(['FREE', 'PREMIUM']);
+    expect(planEntitlements.normalizePlanCode(' BASIC ')).toBe('PREMIUM');
+    expect(planEntitlements.normalizePlanCode('medium')).toBe('PREMIUM');
 
-    if (catalog.planAliases.some((alias) => alias.alias === 'STARTED' && alias.planCode === 'STARTER')) {
-      expect(planEntitlements.normalizePlanCode('started')).toBe('STARTER');
+    if (catalog.planAliases.some((alias) => alias.alias === 'STARTED' && alias.planCode === 'PREMIUM')) {
+      expect(planEntitlements.normalizePlanCode('started')).toBe('PREMIUM');
     }
 
     if (planEntitlements.PLAN_CODE_ALIASES) {
@@ -102,14 +102,14 @@ describe('RED contract: plan entitlements uses the core reference catalog', () =
       });
     }
 
-    expect(planEntitlements.getPlanEntitlements('BASIC')).toEqual(planEntitlements.getPlanEntitlements('STARTER'));
-    expect(planEntitlements.getPlanEntitlements('MEDIUM')).toEqual(planEntitlements.getPlanEntitlements('GROWTH'));
+    expect(planEntitlements.getPlanEntitlements('BASIC')).toEqual(planEntitlements.getPlanEntitlements('PREMIUM'));
+    expect(planEntitlements.getPlanEntitlements('MEDIUM')).toEqual(planEntitlements.getPlanEntitlements('PREMIUM'));
   });
 
-  it('does not include multi-branch in base Growth/Pro entitlements', async () => {
+  it('does not include multi-branch in base Premium entitlements', async () => {
     const planEntitlements = await loadPlanEntitlementsModule();
 
-    expect(planEntitlements.getPlanEntitlements('GROWTH').maxLocales).toBe(1);
+    expect(planEntitlements.getPlanEntitlements('PREMIUM').maxLocales).toBe(1);
     expect(planEntitlements.getPlanEntitlements('PRO').maxLocales).toBe(1);
   });
 });

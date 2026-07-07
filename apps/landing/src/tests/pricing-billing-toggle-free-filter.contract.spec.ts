@@ -9,7 +9,7 @@ async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
 }
 
-describe('Contract: pricing billing toggle visibility and Free plan filtering', () => {
+describe('Contract: monthly-only pricing visibility and Free plan rendering', () => {
   it('keeps Free renderable for monthly public pricing instead of removing it server-side', async () => {
     const pricingSource = await source(PUBLIC_PRICING_PATH);
 
@@ -17,23 +17,21 @@ describe('Contract: pricing billing toggle visibility and Free plan filtering', 
     expect(pricingSource).not.toMatch(/filter\(\s*p\s*=>\s*p\.code\s*!==\s*['"]FREE['"]\s*\)/);
   });
 
-  it('uses explicit button semantics and pressed state for all billing toggle options', async () => {
+  it('does not render quarterly or annual billing toggle options for the MVP', async () => {
     const publicPricingSource = await source(PUBLIC_PRICING_PATH);
     const signupCardsSource = await source(SIGNUP_PLAN_CARDS_PATH);
     const combined = `${publicPricingSource}\n${signupCardsSource}`;
 
-    for (const billing of ['monthly', 'quarterly', 'annual']) {
-      expect(combined).toMatch(new RegExp(`<button[^>]*type=["']button["'][^>]*data-billing=["']${billing}["']`));
-      expect(combined).toMatch(new RegExp(`<button[^>]*aria-pressed=["'](?:true|false)["'][^>]*data-billing=["']${billing}["']`));
-    }
+    expect(combined).not.toMatch(/data-billing=["'](?:quarterly|annual)["']/);
+    expect(combined).not.toMatch(/Trimestral|Anual/);
   });
 
-  it('hides Free with the hidden attribute and aria-hidden outside monthly in public and signup pricing', async () => {
+  it('keeps Free visible in the monthly-only public and signup pricing paths', async () => {
     const publicIndexSource = await source(PUBLIC_INDEX_PATH);
     const signupCardsSource = await source(SIGNUP_PLAN_CARDS_PATH);
     const combined = `${publicIndexSource}\n${signupCardsSource}`;
 
-    expect(combined).toMatch(/if \(planCode === ['"]FREE['"]\)[\s\S]*(?:period|nextPeriod) !== ['"]monthly['"][\s\S]*card\.hidden\s*=\s*true[\s\S]*card\.setAttribute\(['"]aria-hidden['"],\s*['"]true['"]\)/);
     expect(combined).toMatch(/if \(planCode === ['"]FREE['"]\)[\s\S]*card\.hidden\s*=\s*false[\s\S]*card\.setAttribute\(['"]aria-hidden['"],\s*['"]false['"]\)/);
+    expect(combined).not.toMatch(/if \(planCode === ['"]FREE['"]\)[\s\S]*(?:period|nextPeriod) !== ['"]monthly['"][\s\S]*card\.hidden\s*=\s*true/);
   });
 });

@@ -4,9 +4,17 @@ import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecr
 import { buildTierCode } from "../_shared/mp-plan-catalog.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
-const MP_API_BASE = "https://api.mercadopago.com";
+export interface SyncMpPlansDependencies {
+  createClient?: typeof createClient;
+  envGet?: (key: string) => string | undefined;
+}
 
-Deno.serve(async (req) => {
+export async function syncMpPlansHandler(
+  req: Request,
+  dependencies: SyncMpPlansDependencies = {},
+): Promise<Response> {
+  const createSupabaseClient = dependencies.createClient ?? createClient;
+  const envGet = dependencies.envGet ?? ((key: string) => Deno.env.get(key));
   const corsHeaders = getBillingCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -18,7 +26,7 @@ Deno.serve(async (req) => {
 
   try {
     const cronHeader = req.headers.get("x-cron-key");
-    const expectedCronKey = Deno.env.get("CRON_KEY");
+    const expectedCronKey = envGet("CRON_KEY");
 
     if (!expectedCronKey || cronHeader !== expectedCronKey) {
       return new Response(JSON.stringify({ success: false, error: "UNAUTHORIZED" }), {
@@ -27,22 +35,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(
+    const supabaseAdmin = createSupabaseClient(
       requireServerSecret("SUPABASE_URL"),
       requireServerSecret("SUPABASE_SERVICE_ROLE_KEY")
     );
 
-    const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-
-    if (!mpAccessToken) {
-      throw new Error("MP_ACCESS_TOKEN is not configured");
-    }
-
     const { data: rows, error: rowsError } = await supabaseAdmin
       .from("mp_plan_catalog")
       .select("id, tier, cadence, tier_code, amount, currency, frequency, frequency_type, preapproval_plan_id")
-      .in("tier", ["starter", "growth", "pro"])
-      .in("cadence", ["monthly", "quarterly", "annual"]);
+      .eq("tier", "premium")
+      .eq("cadence", "monthly");
 
     if (rowsError) throw rowsError;
 
@@ -52,59 +54,22 @@ Deno.serve(async (req) => {
       const cadence = String(row.cadence);
       const tierCode = String(row.tier_code || buildTierCode(String(row.tier), cadence));
 
-      if (typeof row.preapproval_plan_id === "string" && row.preapproval_plan_id.length > 0) {
-        results.push({ tier: row.tier, cadence, status: "already_synced", id: row.preapproval_plan_id });
+      const preapprovalPlanId = typeof row.preapproval_plan_id === "string"
+        ? row.preapproval_plan_id.trim()
+        : "";
+
+      if (preapprovalPlanId.length > 0) {
+        results.push({ tier: row.tier, cadence, tier_code: tierCode, status: "configured", id: preapprovalPlanId });
         continue;
       }
 
-      console.log(`Creating MP plan for ${tierCode}...`);
-
-      const mpPlanRequest = {
-        reason: `Salon De Belleza ${tierCode}`,
-        site_id: "MLA",
-        auto_recurring: {
-          frequency: Number(row.frequency),
-          frequency_type: String(row.frequency_type || "months"),
-          transaction_amount: Number(row.amount),
-          currency_id: String(row.currency || "ARS"),
-        },
+      results.push({
+        tier: row.tier,
+        cadence,
+        tier_code: tierCode,
+        status: "manual_configuration_required",
         back_url: buildDashboardUrl("billing/success"),
-      };
-
-        const mpResponse = await fetch(`${MP_API_BASE}/preapproval_plan`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${mpAccessToken}`,
-          },
-          body: JSON.stringify(mpPlanRequest),
-        });
-
-      if (!mpResponse.ok) {
-        const errorData = await mpResponse.json();
-        console.error(`Error creating MP plan for ${tierCode}:`, errorData);
-        results.push({ tier: row.tier, cadence, status: "error", error: errorData });
-        continue;
-      }
-
-      const mpData = await mpResponse.json();
-
-      const { error: updateError } = await supabaseAdmin
-        .from("mp_plan_catalog")
-        .update({
-          preapproval_plan_id: mpData.id,
-          last_synced_at: new Date().toISOString(),
-          status: "active",
-        })
-        .eq("id", row.id);
-
-      if (updateError) {
-        console.error(`Error updating DB for ${tierCode}:`, updateError);
-        results.push({ tier: row.tier, cadence, status: "db_update_error", error: updateError });
-        continue;
-      }
-
-      results.push({ tier: row.tier, cadence, tier_code: tierCode, status: "created", id: mpData.id });
+      });
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
@@ -118,4 +83,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
+
+if (import.meta.main) {
+  Deno.serve((req) => syncMpPlansHandler(req));
+}

@@ -11,7 +11,7 @@ type SubscriptionStatus =
   | 'expired'
   | 'scheduled_change';
 
-type PlanCode = 'FREE' | 'STARTER' | 'GROWTH' | 'PRO';
+type PlanCode = 'FREE' | 'PREMIUM';
 
 type SubscriptionSnapshot = {
   businessId: string;
@@ -189,7 +189,7 @@ const ACTIVE_SUBSCRIPTION: SubscriptionSnapshot = {
   businessId: ACTIVE_BUSINESS_ID,
   tenantId: ACTIVE_TENANT_ID,
   subscriptionId: `sub_local_${RUN_ID}`,
-  planCode: 'GROWTH',
+  planCode: 'PREMIUM',
   status: 'active',
   provider: 'mercado_pago',
   providerSubscriptionId: PROVIDER_SUBSCRIPTION_ID,
@@ -212,7 +212,7 @@ const WEBHOOK_BODY_RENEWAL_APPROVED = JSON.stringify({
   data: { id: PROVIDER_SUBSCRIPTION_ID },
   // Legacy webhook compatibility fixture: canonical code emits subscription/preapproval sessions.
   external_reference: `checkout-session:${RUN_ID}`,
-  preapproval_plan_id: 'mp_plan_growth_monthly',
+  preapproval_plan_id: 'mp_plan_premium_monthly',
   status: 'authorized',
   next_payment_date: '2026-07-01T00:00:00.000Z'
 });
@@ -299,7 +299,7 @@ beforeEach(async () => {
           businessId: ACTIVE_BUSINESS_ID,
           tenantId: ACTIVE_TENANT_ID,
           subscriptionStatus: 'active',
-          planCode: 'GROWTH',
+          planCode: 'PREMIUM',
           limits: { maxLocales: 1, maxRubros: 5, aiCreditsMonthly: 500 },
           source: 'subscription_state_machine'
         };
@@ -383,7 +383,7 @@ describe('Orvel billing remediation RED contracts', () => {
           eventType: 'subscription.payment_approved',
           occurredAtIso: '2026-06-01T00:00:02.000Z',
           payloadHash: 'sha256:renewal-approved-001',
-          planCode: 'GROWTH',
+          planCode: 'PREMIUM',
           currentPeriodStart: '2026-06-01T00:00:00.000Z',
           currentPeriodEnd: '2026-07-01T00:00:00.000Z'
         }
@@ -472,23 +472,23 @@ describe('Orvel billing remediation RED contracts', () => {
       });
     });
 
-    it('applies upgrades immediately and schedules downgrades for next period', async () => {
+    it('applies immediate paid plan changes and schedules next-period plan changes', async () => {
       const stateMachine = await loadStateMachine();
 
       await expect(
-        stateMachine.changeSubscriptionPlan({ current: ACTIVE_SUBSCRIPTION, targetPlanCode: 'PRO', effective: 'immediate', requestedAtIso: '2026-05-10T12:00:00.000Z' })
+        stateMachine.changeSubscriptionPlan({ current: ACTIVE_SUBSCRIPTION, targetPlanCode: 'PREMIUM', effective: 'immediate', requestedAtIso: '2026-05-10T12:00:00.000Z' })
       ).resolves.toEqual({
         accepted: true,
         action: 'APPLY_PLAN_CHANGE',
-        next: expect.objectContaining({ planCode: 'PRO', status: 'active', version: 8 })
+        next: expect.objectContaining({ planCode: 'PREMIUM', status: 'active', version: 8 })
       });
 
       await expect(
-        stateMachine.changeSubscriptionPlan({ current: ACTIVE_SUBSCRIPTION, targetPlanCode: 'STARTER', effective: 'next_period', requestedAtIso: '2026-05-10T12:00:00.000Z' })
+        stateMachine.changeSubscriptionPlan({ current: ACTIVE_SUBSCRIPTION, targetPlanCode: 'PREMIUM', effective: 'next_period', requestedAtIso: '2026-05-10T12:00:00.000Z' })
       ).resolves.toEqual({
         accepted: true,
         action: 'SCHEDULE_PLAN_CHANGE',
-        next: expect.objectContaining({ planCode: 'GROWTH', status: 'scheduled_change', currentPeriodEnd: '2026-06-01T00:00:00.000Z', version: 8 })
+        next: expect.objectContaining({ planCode: 'PREMIUM', status: 'scheduled_change', currentPeriodEnd: '2026-06-01T00:00:00.000Z', version: 8 })
       });
     });
   });
@@ -572,7 +572,7 @@ describe('Orvel billing remediation RED contracts', () => {
         businessId: ACTIVE_BUSINESS_ID,
         tenantId: ACTIVE_TENANT_ID,
         subscriptionStatus: 'active',
-        planCode: 'GROWTH',
+        planCode: 'PREMIUM',
         limits: { maxLocales: 1, maxRubros: 5, aiCreditsMonthly: expect.any(Number) },
         source: 'subscription_state_machine'
       });

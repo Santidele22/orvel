@@ -15,13 +15,16 @@ type SignupEnv = {
   PUBLIC_SUPABASE_ANON_KEY?: string;
 };
 
-const VALID_SIGNUP_PLANS = ['FREE', 'STARTER', 'GROWTH', 'PRO'] as const;
+const VALID_SIGNUP_PLANS = ['FREE', 'PREMIUM'] as const;
 const VALID_SIGNUP_RUBROS = new Set(['peluqueria', 'barberia', 'unas', 'estetica', 'spa', 'maquillaje', 'pestanas', 'cejas', 'masajes', 'otro']);
 
-const normalizeSignupPlan = (rawPlan: string | null) => rawPlan?.trim().toUpperCase() ?? '';
+const normalizeSignupPlan = (rawPlan: string | null) => {
+  const normalized = rawPlan?.trim().toUpperCase() ?? '';
+  return ['STARTED', 'STARTER', 'BASIC', 'MEDIUM', 'GROWTH', 'PRO', 'SIMPLE', 'CRECE', 'ESCALA'].includes(normalized) ? 'PREMIUM' : normalized;
+};
 const normalizeBillingPeriod = (raw: string | null) => {
   const normalized = raw?.trim().toLowerCase();
-  return normalized === 'quarterly' || normalized === 'annual' ? normalized : 'monthly';
+  return normalized === 'monthly' ? normalized : 'monthly';
 };
 const isValidSignupPlan = (rawPlan: string | null) =>
   VALID_SIGNUP_PLANS.includes(normalizeSignupPlan(rawPlan) as typeof VALID_SIGNUP_PLANS[number]);

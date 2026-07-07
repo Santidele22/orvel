@@ -44,21 +44,23 @@ function readRequiredFile(filePath: string): string {
 }
 
 describe('Sprint1 MP preapproval_plan validation contracts', () => {
-  it('supports create-subscription with new {tier,cadence} model and keeps legacy plan_code fallback', () => {
+  it('supports create-subscription on the canonical FREE/PREMIUM model and keeps legacy plan_code normalization', () => {
     const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
 
     expect(source).toMatch(/interface\s+SubscriptionRequest\s*\{[\s\S]*tier\?\s*:\s*string\s*;[\s\S]*cadence\?\s*:\s*string\s*;/m);
-    expect(source).toMatch(/if\s*\(\(!effectivePlanCode[\s\S]*typeof tier === ["']string["'][\s\S]*typeof cadence === ["']string["']\)/m);
-    expect(source).toMatch(/effectivePlanCode\s*=\s*normalizedTier\s*===\s*["']starter["'][\s\S]*["']STARTER["'][\s\S]*["']GROWTH["'][\s\S]*["']PRO["']/m);
     expect(source).toMatch(/const canonicalPlanCode = normalizeCanonicalPlanCode\(effectivePlanCode\)/);
+    expect(source).toMatch(/canonicalPlanCode === ["']PREMIUM["']/);
+    expect(source).toMatch(/effectivePlanCode\s*=\s*["']PREMIUM["']/);
+    expect(source).not.toMatch(/effectivePlanCode\s*=\s*normalizedTier\s*===\s*["']starter["'][\s\S]*["']STARTER["'][\s\S]*["']GROWTH["'][\s\S]*["']PRO["']/m);
     expect(source).toMatch(/PLAN_CODE_REQUIRED/);
   });
 
-  it('fails with explicit contract errors when mp_plan_catalog mapping or preapproval_plan_id is missing', () => {
+  it('requires manual Premium monthly preapproval plan configuration when mp_plan_catalog lacks preapproval_plan_id', () => {
     const source = readRequiredFile(CREATE_SUBSCRIPTION_FN);
 
     expect(source).toMatch(/PLAN_CATALOG_READ_FAILED/);
-    expect(source).toMatch(/PREAPPROVAL_PLAN_NOT_SYNCED/);
+    expect(source).toMatch(/PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED/);
+    expect(source).not.toMatch(/PREAPPROVAL_PLAN_NOT_SYNCED/);
     expect(source).toMatch(/preapproval_plan_id/);
   });
 

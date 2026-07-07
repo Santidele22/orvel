@@ -109,13 +109,19 @@ function isInvalidCredentialsError(message: string): boolean {
   return /invalid\s+login\s+credentials|invalid_credentials|credenciales/i.test(message);
 }
 
-const CANONICAL_PLAN_CODES = ['FREE', 'STARTED', 'GROWTH', 'PRO'] as const;
+const CANONICAL_PLAN_CODES = ['FREE', 'PREMIUM'] as const;
 const ALLOWED_ONBOARDING_BUSINESS_TYPES = ['uñas', 'peluqueria', 'barberia', 'spa', 'pestañas', 'cejas', 'masajes', 'otro', 'pendiente'] as const;
 
 const PLAN_ALIASES: Record<string, (typeof CANONICAL_PLAN_CODES)[number]> = {
-  BASIC: 'STARTED',
-  STARTER: 'STARTED',
-  MEDIUM: 'GROWTH'
+  BASIC: 'PREMIUM',
+  STARTED: 'PREMIUM',
+  STARTER: 'PREMIUM',
+  MEDIUM: 'PREMIUM',
+  GROWTH: 'PREMIUM',
+  PRO: 'PREMIUM',
+  SIMPLE: 'PREMIUM',
+  CRECE: 'PREMIUM',
+  ESCALA: 'PREMIUM'
 };
 
 function normalizeSignupPlan(plan: unknown): (typeof CANONICAL_PLAN_CODES)[number] | null {

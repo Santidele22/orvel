@@ -17,9 +17,7 @@ import { SIGNUP_STORAGE_KEYS } from '../../lib/browser-storage-keys';
 const PLANS_DATA = plansData;
 const AUTHENTICATED_FREE_ONBOARDING_URL = '/auth/signup/onboarding?plan=FREE&account_created_modal=welcome_login';
 const AUTHENTICATED_PAID_SUBSCRIPTION_URLS = {
-  STARTER: '/billing/subscription?plan=STARTER',
-  GROWTH: '/billing/subscription?plan=GROWTH',
-  PRO: '/billing/subscription?plan=PRO'
+  PREMIUM: '/billing/subscription?plan=PREMIUM'
 };
 const CREATE_ACCOUNT_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=missing_plan&intent=create_account';
 const INVALID_PLAN_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=invalid_plan&intent=create_account';
@@ -164,21 +162,8 @@ function showRedirectNotice() {
   setRedirectNoticeActive(true);
 }
 
-// Update prices based on billing period
 function updatePrices(period) {
-  const nextPeriod = ['monthly', 'quarterly', 'annual'].includes(period) ? period : 'monthly';
-  // Update button states
-  document.querySelectorAll('.billing-option').forEach(btn => {
-    const isSelected = btn.dataset.billing === nextPeriod;
-    btn.setAttribute('aria-pressed', String(isSelected));
-    if (isSelected) {
-      btn.classList.add('bg-primary', 'text-on-secondary');
-      btn.classList.remove('text-text-primary');
-    } else {
-      btn.classList.remove('bg-primary', 'text-on-secondary');
-      btn.classList.add('text-text-primary');
-    }
-  });
+  const nextPeriod = period === 'monthly' ? period : 'monthly';
 
   // Update all price displays and hrefs
   document.querySelectorAll('.plan-card').forEach(card => {
@@ -192,17 +177,10 @@ function updatePrices(period) {
       card.href = href;
     });
 
-    // Hide FREE plan if not monthly
     if (planCode === 'FREE') {
-      if (nextPeriod !== 'monthly') {
-        card.hidden = true;
-        card.classList.add('hidden');
-        card.setAttribute('aria-hidden', 'true');
-      } else {
-        card.hidden = false;
-        card.classList.remove('hidden');
-        card.setAttribute('aria-hidden', 'false');
-      }
+      card.hidden = false;
+      card.classList.remove('hidden');
+      card.setAttribute('aria-hidden', 'false');
       return;
     }
 
@@ -214,16 +192,6 @@ function updatePrices(period) {
       case 'monthly':
         price = plan.price;
         billingLabel = '/mes';
-        break;
-      case 'quarterly':
-        price = plan.quarterly_price;
-        billingLabel = '/trimestre';
-        savings = (plan.price * 3) - plan.quarterly_price;
-        break;
-      case 'annual':
-        price = plan.annual_price;
-        billingLabel = '/año';
-        savings = (plan.price * 12) - plan.annual_price;
         break;
     }
 
@@ -255,13 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('create-account-redirect-continue-now')?.addEventListener('click', hideRedirectNotice);
   }
-
-  // Billing toggle handlers
-  document.querySelectorAll('.billing-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      updatePrices(btn.dataset.billing);
-    });
-  });
 
   document.querySelectorAll('.plan-card').forEach(card => {
     card.addEventListener('click', async (event) => {
@@ -340,17 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 </style>
 
-<!-- Billing Toggle -->
-<div class="flex justify-center mb-6 mt-8 w-full overflow-x-auto pb-2 scrollbar-hide" aria-label="Elegir frecuencia de facturación">
-  <div class="bg-bg-primary rounded-full p-1 sm:p-1.5 flex items-center gap-1 border border-border shadow-sm min-w-max mx-auto">
-    <button type="button" aria-pressed="true" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all bg-primary text-on-secondary whitespace-nowrap" data-billing="monthly">Mensual</button>
-    <button type="button" aria-pressed="false" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="quarterly">Trimestral (-15%)</button>
-    <button type="button" aria-pressed="false" class="billing-option px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-headline font-bold tracking-wide transition-all text-text-primary hover:bg-bg-secondary whitespace-nowrap" data-billing="annual">Anual (-30%) <span class="text-primary text-[9px]">🔥</span></button>
-  </div>
-</div>
-
 <!-- Plans -->
-<section class="flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-6 transition-all duration-300" id="plans-container">
+<section class="mt-8 flex flex-col md:flex-row flex-wrap justify-center items-stretch gap-6 transition-all duration-300" id="plans-container">
   {plansWithBilling.map((plan) => (
     <PlanCard plan={plan} isSignupPage />
   ))}

@@ -20,19 +20,15 @@ const { plan, isSignupPage = false } = Astro.props;
 function getPlanButtonLabel(planCode: string): string {
   switch (planCode) {
     case 'FREE': return 'Empezar gratis';
-    case 'STARTER': return 'Elegir Starter';
-    case 'GROWTH': return 'Elegir Growth';
-    case 'PRO': return 'Elegir Pro';
+    case 'PREMIUM': return 'Elegir Premium';
     default: return 'Elegir plan';
   }
 }
 
 const isFree = plan.code === 'FREE';
-const isStarter = plan.code === 'STARTER';
-const isGrowth = plan.code === 'GROWTH';
-const isPro = plan.code === 'PRO';
+const isPremium = plan.code === 'PREMIUM';
 
-const dotColor = isFree ? 'bg-green-500' : isStarter ? 'bg-primary' : isGrowth ? 'bg-purple-500' : 'bg-yellow-500';
+const dotColor = isFree ? 'bg-green-500' : 'bg-primary';
 
 const CardContainer = isSignupPage ? 'a' : 'div';
 const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&billing=monthly` : undefined;
@@ -60,7 +56,6 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     ) : (
       <div class="price-display">
         <h5 class="text-4xl font-headline font-black text-text-primary flex items-baseline">
-          {isPro && <span class="text-sm font-normal mr-1.5 text-text-primary/70 uppercase tracking-wider text-[10px]">Desde</span>}
           $<span class="price-value">{plan.price.toLocaleString('es-AR')}</span><span class="text-sm font-body text-text-primary/60 font-normal price-label ml-1">/mes</span>
         </h5>
         <p class="price-savings text-primary text-[9px] font-bold hidden">
@@ -70,7 +65,7 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     )}
     <p class="text-text-primary/60 text-[10px] mt-1 h-8 line-clamp-2">{plan.description}</p>
     <p class="mt-3 inline-flex w-fit items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-text-secondary">
-      <i class="ri-map-pin-line text-primary"></i> Incluye 1 local
+      <i class="ri-map-pin-line text-primary"></i> Incluye 1 local principal
     </p>
   </div>
   
@@ -78,13 +73,13 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
     {isFree && (
       <>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> 1 agenda</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Hasta 15 turnos/mes</li>
+        <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Hasta 30 turnos/mes</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Link de reservas</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Gestión básica de clientes</li>
         <li class="flex items-center gap-2"><i class="ri-check-line text-green-500 font-bold"></i> Servicios y horarios</li>
       </>
     )}
-    {isStarter && (
+    {isPremium && (
       <>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Turnos ilimitados</li>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Clientes</li>
@@ -93,26 +88,7 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Descansos y bloqueos</li>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Reprogramaciones</li>
         <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Link de reservas</li>
-        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Recordatorios automáticos</li>
-        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> Métricas básicas</li>
-      </>
-    )}
-    {isGrowth && (
-      <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Incluye todo lo de Starter +</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Hasta 3 profesionales/agendas</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Optimización de disponibilidad</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Métricas del negocio</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Reportes semanales</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-purple-500 font-bold"></i> Prioridad de soporte</li>
-      </>
-    )}
-    {isPro && (
-      <>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Operaciones con varias agendas</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Configuraciones avanzadas</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Onboarding personalizado</li>
-        <li class="flex items-center gap-2"><i class="ri-check-line text-yellow-500 font-bold"></i> Soporte dedicado</li>
+        <li class="flex items-center gap-2 font-bold"><i class="ri-checkbox-circle-fill text-primary"></i> 1 local principal</li>
       </>
     )}
   </ul>
@@ -134,8 +110,6 @@ const cardHref = isSignupPage ? `/auth/signup/credentials?plan=${plan.code}&bill
   
   <p class="text-[9px] text-center text-text-primary/40 mt-3 italic">
     {isFree && "Que entren y usen el producto."}
-    {isStarter && "Ideal para peluquerías chicas, uñas, barberías, independientes."}
-    {isGrowth && "Menos cancelaciones, más ocupación, menos tiempo perdido."}
-    {isPro && "Control total para escalar sin fricción con procesos claros."}
+    {isPremium && "Turnos ilimitados para operar sin el límite mensual."}
   </p>
 </CardContainer>

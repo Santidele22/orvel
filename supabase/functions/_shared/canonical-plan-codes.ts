@@ -1,13 +1,17 @@
-export type CanonicalPlanCode = "FREE" | "STARTER" | "GROWTH" | "PRO";
+export type CanonicalPlanCode = "FREE" | "PREMIUM";
 
 const PLAN_CODE_ALIASES: Record<string, CanonicalPlanCode> = {
   FREE: "FREE",
-  BASIC: "STARTER",
-  STARTED: "STARTER",
-  STARTER: "STARTER",
-  MEDIUM: "GROWTH",
-  GROWTH: "GROWTH",
-  PRO: "PRO",
+  BASIC: "PREMIUM",
+  STARTED: "PREMIUM",
+  STARTER: "PREMIUM",
+  MEDIUM: "PREMIUM",
+  GROWTH: "PREMIUM",
+  PRO: "PREMIUM",
+  SIMPLE: "PREMIUM",
+  CRECE: "PREMIUM",
+  ESCALA: "PREMIUM",
+  PREMIUM: "PREMIUM",
 };
 
 export function normalizeCanonicalPlanCode(planCode: string): string {

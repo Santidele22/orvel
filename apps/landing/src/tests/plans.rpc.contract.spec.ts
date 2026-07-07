@@ -14,9 +14,9 @@ async function loadPlansModule() {
 function rpcPlansFixture() {
   return [
     {
-      id: 'rpc-starter',
-      code: 'STARTER',
-      name: 'Starter',
+      id: 'rpc-premium',
+      code: 'PREMIUM',
+      name: 'Premium',
       description: 'desc',
       price: 12,
       currency: 'ARS',
@@ -35,14 +35,10 @@ function rpcMessyLaunchPlansFixture() {
   const base = rpcPlansFixture()[0]!;
   return [
     { ...base, id: 'old-simple', code: 'SIMPLE', name: 'Simple', price: 9900, is_featured: false },
-    { ...base, id: 'starter-monthly', code: 'STARTER_MONTHLY', name: 'Plan Starter Mensual', price: 12, is_featured: false },
-    { ...base, id: 'growth-monthly', code: 'GROWTH_MONTHLY', name: 'Plan Growth Mensual', price: 22, is_featured: false },
-    { ...base, id: 'starter-quarterly', code: 'STARTER_QUARTERLY', name: 'Plan Starter Trimestral', price: 34, is_featured: false },
+    { ...base, id: 'premium-monthly', code: 'PREMIUM_MONTHLY', name: 'Plan Premium Mensual', price: 25000, is_featured: false },
     { ...base, id: 'old-crece', code: 'CRECE', name: 'Crece', price: 24900, is_featured: false },
     { ...base, id: 'old-escala', code: 'ESCALA', name: 'Escala', price: 44900, is_featured: false },
-    { ...base, id: 'canonical-starter', code: 'STARTER', name: 'Starter', price: 12000, is_featured: true },
-    { ...base, id: 'canonical-growth', code: 'GROWTH', name: 'Growth', price: 22000, is_featured: false },
-    { ...base, id: 'canonical-pro', code: 'PRO', name: 'Pro', price: 39000, is_featured: false }
+    { ...base, id: 'canonical-premium', code: 'PREMIUM', name: 'Premium', price: 25000, is_featured: true }
   ];
 }
 
@@ -70,7 +66,7 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
 
     expect(rpc).toHaveBeenCalledWith('get_active_plans');
     expect(from).not.toHaveBeenCalled();
-    expect(plans[0]?.id).toBe('rpc-starter');
+    expect(plans[0]?.id).toBe('rpc-premium');
   });
 
   it('normalizes Supabase catalog rows to one canonical landing card per plan and filters billing variants', async () => {
@@ -84,10 +80,10 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
 
     expect(rpc).toHaveBeenCalledWith('get_active_plans');
     expect(from).not.toHaveBeenCalled();
-    expect(plans.map((plan) => plan.code)).toEqual(['STARTER', 'GROWTH', 'PRO']);
-    expect(normalizedDirect.map((plan) => plan.name)).toEqual(['Starter', 'Growth', 'Pro']);
-    expect(plans.map((plan) => plan.id)).toEqual(['canonical-starter', 'canonical-growth', 'canonical-pro']);
-    expect(plans.map((plan) => `${plan.code} ${plan.name}`).join(' ')).not.toMatch(/MENSUAL|TRIMESTRAL|ANUAL|SIMPLE|CRECE|ESCALA/i);
+    expect(plans.map((plan) => plan.code)).toEqual(['PREMIUM']);
+    expect(normalizedDirect.map((plan) => plan.name)).toEqual(['Premium']);
+    expect(plans.map((plan) => plan.id)).toEqual(['canonical-premium']);
+    expect(plans.map((plan) => `${plan.code} ${plan.name}`).join(' ')).not.toMatch(/MENSUAL|TRIMESTRAL|ANUAL|SIMPLE|CRECE|ESCALA|STARTER|GROWTH|PRO/i);
   });
 
   it('getActivePlans falls back to static plans when RPC fails', async () => {
@@ -114,7 +110,7 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
 
     expect(rpc).toHaveBeenCalledWith('get_active_plans');
     expect(from).not.toHaveBeenCalled();
-    expect(plans.some((plan) => plan.code === 'STARTER')).toBe(true);
+    expect(plans.some((plan) => plan.code === 'PREMIUM')).toBe(true);
   });
 
   it.each([
@@ -132,7 +128,7 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
     expect(createClientMock).not.toHaveBeenCalled();
     expect(plans.length).toBeGreaterThan(0);
     expect(plans.some((plan) => plan.code === 'FREE')).toBe(true);
-    expect(plans.some((plan) => plan.code === 'STARTER')).toBe(true);
+    expect(plans.some((plan) => plan.code === 'PREMIUM')).toBe(true);
   });
 
   it('getPlanByCode uses get_plan_by_code RPC and avoids .from("plans")', async () => {
@@ -142,11 +138,11 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
     createClientMock.mockReturnValue({ rpc, from });
 
     const { getPlanByCode } = await loadPlansModule();
-    const plan = await getPlanByCode('STARTER');
+    const plan = await getPlanByCode('PREMIUM');
 
-    expect(rpc).toHaveBeenCalledWith('get_plan_by_code', { p_code: 'STARTER' });
+    expect(rpc).toHaveBeenCalledWith('get_plan_by_code', { p_code: 'PREMIUM' });
     expect(from).not.toHaveBeenCalled();
-    expect(plan?.code).toBe('STARTER');
+    expect(plan?.code).toBe('PREMIUM');
   });
 
   it('getPlanByCode falls back to static contract when RPC fails or returns empty', async () => {
@@ -157,7 +153,7 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
       rpc: vi.fn().mockResolvedValue({ data: null, error: { message: 'fail' } }),
       from
     });
-    const failed = await getPlanByCode('PRO');
+    const failed = await getPlanByCode('PREMIUM');
 
     createClientMock.mockReturnValueOnce({
       rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -166,7 +162,7 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
     const empty = await getPlanByCode('FREE');
 
     expect(from).not.toHaveBeenCalled();
-    expect(failed?.code).toBe('PRO');
+    expect(failed?.code).toBe('PREMIUM');
     expect(empty?.code).toBe('FREE');
   });
 
@@ -180,9 +176,9 @@ describe('Contract: landing plans fetching is RPC-first with static fallback', (
     vi.stubEnv('PUBLIC_SUPABASE_ANON_KEY', anonKey);
 
     const { getPlanByCode } = await loadPlansModule();
-    const plan = await getPlanByCode('PRO');
+    const plan = await getPlanByCode('PREMIUM');
 
     expect(createClientMock).not.toHaveBeenCalled();
-    expect(plan?.code).toBe('PRO');
+    expect(plan?.code).toBe('PREMIUM');
   });
 });
