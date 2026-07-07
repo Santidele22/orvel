@@ -38,21 +38,17 @@ export function id(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Convert DB business record and settings to BusinessPublicView
+// Convert DB business record and settings to BusinessPublicView.
+// Business identity/public routing comes from businesses; settings only carries
+// operational booking configuration.
 export function mapBusinessToPublicView(
   record: { id: string; slug: string; name: string; timezone: string },
   settings?: any
 ): BusinessPublicView {
-  // DB-FIX-111: Prioritize name and slug from settings if available, 
-  // as users edit those more frequently in the dashboard
-  const displayName = (settings?.business_name && settings.business_name.trim()) 
-    ? settings.business_name 
-    : record.name;
-
   return {
     id: record.id,
-    slug: settings?.slug || record.slug,
-    displayName: displayName,
+    slug: record.slug,
+    displayName: record.name,
     timezone: record.timezone,
     settings: {
       bufferMinutes: settings?.buffer_minutes ?? 10,

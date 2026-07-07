@@ -31,8 +31,8 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
 
-  INSERT INTO public.businesses (id, slug, name, timezone, capacity)
-  VALUES (v_business_id, 'orvel-smoke-reschedule-canonical', 'Orvel Smoke Reschedule Canonical', 'UTC', 1);
+  INSERT INTO public.businesses (id, slug, name, timezone)
+  VALUES (v_business_id, 'orvel-smoke-reschedule-canonical', 'Orvel Smoke Reschedule Canonical', 'UTC');
 
   INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
   VALUES (
@@ -52,8 +52,6 @@ BEGIN
 
   INSERT INTO public.business_settings (
     business_id,
-    business_name,
-    slug,
     buffer_minutes,
     min_notice_minutes,
     slot_interval_minutes,
@@ -64,8 +62,6 @@ BEGIN
     working_hours
   ) VALUES (
     v_business_id,
-    'Orvel Smoke Reschedule Canonical',
-    'orvel-smoke-reschedule-canonical',
     0,
     0,
     60,

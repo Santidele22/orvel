@@ -10,10 +10,9 @@ VALUES ('00000000-0000-0000-0000-000000000001', 'studio-roma', 'Studio Roma', 'A
 ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, name = EXCLUDED.name;
 
 -- Also ensure business_settings has a record for this business (with working hours)
-INSERT INTO public.business_settings (business_id, business_name, buffer_minutes, min_notice_minutes, slot_interval_minutes, working_hours)
+INSERT INTO public.business_settings (business_id, buffer_minutes, min_notice_minutes, slot_interval_minutes, working_hours)
 VALUES (
   '00000000-0000-0000-0000-000000000001', 
-  'Studio Roma', 
   15, 
   120, 
   30,
@@ -28,7 +27,6 @@ VALUES (
   }'::jsonb
 )
 ON CONFLICT (business_id) DO UPDATE SET 
-  business_name = EXCLUDED.business_name,
   working_hours = EXCLUDED.working_hours;
 
 -- 2. Add services for studio-roma

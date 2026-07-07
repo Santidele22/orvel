@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { mapRpcErrorToApiError } from './mappers';
+import { mapBusinessToPublicView, mapRpcErrorToApiError } from './mappers';
+
+describe('mapBusinessToPublicView source-of-truth mapping', () => {
+  it('uses businesses for public identity even if legacy settings identity fields are present', () => {
+    const view = mapBusinessToPublicView(
+      {
+        id: 'business-1',
+        slug: 'canonical-studio',
+        name: 'Canonical Studio',
+        timezone: 'America/Argentina/Buenos_Aires'
+      },
+      {
+        slug: 'legacy-settings-slug',
+        business_name: 'Legacy Settings Name',
+        buffer_minutes: 20,
+        capacity: 3
+      }
+    );
+
+    expect(view.slug).toBe('canonical-studio');
+    expect(view.displayName).toBe('Canonical Studio');
+    expect(view.timezone).toBe('America/Argentina/Buenos_Aires');
+    expect(view.settings.bufferMinutes).toBe(20);
+  });
+});
 
 describe('mapRpcErrorToApiError self-service token policy mappings', () => {
   it.each(['TOKEN_REVOKED', 'BOOKING_ALREADY_CANCELLED'] as const)(
