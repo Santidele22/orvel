@@ -240,6 +240,23 @@ describe('R4 resilience: dashboard branch and booking loading', () => {
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.get_dashboard_branches\(uuid\) TO authenticated, service_role/i);
   });
 
+  it('keeps the dashboard branch RPC execute grants restricted to authenticated safe overloads', () => {
+    const migration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/20260707113000_fix_dashboard_branches_execute_grants.sql'), 'utf8');
+
+    expect(migration).toMatch(/get_dashboard_branches\(p_business_id uuid\)/i);
+    expect(migration).toMatch(/SECURITY DEFINER/i);
+    expect(migration).toMatch(/SET search_path = public, pg_temp/i);
+    expect(migration).toMatch(/p_business_id IS NOT NULL/i);
+    expect(migration).toMatch(/br\.business_id = p_business_id/i);
+    expect(migration).toMatch(/public\.can_manage_business\(br\.business_id\)/i);
+    expect(migration).toMatch(/REVOKE ALL ON FUNCTION public\.get_dashboard_branches\(uuid\) FROM PUBLIC, anon, authenticated/i);
+    expect(migration).toMatch(/REVOKE ALL ON FUNCTION public\.get_dashboard_branches\(\) FROM PUBLIC, anon, authenticated/i);
+    expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.get_dashboard_branches\(uuid\) TO authenticated, service_role/i);
+    expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.get_dashboard_branches\(\) TO authenticated, service_role/i);
+    expect(migration).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.get_dashboard_branches\([^)]*\) TO anon/i);
+    expect(migration).toMatch(/NOTIFY pgrst, 'reload schema'/i);
+  });
+
   it('renders a visible degraded load state instead of relying on the empty-state path', () => {
     const pageSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.ts'), 'utf8');
     const templateSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html'), 'utf8');
