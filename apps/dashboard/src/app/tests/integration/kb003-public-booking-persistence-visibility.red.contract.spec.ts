@@ -106,6 +106,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
     expect(migrationSql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*bk\.source\s*=\s*'client-self-service'/i);
     expect(migrationSql).toMatch(/not\s+exists[\s\S]*dashboard_notifications[\s\S]*appointment\.created/i);
     expect(turnoServiceSource).toMatch(/loadBookingsFromSupabase[\s\S]*resolveInternalDefaultBranchScope\(supabaseClient\)/i);
+    expect(turnoServiceSource).toMatch(/servicioId:\s*booking\['service_id'\]\s+as\s+string/i);
     expect(turnoServiceSource).not.toMatch(/const activeBranchId = this\.resolveActiveBranchId\(\);\s*if \(!activeBranchId\) return \[\];/i);
   });
 

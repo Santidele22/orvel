@@ -10,6 +10,11 @@ const hardenedPublicBookingUrl = new URL(
   import.meta.url,
 );
 
+const listAdminBookingsServiceIdContractUrl = new URL(
+  "../../migrations/20260706232000_fix_list_admin_bookings_service_id_contract.sql",
+  import.meta.url,
+);
+
 function latestCreatePublicBookingBody(sql: string): string {
   const pattern = /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.create_public_booking\s*\([\s\S]*?\)\s*RETURNS\s+jsonb[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/gi;
   const bodies = Array.from(sql.matchAll(pattern), (match) => match[1]);
@@ -34,6 +39,31 @@ Deno.test("public booking dashboard migration only references checked-in branch 
   assert(branchPredicate.length > 0, "Guard must inspect the list_admin_bookings branch lookup");
   assertEquals(branchPredicate.includes("br.active"), false);
   assert(branchPredicate.includes("br.is_active"));
+});
+
+Deno.test("admin booking list RPC returns service_id as text to match bookings and dashboard contracts", async () => {
+  const migration = await Deno.readTextFile(listAdminBookingsServiceIdContractUrl);
+  const returnTable = requiredMatch(
+    migration,
+    /RETURNS\s+TABLE\s*\([\s\S]*?\)\s*LANGUAGE\s+plpgsql/i,
+    "Guard must inspect list_admin_bookings return table",
+  );
+  const body = requiredMatch(
+    migration,
+    /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.list_admin_bookings[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/i,
+    "Guard must inspect list_admin_bookings body",
+  );
+
+  assertStringIncludes(migration, "DROP FUNCTION IF EXISTS public.list_admin_bookings(uuid, timestamptz, timestamptz)");
+  assertStringIncludes(returnTable, "service_id text");
+  assertEquals(/service_id\s+uuid/i.test(returnTable), false);
+  assertStringIncludes(body, "bk.service_id::text");
+  assertEquals(/bk\.service_id::uuid/i.test(body), false);
+  assertStringIncludes(body, "br.is_active IS TRUE");
+  assertStringIncludes(migration, "REVOKE ALL ON FUNCTION public.list_admin_bookings(uuid, timestamptz, timestamptz) FROM PUBLIC");
+  assertStringIncludes(migration, "REVOKE ALL ON FUNCTION public.list_admin_bookings(uuid, timestamptz, timestamptz) FROM anon");
+  assertStringIncludes(migration, "REVOKE ALL ON FUNCTION public.list_admin_bookings(uuid, timestamptz, timestamptz) FROM authenticated");
+  assertStringIncludes(migration, "GRANT EXECUTE ON FUNCTION public.list_admin_bookings(uuid, timestamptz, timestamptz) TO authenticated");
 });
 
 Deno.test("public booking RPC requires business email outbox before non-fatal bell notification", async () => {
