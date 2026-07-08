@@ -72,7 +72,7 @@ describe('Sprint1 MP preapproval_plan validation contracts', () => {
     expect(source).toMatch(/external_reference\s*:\s*externalReference/);
   });
 
-  it('defines migration contracts for mp_plan_catalog, mp_webhook_events, and new business_subscriptions columns/indexes', () => {
+  it('defines migration contracts for mp_plan_catalog and new business_subscriptions columns/indexes', () => {
     const sql = readRequiredFile(SPRINT1_MIGRATION);
 
     expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.mp_plan_catalog/);
@@ -80,11 +80,6 @@ describe('Sprint1 MP preapproval_plan validation contracts', () => {
     expect(sql).toMatch(/UNIQUE \(tier_code\)/);
     expect(sql).toMatch(/UNIQUE \(preapproval_plan_id\)/);
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS mp_plan_catalog_lookup_idx/);
-
-    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.mp_webhook_events/);
-    expect(sql).toMatch(/UNIQUE\(provider, provider_event_id\)/);
-    expect(sql).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS mp_webhook_events_request_uidx/);
-    expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS mp_webhook_events_resource_idx/);
 
     expect(sql).toMatch(/ALTER TABLE public\.business_subscriptions[\s\S]*ADD COLUMN IF NOT EXISTS mp_plan_catalog_id/);
     expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS mp_external_reference/);
@@ -94,23 +89,25 @@ describe('Sprint1 MP preapproval_plan validation contracts', () => {
     expect(sql).toMatch(/CREATE INDEX IF NOT EXISTS business_subscriptions_mp_preapproval_idx/);
   });
 
-  it('keeps webhook idempotency intact after dual-write additions', () => {
+  it('keeps webhook idempotency on payment_webhook_events without legacy dual writes', () => {
     const source = readRequiredFile(WEBHOOK_FN);
 
     const readExisting = source.search(/\.from\((?:"payment_webhook_events"|PAYMENT_WEBHOOK_EVENTS_TABLE)\)[\s\S]*\.select\("id, processed_at, payload_hash"\)/m);
-    const legacyUpsert = source.search(/\.from\("payment_webhook_events"\)[\s\S]*\.upsert\([\s\S]*provider_event_id[\s\S]*payload_hash/m);
-    const newUpsert = source.search(/\.from\("mp_webhook_events"\)[\s\S]*\.upsert\([\s\S]*provider_event_id[\s\S]*payload_hash/m);
+    const canonicalUpsert = source.search(/\.from\("payment_webhook_events"\)[\s\S]*\.upsert\([\s\S]*provider_event_id[\s\S]*payload_hash/m);
+    const subscriptionPaymentUpsert = source.search(/upsertSubscriptionPayment[\s\S]*providerPaymentId:\s*resourceId/m);
     const reserveRpc = source.search(/reserve_payment_webhook_event/);
     const transitionRpc = source.search(/apply_subscription_event_transition/);
 
     expect(readExisting).toBeGreaterThan(-1);
-    expect(legacyUpsert).toBeGreaterThan(-1);
-    expect(newUpsert).toBeGreaterThan(-1);
+    expect(canonicalUpsert).toBeGreaterThan(-1);
+    expect(subscriptionPaymentUpsert).toBeGreaterThan(-1);
+    expect(source).toMatch(/subscription_payment_upsert_failed/);
     expect(reserveRpc).toBeGreaterThan(-1);
     expect(transitionRpc).toBeGreaterThan(-1);
+    expect(source).not.toMatch(/\.from\("mp_webhook_events"\)[\s\S]*\.(?:insert|upsert|update)\(/m);
+    expect(source).not.toMatch(/\.from\("payments"\)[\s\S]*\.(?:insert|upsert|update)\(/m);
     expect(readExisting).toBeLessThan(transitionRpc);
-    expect(legacyUpsert).toBeLessThan(transitionRpc);
-    expect(newUpsert).toBeLessThan(transitionRpc);
+    expect(canonicalUpsert).toBeLessThan(transitionRpc);
     expect(reserveRpc).toBeLessThan(transitionRpc);
   });
 

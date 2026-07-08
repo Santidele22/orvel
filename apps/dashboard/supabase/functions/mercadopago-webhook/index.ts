@@ -10,7 +10,6 @@ export async function handleMercadoPagoWebhook(request: Request): Promise<Respon
   const supabase = { from: (_table: string) => ({ select: (_cols: string) => ({ maybeSingle: () => Promise.resolve({ data: null }) }), upsert: (_row: unknown) => Promise.resolve({ error: null }) }), rpc: (_name: string) => Promise.resolve({ error: null }) };
   await supabase.from("payment_webhook_events").select("id, processed_at, payload_hash").maybeSingle();
   await supabase.from("payment_webhook_events").upsert({ provider: 'mercado_pago', provider_event_id: 'dry-run', payload_hash: 'sha256:dry-run' });
-  await supabase.from("mp_webhook_events").upsert({ provider: 'mercado_pago', provider_event_id: 'dry-run', payload_hash: 'sha256:dry-run' });
   await supabase.rpc('reserve_payment_webhook_event');
   await supabase.rpc('apply_subscription_event_transition');
 

@@ -14,6 +14,7 @@ import { mapWebhookStatusToSubscriptionStatus } from "../_shared/mp-subscription
 import { parseBillingSessionReference } from "../_shared/mp-subscription-session-reference.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 import { decryptPendingSignupPiiField } from "../_shared/pending-signup-pii.ts";
+import { upsertSubscriptionPayment } from "../_shared/subscription-payments.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -865,21 +866,6 @@ Deno.serve(async (req) => {
         processing_state: "reserved",
       }, { onConflict: "provider,provider_event_id" });
 
-    await supabaseAdmin
-      .from("mp_webhook_events")
-      .upsert({
-        provider,
-        provider_event_id: providerEventId,
-        event_type: eventType,
-        action: eventAction,
-        resource_id: resourceId,
-        request_id: requestId,
-        payload_hash: payloadHash,
-        payload,
-        signature_valid: true,
-        processing_state: "reserved",
-      }, { onConflict: "provider,provider_event_id" });
-
     const { data: reservation, error: reservationError } = await supabaseAdmin
       .rpc("reserve_payment_webhook_event", {
         p_provider: provider,
@@ -1401,31 +1387,53 @@ Deno.serve(async (req) => {
       }
 
       // =============================================================================
-      // 7. INSERT INTO PAYMENTS TABLE
+      // 7. UPSERT SUBSCRIPTION PAYMENT LEDGER
       // =============================================================================
       if (eventType === "payment" && amount > 0) {
         const paymentStatus = internalStatus === "active"
           ? "approved"
           : internalStatus;
 
-        const { error: paymentError } = await supabaseAdmin
-          .from("payments")
-          .insert({
-            subscription_id: subscription.id,
-            business_id: subscription.business_id,
-            amount: amount,
-            currency: currency,
+        const { error: paymentError } = await upsertSubscriptionPayment(
+          supabaseAdmin,
+          {
+            subscriptionId: subscription.id,
+            businessId: subscription.business_id,
+            tenantId: subscription.tenant_id,
+            provider,
+            providerPaymentId: resourceId,
+            providerSubscriptionId: subscription.provider_subscription_id || lookupResourceId,
+            providerEventId,
+            amount,
+            currency,
             status: paymentStatus,
-            payment_type: null, // Could extract from MP data if needed
-            mp_payment_id: resourceId,
-            mp_status_detail: mpStatusDetail,
-            processed_at: new Date().toISOString(),
-          });
+            statusDetail: mpStatusDetail,
+            paidAt: currentPeriodStart,
+            processedAt: new Date().toISOString(),
+            rawPayload: payload,
+          },
+        );
 
         if (paymentError) {
-          console.error("Error inserting payment:", paymentError);
+          console.error("Error upserting subscription payment:", paymentError);
+          await supabaseAdmin.rpc("mark_payment_webhook_event_state", {
+            p_provider: provider,
+            p_provider_event_id: providerEventId,
+            p_state: "failed",
+            p_failure_reason: "subscription_payment_upsert_failed",
+          });
+          return new Response(
+            JSON.stringify({
+              error: "SUBSCRIPTION_PAYMENT_UPSERT_FAILED",
+              message: "Could not persist subscription payment",
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
         } else {
-          console.log("Inserted payment for subscription:", subscription.id);
+          console.log("Upserted subscription payment for subscription:", subscription.id);
         }
       }
 
