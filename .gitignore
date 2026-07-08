@@ -10,6 +10,7 @@
 
 # Client-specific local agent/tooling metadata
 .opencode/
+.atl/
 
 # Dependencies
 node_modules/
