@@ -1,8 +1,8 @@
 <section class="min-h-full flex flex-col sm:min-h-full" data-testid="configuracion-responsive-container">
   <div class="sr-only" aria-busy="loading()">
-    <span>business profile</span>
-    <span>booking basics</span>
-    <span>working hours</span>
+    <span>perfil del negocio</span>
+    <span>reglas de reserva</span>
+    <span>horarios de atención</span>
     <span>formControlName="businessName"</span>
     <span>formControlName="bufferMinutes"</span>
     <span>formControlName="minNoticeMinutes"</span>
@@ -28,7 +28,7 @@
       data-testid="account-settings-modal"
       role="dialog"
       aria-modal="true"
-      aria-label="Account settings"
+      aria-label="Seguridad de la cuenta"
     >
       <div class="mb-zen-lg flex items-center justify-between">
         <h3 [class]="ui.titleSection">Seguridad de la cuenta</h3>
@@ -63,7 +63,7 @@
             [attr.disabled]="loading() ? true : null"
             (click)="saveAccountSettingsFromModal()"
           >
-            {{ loading() ? 'Enviando...' : 'Enviar email de recuperación' }}
+            {{ loading() ? 'Enviando...' : 'Enviar correo de recuperación' }}
           </button>
         </div>
       } @else {
@@ -72,9 +72,9 @@
             <i class="ri-mail-check-line text-4xl"></i>
           </div>
           <div class="space-y-zen-xs">
-            <h4 class="text-lg font-semibold text-text-primary">¡Email enviado!</h4>
+            <h4 class="text-lg font-semibold text-text-primary">¡Correo enviado!</h4>
             <p [class]="ui.bodySecondary">
-              Revisa tu bandeja de entrada. Te hemos enviado las instrucciones para restablecer tu contraseña.
+              Revisá tu bandeja de entrada. Te enviamos las instrucciones para restablecer tu contraseña.
             </p>
           </div>
           <button

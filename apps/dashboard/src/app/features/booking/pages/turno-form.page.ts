@@ -58,6 +58,7 @@ export class TurnoFormPage implements OnInit {
   // Form fields
   protected clienteId = signal<string>('');
   protected walkInName = signal<string>('');
+  protected walkInMode = signal<boolean>(false);
   protected servicioId = signal<string>('');
   protected fecha = signal<string>(new Date().toISOString().split('T')[0]);
   protected hora = signal<string>('');
@@ -229,6 +230,19 @@ export class TurnoFormPage implements OnInit {
     this.conflictError.set(this.disponibles().includes(this.hora()) ? null : this.unavailableSlotMessage);
   }
 
+  protected onClientSelectionChange(clientId: string): void {
+    this.clienteId.set(clientId);
+    this.walkInName.set('');
+    this.walkInMode.set(false);
+    this.error.set(null);
+  }
+
+  protected startWalkIn(): void {
+    this.clienteId.set('');
+    this.walkInMode.set(true);
+    this.error.set(null);
+  }
+
   protected resetAvailability(staleMessage?: string) {
     this.latestAvailabilityVersion += 1;
     this.turnoService.invalidateAdminAvailability();
@@ -247,7 +261,7 @@ export class TurnoFormPage implements OnInit {
     const walkInName = this.walkInName().trim();
 
     if (!this.clienteId() && !walkInName) {
-      this.error.set('Seleccione un cliente o ingresá un nombre para atención sin ficha');
+      this.error.set('Elegí un cliente o cargá el nombre para una atención sin ficha.');
       return;
     }
     if (!this.servicioId()) {

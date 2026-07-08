@@ -103,32 +103,38 @@
     </div>
     }
 
-    <div data-testid="turno-admin-new-modal-body" class="grid gap-6">
-      <section data-testid="turno-admin-new-modal-section-client" class="rounded-2xl border border-white/5 bg-white/[0.03] p-4 sm:p-5 space-y-4">
+    <div data-testid="turno-admin-new-modal-body" class="grid gap-5">
+      <section data-testid="turno-admin-new-modal-section-client" class="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5 space-y-4">
         <div>
           <p class="text-sm font-semibold text-white">Cliente y servicio</p>
-          <p class="mt-1 text-xs text-text-tertiary">Elegí una ficha existente o cargá una atención sin ficha.</p>
+          <p class="mt-1 text-xs text-text-tertiary">Usá una ficha existente. Si la persona llega sin registro, cargala como atención sin ficha.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4">
           <div class="form-group">
             <label for="cliente">Cliente *</label>
             <select id="cliente" data-testid="turno-admin-client-select" [ngModel]="clienteId()"
-              (ngModelChange)="clienteId.set($event); walkInName.set('')" name="cliente"
+              (ngModelChange)="onClientSelectionChange($event)" name="cliente"
               class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
               <option value="">Seleccionar cliente</option>
               @for (cliente of clientes(); track cliente.id) {
               <option [value]="cliente.id">{{ cliente.nombre }} {{ cliente.apellido }}</option>
               }
             </select>
+            @if (!clienteId() && !walkInMode()) {
+            <button type="button" class="walk-in-link" data-testid="turno-admin-start-walk-in" (click)="startWalkIn()">
+              No tiene ficha: cargar nombre manualmente
+            </button>
+            }
           </div>
 
-          @if (!clienteId()) {
+          @if (!clienteId() && walkInMode()) {
           <div class="form-group">
-            <label for="walkInName">Nombre walk-in *</label>
+            <label for="walkInName">Nombre de la persona *</label>
             <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name" [ngModel]="walkInName()"
               (ngModelChange)="walkInName.set($event)" name="walkInName" placeholder="Nombre de la persona"
               class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
+            <p class="help-text">Usá esta opción solo cuando todavía no exista una ficha de cliente.</p>
           </div>
           }
         </div>
