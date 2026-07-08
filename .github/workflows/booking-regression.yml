@@ -58,6 +58,9 @@ jobs:
       - name: Run booking time schema cleanup static contract
         run: deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/booking-time-schema-cleanup-static-contract.test.ts
 
+      - name: Run booking billing subscription payments regression
+        run: deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/subscription-payments-contract.test.ts
+
       - name: Reject focused Deno tests
         run: |
           if grep -RIn --include='*.ts' 'Deno\.test\.only' supabase/functions; then
