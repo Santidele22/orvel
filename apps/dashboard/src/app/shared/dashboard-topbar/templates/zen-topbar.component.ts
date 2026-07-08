@@ -19,9 +19,9 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
             [attr.aria-busy]="notifications.loading()"
             [attr.aria-expanded]="showNotificationList()"
             (click)="toggleNotifications()"
-            class="relative w-11 h-11 rounded-2xl bg-bg-primary flex items-center justify-center text-text-secondary hover:text-text-primary transition-all shadow-lg active:scale-95"
+            class="relative w-11 h-11 rounded-2xl border border-white/10 bg-bg-primary flex items-center justify-center text-text-primary shadow-lg shadow-black/20 transition-all hover:border-primary/40 hover:bg-primary/10 hover:text-white active:scale-95"
           >
-              <i class="ri-notification-3-fill text-xl"></i>
+              <i class="ri-notification-3-fill text-xl opacity-100"></i>
               @if (notifications.notificationsUnread()) {
                 <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-error border-2 border-bg-secondary animate-pulse"></span>
               }

@@ -11,6 +11,7 @@ export interface Cliente {
   
   // DB-FIX-001: Soft delete contract fields
   activo?: boolean;        // Active/inactive status
+  active?: boolean;        // Persisted active flag used by legacy customer rows
   isActive?: boolean;    // Alternative active flag
   status?: 'active' | 'inactive'; // Status text option
   purgeAt?: Date;      // Scheduled purge date for auto-cleanup

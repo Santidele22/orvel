@@ -44,6 +44,9 @@ jobs:
       - name: Run branch booking resilience contract
         run: pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/dashboard-branch-booking-resilience.contract.spec.ts
 
+      - name: Run dashboard corrective action contracts
+        run: pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/dashboard-corrective-actions-ui.contract.spec.ts src/app/tests/unit/dashboard-service-actions-behavior.contract.spec.ts
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:

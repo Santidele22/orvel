@@ -10,6 +10,16 @@ import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-cl
 import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 
+const CUSTOMER_BASE_SELECT = `
+        id,
+        business_id,
+        full_name,
+        email,
+        phone,
+        created_at,
+        active
+      `;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -19,7 +29,7 @@ export class ClienteService {
   private errorState = signal<string | null>(null);
   private provider: 'mock' | 'supabase' = 'supabase';
   private supabaseClient?: SupabaseClient;
-  private readonly authService = inject(AuthService);
+  private readonly authService = this.resolveAuthService();
 
   // Readonly signals
   items = this.clientes.asReadonly();
@@ -88,17 +98,9 @@ export class ClienteService {
       return [];
     }
 
-    // Query all customers filtered by business_id
     const { data: customers, error } = await supabaseClient
       .from('customers')
-      .select(`
-        id,
-        business_id,
-        full_name,
-        email,
-        phone,
-        created_at
-      `)
+      .select(CUSTOMER_BASE_SELECT)
       .eq('business_id', businessId)
       .order('full_name', { ascending: true });
 
@@ -116,24 +118,7 @@ export class ClienteService {
 
     // Map Supabase records to Cliente entities
     // full_name comes as "FirstName LastName", split it
-    return customers.map((customer: Record<string, unknown>) => {
-      const fullName = customer['full_name'] as string;
-      const nameParts = fullName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      return {
-        id: customer['id'] as string,
-        nombre: firstName,
-        apellido: lastName,
-        telefono: (customer['phone'] as string | undefined) ?? '',
-        email: customer['email'] as string | undefined,
-        notas: undefined,
-        serviciosFavoritos: [],
-        createdAt: new Date(customer['created_at'] as string),
-        updatedAt: new Date(customer['created_at'] as string)
-      };
-    });
+    return customers.map((customer: Record<string, unknown>) => this.mapSupabaseRowToCliente(customer));
   }
 
   getById(id: string): Observable<Cliente | undefined> {
@@ -263,22 +248,40 @@ export class ClienteService {
 
     const cliente = this.clientes()[index];
     
-    // Set inactive status and retention policy for soft-delete
-    // Map to exact field names the test expects: active, purgeAt
+    // Set the persisted inactive flag. Customer retention/purge policy is intentionally
+    // not modeled until the database exposes those fields.
     const deactivated = {
       ...cliente,
-      // Mark as inactive using 'active' field the test expects
+      activo: false,
       active: false,
-      // Add purge date (30 days retention)
-      purgeAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      // Retention policy
-      retentionDays: 30,
       updatedAt: new Date()
-    };
+    } satisfies Cliente;
+
+    if (this.provider === 'supabase') {
+      const supabase = this.getSupabaseClient();
+      if (supabase) {
+        return from(this.updateCustomerInSupabase(supabase, id, deactivated)).pipe(
+          switchMap(() => {
+            this.clientes.update(c => {
+              const nuevas = [...c];
+              nuevas[index] = deactivated;
+              return nuevas;
+            });
+            return of(true);
+          }),
+          catchError(error => {
+            this.errorState.set(this.extractErrorMessage(error));
+            return throwError(() => error);
+          })
+        );
+      }
+
+      this.storeFallbackUpdated(deactivated);
+    }
 
     this.clientes.update(c => {
       const nuevas = [...c];
-      nuevas[index] = deactivated as Cliente;
+      nuevas[index] = deactivated;
       return nuevas;
     });
 
@@ -387,7 +390,7 @@ export class ClienteService {
     const { data, error } = await supabase
       .from('customers')
       .insert(payload)
-      .select('id, full_name, email, phone, created_at')
+      .select('id, full_name, email, phone, created_at, active')
       .single();
 
     if (error) {
@@ -439,10 +442,11 @@ export class ClienteService {
     const businessId = await this.resolveBusinessId(supabase);
     if (!businessId) throw new Error('BUSINESS_CONTEXT_MISSING');
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       full_name: `${dto.nombre.trim()} ${dto.apellido.trim()}`.trim(),
       email: dto.email?.trim() || null,
-      phone: dto.telefono.trim()
+      phone: dto.telefono.trim(),
+      active: dto.active ?? dto.activo ?? true
     };
 
     const { error } = await supabase
@@ -478,6 +482,8 @@ export class ClienteService {
     const createdAtRaw = (row['created_at'] as string | null | undefined) ?? new Date().toISOString();
     const updatedAtRaw = createdAtRaw;
 
+    const active = row['active'] !== false;
+
     return {
       id: String(row['id'] ?? this.buildSupabaseFallbackId()),
       nombre: nombre || '',
@@ -486,6 +492,10 @@ export class ClienteService {
       email: row['email'] ? String(row['email']) : undefined,
       notas: undefined,
       serviciosFavoritos: [],
+      activo: active,
+      active,
+      isActive: active,
+      status: active ? 'active' : 'inactive',
       createdAt: new Date(createdAtRaw),
       updatedAt: new Date(updatedAtRaw)
     };
@@ -542,6 +552,12 @@ export class ClienteService {
         serviciosFavoritos: Array.isArray(item['serviciosFavoritos'])
           ? item['serviciosFavoritos'].map(value => String(value))
           : [],
+        activo: this.resolveStoredCustomerActive(item),
+        active: this.resolveStoredCustomerActive(item),
+        isActive: this.resolveStoredCustomerActive(item),
+        status: this.resolveStoredCustomerActive(item) ? 'active' : 'inactive',
+        purgeAt: item['purgeAt'] ? new Date(String(item['purgeAt'])) : undefined,
+        retentionDays: item['retentionDays'] ? Number(item['retentionDays']) : undefined,
         createdAt: new Date(String(item['createdAt'])),
         updatedAt: new Date(String(item['updatedAt']))
       }));
@@ -607,6 +623,14 @@ export class ClienteService {
     return sanitized as UpdateClienteDTO;
   }
 
+  private resolveStoredCustomerActive(item: Record<string, unknown>): boolean {
+    if (item['activo'] === false || item['active'] === false || item['isActive'] === false) {
+      return false;
+    }
+
+    return true;
+  }
+
   private hasActiveBookingsReference(clienteId: string): boolean {
     // Guard contract used by KB-007 test.
     return clienteId === 'cust-kb007-booked-active';
@@ -652,6 +676,14 @@ export class ClienteService {
 
   private buildSupabaseFallbackId(): string {
     return `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private resolveAuthService(): AuthService | null {
+    try {
+      return inject(AuthService);
+    } catch {
+      return null;
+    }
   }
 
   private getMockClientes(): Cliente[] {

@@ -32,7 +32,7 @@
         <!-- Client List -->
         <div class="grid grid-cols-1 gap-3">
           @for (cliente of filteredClients(); track cliente.id) {
-            <article [class]="ui.cardGlass + ' cursor-pointer flex items-center justify-between group hover:shadow-primary/5 transition-all'" (click)="startEdit(cliente)">
+            <article [class]="ui.cardGlass + ' flex items-center justify-between group transition-all ' + (cliente.active ? 'cursor-pointer hover:shadow-primary/5' : 'opacity-80')" (click)="startEdit(cliente)">
               <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary text-lg font-bold group-hover:opacity-80 transition-all uppercase">
                   {{ cliente.fullName.charAt(0) }}
@@ -41,6 +41,9 @@
                   <div class="flex items-center gap-2">
                     <h2 class="text-base font-semibold text-text-primary tracking-tight">{{ cliente.fullName | titlecase }}</h2>
                     <span class="px-2 py-0.5 rounded-full bg-primary-soft text-primary text-[10px] font-bold uppercase tracking-wider shadow-sm">Premium</span>
+                    @if (!cliente.active) {
+                      <span class="px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-bold uppercase tracking-wider shadow-sm">Baja</span>
+                    }
                   </div>
                   <div class="flex items-center gap-4">
                     <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70">
@@ -76,8 +79,8 @@
           
           <div class="space-y-3">
              <div class="flex justify-between items-center">
-               <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Total Registrados</span>
-               <span class="text-base font-semibold text-text-primary">{{ customerMetrics().total }}</span>
+               <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">{{ showDeactivated() ? 'Clientes de baja' : 'Clientes activos' }}</span>
+               <span class="text-base font-semibold text-text-primary">{{ showDeactivated() ? customerMetrics().deactivated : customerMetrics().active }}</span>
              </div>
              <div class="flex justify-between items-center">
                <span class="text-xs font-medium uppercase tracking-wider text-text-tertiary">Con Correo</span>
@@ -89,19 +92,21 @@
              </div>
           </div>
 
-<div class="pt-4 mt-2">
-              <!-- DB-FIX-001: data-testid for soft-delete action -->
+<div class="pt-4 mt-2 space-y-3">
               <button 
                 type="button" 
                 data-testid="clientes-deactivate-action" 
                 [class]="ui.subtleAction + ' w-full flex items-center justify-center gap-2'" 
-                (click)="selectedClientId.set(null); performDeactivate(editingClientId()!)"
-                [disabled]="!editingClientId()"
+                [attr.aria-pressed]="showDeactivated()"
+                (click)="manageDeactivations()"
               >
-                 <i class="ri-delete-bin-pill-line"></i>
-                 <span>Gestionar Bajas</span>
-              </button>
-           </div>
+                  <i class="ri-delete-bin-pill-line"></i>
+                  <span>{{ showDeactivated() ? 'Ver clientes activos' : 'Gestionar bajas' }}</span>
+               </button>
+              <p class="text-xs font-medium text-text-tertiary leading-relaxed">
+                {{ showDeactivated() ? 'Vista de clientes dados de baja.' : 'Consulta clientes inactivos sin afectar la lista principal.' }}
+              </p>
+            </div>
         </article>
       </aside>
     </div>

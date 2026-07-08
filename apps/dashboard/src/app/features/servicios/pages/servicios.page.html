@@ -301,3 +301,56 @@
   </div>
 </div>
 }
+
+@if (deleteConfirmService()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="servicios-delete-confirm-overlay"
+    aria-label="Cancelar eliminación de servicio"
+    (click)="cancelDeleteServicio()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="servicios-delete-confirm-title"
+    aria-describedby="servicios-delete-confirm-description"
+    data-testid="servicios-delete-confirm-modal"
+  >
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-error/10 text-error">
+        <i class="ri-delete-bin-line text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0 space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Confirmación</p>
+        <h2 id="servicios-delete-confirm-title" class="text-xl font-semibold tracking-tight text-white">¿Eliminar este servicio?</h2>
+        <p id="servicios-delete-confirm-description" class="text-sm leading-relaxed text-text-secondary">
+          Se quitará <strong class="font-semibold text-white">{{ deleteConfirmService()?.nombre }}</strong> del catálogo visible. La eliminación se aplica únicamente al confirmar.
+        </p>
+      </div>
+    </div>
+
+    @if (feedback()) {
+      <p class="mt-5 rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm font-medium text-error" role="alert">{{ feedback() }}</p>
+    }
+
+    <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        data-testid="servicios-delete-cancel"
+        class="h-11 rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+        (click)="cancelDeleteServicio()"
+      >Cancelar</button>
+      <button
+        type="button"
+        data-testid="servicios-delete-confirm"
+        class="h-11 rounded-xl bg-error px-5 text-sm font-semibold text-white shadow-sm shadow-error/25 transition-colors duration-200 hover:bg-error/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
+        (click)="confirmDeleteServicio()"
+      >Eliminar servicio</button>
+    </div>
+  </section>
+</div>
+}

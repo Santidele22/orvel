@@ -6,6 +6,8 @@ type ClienteListItem = {
   fullName: string;
   telefono: string;
   email: string | null;
+  active: boolean;
+  purgeAt: Date | null;
 };
 
 type CreateClienteInput = {
@@ -69,7 +71,17 @@ export class ClientesUiFacade {
       id: cliente.id,
       fullName: `${cliente.nombre} ${cliente.apellido}`.trim(),
       telefono: cliente.telefono,
-      email: cliente.email ?? null
+      email: cliente.email ?? null,
+      active: this.resolveActiveState(cliente),
+      purgeAt: cliente.purgeAt ?? null
     }));
+  }
+
+  private resolveActiveState(cliente: { activo?: boolean; active?: boolean }): boolean {
+    if (cliente.activo === false || cliente.active === false) {
+      return false;
+    }
+
+    return true;
   }
 }

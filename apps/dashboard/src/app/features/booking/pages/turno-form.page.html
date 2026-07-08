@@ -76,7 +76,7 @@
   }
 
   @if (!loading()) {
-  <form data-testid="turno-admin-new-modal-form" class="turno-form grid gap-6 sm:gap-8" (ngSubmit)="save()">
+  <form data-testid="turno-admin-new-modal-form" class="turno-form grid gap-5 sm:gap-6" (ngSubmit)="save()">
     @if (branchContext.branches().length > 1) {
     <div class="form-group" aria-live="polite">
       <label for="activeBranchSelector">Alcance operativo</label>
@@ -92,7 +92,7 @@
     }
 
     @if (error()) {
-    <div class="error-message">
+    <div class="error-message" role="alert" aria-live="polite">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"></circle>
@@ -123,18 +123,24 @@
             </select>
             @if (!clienteId() && !walkInMode()) {
             <button type="button" class="walk-in-link" data-testid="turno-admin-start-walk-in" (click)="startWalkIn()">
-              No tiene ficha: cargar nombre manualmente
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <i class="ri-user-add-line" aria-hidden="true"></i>
+              </span>
+              <span class="min-w-0">
+                <span class="block text-xs font-semibold text-text-primary">Atención sin ficha</span>
+                <span class="block text-[11px] font-medium leading-relaxed text-text-tertiary">Ingresá el nombre manualmente si la persona aún no está registrada.</span>
+              </span>
             </button>
             }
           </div>
 
           @if (!clienteId() && walkInMode()) {
-          <div class="form-group">
+          <div class="form-group rounded-2xl border border-primary/20 bg-primary/5 p-4">
             <label for="walkInName">Nombre de la persona *</label>
             <input type="text" id="walkInName" data-testid="turno-admin-walk-in-name" [ngModel]="walkInName()"
               (ngModelChange)="walkInName.set($event)" name="walkInName" placeholder="Nombre de la persona"
               class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl placeholder:text-text-tertiary/60 focus:ring-2 focus:ring-primary/60 focus:border-primary/40" />
-            <p class="help-text">Usá esta opción solo cuando todavía no exista una ficha de cliente.</p>
+            <p class="help-text">Esta atención queda asociada al nombre ingresado, sin crear una ficha nueva.</p>
           </div>
           }
         </div>
@@ -223,7 +229,7 @@
     </div>
 
     @if (isEdit()) {
-    <div class="form-group">
+    <div class="form-group rounded-2xl border border-white/5 bg-white/[0.025] p-4 sm:p-5">
       <label for="estado">Estado</label>
       <select id="estado" [ngModel]="estado()" (ngModelChange)="estado.set($event)" name="estado"
         class="form-control modal-control w-full bg-[#1a2236] border-white/10 text-white rounded-xl focus:ring-2 focus:ring-primary/60 focus:border-primary/40">
@@ -244,7 +250,7 @@
     </div>
 
     @if (!isEdit()) {
-    <div class="availability-info">
+    <div class="availability-info" aria-live="polite">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"></circle>
         <polyline points="12 6 12 12 16 14"></polyline>

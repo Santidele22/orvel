@@ -54,9 +54,15 @@ export class ServiciosPage {
   readonly categorias = signal<CategoriaItem[]>([]);
   readonly servicios = signal<Servicio[]>([]);
   readonly selectedRubros = signal<BusinessTypeCode[]>([]);
+  readonly deleteConfirmServiceId = signal<string | null>(null);
   
   // DB-FIX-003: Selected service ID to track which service is being edited/deleted
   readonly selectedServiceId = signal<string | null>(null);
+
+  readonly deleteConfirmService = computed(() => {
+    const serviceId = this.deleteConfirmServiceId();
+    return serviceId ? this.servicios().find(service => service.id === serviceId) ?? null : null;
+  });
 
   get isZen() { return this.themeService.activeTheme() === 'zen'; }
 
@@ -85,6 +91,10 @@ export class ServiciosPage {
     const query = this.searchQuery().trim().toLowerCase();
 
     return this.servicios().filter(servicio => {
+      if (!servicio.activo) {
+        return false;
+      }
+
       const matchesQuery = !query || 
         servicio.nombre.toLowerCase().includes(query) ||
         servicio.categoria.toLowerCase().includes(query);
@@ -108,13 +118,17 @@ export class ServiciosPage {
   });
 
   readonly suggestedServices = computed(() => {
-    const existingKeys = new Set(this.servicios().map((servicio) => this.serviceSuggestionKey(servicio)));
+    const existingKeys = new Set(
+      this.servicios()
+        .filter((servicio) => servicio.activo)
+        .map((servicio) => this.serviceSuggestionKey(servicio))
+    );
     return getSuggestedServicesForRubros(this.selectedRubros()).filter(
       (suggestion) => !existingKeys.has(this.serviceSuggestionKey(suggestion))
     );
   });
 
-  readonly shouldShowSuggestions = computed(() => this.suggestedServices().length > 0 && this.servicios().length < 3);
+  readonly shouldShowSuggestions = computed(() => this.suggestedServices().length > 0 && this.filteredServicios().length < 3);
 
   constructor() {
     void this.loadData();
@@ -155,6 +169,12 @@ export class ServiciosPage {
   closeModal(): void {
     this.showModal.set(false);
     this.activeModalType.set(null);
+    this.selectedServiceId.set(null);
+    this.feedback.set('');
+  }
+
+  cancelDeleteServicio(): void {
+    this.deleteConfirmServiceId.set(null);
     this.selectedServiceId.set(null);
     this.feedback.set('');
   }
@@ -270,15 +290,10 @@ export class ServiciosPage {
     }
   }
 
-  // DB-FIX-003: Delete service - soft delete (activo: false)
-  async openDeleteServicio(serviceId: string): Promise<void> {
+  openDeleteServicio(serviceId: string): void {
     this.selectedServiceId.set(serviceId);
-    try {
-      await this.performDeleteServicio(serviceId);
-    } catch (error) {
-      console.error('[Servicios] eliminación fallida', error);
-      this.feedback.set(DELETE_SERVICE_ERROR_MESSAGE);
-    }
+    this.deleteConfirmServiceId.set(serviceId);
+    this.feedback.set('');
   }
 
   // DB-FIX-003: Soft delete implementation for servicio
@@ -286,14 +301,22 @@ export class ServiciosPage {
     try {
       await firstValueFrom(this.servicioService.update(serviceId, { activo: false } as Partial<Servicio>));
       this.servicios.set(this.servicioService.items());
+      this.deleteConfirmServiceId.set(null);
+      this.selectedServiceId.set(null);
     } catch (error) {
       throw error;
     }
   }
 
-  // DB-FIX-003: Aliases for UI binding
-  confirmDeleteServicio(serviceId: string): void {
-    this.openDeleteServicio(serviceId);
+  async confirmDeleteServicio(serviceId: string = this.deleteConfirmServiceId() ?? ''): Promise<void> {
+    if (!serviceId) return;
+
+    try {
+      await this.performDeleteServicio(serviceId);
+    } catch (error) {
+      console.error('[Servicios] eliminación fallida', error);
+      this.feedback.set(DELETE_SERVICE_ERROR_MESSAGE);
+    }
   }
 
   onDeleteServicio(serviceId: string): void {
@@ -303,7 +326,7 @@ export class ServiciosPage {
   deleteSelectedServicio(): void {
     const currentId = this.selectedServiceId();
     if (currentId) {
-      this.performDeleteServicio(currentId);
+      void this.confirmDeleteServicio(currentId);
     }
   }
 }
