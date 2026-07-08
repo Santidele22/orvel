@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ClientesUiFacade } from '../data-access/clientes-ui.facade';
 import { ClienteService } from '../data-access/cliente.service';
 import { ThemeService } from '../../../core/theming/theme.service';
@@ -12,6 +13,8 @@ type ClienteListItem = {
   fullName: string;
   telefono: string;
   email: string | null;
+  active: boolean;
+  purgeAt: Date | null;
 };
 
 @Component({
@@ -24,6 +27,8 @@ export class ClientesPage {
   private readonly clienteService = inject(ClienteService);
   protected readonly themeService = inject(ThemeService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly facade = new ClientesUiFacade(this.clienteService);
 
   readonly isZen = computed(() => this.themeService.activeTheme() === 'zen');
@@ -36,12 +41,15 @@ export class ClientesPage {
   readonly editingClientId = signal<string | null>(null);
   readonly showModal = signal(false);
   readonly clients = signal<ClienteListItem[]>([]);
+  readonly showDeactivated = signal(false);
   
   // DB-FIX-001: Track selected client for deactivate action
   readonly selectedClientId = signal<string | null>(null);
 
   readonly customerMetrics = computed(() => ({
     total: this.clients().length,
+    active: this.clients().filter((item) => item.active).length,
+    deactivated: this.clients().filter((item) => !item.active).length,
     vip: this.clients().filter((item) => item.email?.includes('vip')).length,
     withEmail: this.clients().filter((item) => !!item.email).length
   }));
@@ -61,16 +69,21 @@ export class ClientesPage {
 
   readonly filteredClients = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
+    const deactivatedMode = this.showDeactivated();
 
-    if (!query) {
-      return this.clients();
-    }
+    return this.clients().filter(cliente => {
+      if (cliente.active === deactivatedMode) {
+        return false;
+      }
 
-    return this.clients().filter(cliente =>
-      cliente.fullName.toLowerCase().includes(query) ||
-      cliente.telefono.toLowerCase().includes(query) ||
-      (cliente.email?.toLowerCase().includes(query) ?? false)
-    );
+      if (!query) {
+        return true;
+      }
+
+      return cliente.fullName.toLowerCase().includes(query) ||
+        cliente.telefono.toLowerCase().includes(query) ||
+        (cliente.email?.toLowerCase().includes(query) ?? false);
+    });
   });
 
   readonly clientForm = this.formBuilder.nonNullable.group({
@@ -81,6 +94,7 @@ export class ClientesPage {
   });
 
   constructor() {
+    this.showDeactivated.set(this.route.snapshot.queryParamMap.get('estado') === 'bajas');
     void this.loadClients();
   }
 
@@ -89,6 +103,10 @@ export class ClientesPage {
   }
 
   startEdit(cliente: ClienteListItem): void {
+    if (!cliente.active) {
+      return;
+    }
+
     const [nombre = '', ...apellidoParts] = cliente.fullName.trim().split(' ');
     this.editingClientId.set(cliente.id);
     this.clientForm.setValue({
@@ -169,6 +187,18 @@ export class ClientesPage {
     }
   }
 
+  manageDeactivations(): void {
+    const nextValue = !this.showDeactivated();
+    this.showDeactivated.set(nextValue);
+    this.selectedClientId.set(null);
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { estado: nextValue ? 'bajas' : null },
+      queryParamsHandling: 'merge'
+    });
+  }
+
   // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
   // Use signal to track selected client for deactivate action
   deactivateClient(client: ClienteListItem): void {
@@ -181,7 +211,7 @@ export class ClientesPage {
   performDeactivate(clientId: string): void {
     this.clienteService.darDeBajaCliente(clientId).subscribe({
       next: () => {
-        this.clients.set(this.facade.getList());
+        void this.loadClients();
       },
       error: (error) => {
         this.logClientError(error);
