@@ -32,6 +32,36 @@ describe('Sprint 1 v2 nav/shell RED contract', () => {
     expect(source).not.toMatch(/data-testid=["']edit-profile-avatar["']/i);
   });
 
+  it('does not expose decorative topbar profile/account actions', async () => {
+    const zenTopbar = await readFile(
+      fromRoot('src/app/shared/dashboard-topbar/templates/zen-topbar.component.ts'),
+      'utf-8'
+    );
+
+    expect(zenTopbar).not.toMatch(/dashboard-topbar-profile-action/i);
+    expect(zenTopbar).not.toMatch(/dashboard-topbar-settings-action/i);
+    expect(zenTopbar).not.toMatch(/dashboard-topbar-logout-action/i);
+    expect(zenTopbar).not.toMatch(/Mi Perfil|Ajustes|userInitials|userDisplayName|businessName/i);
+  });
+
+  it('keeps sidebar navigation labels in Spanish only', async () => {
+    const sidebarHtml = await readFile(
+      fromRoot('src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html'),
+      'utf-8'
+    );
+    const sidebarConfig = await readFile(
+      fromRoot('src/app/shared/dashboard-sidebar/sidebar-links.config.ts'),
+      'utf-8'
+    );
+    const source = `${sidebarHtml}\n${sidebarConfig}`;
+
+    for (const label of ['Inicio', 'Turnos', 'Clientes', 'Servicios', 'Configuración']) {
+      expect(source).toContain(label);
+    }
+
+    expect(source).not.toMatch(/\b(?:Overview|Appointments|Clients|Services|Settings)\b/);
+  });
+
   it('exposes logout confirmation modal with confirm/cancel flows', async () => {
     // TODO(Aurora): agregar confirmación de logout (confirm/cancel) y cablear handlers deterministas.
     const sidebarHtml = await readFile(

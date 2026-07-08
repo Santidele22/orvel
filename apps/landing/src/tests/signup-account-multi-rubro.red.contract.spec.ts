@@ -25,7 +25,8 @@ function dispatchCredentialsSubmit() {
   expect(submitEvent.defaultPrevented).toBe(true);
 }
 
-function renderMultiRubroAccountForm() {
+function renderMultiRubroAccountForm(initialRubros: string[] = []) {
+  const isSelected = (rubro: string) => initialRubros.includes(rubro) ? 'checked' : '';
   document.body.innerHTML = `
     <form id="accountForm">
       <input name="nombre" value="Ana" required />
@@ -34,19 +35,15 @@ function renderMultiRubroAccountForm() {
       <p id="error-apellido" class="hidden"></p>
       <input name="negocioNombre" value="Ana Beauty Studio" required />
       <p id="error-negocioNombre" class="hidden"></p>
-      <fieldset id="primary-rubro" aria-describedby="error-rubro" aria-required="true">
-        <legend>Rubro principal *</legend>
-        <label><input type="radio" name="primaryRubro" value="estetica" data-primary-rubro checked required /> Estética</label>
+      <fieldset id="rubros" aria-describedby="error-rubro" aria-required="true">
+        <legend>Rubros del negocio *</legend>
+        <label><input type="checkbox" name="rubros" value="estetica" ${isSelected('estetica')} /> Estética</label>
+        <label><input type="checkbox" name="rubros" value="peluqueria" ${isSelected('peluqueria')} /> Peluquería</label>
+        <label><input type="checkbox" name="rubros" value="spa" ${isSelected('spa')} /> Spa</label>
+        <label><input type="checkbox" name="rubros" value="maquillaje" ${isSelected('maquillaje')} /> Maquillaje</label>
       </fieldset>
-      <fieldset id="rubros" aria-describedby="error-rubro">
-        <legend>Rubros adicionales</legend>
-        <label><input type="checkbox" name="rubros" value="estetica" /> Estética</label>
-        <label><input type="checkbox" name="rubros" value="spa" checked /> Spa</label>
-        <label><input type="checkbox" name="rubros" value="maquillaje" checked /> Maquillaje</label>
-      </fieldset>
-      <select name="rubro" hidden aria-hidden="true">
-        <option value="estetica" selected>Estética</option>
-      </select>
+      <input name="rubro" type="hidden" required />
+      <input name="business_type" type="hidden" />
       <p id="error-rubro" class="hidden"></p>
       <input name="telefonoCaracteristica" value="294" required />
       <p id="error-telefonoCaracteristica" class="hidden"></p>
@@ -68,19 +65,28 @@ function renderMultiRubroAccountForm() {
   `;
 }
 
+function clickRubro(value: string) {
+  const input = document.querySelector<HTMLInputElement>(`input[name="rubros"][value="${value}"]`);
+  expect(input).toBeInstanceOf(HTMLInputElement);
+  input?.click();
+}
+
 describe('RED contract: visible account creation form supports ordered multi-rubro selection', () => {
   it('renders Rubro o categoría as a multi-select control in the current account form, not as a single select/onboarding-only step', async () => {
     const source = await readSource(ACCOUNT_PAGE);
-    const rubroStart = source.indexOf('Rubro principal');
+    const rubroStart = source.indexOf('Rubros del negocio');
     const rubroSlice = source.slice(rubroStart, source.indexOf('Teléfono Argentina'));
 
+    expect(source, 'visible account form must not render two competing rubro fieldsets').not.toMatch(/Rubro principal[\s\S]{0,2400}Rubros adicionales/i);
+    expect(source.match(/<fieldset[^>]+id=["']rubros["']/gi) ?? [], 'rubro selection should be one cohesive fieldset').toHaveLength(1);
+    expect(source).not.toMatch(/<fieldset[^>]+id=["']primary-rubro["']/i);
     expect(rubroSlice, 'the visible account creation form must not keep the old single-select rubro contract').not.toMatch(/<select\b[\s\S]{0,160}name=["']rubro["']/i);
-    expect(rubroSlice, 'primary rubro remains required for compatibility').toMatch(/(?:data-primary-rubro|name=["']primaryRubro["']|aria-label=["'][^"']*primario)/i);
-    expect(rubroSlice, 'additional rubros must be selectable in the same current form').toMatch(/(?:type=["']checkbox["'][\s\S]{0,160}name=["']rubros\[?\]?["']|multiple\b[\s\S]{0,160}name=["']rubros\[?\]?["'])/i);
+    expect(rubroSlice, 'the first checked rubro becomes the compatibility primary').toMatch(/primero que marques queda como rubro principal/i);
+    expect(rubroSlice, 'rubros must be selectable in the same current form').toMatch(/(?:type=["']checkbox["'][\s\S]{0,160}name=["']rubros\[?\]?["']|multiple\b[\s\S]{0,160}name=["']rubros\[?\]?["'])/i);
     expect(source, 'multi-rubro belongs in /auth/signup/account, not an extra onboarding step').not.toMatch(/href=["'][^"']*signup\/onboarding|window\.location\.[\s\S]{0,120}signup\/onboarding/i);
   });
 
-  it('FREE submit preserves primary rubro and sends full ordered selected rubros in the account creation payload', async () => {
+  it('FREE submit keeps the first clicked rubro as primary instead of DOM order', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
       ok: true,
       status: 'signup_confirmation_requested'
@@ -95,6 +101,8 @@ describe('RED contract: visible account creation form supports ordered multi-rub
       PUBLIC_SUPABASE_URL: 'https://supabase.test',
       PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
     });
+    clickRubro('spa');
+    clickRubro('peluqueria');
 
     dispatchCredentialsSubmit();
 
@@ -103,10 +111,68 @@ describe('RED contract: visible account creation form supports ordered multi-rub
     const body = JSON.parse(String(init.body));
 
     expect(body).toMatchObject({
-      rubro: 'estetica',
-      business_type: 'estetica',
-      selected_business_types: ['estetica', 'spa', 'maquillaje']
+      rubro: 'spa',
+      business_type: 'spa',
+      selected_business_types: ['spa', 'peluqueria']
     });
+    expect(body.selected_business_types[0]).toBe('spa');
+    expect(document.querySelector<HTMLInputElement>('input[name="rubro"]')?.value).toBe('spa');
+    expect(document.querySelector<HTMLInputElement>('input[name="business_type"]')?.value).toBe('spa');
+  });
+
+  it('promotes the next selected rubro when the primary rubro is unchecked', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: true,
+      status: 'signup_confirmation_requested'
+    }), { status: 202, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/auth/signup/account?plan=FREE&billing=monthly');
+    renderMultiRubroAccountForm();
+
+    const { initSignupAccountPage } = await loadController();
+    initSignupAccountPage({
+      PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
+      PUBLIC_SUPABASE_URL: 'https://supabase.test',
+      PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
+    });
+    clickRubro('spa');
+    clickRubro('peluqueria');
+    clickRubro('spa');
+
+    dispatchCredentialsSubmit();
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(init.body));
+
+    expect(body).toMatchObject({
+      rubro: 'peluqueria',
+      business_type: 'peluqueria',
+      selected_business_types: ['peluqueria']
+    });
+    expect(document.querySelector<HTMLInputElement>('input[name="rubro"]')?.value).toBe('peluqueria');
+    expect(document.querySelector<HTMLInputElement>('input[name="business_type"]')?.value).toBe('peluqueria');
+  });
+
+  it('keeps the form invalid when no rubro is selected', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/auth/signup/account?plan=FREE&billing=monthly');
+    renderMultiRubroAccountForm();
+
+    const { initSignupAccountPage } = await loadController();
+    initSignupAccountPage({
+      PUBLIC_DASHBOARD_URL: 'http://localhost:4200',
+      PUBLIC_SUPABASE_URL: 'https://supabase.test',
+      PUBLIC_SUPABASE_ANON_KEY: 'anon-test-key'
+    });
+
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+
+    dispatchCredentialsSubmit();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(document.getElementById('error-rubro')?.classList.contains('hidden')).toBe(false);
   });
 
   it('PAID submit stores ordered selected rubros in protected pending intent metadata/draft while keeping primary rubro compatible', async () => {
@@ -116,7 +182,7 @@ describe('RED contract: visible account creation form supports ordered multi-rub
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
     window.history.pushState({}, '', '/auth/signup/account?plan=STARTER&billing=monthly');
-    renderMultiRubroAccountForm();
+    renderMultiRubroAccountForm(['estetica', 'spa', 'maquillaje']);
 
     const { initSignupAccountPage } = await loadController();
     initSignupAccountPage({

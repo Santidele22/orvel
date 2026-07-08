@@ -11,7 +11,6 @@ import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-
 import { provideRouter } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
 import { DashboardNotificationsService } from '../../core/notifications/dashboard-notifications.service';
 import { ZenTopbarComponent } from '../../shared/dashboard-topbar/templates/zen-topbar.component';
 
@@ -35,24 +34,7 @@ describe('Dashboard topbar rendered behavior', () => {
   const notificationError = signal<string | null>(null);
   let refreshForAdmin: ReturnType<typeof vi.fn>;
 
-  const authenticatedUser = signal({
-    id: 'user-123',
-    email: 'santi@example.com',
-    nombre: 'Santi',
-    apellido: 'Idele',
-    negocioNombre: 'Orvel Studio',
-    tipoNegocio: 'otro',
-    telefono: '',
-    plan: '',
-    createdAt: new Date('2026-06-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-06-01T00:00:00.000Z')
-  });
-
-  const businessSettings = signal({
-    businessName: 'Orvel Studio',
-    firstName: 'Santi',
-    lastName: 'Idele'
-  });
+  const authenticatedUser = signal({ id: 'user-123', email: 'santi@example.com' });
 
   beforeAll(() => {
     TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -78,12 +60,6 @@ describe('Dashboard topbar rendered behavior', () => {
           }
         },
         {
-          provide: BusinessService,
-          useValue: {
-            settings: businessSettings.asReadonly()
-          }
-        },
-        {
           provide: DashboardNotificationsService,
           useValue: {
             loading: signal(false).asReadonly(),
@@ -104,7 +80,7 @@ describe('Dashboard topbar rendered behavior', () => {
   it.each([
     ['tablet', 768],
     ['desktop', 1280]
-  ])('renders the topbar user area at %s width', async (_label, width) => {
+  ])('renders the topbar notifications area at %s width without profile UI', async (_label, width) => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
 
     const fixture = TestBed.createComponent(ZenTopbarComponent);
@@ -117,29 +93,12 @@ describe('Dashboard topbar rendered behavior', () => {
     expect(topbar?.hidden).toBe(false);
     expect(topbar?.className).not.toMatch(/(?:^|\s)(?:hidden|lg:hidden)(?:\s|$)/);
     expect(notifications).not.toBeNull();
-    expect(topbar?.textContent).toContain('Santi Idele');
+    expect(topbar?.textContent).not.toContain('Santi');
+    expect(topbar?.textContent).not.toContain('Orvel Studio');
   });
 
-  it('displays the authenticated profile name instead of a generic Usuario label', async () => {
+  it('does not expose topbar profile, settings, or logout account actions', async () => {
     const fixture = TestBed.createComponent(ZenTopbarComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const topbar = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-responsive"]') as HTMLElement;
-
-    expect(topbar.textContent).toContain('Santi Idele');
-    expect(topbar.textContent).not.toContain('Usuario');
-  });
-
-  it('opens the user menu with functional profile, settings, and logout actions', async () => {
-    const logoutSpy = vi.fn();
-    const fixture = TestBed.createComponent(ZenTopbarComponent);
-    fixture.componentRef.setInput('onLogout', logoutSpy);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const userMenuButton = fixture.nativeElement.querySelector('button.group') as HTMLButtonElement;
-    userMenuButton.click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -147,11 +106,9 @@ describe('Dashboard topbar rendered behavior', () => {
     const settingsAction = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-settings-action"]') as HTMLAnchorElement | null;
     const logoutAction = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-logout-action"]') as HTMLButtonElement | null;
 
-    expect(profileAction?.getAttribute('href')).toBe('/dashboard/configuracion?tab=perfil');
-    expect(settingsAction?.getAttribute('href')).toBe('/dashboard/configuracion?tab=negocio');
-
-    logoutAction?.click();
-    expect(logoutSpy).toHaveBeenCalledOnce();
+    expect(profileAction).toBeNull();
+    expect(settingsAction).toBeNull();
+    expect(logoutAction).toBeNull();
   });
 
   it('opens the notifications empty state from the bell button', async () => {
@@ -249,12 +206,6 @@ describe('Dashboard topbar rendered behavior', () => {
           }
         },
         {
-          provide: BusinessService,
-          useValue: {
-            settings: businessSettings.asReadonly()
-          }
-        },
-        {
           provide: DashboardNotificationsService,
           useValue: {
             loading: signal(false).asReadonly(),
@@ -287,6 +238,6 @@ describe('Dashboard topbar rendered behavior', () => {
     expect(wrapperClasses).not.toContain('lg:hidden');
     expect(renderedTopbar).not.toBeNull();
     expect(notifications).not.toBeNull();
-    expect(renderedTopbar?.textContent).toContain('Santi Idele');
+    expect(renderedTopbar?.textContent).not.toContain('Santi');
   });
 });

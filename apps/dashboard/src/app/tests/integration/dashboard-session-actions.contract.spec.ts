@@ -36,7 +36,7 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(shellTs).toMatch(/\bhandleLogout[\s\S]*\bnavigateAfterLogout\s*\(\s*redirectTo\s*,\s*this\.router/);
   });
 
-  it('shell wires sidebar logout confirmation and topbar menu to the same logout handler', async () => {
+  it('shell wires sidebar logout confirmation and preserves topbar logout input compatibility', async () => {
     const shellHtml = await source(SHELL_HTML);
 
     expect(shellHtml).toMatch(/<app-dashboard-sidebar[\s\S]*\(logoutConfirm\)=["']handleLogout\(\)["']/);
@@ -52,13 +52,14 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(topbarHtml).toMatch(/\*ngComponentOutlet=["'][^"']*activeTemplate\(\)\.topbarComponent[\s\S]*inputs:\s*templateInputs\(\)/);
   });
 
-  it('ZenTopbar logout action calls injected onLogout and uses a full logout label', async () => {
+  it('ZenTopbar removes decorative account menu actions while accepting legacy logout input', async () => {
     const zenTopbar = await source(ZEN_TOPBAR_TS);
 
     expect(zenTopbar).toMatch(/@Input\(\)\s+onLogout\s*:/);
-    expect(zenTopbar).toMatch(/<button[^>]*(?:data-testid=["']dashboard-topbar-logout-action["'][^>]*)?\(click\)=["']onLogout\(\)["'][^>]*>/);
-    expect(zenTopbar).toMatch(/(?:Cerrar\s+sesión|Cerrar\s+Sesión|Finalizar\s+sesión|Finalizar\s+Sesión)/);
-    expect(zenTopbar).not.toMatch(/<span>\s*Finalizar\s*<\/span>/);
+    expect(zenTopbar).not.toMatch(/data-testid=["']dashboard-topbar-profile-action["']/);
+    expect(zenTopbar).not.toMatch(/data-testid=["']dashboard-topbar-settings-action["']/);
+    expect(zenTopbar).not.toMatch(/data-testid=["']dashboard-topbar-logout-action["']/);
+    expect(zenTopbar).not.toMatch(/\(click\)=["']onLogout\(\)["']/);
   });
 
   it('ZenTopbar removes the dark-mode toggle from the user menu', async () => {
@@ -69,12 +70,13 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(zenTopbar).not.toMatch(/isDarkMode\s*\(/);
   });
 
-  it('ZenTopbar shows the authenticated user name instead of the generic Usuario fallback', async () => {
+  it('ZenTopbar does not render authenticated user/profile identity copy', async () => {
     const zenTopbar = await source(ZEN_TOPBAR_TS);
 
-    expect(zenTopbar).toMatch(/userDisplayName\s*=\s*computed/);
-    expect(zenTopbar).toMatch(/businessFacade\.settings\(\)[\s\S]*firstName[\s\S]*lastName/);
-    expect(zenTopbar).toMatch(/authService\.user\(\)[\s\S]*nombre[\s\S]*apellido/);
+    expect(zenTopbar).not.toMatch(/userDisplayName\s*=\s*computed/);
+    expect(zenTopbar).not.toMatch(/userInitials\s*=\s*computed/);
+    expect(zenTopbar).not.toMatch(/businessFacade\.settings\(\)[\s\S]*firstName[\s\S]*lastName/);
+    expect(zenTopbar).not.toMatch(/authService\.user\(\)[\s\S]*nombre[\s\S]*apellido/);
     expect(zenTopbar).not.toMatch(/['"]Usuario['"]/);
   });
 
