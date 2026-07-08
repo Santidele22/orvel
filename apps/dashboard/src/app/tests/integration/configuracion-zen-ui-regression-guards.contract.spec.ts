@@ -74,7 +74,7 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
 
     expect(negocioBlock).toContain('Políticas y Logística');
     expect(negocioBlock).toContain('Regional y Preferencias');
-    expect(negocioBlock).toContain('Working hours');
+    expect(negocioBlock).toContain('Horarios de atención');
     expect(negocioBlock).toMatch(/Capacidad|capacity/i);
   });
 });

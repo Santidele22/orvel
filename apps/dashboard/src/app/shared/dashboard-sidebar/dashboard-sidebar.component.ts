@@ -42,42 +42,14 @@ export class DashboardSidebarComponent implements OnChanges {
     onLogout: () => this.openLogoutConfirmModal()
   }));
 
-  protected readonly templateOutputs = computed(() => ({
-    selectTheme: (theme: string) => this.selectTheme(theme)
-  }));
-
-  protected isEditProfileModalOpen = false;
   protected isLogoutConfirmModalOpen = false;
 
   ngOnChanges(_changes: SimpleChanges): void {
     this.templateInputVersion.update(version => version + 1);
   }
 
-  protected profileForm = {
-    name: '',
-    email: '',
-    phone: '',
-    avatar: ''
-  };
-
   selectTheme(theme: string) {
     this.themeChange.emit(theme);
-  }
-
-  protected showBusinessSwitcher(): boolean {
-    return this.dashboards.length > 1;
-  }
-
-  protected openEditProfileModal(): void {
-    this.isEditProfileModalOpen = true;
-  }
-
-  protected closeEditProfileModal(): void {
-    this.isEditProfileModalOpen = false;
-  }
-
-  protected saveProfile(): void {
-    this.isEditProfileModalOpen = false;
   }
 
   protected openLogoutConfirmModal(): void {
