@@ -116,27 +116,46 @@ export function initSignupAccountPage(env: SignupEnv): void {
   }
 
   const getRubroCompatibilityField = () => form.querySelector<HTMLInputElement | HTMLSelectElement>('[name="rubro"]');
-  const getPrimaryRubroField = () => form.querySelector<HTMLInputElement>('input[name="primaryRubro"]:checked');
-  const getAdditionalRubroFields = () => Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubros"]'));
+  const getPrimaryRubroFields = () => Array.from(form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[name="rubro"], [name="business_type"]'));
+  const getRubroCheckboxes = () => Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubros"]'));
+  let selectedRubroOrder = getRubroCheckboxes()
+    .filter((input) => input.checked)
+    .map((input) => normalizeRubroCode(input.value))
+    .filter((value): value is string => Boolean(value));
+  const syncRubroSelectionOrder = (changedInput?: HTMLInputElement) => {
+    if (changedInput?.name === 'rubros') {
+      const rubroCode = normalizeRubroCode(changedInput.value);
+      if (rubroCode) {
+        selectedRubroOrder = changedInput.checked
+          ? [...selectedRubroOrder.filter((value) => value !== rubroCode), rubroCode]
+          : selectedRubroOrder.filter((value) => value !== rubroCode);
+      }
+    }
+
+    const checkedRubros = new Set(
+      getRubroCheckboxes()
+        .filter((input) => input.checked)
+        .map((input) => normalizeRubroCode(input.value))
+        .filter((value): value is string => Boolean(value))
+    );
+    selectedRubroOrder = selectedRubroOrder.filter((value) => checkedRubros.has(value));
+
+    getRubroCheckboxes().forEach((input) => {
+      const rubroCode = normalizeRubroCode(input.value);
+      if (input.checked && rubroCode && !selectedRubroOrder.includes(rubroCode)) selectedRubroOrder.push(rubroCode);
+    });
+  };
   const getSelectedRubros = (): string[] => {
-    const primary = normalizeRubroCode(getPrimaryRubroField()?.value ?? '');
-    const selected = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="rubros"]:checked'))
-      .map((input) => normalizeRubroCode(input.value))
-      .filter((value): value is string => Boolean(value));
+    syncRubroSelectionOrder();
     const legacyPrimary = normalizeRubroCode(getRubroCompatibilityField()?.value ?? '');
-    const ordered = primary ? [primary, ...selected] : selected.length > 0 ? selected : legacyPrimary ? [legacyPrimary] : [];
+    const ordered = selectedRubroOrder.length > 0
+      ? selectedRubroOrder
+      : getRubroCheckboxes().length === 0 && legacyPrimary ? [legacyPrimary] : [];
     return [...new Set(ordered)];
   };
   const syncPrimaryRubroField = () => {
     const primary = getSelectedRubros()[0] ?? '';
-    const field = getRubroCompatibilityField();
-    if (field) field.value = primary;
-    getAdditionalRubroFields().forEach((input) => {
-      const isPrimary = normalizeRubroCode(input.value) === primary;
-      input.disabled = isPrimary;
-      if (isPrimary) input.checked = false;
-      input.setAttribute('aria-disabled', String(isPrimary));
-    });
+    getPrimaryRubroFields().forEach((field) => { field.value = primary; });
     return primary;
   };
   const readSignupAccountValues = (): SignupAccountInput => {
@@ -185,7 +204,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
     return true;
   };
   const validateField = (input: HTMLInputElement | HTMLSelectElement) => {
-    if (input.name === 'primaryRubro' || input.name === 'rubros') {
+    if (input.name === 'rubros') {
       return paintFieldError(getRubroCompatibilityField() ?? input, validators.rubro(syncPrimaryRubroField()));
     }
     const fieldName = input.name as keyof typeof validators;
@@ -196,7 +215,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
     const fieldErrors = mapSignupAccountErrorsForAstro(result);
     let valid = true;
     form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
-      if (input.name === 'primaryRubro' || input.name === 'rubros') return;
+      if (input.name === 'rubros') return;
       const fieldName = input.name as SignupAccountField;
       if (SIGNUP_ACCOUNT_FIELDS.includes(fieldName) && !paintFieldError(input, fieldErrors[fieldName] ?? '')) valid = false;
     });
@@ -341,7 +360,7 @@ export function initSignupAccountPage(env: SignupEnv): void {
   form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((input) => {
     input.addEventListener('input', () => { validateField(input); updateContinueButtonState(); });
     input.addEventListener('blur', () => { validateField(input); updateContinueButtonState(); });
-    input.addEventListener('change', () => { syncPrimaryRubroField(); validateField(getRubroCompatibilityField() ?? input); updateContinueButtonState(); });
+    input.addEventListener('change', () => { if (input instanceof HTMLInputElement) syncRubroSelectionOrder(input); syncPrimaryRubroField(); validateField(getRubroCompatibilityField() ?? input); updateContinueButtonState(); });
   });
   syncPrimaryRubroField();
   updateContinueButtonState();

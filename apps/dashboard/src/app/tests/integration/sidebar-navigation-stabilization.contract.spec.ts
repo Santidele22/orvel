@@ -28,11 +28,14 @@ function section(source: string, startMarker: string, endMarker: string): string
 
 describe('Sidebar stabilization RED contract (functional navigation + admin policy)', () => {
   const requiredRoutes = [
+    '/dashboard/inicio',
     '/dashboard/turnos',
     '/dashboard/clientes',
     '/dashboard/servicios',
     '/dashboard/configuracion'
   ];
+  const expectedSpanishLabels = ['Inicio', 'Turnos', 'Clientes', 'Servicios', 'Configuración'];
+  const removedEnglishLabels = ['Overview', 'Appointments', 'Clients', 'Services', 'Settings'];
 
   const templates = [
     {
@@ -69,6 +72,14 @@ describe('Sidebar stabilization RED contract (functional navigation + admin poli
         const routeRegex = new RegExp(`routerLink=["']${route}["']`, 'i');
         expect(templateSection).toMatch(routeRegex);
       }
+
+      for (const label of expectedSpanishLabels) {
+        expect(templateSection).toContain(label);
+      }
+
+      for (const label of removedEnglishLabels) {
+        expect(templateSection).not.toMatch(new RegExp(`>${label}<`, 'i'));
+      }
     }
   );
 
@@ -84,7 +95,7 @@ describe('Sidebar stabilization RED contract (functional navigation + admin poli
     const listSource = readTurnosListSource();
 
     expect(listSource).toMatch(/data-testid=["']turno-admin-cancel-action["']/i);
-    expect(listSource).toMatch(/data-testid=["']turno-admin-reschedule-action["']/i);
+    expect(listSource).toMatch(/data-testid=["']turnos?-admin-reschedule-action["']/i);
 
     expect(listSource).not.toMatch(/data-testid=["']turno-admin-complete-action["']/i);
     expect(listSource).not.toMatch(/data-testid=["']turno-admin-add-action["']/i);
