@@ -17,11 +17,21 @@
       <!-- Header -->
       <header class="business-types-header">
         <span class="eyebrow">Último paso</span>
-        <h1 class="business-types-title">Elegí el rubro principal y los rubros extra</h1>
-        <p class="business-types-subtitle">El primero queda como rubro principal. Los demás nos ayudan a sugerirte servicios para armar tu catálogo y podés cambiarlos más adelante.</p>
+        <h1 class="business-types-title">Contanos qué servicios ofrecés</h1>
+        <p class="business-types-subtitle">Elegí uno o más rubros. El primero que selecciones será el principal; los demás ajustan las sugerencias de servicios.</p>
       </header>
 
-      <!-- Primary Rubro Grid -->
+      <div class="selection-summary" aria-live="polite">
+        <div>
+          <span class="summary-label">Rubro principal</span>
+          <strong>{{ getTypeLabel(selectedTypes[0]) || 'Todavía no elegido' }}</strong>
+        </div>
+        <div>
+          <span class="summary-label">También atendés</span>
+          <strong>{{ getAdditionalTypeLabels() || 'Opcional' }}</strong>
+        </div>
+      </div>
+
       <div class="business-types-grid" aria-label="Rubros disponibles" aria-required="true">
         @for (type of allowedTypes; track type.code) {
           <button
@@ -40,6 +50,9 @@
               }
             </span>
             <span class="type-label">{{ type.label }}</span>
+            @if (selectedTypes[0] === type.code) {
+              <span class="type-role">Principal</span>
+            }
           </button>
         }
       </div>
@@ -47,7 +60,7 @@
       <!-- Selection Info -->
       <div class="selection-info">
         <span class="selection-count">
-          Rubros seleccionados: {{ selectedTypes.length }} / {{ getMaxTypes() }} · Principal requerido: {{ selectedTypes[0] || 'sin seleccionar' }}
+          {{ selectedTypes.length }} de {{ getMaxTypes() }} rubros seleccionados
         </span>
       </div>
 

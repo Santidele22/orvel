@@ -5,7 +5,7 @@
         <h1 id="settings-title" [class]="ui.titleMain">
           Configuración
         </h1>
-        <p [class]="ui.bodyPrimary">Business profile · Booking basics · Working hours</p>
+        <p [class]="ui.bodyPrimary">Perfil del negocio · Reglas de reserva · Horarios de atención</p>
       </header>
 
       <div [class]="ui.cardGlass">
@@ -115,7 +115,7 @@
           </div>
 
           <div class="space-y-zen-sm">
-            <label [class]="ui.labelMicro + ' text-secondary'">Email de Soporte</label>
+            <label [class]="ui.labelMicro + ' text-secondary'">Correo electrónico de soporte</label>
             <div class="relative group">
               <i
                 class="ri-mail-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
@@ -145,7 +145,7 @@
               class="space-y-zen-md p-zen-md rounded-zen-card bg-black/20 border border-white/5 shadow-inner flex flex-col justify-between min-h-[180px]">
               <div>
                 <p [class]="ui.labelMicro + ' uppercase tracking-widest opacity-60'">Seguridad</p>
-                <p class="text-xs text-secondary mt-2">Actualiza tu contraseña o email de acceso.</p>
+                <p class="text-xs text-secondary mt-2">Actualizá tu contraseña o correo electrónico de acceso.</p>
               </div>
               <button type="button" [class]="ui.secondaryAction + ' w-full h-12'"
                 (click)="openAccountSettingsModal()">Cambiar Credenciales</button>
@@ -312,15 +312,15 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md pt-zen-md">
             <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Buffer entre turnos</label>
+              <label [class]="ui.labelMicro + ' text-secondary'">Pausa entre turnos</label>
               <input type="number" formControlName="bufferMinutes" [class]="ui.input" />
             </div>
             <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Aviso previo min.</label>
+              <label [class]="ui.labelMicro + ' text-secondary'">Aviso mínimo previo</label>
               <input type="number" formControlName="minNoticeMinutes" [class]="ui.input" />
             </div>
             <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Intervalo (slots)</label>
+              <label [class]="ui.labelMicro + ' text-secondary'">Frecuencia de horarios</label>
               <input type="number" formControlName="slotIntervalMinutes" [class]="ui.input" />
             </div>
           </div>
@@ -362,7 +362,7 @@
         </article>
 
         <article [class]="ui.cardGlass + ' space-y-zen-lg'" formGroupName="workingHours" data-testid="working-hours-section">
-          <h2 [class]="ui.titleSection">Working hours</h2>
+          <h2 [class]="ui.titleSection">Horarios de atención</h2>
 
           <div class="space-y-zen-md">
             @for (day of weekdayRows; track day.key) {
@@ -419,7 +419,7 @@
         }
 
         <div [class]="ui.cardGlass + ' flex items-center justify-between gap-zen-md'">
-          <span class="text-xs font-medium text-tertiary">{{ formMessage() || 'Ready for changes' }}</span>
+          <span class="text-xs font-medium text-tertiary">{{ formMessage() || 'Listo para guardar cambios' }}</span>
           <button type="submit" data-testid="settings-save-submit" [class]="ui.primaryAction + ' shadow-xl shadow-primary/30'">Guardar cambios</button>
         </div>
       </form>

@@ -60,6 +60,41 @@ $transition-fast: 150ms ease;
   }
 }
 
+.selection-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+
+  > div {
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    border-radius: $radius-md;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  strong {
+    display: block;
+    margin-top: 0.25rem;
+    color: $color-text;
+    font-family: $font-body;
+    font-size: 0.92rem;
+    font-weight: 750;
+    line-height: 1.35;
+  }
+}
+
+.summary-label {
+  display: block;
+  color: $color-text-muted;
+  font-family: $font-body;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .business-types-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -114,6 +149,7 @@ $transition-fast: 150ms ease;
   cursor: pointer;
   transition: transform $transition-fast, border-color $transition-fast, background $transition-fast, box-shadow $transition-fast;
   text-align: left;
+  position: relative;
 
   &:hover:not([disabled]) {
     border-color: rgba($color-primary-light, 0.7);
@@ -150,6 +186,17 @@ $transition-fast: 150ms ease;
       font-weight: 800;
     }
   }
+}
+
+.type-role {
+  margin-left: auto;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba($color-primary-light, 0.16);
+  color: #ddd6fe;
+  font-family: $font-body;
+  font-size: 0.64rem;
+  font-weight: 850;
 }
 
 .type-checkbox {
@@ -383,6 +430,7 @@ $transition-fast: 150ms ease;
   }
 
   .business-types-grid,
+  .selection-summary,
   .signup-actions {
     grid-template-columns: 1fr;
     flex-direction: column;

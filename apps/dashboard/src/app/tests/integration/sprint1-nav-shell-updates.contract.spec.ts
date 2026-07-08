@@ -7,16 +7,14 @@ function fromRoot(relativePath: string): string {
 }
 
 describe('Sprint 1 v2 nav/shell RED contract', () => {
-  it('uses exact app title "Bloom" in index head', async () => {
-    // TODO(Aurora): actualizar branding global y reemplazar cualquier título legacy por "Bloom".
+  it('uses exact app title "Orvel" in index head', async () => {
     const indexHtml = await readFile(fromRoot('src/index.html'), 'utf-8');
 
-    expect(indexHtml).toMatch(/<title>\s*Bloom\s*<\/title>/i);
+    expect(indexHtml).toMatch(/<title>\s*Orvel\s*<\/title>/i);
     expect(indexHtml).not.toMatch(/<title>\s*Turnea Dashboard\s*<\/title>/i);
   });
 
-  it('exposes Edit Profile modal with required fields: name, email, phone, avatar', async () => {
-    // TODO(Aurora): agregar modal de edición de perfil en shell/nav con hooks estables para QA.
+  it('does not expose decorative edit-profile UI in the sidebar shell', async () => {
     const sidebarHtml = await readFile(
       fromRoot('src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html'),
       'utf-8'
@@ -27,11 +25,11 @@ describe('Sprint 1 v2 nav/shell RED contract', () => {
     );
     const source = `${sidebarHtml}\n${topbarHtml}`;
 
-    expect(source).toMatch(/data-testid=["']edit-profile-modal["']/i);
-    expect(source).toMatch(/data-testid=["']edit-profile-name["']/i);
-    expect(source).toMatch(/data-testid=["']edit-profile-email["']/i);
-    expect(source).toMatch(/data-testid=["']edit-profile-phone["']/i);
-    expect(source).toMatch(/data-testid=["']edit-profile-avatar["']/i);
+    expect(source).not.toMatch(/data-testid=["']edit-profile-modal["']/i);
+    expect(source).not.toMatch(/data-testid=["']edit-profile-name["']/i);
+    expect(source).not.toMatch(/data-testid=["']edit-profile-email["']/i);
+    expect(source).not.toMatch(/data-testid=["']edit-profile-phone["']/i);
+    expect(source).not.toMatch(/data-testid=["']edit-profile-avatar["']/i);
   });
 
   it('exposes logout confirmation modal with confirm/cancel flows', async () => {

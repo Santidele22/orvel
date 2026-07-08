@@ -362,6 +362,22 @@ export class SignupBusinessTypesStepPage {
     return [...this._selectedTypes];
   }
 
+  getTypeLabel(type: BusinessTypeCode | undefined): string {
+    if (!type) {
+      return '';
+    }
+
+    return this.allowedTypes.find((option) => option.code === type)?.label ?? type;
+  }
+
+  getAdditionalTypeLabels(): string {
+    return this._selectedTypes
+      .slice(1)
+      .map((type) => this.getTypeLabel(type))
+      .filter(Boolean)
+      .join(', ');
+  }
+
   /**
    * Checks if a business type can be selected
    * @param type - The business type code

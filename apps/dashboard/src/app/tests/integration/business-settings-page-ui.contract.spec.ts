@@ -26,7 +26,7 @@ describe('Sprint 2 RED - Business Settings page UI contract', () => {
     expect(source).toMatch(/(business profile|perfil del negocio)/i);
     expect(source).toMatch(/formControlName=["']businessName["']|formControlName=["']nombreNegocio["']/i);
 
-    expect(source).toMatch(/(booking basics|configuraci[oó]n base de turnos)/i);
+    expect(source).toMatch(/(booking basics|configuraci[oó]n base de turnos|reglas de reserva)/i);
     expect(source).toMatch(/formControlName=["']bufferMinutes["']|formControlName=["']minutosBuffer["']/i);
     expect(source).toMatch(/formControlName=["']minNoticeMinutes["']|formControlName=["']avisoMinimo["']/i);
     expect(source).toMatch(/formControlName=["']slotIntervalMinutes["']|formControlName=["']intervaloTurno["']/i);
