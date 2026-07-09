@@ -32,7 +32,7 @@
     >
       <div class="mb-zen-lg flex items-center justify-between">
         <h3 [class]="ui.titleSection">Seguridad de la cuenta</h3>
-        <button type="button" [class]="ui.iconButton" (click)="cancelAccountSettingsModal()">
+        <button type="button" data-testid="account-settings-modal-close" [class]="ui.iconButton" (click)="cancelAccountSettingsModal()">
           <i class="ri-close-line"></i>
         </button>
       </div>
@@ -52,6 +52,7 @@
         <div class="flex justify-end gap-zen-md">
           <button
             type="button"
+            data-testid="account-settings-cancel"
             [class]="ui.subtleAction + ' h-zen-control-md'"
             (click)="cancelAccountSettingsModal()"
           >
@@ -59,6 +60,7 @@
           </button>
           <button
             type="button"
+            data-testid="account-settings-save"
             [class]="ui.primaryAction + ' h-zen-control-md'"
             [attr.disabled]="loading() ? true : null"
             (click)="saveAccountSettingsFromModal()"
@@ -81,6 +83,91 @@
             type="button"
             [class]="ui.primaryAction + ' h-zen-control-md w-full'"
             (click)="cancelAccountSettingsModal()"
+          >
+            Entendido
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (isAccountCancellationModalOpen()) {
+  <div class="fixed inset-zen-xs z-50 flex items-center justify-center p-zen-lg">
+    <button
+      type="button"
+      class="absolute inset-zen-xs bg-text-primary [opacity:var(--zen-overlay-opacity)]"
+      data-testid="account-cancellation-modal-overlay"
+      aria-label="Cerrar solicitud de baja"
+      (click)="cancelAccountCancellationModal()"
+    ></button>
+    <div
+      class="relative w-full max-w-zen-content rounded-zen-card border border-error/20 bg-surface p-zen-xxl shadow-xl"
+      data-testid="account-cancellation-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="account-cancellation-modal-title"
+      aria-describedby="account-cancellation-modal-description"
+    >
+      <div class="mb-zen-lg flex items-center justify-between gap-zen-md">
+        <div class="space-y-zen-xs">
+          <p [class]="ui.labelMicro + ' text-error uppercase tracking-widest'">Baja de cuenta</p>
+          <h3 id="account-cancellation-modal-title" [class]="ui.titleSection">Confirmar baja de la cuenta</h3>
+        </div>
+        <button type="button" data-testid="account-cancellation-modal-close" [class]="ui.iconButton" (click)="cancelAccountCancellationModal()">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      @if (!accountCancellationSubmitted()) {
+        <div id="account-cancellation-modal-description" class="space-y-zen-md">
+          <p [class]="ui.bodyPrimary">
+            Vamos a cancelar la renovación de Mercado Pago ahora. Si ya pagaste el mes, mantenés el acceso hasta el final del período pago.
+          </p>
+          <p [class]="ui.bodySecondary">
+            No eliminamos tus datos de forma inmediata cuando hay una suscripción paga vigente: dejamos registrada la baja y programamos el cierre para que no pierdas acceso antes de tiempo.
+          </p>
+        </div>
+
+        @if (accountCancellationError()) {
+          <div class="mt-zen-lg rounded-zen-card border border-error/20 bg-error/10 p-zen-md text-xs font-medium text-error" role="alert">
+            {{ accountCancellationError() }}
+          </div>
+        }
+
+        <div class="mt-zen-xl flex flex-col-reverse gap-zen-md sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            data-testid="account-cancellation-cancel"
+            [class]="ui.subtleAction + ' h-zen-control-md'"
+            (click)="cancelAccountCancellationModal()"
+          >
+            Volver
+          </button>
+          <button
+            type="button"
+            data-testid="account-cancellation-confirm"
+            class="h-zen-control-md rounded-zen-card bg-error px-zen-lg text-sm font-semibold text-white shadow-lg shadow-error/20 transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:cursor-not-allowed disabled:opacity-60"
+            [attr.disabled]="loading() ? true : null"
+            (click)="confirmAccountCancellation()"
+          >
+            {{ loading() ? 'Solicitando baja...' : 'Confirmar baja' }}
+          </button>
+        </div>
+      } @else {
+        <div class="py-zen-xl flex flex-col items-center text-center space-y-zen-lg animate-in zoom-in-95 duration-300">
+          <div class="flex h-20 w-20 items-center justify-center rounded-full bg-success/10 text-success">
+            <i class="ri-calendar-check-line text-4xl" aria-hidden="true"></i>
+          </div>
+          <div class="space-y-zen-xs">
+            <h4 class="text-lg font-semibold text-text-primary">Baja solicitada</h4>
+            <p [class]="ui.bodySecondary" role="status">{{ accountCancellationMessage() }}</p>
+          </div>
+          <button
+            type="button"
+            data-testid="account-cancellation-done"
+            [class]="ui.primaryAction + ' h-zen-control-md w-full'"
+            (click)="cancelAccountCancellationModal()"
           >
             Entendido
           </button>

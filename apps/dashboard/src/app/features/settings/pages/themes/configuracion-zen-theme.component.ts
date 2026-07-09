@@ -41,4 +41,5 @@ export class ConfiguracionZenThemeComponent {
   hasInvalidWorkingHoursRange(dayKey: any): boolean { return this.ctx.hasInvalidWorkingHoursRange(dayKey); }
   setSettingsTab(tab: 'perfil' | 'negocio'): void { this.ctx.setSettingsTab(tab); }
   openAccountSettingsModal(): void { this.ctx.openAccountSettingsModal(); }
+  openAccountCancellationModal(): void { this.ctx.openAccountCancellationModal(); }
 }

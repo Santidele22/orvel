@@ -71,10 +71,30 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
     expect(perfilBlock).toContain('Cuenta y Suscripción');
     expect(perfilBlock).toContain('Portal de Reservas');
     expect(perfilBlock).toContain('Sucursal activa');
+    expect(perfilBlock).toContain('Dar de baja la cuenta');
+    expect(perfilBlock).toMatch(/data-testid=["']account-cancellation-open-trigger["']/i);
+    expect(perfilBlock).toContain('Cancelamos la renovación de Mercado Pago');
 
     expect(negocioBlock).toContain('Políticas y Logística');
     expect(negocioBlock).toContain('Regional y Preferencias');
     expect(negocioBlock).toContain('Horarios de atención');
     expect(negocioBlock).toMatch(/Capacidad|capacity/i);
+  });
+
+  it('keeps account cancellation CTA scoped to Cuenta y Suscripción with paid-through copy', async () => {
+    const source = await readZenThemeTemplate();
+    const accountSectionStart = source.indexOf('Cuenta y Suscripción');
+    const portalSectionStart = source.indexOf('Portal de Reservas');
+    const accountSection =
+      accountSectionStart >= 0 && portalSectionStart > accountSectionStart
+        ? source.slice(accountSectionStart, portalSectionStart)
+        : '';
+
+    expect(accountSection).toContain('Zona de baja');
+    expect(accountSection).toContain('Dar de baja la cuenta');
+    expect(accountSection).toContain('Solicitar baja');
+    expect(accountSection).toContain('Mercado Pago');
+    expect(accountSection).toContain('período ya pago');
+    expect(accountSection).toMatch(/\(click\)=["']openAccountCancellationModal\(\)["']/i);
   });
 });

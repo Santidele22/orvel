@@ -3,21 +3,22 @@ export type SubscriptionCancellationReason = 'manual_request' | 'too_expensive' 
 export type RequestSubscriptionCancellationInput = {
   businessId: string;
   reason?: SubscriptionCancellationReason;
+  mode?: 'subscription_cancellation' | 'account_cancellation';
 };
 
 type EdgeCancellationRequestSuccess = {
   success: true;
   message: string;
   request: {
-    status: 'manual_review' | 'already_requested';
+    status: 'manual_review' | 'already_requested' | 'scheduled_account_closure';
     requested_at: string | null;
     reason: SubscriptionCancellationReason | string;
   };
   subscription: {
     id: string;
     status: string;
-    provider_subscription_id: string | null;
     period_end: string | null;
+    provider_subscription_id?: string | null;
   };
 };
 
@@ -27,20 +28,25 @@ type EdgeCancellationRequestFailure = {
   message?: string;
 };
 
-type EdgeCancellationRequestResponse = EdgeCancellationRequestSuccess | EdgeCancellationRequestFailure;
+type EdgeCancellationRequestResponseWithAccountClosure = EdgeCancellationRequestSuccess & {
+  account_closure_at?: string | null;
+};
+
+type EdgeCancellationRequestResponse = EdgeCancellationRequestResponseWithAccountClosure | EdgeCancellationRequestFailure;
 
 export type RequestSubscriptionCancellationResult = {
   ok: true;
-  requestStatus: 'manual_review' | 'already_requested';
+  requestStatus: 'manual_review' | 'already_requested' | 'scheduled_account_closure';
   requestedAt: string | null;
   reason: string;
   message: string;
   subscription: {
     id: string;
     status: string;
-    providerSubscriptionId: string | null;
     periodEnd: string | null;
+    providerSubscriptionId?: string | null;
   };
+  accountClosureAt?: string | null;
 };
 
 export class RequestSubscriptionCancellationError extends Error {
@@ -70,12 +76,13 @@ type RequestSubscriptionCancellationDeps = {
   invokeCancelSubscription?: (payload: {
     business_id: string;
     reason: SubscriptionCancellationReason;
+    mode?: 'subscription_cancellation' | 'account_cancellation';
   }) => Promise<InvokeResult>;
 };
 
 function isCancellationRequestSuccess(
   payload: EdgeCancellationRequestResponse | null
-): payload is EdgeCancellationRequestSuccess {
+): payload is EdgeCancellationRequestResponseWithAccountClosure {
   return !!payload?.success && !!payload.request && !!payload.subscription;
 }
 
@@ -123,6 +130,7 @@ function mapServerErrorToCancellationError(input: {
 async function resolveDefaultInvoker(): Promise<(payload: {
   business_id: string;
   reason: SubscriptionCancellationReason;
+  mode?: 'subscription_cancellation' | 'account_cancellation';
 }) => Promise<InvokeResult>> {
   if (typeof fetch !== 'function') {
     throw new RequestSubscriptionCancellationError(
@@ -176,12 +184,21 @@ export async function requestSubscriptionCancellation(
 ): Promise<RequestSubscriptionCancellationResult> {
   const invokeCancelSubscription = deps.invokeCancelSubscription ?? (await resolveDefaultInvoker());
   const reason = input.reason ?? 'manual_request';
+  const payload: {
+    business_id: string;
+    reason: SubscriptionCancellationReason;
+    mode?: 'subscription_cancellation' | 'account_cancellation';
+  } = {
+    business_id: input.businessId,
+    reason
+  };
+
+  if (input.mode) {
+    payload.mode = input.mode;
+  }
 
   try {
-    const { data, error } = await invokeCancelSubscription({
-      business_id: input.businessId,
-      reason
-    });
+    const { data, error } = await invokeCancelSubscription(payload);
 
     if (error) {
       const failurePayload = data as EdgeCancellationRequestFailure | null;
@@ -200,7 +217,7 @@ export async function requestSubscriptionCancellation(
       });
     }
 
-    return {
+    const result: RequestSubscriptionCancellationResult = {
       ok: true,
       requestStatus: data.request.status,
       requestedAt: data.request.requested_at,
@@ -209,10 +226,18 @@ export async function requestSubscriptionCancellation(
       subscription: {
         id: data.subscription.id,
         status: data.subscription.status,
-        providerSubscriptionId: data.subscription.provider_subscription_id,
-        periodEnd: data.subscription.period_end
+        periodEnd: data.subscription.period_end,
+        ...('provider_subscription_id' in data.subscription
+          ? { providerSubscriptionId: data.subscription.provider_subscription_id ?? null }
+          : {})
       }
     };
+
+    if ('account_closure_at' in data) {
+      result.accountClosureAt = data.account_closure_at ?? null;
+    }
+
+    return result;
   } catch (error) {
     if (error instanceof RequestSubscriptionCancellationError) {
       throw error;
