@@ -1,0 +1,39 @@
+name: Account closure scheduler
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: account-closure-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke-account-closure:
+    name: Invoke account-closure Edge Function
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke account closure
+        env:
+          ACCOUNT_CLOSURE_FUNCTION_URL: ${{ secrets.ACCOUNT_CLOSURE_FUNCTION_URL }}
+          ACCOUNT_CLOSURE_CRON_SECRET: ${{ secrets.ACCOUNT_CLOSURE_CRON_SECRET }}
+        run: |
+          if [ -z "$ACCOUNT_CLOSURE_FUNCTION_URL" ] || [ -z "$ACCOUNT_CLOSURE_CRON_SECRET" ]; then
+            echo "Account closure scheduler secrets are not configured."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent --output /dev/null \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-max-time 180 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer ${ACCOUNT_CLOSURE_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$ACCOUNT_CLOSURE_FUNCTION_URL"

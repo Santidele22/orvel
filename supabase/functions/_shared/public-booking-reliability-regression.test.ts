@@ -15,6 +15,11 @@ const listAdminBookingsServiceIdContractUrl = new URL(
   import.meta.url,
 );
 
+const accountClosurePublicBookingGuardUrl = new URL(
+  "../../migrations/20260708234500_account_closure_blocks_public_booking.sql",
+  import.meta.url,
+);
+
 function latestCreatePublicBookingBody(sql: string): string {
   const pattern = /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.create_public_booking\s*\([\s\S]*?\)\s*RETURNS\s+jsonb[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/gi;
   const bodies = Array.from(sql.matchAll(pattern), (match) => match[1]);
@@ -23,6 +28,15 @@ function latestCreatePublicBookingBody(sql: string): string {
   ).at(-1) ?? "";
 
   assert(body.length > 0, "Guard must inspect the latest writable create_public_booking body");
+  return body;
+}
+
+function latestQueryPublicSlotAvailabilityBody(sql: string): string {
+  const pattern = /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.query_public_slot_availability\s*\([\s\S]*?\)\s*RETURNS\s+TABLE[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/gi;
+  const bodies = Array.from(sql.matchAll(pattern), (match) => match[1]);
+  const body = bodies.filter((candidate) => /RETURN\s+QUERY/i.test(candidate)).at(-1) ?? "";
+
+  assert(body.length > 0, "Guard must inspect the latest query_public_slot_availability body");
   return body;
 }
 
@@ -148,6 +162,42 @@ Deno.test("public booking RPC uses an existing active principal branch and never
   assertStringIncludes(body, "INSERT INTO public.bookings");
   assertStringIncludes(body, "v_business_id, v_branch_id");
   assertStringIncludes(body, "'status', 'confirmed'");
+});
+
+Deno.test("public booking RPCs reject account-closed businesses before availability or booking side effects", async () => {
+  const migration = await Deno.readTextFile(accountClosurePublicBookingGuardUrl);
+  const createBody = latestCreatePublicBookingBody(migration);
+  const availabilityBody = latestQueryPublicSlotAvailabilityBody(migration);
+
+  const createClosedGuard = requiredMatch(
+    createBody,
+    /IF\s+v_account_closed_at\s+IS\s+NOT\s+NULL\s+THEN[\s\S]*?BUSINESS_ACCOUNT_CLOSED[\s\S]*?END\s+IF;/i,
+    "create_public_booking must fail closed with BUSINESS_ACCOUNT_CLOSED for closed businesses",
+  );
+  const availabilityClosedGuard = requiredMatch(
+    availabilityBody,
+    /IF\s+v_account_closed_at\s+IS\s+NOT\s+NULL\s+THEN[\s\S]*?BUSINESS_ACCOUNT_CLOSED[\s\S]*?END\s+IF;/i,
+    "query_public_slot_availability must fail closed with BUSINESS_ACCOUNT_CLOSED for closed businesses",
+  );
+
+  assertStringIncludes(createBody, "b.account_closed_at");
+  assertStringIncludes(availabilityBody, "b.account_closed_at");
+  assertStringIncludes(migration, "CREATE OR REPLACE FUNCTION public._assert_business_accepts_public_bookings");
+  assertStringIncludes(migration, "account_closed_at IS NOT NULL");
+
+  const createGuardIndex = createBody.indexOf(createClosedGuard);
+  const createBookingInsertIndex = createBody.search(/INSERT\s+INTO\s+public\.bookings/i);
+  const availabilityGuardIndex = availabilityBody.indexOf(availabilityClosedGuard);
+  const availabilityReturnIndex = availabilityBody.search(/RETURN\s+QUERY/i);
+
+  assert(
+    createGuardIndex > -1 && createGuardIndex < createBookingInsertIndex,
+    "create_public_booking must check account_closed_at before inserting bookings",
+  );
+  assert(
+    availabilityGuardIndex > -1 && availabilityGuardIndex < availabilityReturnIndex,
+    "query_public_slot_availability must check account_closed_at before returning availability",
+  );
 });
 
 Deno.test("public booking reliability documents why CI uses deterministic static contracts instead of local DB behavior", async () => {

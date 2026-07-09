@@ -147,7 +147,7 @@
                 <p [class]="ui.labelMicro + ' uppercase tracking-widest opacity-60'">Seguridad</p>
                 <p class="text-xs text-secondary mt-2">Actualizá tu contraseña o correo electrónico de acceso.</p>
               </div>
-              <button type="button" [class]="ui.secondaryAction + ' w-full h-12'"
+              <button type="button" data-testid="account-settings-open-trigger" [class]="ui.secondaryAction + ' w-full h-12'"
                 (click)="openAccountSettingsModal()">Cambiar Credenciales</button>
             </div>
 
@@ -167,6 +167,26 @@
                 [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20 opacity-60 cursor-not-allowed'"
                 aria-disabled="true">
                 Mejorar Plan próximamente
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-zen-card border border-error/20 bg-error/10 p-zen-md">
+            <div class="flex flex-col gap-zen-md md:flex-row md:items-center md:justify-between">
+              <div class="max-w-2xl space-y-zen-xs">
+                <p [class]="ui.labelMicro + ' text-error uppercase tracking-widest'">Zona de baja</p>
+                <p class="text-sm font-semibold text-text-primary">Dar de baja la cuenta</p>
+                <p class="text-xs leading-relaxed text-secondary">
+                  Cancelamos la renovación de Mercado Pago y mantenemos el acceso hasta el final del período ya pago.
+                </p>
+              </div>
+              <button
+                type="button"
+                data-testid="account-cancellation-open-trigger"
+                class="h-12 rounded-zen-card border border-error/30 px-zen-lg text-sm font-semibold text-error transition-all hover:bg-error/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
+                (click)="openAccountCancellationModal()"
+              >
+                Solicitar baja
               </button>
             </div>
           </div>

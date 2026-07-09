@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  full-repo-checks:
+    name: Full repo checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run full repository check
+        run: pnpm run check
+
+      - name: Run dashboard account-cancellation tests
+        run: pnpm run test:dashboard:account-cancellation
