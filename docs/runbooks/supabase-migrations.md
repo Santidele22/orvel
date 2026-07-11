@@ -223,3 +223,34 @@ Use this section for migration `20260628131500_admin_cancel_failure_telemetry_co
 - Do not make the 4-arg wrapper infer branch scope. Cached clients cannot safely prove active branch context, so the wrapper must fail closed.
 - The 5-arg RPC remains the only direct authenticated cancellation path and must keep rejecting missing or mismatched branch scope.
 - Telemetry rows must not include raw provider errors, stack traces, booking ids, customer data, branch ids, or business ids.
+
+## Account Confirmation Recovery (`20260711180000_account_confirmation_recovery.sql`)
+
+### Production preflight and stop conditions
+
+Run `npx supabase@latest migration list --linked`, then query counts before push:
+```sql
+select (select count(*) from public.signup_email_confirmations) confirmations,
+ (select count(*) from public.notification_email_outbox) outbox_rows,
+ (select count(*) from public.signup_email_confirmations where status='pending' and consumed_at is null) active,
+ (select count(*) from (select 1 from public.signup_email_confirmations where status='pending' and consumed_at is null group by email_hmac,purpose having count(*)>1) d) duplicate_groups;
+```
+Stop on migration mismatch, any duplicate group, either table above 1,000,000 rows without a reviewed maintenance window, lock wait over 5 seconds, or total migration duration over 5 minutes. The migration enforces the last two bounds with local timeouts. Confirm afterward that the RPC is executable only by `service_role`.
+
+### Disable callers and fix forward
+
+Disable the only PR1 entry point immediately; this is transactional and does not delete evidence:
+```sql
+begin;
+revoke execute on function public.recover_signup_email_confirmation(uuid,text,text,text,jsonb,text,text,text) from service_role;
+commit;
+```
+Pause the invoking job/function too if one exists, verify `has_function_privilege('service_role', ... ,'execute')` is false, and retain all evidence. Fix forward with a later full-timestamp `CREATE OR REPLACE FUNCTION` migration, then restore only the `service_role` grant.
+
+Before re-enabling the caller, run this canary with a known disposable expired fixture id (never customer data); the query derives its persisted binding and `.invalid` recipient:
+```sql
+begin; set local statement_timeout='5s'; set local "request.jwt.claim.role"='service_role';
+with f as (select c.*,o.to_email from public.signup_email_confirmations c join public.notification_email_outbox o on o.confirmation_id=c.id and o.dedupe_key is null where c.id=:'canary_confirmation_id') select r.* from f cross join lateral public.recover_signup_email_confirmation(f.id,f.activation_binding_hash,'canary-token-hash',f.to_email,jsonb_build_object('email_hmac',f.email_hmac,'confirmation_id',f.id),'canary-r4-008','canary-r4-008','canary-r4-008') r;
+rollback; select count(*)=0 as rolled_back from public.notification_email_outbox where dedupe_key='signup-confirmation:canary-r4-008';
+```
+Expected: one `accepted=true` row with `retry_after_seconds` 59–60, then `rolled_back=true`. Abort on any other row/result or execution over 5 seconds; immediately run the revoke transaction above and keep the caller paused. Re-enable only after success. Never rewrite/repair the applied migration or replay mail whose provider outcome is ambiguous.
