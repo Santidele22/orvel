@@ -3,13 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@11.0.8",
+  "config": {
+    "supabaseCliVersion": "2.98.2"
+  },
   "scripts": {
     "build": "pnpm run build:dashboard && pnpm run build:landing",
     "build:dashboard": "pnpm --dir apps/dashboard run build",
     "build:dashboard:bun": "bun run --cwd apps/dashboard build",
     "build:landing": "pnpm --dir apps/landing run build",
     "build:vercel": "node scripts/build-vercel.mjs",
-    "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check",
+    "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check && pnpm run test:supabase:trial-reminder:ci",
     "check:dashboard": "pnpm --dir apps/dashboard run build",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm --dir apps/landing run build",
@@ -18,7 +21,7 @@
     "test:supabase:trial-reminder": "pnpm run test:supabase:trial-reminder:static && pnpm run test:supabase:trial-reminder:postgres",
     "test:supabase:trial-reminder:static": "node --test supabase/checks/20260710210000_one_time_trial_reminder_attempt.contract.test.mjs supabase/checks/20260712213000_generic_one_time_email_contract.contract.test.mjs",
     "test:supabase:trial-reminder:postgres": "bash supabase/checks/20260712213000_generic_one_time_email_contract.test.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_concurrency.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_preflight.test.sh",
-    "test:supabase:trial-reminder:ci": "bash scripts/run-trial-reminder-postgres-check.sh",
+    "test:supabase:trial-reminder:ci": "pnpm run test:supabase:trial-reminder:operational && bash scripts/run-trial-reminder-postgres-check.sh",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
     "test:supabase:functions:critical": "node scripts/check-focused-tests.mjs && deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/account-closure-consumer.test.ts supabase/functions/_shared/cancel-subscription-behavior.test.ts supabase/functions/_shared/cancel-subscription-manual-request-static-contract.test.ts supabase/functions/_shared/trial-user-activation-reminder.test.ts",
     "test:dashboard:account-cancellation": "node scripts/check-focused-tests.mjs && pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/account-cancellation-modal.contract.spec.ts src/app/tests/integration/configuracion-zen-ui-regression-guards.contract.spec.ts src/app/tests/unit/billing-subscription-page.contract.spec.ts",
@@ -42,7 +45,8 @@
     "test:local-proxy": "node --test scripts/local-dev-proxy.test.mjs",
     "test:dashboard": "pnpm --dir apps/dashboard run test",
     "test:dashboard:bun": "bun run --cwd apps/dashboard test",
-    "test:landing": "pnpm --dir apps/landing run test"
+    "test:landing": "pnpm --dir apps/landing run test",
+    "test:supabase:trial-reminder:operational": "node --test scripts/trial-reminder-*.test.mjs"
   },
   "workspaces": [
     "apps/landing",

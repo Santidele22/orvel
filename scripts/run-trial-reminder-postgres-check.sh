@@ -14,6 +14,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if ! command -v initdb >/dev/null 2>&1; then
+  for postgres_bin in /usr/lib/postgresql/*/bin; do
+    if [[ -x "$postgres_bin/initdb" && -x "$postgres_bin/pg_ctl" ]]; then
+      export PATH="$postgres_bin:$PATH"
+      break
+    fi
+  done
+fi
+
 for command_name in initdb pg_ctl psql createdb dropdb; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "Required PostgreSQL command is unavailable: $command_name" >&2
