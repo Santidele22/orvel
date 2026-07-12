@@ -10,9 +10,9 @@
     "build:landing": "pnpm --dir apps/landing run build",
     "build:vercel": "node scripts/build-vercel.mjs",
     "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check",
-    "check:dashboard": "pnpm --dir apps/dashboard run build",
+    "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm --dir apps/dashboard run build",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
-    "check:landing": "pnpm --dir apps/landing run build",
+    "check:landing": "pnpm run test:landing:tutorial && pnpm run test:landing:build-lock && pnpm --dir apps/landing run build",
     "security:audit:prod": "pnpm audit --prod",
     "supabase:dry-run": "supabase db lint --local",
     "test:supabase:trial-reminder": "pnpm run test:supabase:trial-reminder:static && pnpm run test:supabase:trial-reminder:postgres",
@@ -42,7 +42,10 @@
     "test:local-proxy": "node --test scripts/local-dev-proxy.test.mjs",
     "test:dashboard": "pnpm --dir apps/dashboard run test",
     "test:dashboard:bun": "bun run --cwd apps/dashboard test",
-    "test:landing": "pnpm --dir apps/landing run test"
+    "test:landing": "pnpm --dir apps/landing run test",
+    "test:dashboard:time-picker": "pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/configuracion-time-picker-modal-accessibility.contract.spec.ts",
+    "test:landing:tutorial": "pnpm --dir apps/landing exec vitest run src/tests/hero-tutorial-dialog.contract.spec.ts",
+    "test:landing:build-lock": "pnpm --dir apps/landing exec vitest run src/tests/landing-build-idempotency.contract.spec.ts"
   },
   "workspaces": [
     "apps/landing",

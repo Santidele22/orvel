@@ -12,8 +12,14 @@ const generatedOutputs = [
   '.astro',
 ];
 
-await Promise.all(
-  generatedOutputs.map((relativePath) =>
-    rm(resolve(landingRoot, relativePath), { recursive: true, force: true })
-  ),
-);
+export async function cleanBuildOutput() {
+  await Promise.all(
+    generatedOutputs.map((relativePath) =>
+      rm(resolve(landingRoot, relativePath), { recursive: true, force: true })
+    ),
+  );
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await cleanBuildOutput();
+}

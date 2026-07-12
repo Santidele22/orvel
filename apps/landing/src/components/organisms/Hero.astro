@@ -63,10 +63,16 @@
                         Empezar ahora
                     </a>
                     <a
-                        href="#pricing"
-                        class="w-full sm:w-auto btn btn-secondary py-4 px-10 text-xs tracking-widest uppercase"
+                        href="/media/orvel-dashboard-tutorial-b.mp4"
+                        data-tutorial-open
+                        aria-haspopup="dialog"
+                        aria-controls="tutorial-dialog"
+                        target="_blank"
+                        rel="noopener"
+                        class="w-full sm:w-auto btn btn-secondary py-4 px-10 text-xs tracking-widest uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
                     >
-                        Ver planes
+                        <i class="ri-play-circle-line mr-2 text-base" aria-hidden="true"></i>
+                        Ver tutorial
                     </a>
                 </div>
 
@@ -131,6 +137,80 @@
     </div>
 </section>
 
+<dialog
+    id="tutorial-dialog"
+    data-tutorial-dialog
+    aria-labelledby="tutorial-title"
+    aria-describedby="tutorial-description"
+    class="tutorial-dialog m-auto h-auto max-h-[92dvh] w-[min(94vw,72rem)] overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary p-0 text-text-primary shadow-2xl backdrop:bg-bg-primary/85 backdrop:backdrop-blur-sm"
+>
+    <div class="grid max-h-[92dvh] min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-2xl">
+        <header class="flex items-start justify-between gap-6 border-b border-border px-5 py-4 sm:px-6">
+            <div>
+                <h2 id="tutorial-title" class="text-lg font-bold sm:text-xl">Conocé Orvel en un minuto</h2>
+                <p id="tutorial-description" class="mt-1 text-sm text-text-secondary">
+                    Mirá cómo ordenás tus turnos y recuperás el control de tu día.
+                </p>
+            </div>
+            <button
+                type="button"
+                data-tutorial-close
+                aria-label="Cerrar tutorial"
+                class="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-bg-primary/60 text-xl text-text-primary transition hover:border-primary/60 hover:text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+                <i class="ri-close-line" aria-hidden="true"></i>
+            </button>
+        </header>
+        <div class="relative flex min-h-0 items-center justify-center overflow-auto bg-black">
+            <video
+                data-tutorial-video
+                data-src="/media/orvel-dashboard-tutorial-b.mp4"
+                class="block h-auto max-h-full w-full bg-black object-contain"
+                poster="/media/orvel-dashboard-tutorial-b-poster.webp"
+                controls
+                playsinline
+                preload="none"
+            >
+                <track
+                    kind="captions"
+                    srclang="es"
+                    label="Español"
+                    src="/media/orvel-dashboard-tutorial-b.es.vtt"
+                    default
+                />
+                Tu navegador no puede reproducir este video.
+            </video>
+            <div
+                data-tutorial-error
+                role="alert"
+                aria-live="assertive"
+                class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-bg-primary/95 p-6 text-center"
+                hidden
+            >
+                <p data-tutorial-error-message class="max-w-md text-sm text-text-primary"></p>
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <button type="button" data-tutorial-retry class="btn btn-primary">Reintentar</button>
+                    <a
+                        data-tutorial-fallback
+                        href="/media/orvel-dashboard-tutorial-b.mp4"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn btn-secondary"
+                    >
+                        Abrir video directamente
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    import { initTutorialDialog } from '../../lib/tutorial-dialog';
+
+    initTutorialDialog();
+</script>
+
 <style>
     @keyframes float {
         0%,
@@ -143,5 +223,43 @@
     }
     .animate-float {
         animation: float 4s ease-in-out infinite;
+    }
+
+    .tutorial-dialog {
+        opacity: 0;
+        transform: translateY(0.75rem) scale(0.985);
+        transition:
+            opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+            transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+            overlay 180ms allow-discrete,
+            display 180ms allow-discrete;
+    }
+
+    .tutorial-dialog[open] {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    [data-tutorial-error][hidden] {
+        display: none;
+    }
+
+    @starting-style {
+        .tutorial-dialog[open] {
+            opacity: 0;
+            transform: translateY(0.75rem) scale(0.985);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .animate-float {
+            animation: none;
+        }
+
+        .tutorial-dialog,
+        .tutorial-dialog[open] {
+            transform: none;
+            transition: none;
+        }
     }
 </style>
