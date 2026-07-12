@@ -16,6 +16,8 @@
 node_modules/
 
 # Build outputs and generated artifacts
+/marketing/
+/screenshots/
 dist/
 build/
 coverage/
