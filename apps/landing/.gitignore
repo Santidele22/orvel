@@ -24,6 +24,9 @@ pnpm-debug.log*
 dist/
 .astro/
 .vercel/
+.build-lock/
+.build-lock.recovery-*/
+.build-lock.quarantine-*/
 .cache/
 coverage/
 
