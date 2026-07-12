@@ -18,6 +18,17 @@ const forbiddenIdentifierDigests = new Set([
   "6d9d29fcb936f87d3ef1678cc0a52530333f514b97a52fe5aff774bfca92e342",
 ]);
 const reviewedSupabaseCliVersion = "2.98.2";
+const cleanRuntimeOverrideEnv = {
+  ORVEL_ROOT: "",
+  TRIAL_REMINDER_INVOKE_HELPER: "",
+  TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER: "",
+  TRIAL_REMINDER_PREREQUISITE_HELPER: "",
+  TRIAL_REMINDER_EVIDENCE_HELPER: "",
+  TRIAL_REMINDER_MIGRATION_HELPER: "",
+  TRIAL_REMINDER_DURABLE_STATE_HELPER: "",
+  NODE_OPTIONS: "",
+  NODE_PATH: "",
+};
 
 async function harness(t, initialState = {
   functions: [temporaryFunction, ...unrelatedFunctions],
@@ -153,6 +164,7 @@ function run(stage, fixture, mode = "success") {
     encoding: "utf8",
     env: {
       ...process.env,
+      ...cleanRuntimeOverrideEnv,
       PATH: `${fixture.directory}:${process.env.PATH}`,
       CLI_TIMEOUT_SECONDS: mode.startsWith("hang-") ? "0.2" : "60",
       MOCK_USE_REAL_TIMEOUT: mode.startsWith("hang-") ? "1" : "0",
@@ -301,7 +313,7 @@ test("host prerequisite failure occurs before CLI access", async (t) => {
   const result = spawnSync("bash", [fixture.operationScript, "verify-clean"], {
     cwd: root, encoding: "utf8",
     env: {
-      ...process.env, PATH: `${fixture.directory}:${process.env.PATH}`, MOCK_PREREQ_STATUS: "19",
+      ...process.env, ...cleanRuntimeOverrideEnv, PATH: `${fixture.directory}:${process.env.PATH}`, MOCK_PREREQ_STATUS: "19",
       MOCK_LOG: fixture.logPath, MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath,
     },
   });
@@ -375,10 +387,24 @@ test("new prepare run drops stale terminal evidence before a gate failure", asyn
 });
 
 function runStage(args, fixture, extra = {}) {
+  const inheritedEnv = { ...process.env };
+  for (const name of [
+    "ORVEL_ROOT",
+    "TRIAL_REMINDER_INVOKE_HELPER",
+    "TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER",
+    "TRIAL_REMINDER_PREREQUISITE_HELPER",
+    "TRIAL_REMINDER_EVIDENCE_HELPER",
+    "TRIAL_REMINDER_MIGRATION_HELPER",
+    "TRIAL_REMINDER_DURABLE_STATE_HELPER",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+  ]) delete inheritedEnv[name];
+
   return spawnSync("bash", [fixture.operationScript, ...args], {
     cwd: root, encoding: "utf8",
     env: {
-      ...process.env, PATH: `${fixture.directory}:${process.env.PATH}`,
+      ...inheritedEnv, PATH: `${fixture.directory}:${process.env.PATH}`,
+      ...cleanRuntimeOverrideEnv,
       CLI_TIMEOUT_SECONDS: "60", MOCK_USE_REAL_TIMEOUT: "0", MOCK_MODE: "success", MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath, MOCK_LOG: fixture.logPath,
       CLEANUP_VERIFY_DELAY_SECONDS: "0.01",
       MOCK_INVOCATION_LOG: fixture.invocationLog,
