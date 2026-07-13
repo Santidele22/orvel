@@ -5,6 +5,7 @@ readonly_path_overrides=(
   ORVEL_ROOT TRIAL_REMINDER_INVOKE_HELPER TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER
   TRIAL_REMINDER_PREREQUISITE_HELPER TRIAL_REMINDER_EVIDENCE_HELPER
   TRIAL_REMINDER_MIGRATION_HELPER TRIAL_REMINDER_DURABLE_STATE_HELPER
+  TRIAL_REMINDER_DRY_RUN_HELPER
   NODE_OPTIONS NODE_PATH
 )
 for override_name in "${readonly_path_overrides[@]}"; do
@@ -35,6 +36,7 @@ prerequisite_helper="$root/scripts/trial-reminder-prerequisites.mjs"
 evidence_helper="$root/scripts/trial-reminder-evidence.mjs"
 evidence_file="$root/supabase/.temp/trial-reminder-production-evidence.json"
 migration_helper="$root/scripts/trial-reminder-migration-list.mjs"
+dry_run_helper="$root/scripts/trial-reminder-dry-run.mjs"
 durable_state_helper="$root/scripts/trial-reminder-durable-state.mjs"
 expected_migration="20260712213000"
 supabase_cli_version="$(node -p 'require(process.argv[1]).config.supabaseCliVersion' "$root/package.json")"
@@ -162,15 +164,33 @@ setup_temporary_capability() {
   run_cli functions deploy "$function_name" --project-ref "$project_ref"
 }
 
+forward_migrate() {
+  local migration_output dry_run_output
+  migration_output="$(run_cli migration list --linked)"
+  printf '%s' "$migration_output" | node "$migration_helper" "$expected_migration" pending >/dev/null
+
+  run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql" >/dev/null
+
+  dry_run_output="$(run_cli db push --linked --dry-run --yes 2>&1)"
+  printf '%s' "$dry_run_output" | node "$dry_run_helper" "$expected_migration" >/dev/null
+
+  run_cli db push --linked --yes
+
+  migration_output="$(run_cli migration list --linked)"
+  printf '%s' "$migration_output" | node "$migration_helper" "$expected_migration" applied >/dev/null
+  run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-present.sql" >/dev/null
+  echo "forward_migration=PASS"
+}
+
 case "${1:-}" in
-  preflight)
+  diagnose)
     expected_state="${2:-}"
-    [[ "$expected_state" == "pristine" || "$expected_state" == "legacy-applied" || "$expected_state" == "present" ]] || { echo "Use preflight pristine|legacy-applied|present" >&2; exit 2; }
-    timeout 120s npx "supabase@$supabase_cli_version" migration list --linked
-    timeout 120s npx "supabase@$supabase_cli_version" db push --linked --include-all --dry-run --yes
+    [[ "$expected_state" == "pristine" || "$expected_state" == "legacy-applied" || "$expected_state" == "present" ]] || { echo "Use diagnose pristine|legacy-applied|present" >&2; exit 2; }
+    run_cli migration list --linked
     run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-${expected_state}.sql"
-    record_evidence migration_alignment '"aligned"'
-    record_evidence zero_attempt true
+    ;;
+  forward-migrate)
+    forward_migrate
     ;;
   prerequisites)
     echo "host_prerequisites=PASS"
@@ -212,7 +232,7 @@ case "${1:-}" in
     cleanup_resources
     ;;
   *)
-    echo "Usage: $0 {prerequisites|preflight pristine|legacy-applied|present|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
+    echo "Usage: $0 {prerequisites|diagnose pristine|legacy-applied|present|forward-migrate|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
     exit 2
     ;;
 esac

@@ -51,14 +51,13 @@ test("generic lifecycle values come from one revoked canonical SQL helper", asyn
   const sql = await migrationSql();
   const evidence = await readFile(new URL("./trial-user-activation-reminder-evidence.sql", import.meta.url), "utf8");
   const present = await readFile(new URL("./trial-user-activation-reminder-preflight-present.sql", import.meta.url), "utf8");
-  const production = await readFile(new URL("./trial-user-activation-reminder-production-preflight.sql", import.meta.url), "utf8");
 
   assert.match(sql, /create function public\.one_time_operational_email_contract\(\)/);
   assert.match(sql, /revoke all on function public\.one_time_operational_email_contract\(\) from public/);
   assert.match(sql, /revoke all on function public\.one_time_operational_email_contract\(\) from service_role/);
   assert.match(sql, /revoke all on function public\.normalize_one_time_operational_email_attempt\(\) from service_role/);
   assert.equal((sql.match(/one_time_operational_email:v2/g) ?? []).length, 1);
-  for (const check of [evidence, present, production]) {
+  for (const check of [evidence, present]) {
     assert.match(check, /one_time_operational_email_contract\(\)/);
     assert.doesNotMatch(check, /one_time_operational_email:v2|purpose\s*=\s*'one_time_operational_email'/);
   }

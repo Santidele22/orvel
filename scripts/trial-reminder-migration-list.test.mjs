@@ -20,3 +20,16 @@ test("rejects missing expected migration and any local/remote mismatch", () => {
     "unparseable output",
   ]) assert.throws(() => validateMigrationList(fixture, expected), /migration alignment failed/);
 });
+
+test("accepts the expected migration as the only pending history row", () => {
+  const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712213000\` | \` \` | time`;
+  assert.deepEqual(validateMigrationList(fixture, expected, "pending"), { migration_alignment: "aligned" });
+});
+
+test("rejects pending history with the expected migration applied or other drift", () => {
+  for (const fixture of [
+    "`20260712213000` | `20260712213000` | time",
+    "`20260710210000` | ` ` | time\n`20260712213000` | ` ` | time",
+    "`20260712213000` | ` ` | time\n`20260712213000` | ` ` | duplicate",
+  ]) assert.throws(() => validateMigrationList(fixture, expected, "pending"), /migration alignment failed/);
+});
