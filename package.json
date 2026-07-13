@@ -20,7 +20,7 @@
     "supabase:dry-run": "supabase db lint --local",
     "test:supabase:trial-reminder": "pnpm run test:supabase:trial-reminder:static && pnpm run test:supabase:trial-reminder:postgres",
     "test:supabase:trial-reminder:static": "node --test supabase/checks/20260710210000_one_time_trial_reminder_attempt.contract.test.mjs supabase/checks/20260712213000_generic_one_time_email_contract.contract.test.mjs",
-    "test:supabase:trial-reminder:postgres": "bash supabase/checks/20260712213000_generic_one_time_email_contract.test.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_concurrency.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_preflight.test.sh",
+    "test:supabase:trial-reminder:postgres": "bash supabase/checks/20260712190000_normalize_legacy_reminder_function_acl.test.sh && bash supabase/checks/20260712213000_generic_one_time_email_contract.test.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_concurrency.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_preflight.test.sh",
     "test:supabase:trial-reminder:ci": "pnpm run test:supabase:trial-reminder:operational && bash scripts/run-trial-reminder-postgres-check.sh",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
     "test:supabase:functions:critical": "node scripts/check-focused-tests.mjs && deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/account-closure-consumer.test.ts supabase/functions/_shared/cancel-subscription-behavior.test.ts supabase/functions/_shared/cancel-subscription-manual-request-static-contract.test.ts supabase/functions/_shared/trial-user-activation-reminder.test.ts",

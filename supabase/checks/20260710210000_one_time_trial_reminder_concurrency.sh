@@ -30,6 +30,8 @@ psql -v ON_ERROR_STOP=1 -d "$database" \
   -f supabase/checks/20260710210000_one_time_trial_reminder_attempt.sql
 
 psql -v ON_ERROR_STOP=1 -d "$database" \
+  -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$database" \
   -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql
 
 (

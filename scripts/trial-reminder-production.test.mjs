@@ -97,13 +97,13 @@ case "$action" in
     if [[ "\${MOCK_MODE:-}" == delayed-unset ]]; then printf '%s\\n' "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}" >"$MOCK_SECRET_STATE.pending"; printf '0' >"$MOCK_SECRET_STATE.count"
     else remove_targets "$MOCK_SECRET_STATE" "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}"; fi ;;
   db-query) [[ "\${MOCK_GATE:-}" == sql ]] && exit 31; printf '%s\\n' "\${MOCK_EVIDENCE:-PASS}" ;;
-  migration-list) if [[ "\${MOCK_GATE:-}" == migration ]]; then printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \` \` | time\\n'; else printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'; fi ;;
+  migration-list) if [[ "\${MOCK_GATE:-}" == migration ]]; then printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \` \` | time\\n\`20260712213000\` | \` \` | time\\n'; else printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \`20260712190000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'; fi ;;
   db-push)
     if contains --dry-run "$@"; then
       case "\${MOCK_DRY_PLAN:-expected}" in
-        expected) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n' ;;
+        expected) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712190000_normalize_legacy_reminder_function_acl.sql\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n' ;;
         empty) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n' ;;
-        extra) printf 'Would push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\n • 20260712214000_extra.sql\n' ;;
+        extra) printf 'Would push these migrations:\n • 20260712190000_normalize_legacy_reminder_function_acl.sql\n • 20260712213000_generic_one_time_email_contract.sql\n • 20260712214000_extra.sql\n' ;;
         malformed) printf 'unexpected output\n' ;;
       esac
     else touch "$MOCK_MIGRATION_STATE"; fi ;;
@@ -134,13 +134,13 @@ case "$helper" in
     if [[ "\${3:-}" == init ]]; then printf '{"operation_id":"%s","started_at":"2026-07-11T12:00:00.000Z"}\\n' "$(</proc/sys/kernel/random/uuid)" >"$2"; chmod 600 "$2"; fi
     exit 0 ;;
   trial-reminder-migration-list.mjs)
-    input="$(cat)"; state="\${3:-applied}"
-    [[ "$state" == pending && "$input" == *'\`20260712213000\` | \` \`'* ]] && exit 0
-    [[ "$state" == applied && "$input" == *'\`20260712213000\` | \`20260712213000\`'* ]] && exit 0
+    input="$(cat)"; state="\${4:-applied}"
+    [[ "$state" == pending && "$input" == *'\`20260712190000\` | \` \`'* && "$input" == *'\`20260712213000\` | \` \`'* ]] && exit 0
+    [[ "$state" == applied && "$input" == *'\`20260712190000\` | \`20260712190000\`'* && "$input" == *'\`20260712213000\` | \`20260712213000\`'* ]] && exit 0
     exit 1 ;;
   trial-reminder-dry-run.mjs)
-    input="$(cat)"; count="$(grep -o '20260712213000_generic_one_time_email_contract.sql' <<<"$input" | wc -l)"
-    [[ "$count" -eq 1 && "$input" == *'Would push these migrations:'* && "$input" != *'20260712214000'* ]] && exit 0
+    input="$(cat)"; acl_count="$(grep -o '20260712190000_normalize_legacy_reminder_function_acl.sql' <<<"$input" | wc -l)"; generic_count="$(grep -o '20260712213000_generic_one_time_email_contract.sql' <<<"$input" | wc -l)"
+    [[ "$acl_count" -eq 1 && "$generic_count" -eq 1 && "$input" == *'Would push these migrations:'* && "$input" != *'20260712214000'* ]] && exit 0
     exit 1 ;;
   trial-reminder-secret-file.mjs)
     mapfile -t lines <"$2"; [[ "\${#lines[@]}" -eq 4 ]] || exit 1; recipient=0; identity=0
@@ -464,7 +464,7 @@ test("project ref comes from the local link and preflight uses linked file queri
   assert.match(log, /--project-ref syntheticlinkedproject/);
   assert.doesNotMatch(source, /SUPABASE_PROJECT_REF:\?/);
   assert.match(source, /db query --linked --file/);
-  assert.match(source, /expected_migration="20260712213000"/);
+  assert.match(source, /expected_migrations=\("20260712190000" "20260712213000"\)/);
 });
 
 test("project identity mismatch fails before any CLI command", async (t) => {

@@ -1,4 +1,5 @@
-export function validateDryRun(output, expectedVersion) {
+export function validateDryRun(output, expectedVersions) {
+  const expected = Array.isArray(expectedVersions) ? expectedVersions : [expectedVersions];
   const versions = [];
   let sawPlanHeading = false;
 
@@ -16,10 +17,10 @@ export function validateDryRun(output, expectedVersion) {
     versions.push(match[1]);
   }
 
-  if (!sawPlanHeading || versions.length !== 1 || versions[0] !== expectedVersion) {
+  if (!sawPlanHeading || versions.length !== expected.length || versions.some((version, index) => version !== expected[index])) {
     throw new Error("dry-run migration plan failed");
   }
-  return { pending_migration: expectedVersion };
+  return { pending_migrations: expected };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -28,8 +29,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   process.stdin.on("data", (chunk) => input += chunk);
   process.stdin.on("end", () => {
     try {
-      const result = validateDryRun(input, process.argv[2]);
-      process.stdout.write(`pending_migration=${result.pending_migration}\n`);
+      const result = validateDryRun(input, process.argv.slice(2));
+      process.stdout.write(`pending_migrations=${result.pending_migrations.join(",")}\n`);
     } catch {
       process.stderr.write("dry_run_migration_plan_failed\n");
       process.exit(1);

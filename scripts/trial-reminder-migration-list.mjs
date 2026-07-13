@@ -1,4 +1,5 @@
-export function validateMigrationList(output, expectedVersion, expectedState = "applied") {
+export function validateMigrationList(output, expectedVersions, expectedState = "applied") {
+  const expected = Array.isArray(expectedVersions) ? expectedVersions : [expectedVersions];
   const rows = [];
   for (const rawLine of output.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -12,8 +13,10 @@ export function validateMigrationList(output, expectedVersion, expectedState = "
   if (!rows.length || !["applied", "pending"].includes(expectedState)) {
     throw new Error("migration alignment failed");
   }
-  const expectedRows = rows.filter((row) => row.local === expectedVersion);
-  if (expectedRows.length !== 1) {
+  const expectedRows = rows.filter((row) => expected.includes(row.local));
+  if (expectedRows.length !== expected.length
+    || expected.some((version, index) => expectedRows[index]?.local !== version)
+    || expected.some((version, index) => rows.at(index - expected.length)?.local !== version)) {
     throw new Error("migration alignment failed");
   }
   if (rows.some((row) => !row.local)) throw new Error("migration alignment failed");
@@ -21,7 +24,7 @@ export function validateMigrationList(output, expectedVersion, expectedState = "
     throw new Error("migration alignment failed");
   }
   if (expectedState === "pending" && rows.some((row) => (
-    row.local === expectedVersion ? row.remote !== "" : row.local !== row.remote
+    expected.includes(row.local) ? row.remote !== "" : row.local !== row.remote
   ))) throw new Error("migration alignment failed");
   return { migration_alignment: "aligned" };
 }
@@ -32,7 +35,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   process.stdin.on("data", (chunk) => input += chunk);
   process.stdin.on("end", () => {
     try {
-      validateMigrationList(input, process.argv[2], process.argv[3]);
+      const state = process.argv.at(-1);
+      const hasState = ["applied", "pending"].includes(state);
+      validateMigrationList(input, process.argv.slice(2, hasState ? -1 : undefined), hasState ? state : "applied");
       process.stdout.write("migration_alignment=aligned\n");
     } catch {
       process.stderr.write("migration_alignment_failed\n");

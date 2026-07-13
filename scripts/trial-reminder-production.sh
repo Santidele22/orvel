@@ -55,7 +55,7 @@ evidence_file="$root/supabase/.temp/trial-reminder-production-evidence.json"
 migration_helper="$root/scripts/trial-reminder-migration-list.mjs"
 dry_run_helper="$root/scripts/trial-reminder-dry-run.mjs"
 durable_state_helper="$root/scripts/trial-reminder-durable-state.mjs"
-expected_migration="20260712213000"
+expected_migrations=("20260712190000" "20260712213000")
 supabase_cli_version="$(node -p 'require(process.argv[1]).config.supabaseCliVersion' "$root/package.json")"
 [[ "$supabase_cli_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Reviewed Supabase CLI version is invalid" >&2; exit 1; }
 
@@ -157,7 +157,7 @@ cleanup_resources() {
 preinvoke_gates() {
   local migration_output
   migration_output="$(run_cli migration list --linked)"
-  printf '%s' "$migration_output" | node "$migration_helper" "$expected_migration" >/dev/null
+  printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" applied >/dev/null
   run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-present.sql" >/dev/null
   [[ "$(function_state)" == "present" ]] || { echo "Temporary function gate failed" >&2; return 1; }
   local secret_count
@@ -184,17 +184,17 @@ setup_temporary_capability() {
 forward_migrate() {
   local migration_output dry_run_output
   migration_output="$(run_cli migration list --linked)"
-  printf '%s' "$migration_output" | node "$migration_helper" "$expected_migration" pending >/dev/null
+  printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" pending >/dev/null
 
   run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql" >/dev/null
 
   dry_run_output="$(run_cli db push --linked --dry-run --yes 2>&1)"
-  printf '%s' "$dry_run_output" | node "$dry_run_helper" "$expected_migration" >/dev/null
+  printf '%s' "$dry_run_output" | node "$dry_run_helper" "${expected_migrations[@]}" >/dev/null
 
   run_cli db push --linked --yes
 
   migration_output="$(run_cli migration list --linked)"
-  printf '%s' "$migration_output" | node "$migration_helper" "$expected_migration" applied >/dev/null
+  printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" applied >/dev/null
   run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-present.sql" >/dev/null
   echo "forward_migration=PASS"
 }
