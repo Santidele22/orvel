@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -180,6 +180,7 @@ if (Number(process.env.MOCK_SAFE_STATUS || 405) !== 405) process.exit(1);
 console.log("safe_preflight_status=405");\n`);
   const prerequisiteHelper = join(directory, "prerequisite-helper.mjs");
   await writeFile(prerequisiteHelper, `process.exit(Number(process.env.MOCK_PREREQ_STATUS || 0));\n`);
+  await writeFile(join(directory, "scripts/trial-reminder-prerequisites.mjs"), `process.exit(Number(process.env.MOCK_PREREQ_STATUS || 0));\n`);
   return { directory, operationScript: sandboxOperationScript, launcherScript: sandboxLauncherScript, functionStatePath, secretStatePath, migrationStatePath, logPath, invocationLog, invokeHelper, safeHelper, safePreflightLog, prerequisiteHelper, secretFile };
 }
 
@@ -204,7 +205,7 @@ function run(stage, fixture, mode = "success") {
       MOCK_EVIDENCE: "sent",
     },
   };
-  return spawnSync(process.execPath, [fixture.launcherScript, stage], options);
+  return spawnSync(fixture.launcherScript, [stage], options);
 }
 
 test("cleanup is repeatable and touches only temporary resources", async (t) => {
@@ -272,6 +273,8 @@ test("production script pins every Supabase CLI invocation to the reviewed versi
 
 test("trusted launcher sanitizes shell startup injection before absolute noninteractive Bash", async () => {
   const launcher = await readFile(launcherScript, "utf8");
+  assert.match(launcher, /^#!\/usr\/bin\/env -S -u NODE_OPTIONS -u NODE_PATH/);
+  assert.match(launcher, /spawnSync\("\/usr\/bin\/env", \["-S", "-u NODE_OPTIONS -u NODE_PATH \/usr\/bin\/true"\]/);
   assert.match(launcher, /spawnSync\("\/bin\/bash", \["--noprofile", "--norc"/);
   for (const name of ["BASH_ENV", "ENV", "SHELLOPTS", "BASHOPTS", "BASH_XTRACEFD", "PS4", "CDPATH", "GLOBIGNORE", "PROMPT_COMMAND", "INPUTRC", "POSIXLY_CORRECT"]) {
     assert.match(launcher, new RegExp(`"${name}"`));
@@ -303,6 +306,7 @@ test("launcher blocks BASH_ENV, ENV, and exported function command replacement",
     const injection = vector === "BASH_FUNC_npx%%"
       ? { [vector]: `() { printf replaced >${JSON.stringify(sentinel)}; return 97; }` }
       : { [vector]: startup };
+    injection.PATH = await trustedLauncherPath(fixture);
     assertEqualsZero(runStage(["diagnose", "present"], fixture, injection));
     await assert.rejects(() => readFile(sentinel), undefined, vector);
     const log = await readFile(fixture.logPath, "utf8");
@@ -311,10 +315,30 @@ test("launcher blocks BASH_ENV, ENV, and exported function command replacement",
   }
 });
 
+test("supported executable path strips NODE_OPTIONS require/import and NODE_PATH before Node startup", async (t) => {
+  for (const vector of ["require", "import", "path"]) {
+    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+    const sentinel = join(fixture.directory, `node-startup-${vector}`);
+    const preload = join(fixture.directory, vector === "import" ? "preload.mjs" : "preload.cjs");
+    await writeFile(preload, vector === "import"
+      ? `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(sentinel)}, "imported");\n`
+      : `require("node:fs").writeFileSync(${JSON.stringify(sentinel)}, "required");\n`);
+    const injection = vector === "require"
+      ? { NODE_OPTIONS: `--require=${preload}` }
+      : vector === "import"
+      ? { NODE_OPTIONS: `--import=file://${preload}` }
+      : { NODE_PATH: fixture.directory };
+    injection.PATH = await trustedLauncherPath(fixture);
+    assertEqualsZero(runStage(["diagnose", "present"], fixture, injection));
+    await assert.rejects(() => readFile(sentinel), undefined, vector);
+    assert.match(await readFile(fixture.logPath, "utf8"), /preflight-present\.sql/);
+  }
+});
+
 test("package and runbook expose only the trusted production launcher", async () => {
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const runbook = await readFile(join(root, "docs/runbooks/trial-user-activation-reminder.md"), "utf8");
-  assert.equal(packageJson.scripts["trial-reminder:production"], "node scripts/trial-reminder-production-launcher.mjs");
+  assert.equal(packageJson.scripts["trial-reminder:production"], "scripts/trial-reminder-production-launcher.mjs");
   assert.match(runbook, /pnpm run trial-reminder:production -- forward-migrate/);
   assert.doesNotMatch(runbook, /`scripts\/trial-reminder-production\.sh [^`]+`/);
 });
@@ -424,7 +448,7 @@ test("invoke gates fail before API-key helper and safe preflight runs exactly on
 
 test("host prerequisite failure occurs before CLI access", async (t) => {
   const fixture = await harness(t);
-  const result = spawnSync(process.execPath, [fixture.launcherScript, "verify-clean"], {
+  const result = spawnSync(fixture.launcherScript, ["verify-clean"], {
     cwd: root, encoding: "utf8",
     env: {
       ...process.env, ...cleanRuntimeOverrideEnv, PATH: `${fixture.directory}:${process.env.PATH}`, MOCK_PREREQ_STATUS: "19",
@@ -474,17 +498,11 @@ test("invalid secret file fails before secret or deploy mutation", async (t) => 
   assert.deepEqual(await readMockState(fixture), { functions: unrelatedFunctions, secrets: unrelatedSecrets });
 });
 
-test("production invocation helper and module injection overrides are rejected", async (t) => {
-  for (const extra of [
-    { TRIAL_REMINDER_INVOKE_HELPER: "/tmp/bypass.mjs" },
-    { NODE_OPTIONS: "--require=/tmp/bypass.cjs" },
-    { NODE_PATH: "/tmp/modules" },
-  ]) {
-    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
-    const result = runStage(["prepare-and-invoke", fixture.secretFile], fixture, extra);
-    assert.notEqual(result.status, 0);
-    await assert.rejects(() => readFile(fixture.logPath));
-  }
+test("production invocation helper override is rejected", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  const result = runStage(["prepare-and-invoke", fixture.secretFile], fixture, { TRIAL_REMINDER_INVOKE_HELPER: "/tmp/bypass.mjs" });
+  assert.notEqual(result.status, 0);
+  await assert.rejects(() => readFile(fixture.logPath));
 });
 
 test("new prepare run drops stale terminal evidence before a gate failure", async (t) => {
@@ -515,7 +533,7 @@ function runStage(args, fixture, extra = {}) {
     "NODE_PATH",
   ]) delete inheritedEnv[name];
 
-  return spawnSync(process.execPath, [fixture.launcherScript, ...args], {
+  return spawnSync(fixture.launcherScript, args, {
     cwd: root, encoding: "utf8",
     env: {
       ...inheritedEnv, PATH: `${fixture.directory}:${process.env.PATH}`,
@@ -532,6 +550,19 @@ function runStage(args, fixture, extra = {}) {
 function assertEqualsZero(result) {
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+async function trustedLauncherPath(fixture) {
+  const directory = join(fixture.directory, "trusted-path");
+  await mkdir(directory, { recursive: true });
+  for (const [name, target] of [["node", process.execPath], ["npx", join(fixture.directory, "npx")], ["timeout", join(fixture.directory, "timeout")]]) {
+    try {
+      await symlink(target, join(directory, name));
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  return `${directory}:${process.env.PATH}`;
 }
 
 function assertNoForbiddenIdentifiers(content) {

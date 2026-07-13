@@ -47,7 +47,7 @@
     "test:dashboard:bun": "bun run --cwd apps/dashboard test",
     "test:landing": "pnpm --dir apps/landing run test",
     "test:supabase:trial-reminder:operational": "node --test scripts/trial-reminder-*.test.mjs",
-    "trial-reminder:production": "node scripts/trial-reminder-production-launcher.mjs",
+    "trial-reminder:production": "scripts/trial-reminder-production-launcher.mjs",
     "test:dashboard:time-picker": "pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/configuracion-time-picker-modal-accessibility.contract.spec.ts",
     "test:landing:tutorial": "pnpm --dir apps/landing exec vitest run src/tests/hero-tutorial-dialog.contract.spec.ts",
     "test:landing:build-lock": "pnpm --dir apps/landing exec vitest run src/tests/landing-build-idempotency.contract.spec.ts"

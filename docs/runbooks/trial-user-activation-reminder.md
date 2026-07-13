@@ -4,6 +4,10 @@ This operation is at-most-once. Any invocation response, timeout, transport erro
 
 Use only `pnpm run trial-reminder:production -- <stage>`. This package command enters through the trusted Node launcher, sanitizes shell startup injection vectors, and starts absolute `/bin/bash --noprofile --norc` with a one-use FD capability. Direct Bash execution and ad hoc curl, SQL, secret, deploy, invocation, or cleanup commands are prohibited.
 
+The supported Linux operator/Vercel host must provide executable `/usr/bin/env` with GNU-compatible `-S` and `-u` plus `node` on the reviewed PATH. The executable launcher's shebang removes `NODE_OPTIONS`, `NODE_PATH`, and Node IPC startup variables before Node initializes; its prerequisite probe fails closed when that contract is unavailable. Invoking the launcher as `node scripts/...` is unsupported and prohibited.
+
+Threat-model boundary: a malicious same-account operator who deliberately fabricates file descriptors and matching process state can bypass local process conventions. That is explicitly out of scope/wont-fix; the FD contract prevents accidental/direct entry and inherited-environment injection, but is not claimed as cryptographic provenance or protection from the account owner.
+
 ## Required Inputs
 
 - Explicit approval for deployment and the single send.
@@ -34,7 +38,7 @@ On timeout or any non-zero result, stop. Do not continue to secrets, deployment,
 
 `invoke-once` is not a supported stage and is rejected by the script. Invocation is private to `prepare-and-invoke` after every gate passes. Each run first replaces mutable evidence with a fresh non-sensitive operation ID and start timestamp, so terminal fields from an older run cannot be reused.
 
-Production roots, security checks, evidence queries, migration checks, durable-state parsers, and invocation code resolve only from checked-in repository paths. `ORVEL_ROOT`, every `TRIAL_REMINDER_*_HELPER` override, `NODE_OPTIONS`, and `NODE_PATH` are rejected. The reviewed Supabase CLI version is centralized in root `package.json`; `@latest` is prohibited.
+Production roots, security checks, evidence queries, migration checks, durable-state parsers, and invocation code resolve only from checked-in repository paths. `ORVEL_ROOT` and every `TRIAL_REMINDER_*_HELPER` override are rejected; `NODE_OPTIONS`, `NODE_PATH`, and Node IPC startup variables are removed before Node starts. The reviewed Supabase CLI version is centralized in root `package.json`; `@latest` is prohibited.
 
 Operational evidence is mutable local runtime state at `supabase/.temp/trial-reminder-production-evidence.json` (ignored, mode 0600), not a committed artifact. It contains only allowlisted statuses/counts; never copy refs, keys, email, headers, body, or provider output into it.
 
