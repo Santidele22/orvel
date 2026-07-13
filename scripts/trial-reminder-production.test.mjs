@@ -67,6 +67,7 @@ elif contains db "$@" && contains query "$@"; then action=db-query
 elif contains functions "$@" && contains deploy "$@"; then action=functions-deploy
 elif contains secrets "$@" && contains set "$@"; then action=secrets-set
 elif contains migration "$@" && contains list "$@"; then action=migration-list
+elif contains db "$@" && contains push "$@"; then action=db-push
 else action=unknown; fi
 [[ "\${MOCK_MODE:-}" == "hang-$action" ]] && exec sleep 10
 [[ "\${MOCK_MODE:-}" == "fail-$action" ]] && exit 23
@@ -86,6 +87,7 @@ case "$action" in
     else remove_targets "$MOCK_SECRET_STATE" "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}"; fi ;;
   db-query) [[ "\${MOCK_GATE:-}" == sql ]] && exit 31; printf '%s\\n' "\${MOCK_EVIDENCE:-PASS}" ;;
   migration-list) if [[ "\${MOCK_GATE:-}" == migration ]]; then printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \` \` | time\\n'; else printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'; fi ;;
+  db-push) exit 0 ;;
   functions-deploy) [[ "\${MOCK_GATE:-}" == function ]] || printf '%s\\n' "${temporaryFunction}" >>"$MOCK_FUNCTION_STATE" ;;
   secrets-set) if [[ "\${MOCK_GATE:-}" == missing-secret ]]; then printf '%s\\n' "${temporarySecrets[0]}" >>"$MOCK_SECRET_STATE"; else printf '%s\\n' "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}" >>"$MOCK_SECRET_STATE"; fi ;;
   *) exit 24 ;;
@@ -271,6 +273,29 @@ test("runbook documents intrinsic migration timeout rollback, retry, and verific
   assert.match(runbook, /transaction rolls back.*no partial schema or data state/is);
   assert.match(runbook, /migration list/);
   assert.match(runbook, /preflight present/);
+  assert.match(runbook, /preflight legacy-applied/);
+});
+
+test("production preflight stages enforce pristine, intermediate, then present ordering", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+
+  assertEqualsZero(runStage(["preflight", "legacy-applied"], fixture));
+  assertEqualsZero(runStage(["preflight", "present"], fixture));
+
+  const log = await readFile(fixture.logPath, "utf8");
+  const intermediate = log.indexOf("trial-user-activation-reminder-preflight-legacy-applied.sql");
+  const present = log.indexOf("trial-user-activation-reminder-preflight-present.sql");
+  assert.ok(intermediate >= 0, "intermediate gate was not executed");
+  assert.ok(present > intermediate, "present gate must run after the intermediate gate");
+  assert.doesNotMatch(log, /trial-user-activation-reminder-preflight-pristine\.sql/);
+});
+
+test("pristine preflight is explicit and legacy absent stage name is rejected", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  assertEqualsZero(runStage(["preflight", "pristine"], fixture));
+  const rejected = runStage(["preflight", "absent"], fixture);
+  assert.equal(rejected.status, 2);
+  assert.match(rejected.stderr, /pristine\|legacy-applied\|present/);
 });
 
 test("record-terminal derives state from checked-in evidence query instead of caller input", () => {

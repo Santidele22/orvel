@@ -1,8 +1,8 @@
--- Read-only production gate. Pass expected_guard_state=absent before migration
--- and expected_guard_state=present after migration. Never reserves an attempt.
+-- Read-only pristine/present regression dispatcher. Production operators use
+-- the explicitly named checked-in stage files through the operation script.
 \set ON_ERROR_STOP on
 
-SELECT :'expected_guard_state' IN ('absent', 'present') AS valid_expected_state \gset
+SELECT :'expected_guard_state' IN ('pristine', 'present') AS valid_expected_state \gset
 \if :valid_expected_state
 \else
   \echo 'Invalid expected_guard_state'

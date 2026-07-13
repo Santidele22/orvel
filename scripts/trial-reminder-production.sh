@@ -165,7 +165,7 @@ setup_temporary_capability() {
 case "${1:-}" in
   preflight)
     expected_state="${2:-}"
-    [[ "$expected_state" == "absent" || "$expected_state" == "present" ]] || { echo "Use preflight absent|present" >&2; exit 2; }
+    [[ "$expected_state" == "pristine" || "$expected_state" == "legacy-applied" || "$expected_state" == "present" ]] || { echo "Use preflight pristine|legacy-applied|present" >&2; exit 2; }
     timeout 120s npx "supabase@$supabase_cli_version" migration list --linked
     timeout 120s npx "supabase@$supabase_cli_version" db push --linked --include-all --dry-run --yes
     run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-${expected_state}.sql"
@@ -212,7 +212,7 @@ case "${1:-}" in
     cleanup_resources
     ;;
   *)
-    echo "Usage: $0 {prerequisites|preflight absent|present|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
+    echo "Usage: $0 {prerequisites|preflight pristine|legacy-applied|present|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
     exit 2
     ;;
 esac
