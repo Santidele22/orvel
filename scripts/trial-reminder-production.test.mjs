@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url).pathname;
 const operationScript = join(root, "scripts/trial-reminder-production.sh");
+const launcherScript = join(root, "scripts/trial-reminder-production-launcher.mjs");
 const source = await readFile(operationScript, "utf8");
 const temporaryFunction = "send-trial-user-activation-reminder-once";
 const temporarySecrets = ["TRIAL_REMINDER_RECIPIENT_EMAIL", "TRIAL_REMINDER_BUSINESS_NAME", "TRIAL_REMINDER_DASHBOARD_URL", "TRIAL_REMINDER_BOOKING_URL"];
@@ -25,6 +26,7 @@ const cleanRuntimeOverrideEnv = {
   TRIAL_REMINDER_PREREQUISITE_HELPER: "",
   TRIAL_REMINDER_EVIDENCE_HELPER: "",
   TRIAL_REMINDER_MIGRATION_HELPER: "",
+  TRIAL_REMINDER_DRY_RUN_HELPER: "",
   TRIAL_REMINDER_DURABLE_STATE_HELPER: "",
   NODE_OPTIONS: "",
   NODE_PATH: "",
@@ -41,11 +43,14 @@ async function harness(t, initialState = {
   const logPath = join(directory, "commands.log");
   const invocationLog = join(directory, "invocations.log");
   const safePreflightLog = join(directory, "safe-preflight.log");
+  const migrationStatePath = join(directory, "migration.applied");
   const secretFile = join(directory, "temporary-secrets.env");
   await mkdir(join(directory, "supabase/.temp"), { recursive: true });
   await mkdir(join(directory, "scripts"), { recursive: true });
   const sandboxOperationScript = join(directory, "scripts/trial-reminder-production.sh");
+  const sandboxLauncherScript = join(directory, "scripts/trial-reminder-production-launcher.mjs");
   await copyFile(operationScript, sandboxOperationScript);
+  await copyFile(launcherScript, sandboxLauncherScript);
   await writeFile(join(directory, "package.json"), JSON.stringify({ config: { supabaseCliVersion: reviewedSupabaseCliVersion } }));
   await writeFile(join(directory, "supabase/.temp/project-ref"), "syntheticlinkedproject\n");
   await writeFile(
@@ -54,6 +59,7 @@ async function harness(t, initialState = {
   );
   await writeFile(functionStatePath, `${initialState.functions.join("\n")}\n`);
   await writeFile(secretStatePath, `${initialState.secrets.join("\n")}\n`);
+  if (initialState.migrationApplied !== false) await writeFile(migrationStatePath, "applied\n");
   await writeFile(secretFile, "TRIAL_REMINDER_RECIPIENT_EMAIL=synthetic@example.invalid\nTRIAL_REMINDER_BUSINESS_NAME=Synthetic Business\nTRIAL_REMINDER_DASHBOARD_URL=https://example.invalid/settings\nTRIAL_REMINDER_BOOKING_URL=https://booking.example.invalid/opaque\n", { mode: 0o600 });
   const mock = `#!/usr/bin/env bash
 set -euo pipefail
@@ -67,11 +73,13 @@ elif contains db "$@" && contains query "$@"; then action=db-query
 elif contains functions "$@" && contains deploy "$@"; then action=functions-deploy
 elif contains secrets "$@" && contains set "$@"; then action=secrets-set
 elif contains migration "$@" && contains list "$@"; then action=migration-list
+elif contains db "$@" && contains push "$@"; then action=db-push
 else action=unknown; fi
 [[ "\${MOCK_MODE:-}" == "hang-$action" ]] && exec sleep 10
 [[ "\${MOCK_MODE:-}" == "fail-$action" ]] && exit 23
 json_list() { local file="$1" first=1 value; printf '['; while IFS= read -r value; do [[ -z "$value" ]] && continue; ((first)) || printf ','; printf '{"name":"%s"}' "$value"; first=0; done <"$file"; printf ']\\n'; }
 remove_targets() { local file="$1" temp="$1.tmp" value; shift; : >"$temp"; while IFS= read -r value; do [[ -z "$value" ]] && continue; contains "$value" "$@" || printf '%s\\n' "$value" >>"$temp"; done <"$file"; mv "$temp" "$file"; }
+if [[ "$action" == migration-list && ! -f "$MOCK_MIGRATION_STATE" ]]; then MOCK_GATE=migration; fi
 case "$action" in
   functions-list) json_list "$MOCK_FUNCTION_STATE" ;;
   secrets-list)
@@ -86,6 +94,15 @@ case "$action" in
     else remove_targets "$MOCK_SECRET_STATE" "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}"; fi ;;
   db-query) [[ "\${MOCK_GATE:-}" == sql ]] && exit 31; printf '%s\\n' "\${MOCK_EVIDENCE:-PASS}" ;;
   migration-list) if [[ "\${MOCK_GATE:-}" == migration ]]; then printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \` \` | time\\n'; else printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'; fi ;;
+  db-push)
+    if contains --dry-run "$@"; then
+      case "\${MOCK_DRY_PLAN:-expected}" in
+        expected) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n' ;;
+        empty) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n' ;;
+        extra) printf 'Would push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\n • 20260712214000_extra.sql\n' ;;
+        malformed) printf 'unexpected output\n' ;;
+      esac
+    else touch "$MOCK_MIGRATION_STATE"; fi ;;
   functions-deploy) [[ "\${MOCK_GATE:-}" == function ]] || printf '%s\\n' "${temporaryFunction}" >>"$MOCK_FUNCTION_STATE" ;;
   secrets-set) if [[ "\${MOCK_GATE:-}" == missing-secret ]]; then printf '%s\\n' "${temporarySecrets[0]}" >>"$MOCK_SECRET_STATE"; else printf '%s\\n' "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}" >>"$MOCK_SECRET_STATE"; fi ;;
   *) exit 24 ;;
@@ -112,7 +129,15 @@ case "$helper" in
   trial-reminder-evidence.mjs)
     if [[ "\${3:-}" == init ]]; then printf '{"operation_id":"%s","started_at":"2026-07-11T12:00:00.000Z"}\\n' "$(</proc/sys/kernel/random/uuid)" >"$2"; chmod 600 "$2"; fi
     exit 0 ;;
-  trial-reminder-migration-list.mjs) cat >/dev/null; [[ "\${MOCK_GATE:-}" == migration ]] && exit 1 || exit 0 ;;
+  trial-reminder-migration-list.mjs)
+    input="$(cat)"; state="\${3:-applied}"
+    [[ "$state" == pending && "$input" == *'\`20260712213000\` | \` \`'* ]] && exit 0
+    [[ "$state" == applied && "$input" == *'\`20260712213000\` | \`20260712213000\`'* ]] && exit 0
+    exit 1 ;;
+  trial-reminder-dry-run.mjs)
+    input="$(cat)"; count="$(grep -o '20260712213000_generic_one_time_email_contract.sql' <<<"$input" | wc -l)"
+    [[ "$count" -eq 1 && "$input" == *'Would push these migrations:'* && "$input" != *'20260712214000'* ]] && exit 0
+    exit 1 ;;
   trial-reminder-secret-file.mjs)
     mapfile -t lines <"$2"; [[ "\${#lines[@]}" -eq 4 ]] || exit 1; recipient=0; identity=0
     for line in "\${lines[@]}"; do
@@ -155,7 +180,8 @@ if (Number(process.env.MOCK_SAFE_STATUS || 405) !== 405) process.exit(1);
 console.log("safe_preflight_status=405");\n`);
   const prerequisiteHelper = join(directory, "prerequisite-helper.mjs");
   await writeFile(prerequisiteHelper, `process.exit(Number(process.env.MOCK_PREREQ_STATUS || 0));\n`);
-  return { directory, operationScript: sandboxOperationScript, functionStatePath, secretStatePath, logPath, invocationLog, invokeHelper, safeHelper, safePreflightLog, prerequisiteHelper, secretFile };
+  await writeFile(join(directory, "scripts/trial-reminder-prerequisites.mjs"), `process.exit(Number(process.env.MOCK_PREREQ_STATUS || 0));\n`);
+  return { directory, operationScript: sandboxOperationScript, launcherScript: sandboxLauncherScript, functionStatePath, secretStatePath, migrationStatePath, logPath, invocationLog, invokeHelper, safeHelper, safePreflightLog, prerequisiteHelper, secretFile };
 }
 
 function run(stage, fixture, mode = "success") {
@@ -172,13 +198,14 @@ function run(stage, fixture, mode = "success") {
       MOCK_MODE: mode,
       MOCK_FUNCTION_STATE: fixture.functionStatePath,
       MOCK_SECRET_STATE: fixture.secretStatePath,
+      MOCK_MIGRATION_STATE: fixture.migrationStatePath,
       MOCK_LOG: fixture.logPath,
       MOCK_INVOCATION_LOG: fixture.invocationLog,
       MOCK_SAFE_PREFLIGHT_LOG: fixture.safePreflightLog,
       MOCK_EVIDENCE: "sent",
     },
   };
-  return spawnSync("bash", [fixture.operationScript, stage], options);
+  return spawnSync(fixture.launcherScript, [stage], options);
 }
 
 test("cleanup is repeatable and touches only temporary resources", async (t) => {
@@ -244,8 +271,80 @@ test("production script pins every Supabase CLI invocation to the reviewed versi
   assert.match(source, /supabase@\$supabase_cli_version/);
 });
 
+test("trusted launcher sanitizes shell startup injection before absolute noninteractive Bash", async () => {
+  const launcher = await readFile(launcherScript, "utf8");
+  assert.match(launcher, /^#!\/usr\/bin\/env -S -u NODE_OPTIONS -u NODE_PATH/);
+  assert.match(launcher, /spawnSync\("\/usr\/bin\/env", \["-S", "-u NODE_OPTIONS -u NODE_PATH \/usr\/bin\/true"\]/);
+  assert.match(launcher, /spawnSync\("\/bin\/bash", \["--noprofile", "--norc"/);
+  for (const name of ["BASH_ENV", "ENV", "SHELLOPTS", "BASHOPTS", "BASH_XTRACEFD", "PS4", "CDPATH", "GLOBIGNORE", "PROMPT_COMMAND", "INPUTRC", "POSIXLY_CORRECT"]) {
+    assert.match(launcher, new RegExp(`"${name}"`));
+  }
+  assert.match(launcher, /\^BASH_FUNC_/);
+  assert.match(launcher, /\^\\\(\\\)\\s\*\\\{/);
+  assert.match(launcher, /randomBytes\(32\)/);
+  assert.match(source, /read -r -u 3 launcher_fd_token/);
+});
+
+test("direct Bash execution is refused without the launcher FD capability", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  const result = spawnSync("/bin/bash", ["--noprofile", "--norc", fixture.operationScript, "diagnose", "present"], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, ...cleanRuntimeOverrideEnv, PATH: `${fixture.directory}:${process.env.PATH}` },
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /trusted Node launcher/);
+  await assert.rejects(() => readFile(fixture.logPath));
+});
+
+test("launcher blocks BASH_ENV, ENV, and exported function command replacement", async (t) => {
+  for (const vector of ["BASH_ENV", "ENV", "BASH_FUNC_npx%%"]) {
+    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+    const sentinel = join(fixture.directory, `sentinel-${vector.replaceAll("%", "p")}`);
+    const startup = join(fixture.directory, `startup-${vector.replaceAll("%", "p")}`);
+    await writeFile(startup, `printf compromised >${JSON.stringify(sentinel)}\nnpx() { printf replaced >${JSON.stringify(sentinel)}; return 97; }\nexport -f npx\n`);
+    const injection = vector === "BASH_FUNC_npx%%"
+      ? { [vector]: `() { printf replaced >${JSON.stringify(sentinel)}; return 97; }` }
+      : { [vector]: startup };
+    injection.PATH = await trustedLauncherPath(fixture);
+    assertEqualsZero(runStage(["diagnose", "present"], fixture, injection));
+    await assert.rejects(() => readFile(sentinel), undefined, vector);
+    const log = await readFile(fixture.logPath, "utf8");
+    assert.match(log, /migration list --linked/);
+    assert.match(log, /preflight-present\.sql/);
+  }
+});
+
+test("supported executable path strips NODE_OPTIONS require/import and NODE_PATH before Node startup", async (t) => {
+  for (const vector of ["require", "import", "path"]) {
+    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+    const sentinel = join(fixture.directory, `node-startup-${vector}`);
+    const preload = join(fixture.directory, vector === "import" ? "preload.mjs" : "preload.cjs");
+    await writeFile(preload, vector === "import"
+      ? `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(sentinel)}, "imported");\n`
+      : `require("node:fs").writeFileSync(${JSON.stringify(sentinel)}, "required");\n`);
+    const injection = vector === "require"
+      ? { NODE_OPTIONS: `--require=${preload}` }
+      : vector === "import"
+      ? { NODE_OPTIONS: `--import=file://${preload}` }
+      : { NODE_PATH: fixture.directory };
+    injection.PATH = await trustedLauncherPath(fixture);
+    assertEqualsZero(runStage(["diagnose", "present"], fixture, injection));
+    await assert.rejects(() => readFile(sentinel), undefined, vector);
+    assert.match(await readFile(fixture.logPath, "utf8"), /preflight-present\.sql/);
+  }
+});
+
+test("package and runbook expose only the trusted production launcher", async () => {
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const runbook = await readFile(join(root, "docs/runbooks/trial-user-activation-reminder.md"), "utf8");
+  assert.equal(packageJson.scripts["trial-reminder:production"], "scripts/trial-reminder-production-launcher.mjs");
+  assert.match(runbook, /pnpm run trial-reminder:production -- forward-migrate/);
+  assert.doesNotMatch(runbook, /`scripts\/trial-reminder-production\.sh [^`]+`/);
+});
+
 test("production rejects root and checked-in helper overrides", () => {
-  for (const name of ["ORVEL_ROOT", "TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER", "TRIAL_REMINDER_PREREQUISITE_HELPER", "TRIAL_REMINDER_EVIDENCE_HELPER", "TRIAL_REMINDER_MIGRATION_HELPER", "TRIAL_REMINDER_DURABLE_STATE_HELPER"]) {
+  for (const name of ["ORVEL_ROOT", "TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER", "TRIAL_REMINDER_PREREQUISITE_HELPER", "TRIAL_REMINDER_EVIDENCE_HELPER", "TRIAL_REMINDER_MIGRATION_HELPER", "TRIAL_REMINDER_DRY_RUN_HELPER", "TRIAL_REMINDER_DURABLE_STATE_HELPER"]) {
     assert.match(source, new RegExp(name));
   }
   assert.doesNotMatch(source, /root=\"\$\{ORVEL_ROOT/);
@@ -267,10 +366,49 @@ test("runbook documents intrinsic migration timeout rollback, retry, and verific
   const runbook = await readFile(join(root, "docs/runbooks/trial-user-activation-reminder.md"), "utf8");
   assert.match(runbook, /lock_timeout.*5 seconds/is);
   assert.match(runbook, /statement_timeout.*30 seconds/is);
-  assert.match(runbook, /supabase@2\.98\.2 db push --include-all --yes/);
+  assert.doesNotMatch(runbook, /db push --include-all/);
   assert.match(runbook, /transaction rolls back.*no partial schema or data state/is);
-  assert.match(runbook, /migration list/);
-  assert.match(runbook, /preflight present/);
+  assert.match(runbook, /pending history/);
+  assert.match(runbook, /forward-migrate/);
+});
+
+test("forward-migrate enforces history, legacy gate, exact dry-run, push, alignment, and present gate order", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets, migrationApplied: false });
+  assertEqualsZero(runStage(["forward-migrate"], fixture));
+
+  const log = await readFile(fixture.logPath, "utf8");
+  const firstHistory = log.indexOf("migration list --linked");
+  const intermediate = log.indexOf("trial-user-activation-reminder-preflight-legacy-applied.sql");
+  const dryRun = log.indexOf("db push --linked --dry-run --yes");
+  const push = log.indexOf("db push --linked --yes");
+  const secondHistory = log.indexOf("migration list --linked", firstHistory + 1);
+  const present = log.indexOf("trial-user-activation-reminder-preflight-present.sql");
+  assert.ok(firstHistory >= 0 && firstHistory < intermediate);
+  assert.ok(intermediate < dryRun && dryRun < push);
+  assert.ok(push < secondHistory && secondHistory < present);
+  assert.doesNotMatch(log, /--include-all|functions deploy|secrets set/);
+  await assert.rejects(() => readFile(fixture.invocationLog));
+});
+
+test("invalid dry-run plans fail before push and present preflight", async (t) => {
+  for (const plan of ["empty", "extra", "malformed"]) {
+    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets, migrationApplied: false });
+    const result = runStage(["forward-migrate"], fixture, { MOCK_DRY_PLAN: plan });
+    assert.notEqual(result.status, 0, plan);
+    const log = await readFile(fixture.logPath, "utf8");
+    assert.equal((log.match(/db push --linked --yes/g) ?? []).length, 0, plan);
+    assert.doesNotMatch(log, /preflight-present\.sql/);
+  }
+});
+
+test("manual preflight and direct mutation stages are unavailable; diagnose remains read-only", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  assertEqualsZero(runStage(["diagnose", "present"], fixture));
+  for (const args of [["preflight", "present"], ["push"], ["migrate"]]) {
+    assert.equal(runStage(args, fixture).status, 2);
+  }
+  const log = await readFile(fixture.logPath, "utf8");
+  assert.doesNotMatch(log, /db push|functions deploy|secrets set/);
 });
 
 test("record-terminal derives state from checked-in evidence query instead of caller input", () => {
@@ -310,11 +448,11 @@ test("invoke gates fail before API-key helper and safe preflight runs exactly on
 
 test("host prerequisite failure occurs before CLI access", async (t) => {
   const fixture = await harness(t);
-  const result = spawnSync("bash", [fixture.operationScript, "verify-clean"], {
+  const result = spawnSync(fixture.launcherScript, ["verify-clean"], {
     cwd: root, encoding: "utf8",
     env: {
       ...process.env, ...cleanRuntimeOverrideEnv, PATH: `${fixture.directory}:${process.env.PATH}`, MOCK_PREREQ_STATUS: "19",
-      MOCK_LOG: fixture.logPath, MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath,
+      MOCK_LOG: fixture.logPath, MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath, MOCK_MIGRATION_STATE: fixture.migrationStatePath,
     },
   });
   assert.equal(result.status, 19);
@@ -360,17 +498,11 @@ test("invalid secret file fails before secret or deploy mutation", async (t) => 
   assert.deepEqual(await readMockState(fixture), { functions: unrelatedFunctions, secrets: unrelatedSecrets });
 });
 
-test("production invocation helper and module injection overrides are rejected", async (t) => {
-  for (const extra of [
-    { TRIAL_REMINDER_INVOKE_HELPER: "/tmp/bypass.mjs" },
-    { NODE_OPTIONS: "--require=/tmp/bypass.cjs" },
-    { NODE_PATH: "/tmp/modules" },
-  ]) {
-    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
-    const result = runStage(["prepare-and-invoke", fixture.secretFile], fixture, extra);
-    assert.notEqual(result.status, 0);
-    await assert.rejects(() => readFile(fixture.logPath));
-  }
+test("production invocation helper override is rejected", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  const result = runStage(["prepare-and-invoke", fixture.secretFile], fixture, { TRIAL_REMINDER_INVOKE_HELPER: "/tmp/bypass.mjs" });
+  assert.notEqual(result.status, 0);
+  await assert.rejects(() => readFile(fixture.logPath));
 });
 
 test("new prepare run drops stale terminal evidence before a gate failure", async (t) => {
@@ -395,17 +527,18 @@ function runStage(args, fixture, extra = {}) {
     "TRIAL_REMINDER_PREREQUISITE_HELPER",
     "TRIAL_REMINDER_EVIDENCE_HELPER",
     "TRIAL_REMINDER_MIGRATION_HELPER",
+    "TRIAL_REMINDER_DRY_RUN_HELPER",
     "TRIAL_REMINDER_DURABLE_STATE_HELPER",
     "NODE_OPTIONS",
     "NODE_PATH",
   ]) delete inheritedEnv[name];
 
-  return spawnSync("bash", [fixture.operationScript, ...args], {
+  return spawnSync(fixture.launcherScript, args, {
     cwd: root, encoding: "utf8",
     env: {
       ...inheritedEnv, PATH: `${fixture.directory}:${process.env.PATH}`,
       ...cleanRuntimeOverrideEnv,
-      CLI_TIMEOUT_SECONDS: "60", MOCK_USE_REAL_TIMEOUT: "0", MOCK_MODE: "success", MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath, MOCK_LOG: fixture.logPath,
+      CLI_TIMEOUT_SECONDS: "60", MOCK_USE_REAL_TIMEOUT: "0", MOCK_MODE: "success", MOCK_FUNCTION_STATE: fixture.functionStatePath, MOCK_SECRET_STATE: fixture.secretStatePath, MOCK_MIGRATION_STATE: fixture.migrationStatePath, MOCK_LOG: fixture.logPath,
       CLEANUP_VERIFY_DELAY_SECONDS: "0.01",
       MOCK_INVOCATION_LOG: fixture.invocationLog,
       MOCK_SAFE_PREFLIGHT_LOG: fixture.safePreflightLog,
@@ -417,6 +550,19 @@ function runStage(args, fixture, extra = {}) {
 function assertEqualsZero(result) {
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+async function trustedLauncherPath(fixture) {
+  const directory = join(fixture.directory, "trusted-path");
+  await mkdir(directory, { recursive: true });
+  for (const [name, target] of [["node", process.execPath], ["npx", join(fixture.directory, "npx")], ["timeout", join(fixture.directory, "timeout")]]) {
+    try {
+      await symlink(target, join(directory, name));
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  return `${directory}:${process.env.PATH}`;
 }
 
 function assertNoForbiddenIdentifiers(content) {
