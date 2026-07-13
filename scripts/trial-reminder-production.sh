@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+launch_fd="${ORVEL_LAUNCH_FD:-}"
+launch_token="${ORVEL_LAUNCH_TOKEN:-}"
+if [[ "$launch_fd" != "3" || ! "$launch_token" =~ ^[a-f0-9]{64}$ ]]; then
+  echo "Production operation requires the trusted Node launcher" >&2
+  exit 1
+fi
+launcher_fd_token=""
+IFS= read -r -u 3 launcher_fd_token || {
+  echo "Production launcher capability is unavailable" >&2
+  exit 1
+}
+if [[ "$launcher_fd_token" != "$launch_token" ]]; then
+  echo "Production launcher capability mismatch" >&2
+  exit 1
+fi
+unset ORVEL_LAUNCH_FD ORVEL_LAUNCH_TOKEN launch_fd launch_token launcher_fd_token
+
 readonly_path_overrides=(
   ORVEL_ROOT TRIAL_REMINDER_INVOKE_HELPER TRIAL_REMINDER_SAFE_PREFLIGHT_HELPER
   TRIAL_REMINDER_PREREQUISITE_HELPER TRIAL_REMINDER_EVIDENCE_HELPER
