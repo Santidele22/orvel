@@ -1,5 +1,6 @@
-export function validateMigrationList(output, expectedVersions, expectedState = "applied") {
+export function validateMigrationList(output, expectedVersions, expectedState = "detect") {
   const expected = Array.isArray(expectedVersions) ? expectedVersions : [expectedVersions];
+  if (expected.length !== 2) throw new Error("migration alignment failed");
   const rows = [];
   for (const rawLine of output.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -10,7 +11,7 @@ export function validateMigrationList(output, expectedVersions, expectedState = 
     if (!match) throw new Error("migration alignment failed");
     rows.push({ local: match[1].trim(), remote: match[2].trim() });
   }
-  if (!rows.length || !["applied", "pending"].includes(expectedState)) {
+  if (!rows.length || !["detect", "both-pending", "acl-applied", "applied"].includes(expectedState)) {
     throw new Error("migration alignment failed");
   }
   const expectedRows = rows.filter((row) => expected.includes(row.local));
@@ -19,14 +20,21 @@ export function validateMigrationList(output, expectedVersions, expectedState = 
     || expected.some((version, index) => rows.at(index - expected.length)?.local !== version)) {
     throw new Error("migration alignment failed");
   }
-  if (rows.some((row) => !row.local)) throw new Error("migration alignment failed");
-  if (expectedState === "applied" && rows.some((row) => row.local !== row.remote)) {
+  if (rows.some((row) => !row.local || (!expected.includes(row.local) && row.local !== row.remote))) {
     throw new Error("migration alignment failed");
   }
-  if (expectedState === "pending" && rows.some((row) => (
-    expected.includes(row.local) ? row.remote !== "" : row.local !== row.remote
-  ))) throw new Error("migration alignment failed");
-  return { migration_alignment: "aligned" };
+
+  const [aclRow, genericRow] = expectedRows;
+  let migrationState;
+  if (!aclRow.remote && !genericRow.remote) migrationState = "both-pending";
+  else if (aclRow.remote === aclRow.local && !genericRow.remote) migrationState = "acl-applied";
+  else if (aclRow.remote === aclRow.local && genericRow.remote === genericRow.local) migrationState = "applied";
+  else throw new Error("migration alignment failed");
+
+  if (expectedState !== "detect" && expectedState !== migrationState) {
+    throw new Error("migration alignment failed");
+  }
+  return { migration_alignment: "aligned", migration_state: migrationState };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -36,9 +44,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   process.stdin.on("end", () => {
     try {
       const state = process.argv.at(-1);
-      const hasState = ["applied", "pending"].includes(state);
-      validateMigrationList(input, process.argv.slice(2, hasState ? -1 : undefined), hasState ? state : "applied");
-      process.stdout.write("migration_alignment=aligned\n");
+      const hasState = ["detect", "both-pending", "acl-applied", "applied"].includes(state);
+      const result = validateMigrationList(input, process.argv.slice(2, hasState ? -1 : undefined), hasState ? state : "detect");
+      process.stdout.write(`migration_alignment=aligned\nmigration_state=${result.migration_state}\n`);
     } catch {
       process.stderr.write("migration_alignment_failed\n");
       process.exit(1);

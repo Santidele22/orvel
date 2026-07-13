@@ -47,9 +47,33 @@ if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) F
   exit 1
 fi
 assert_legacy_gate_fails "$drift_database"
+psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql >/dev/null
+drift_mismatch_database="${database_prefix}_drift_mismatch"
+createdb -T "$drift_database" "$drift_mismatch_database"
+databases+=("$drift_mismatch_database")
+psql -v ON_ERROR_STOP=1 -d "$drift_mismatch_database" -c \
+  'REVOKE EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() FROM authenticated' >/dev/null
+if psql -v ON_ERROR_STOP=1 -d "$drift_mismatch_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql >/dev/null 2>&1; then
+  echo "Drift-aware preflight accepted a partial/non-diagnosed ACL matrix" >&2
+  exit 1
+fi
 psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-reminder-function-acl-diagnostic.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$drift_database" >/dev/null <<'SQL'
+CREATE FUNCTION public.acl_default_probe() RETURNS void LANGUAGE sql AS 'SELECT';
+DO $$
+BEGIN
+  IF has_function_privilege('anon', 'public.acl_default_probe()', 'EXECUTE')
+    OR has_function_privilege('authenticated', 'public.acl_default_probe()', 'EXECUTE')
+    OR has_function_privilege('service_role', 'public.acl_default_probe()', 'EXECUTE')
+  THEN RAISE EXCEPTION 'Normalized defaults granted EXECUTE on a newly created helper'; END IF;
+END $$;
+DROP FUNCTION public.acl_default_probe();
+SQL
+psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-reminder-function-acl-diagnostic.sql >/dev/null
 
 partial_database="$(create_case partial)"
 psql -v ON_ERROR_STOP=1 -d "$partial_database" -c \

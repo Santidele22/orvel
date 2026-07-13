@@ -1,11 +1,15 @@
 -- Read-only, deterministic, allowlisted diagnostic. Output contains only
 -- canonical function labels, canonical role labels, and booleans.
-WITH expected(function_oid, function_label) AS (
+WITH expected(signature, function_label) AS (
   VALUES
-    ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'mutation_trigger'),
-    ('public.prevent_one_time_email_attempt_delete()'::regprocedure, 'delete_trigger'),
-    ('public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'reserve_rpc'),
-    ('public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure, 'finalize_rpc')
+    ('public.prevent_one_time_email_attempt_mutation()', 'mutation_trigger'),
+    ('public.prevent_one_time_email_attempt_delete()', 'delete_trigger'),
+    ('public.reserve_trial_user_activation_reminder_attempt()', 'reserve_rpc'),
+    ('public.finalize_trial_user_activation_reminder_attempt(text)', 'finalize_rpc'),
+    ('public.one_time_operational_email_contract()', 'contract_helper'),
+    ('public.normalize_one_time_operational_email_attempt()', 'normalize_trigger')
+), resolved AS (
+  SELECT to_regprocedure(signature) AS function_oid, function_label FROM expected
 ), roles(role_oid, role_label) AS (
   VALUES
     (0::oid, 'PUBLIC'),
@@ -13,12 +17,12 @@ WITH expected(function_oid, function_label) AS (
     ('authenticated'::regrole::oid, 'authenticated'),
     ('service_role'::regrole::oid, 'service_role')
 )
-SELECT expected.function_label,
+SELECT resolved.function_label,
        roles.role_label,
        EXISTS (
          SELECT 1 FROM pg_proc function_definition,
               LATERAL aclexplode(coalesce(function_definition.proacl, acldefault('f', function_definition.proowner))) privilege
-         WHERE function_definition.oid = expected.function_oid
+         WHERE function_definition.oid = resolved.function_oid
            AND privilege.grantee = roles.role_oid
            AND privilege.privilege_type = 'EXECUTE'
        ) AS direct_execute,
@@ -26,13 +30,13 @@ SELECT expected.function_label,
          EXISTS (
            SELECT 1 FROM pg_proc function_definition,
                 LATERAL aclexplode(coalesce(function_definition.proacl, acldefault('f', function_definition.proowner))) privilege
-           WHERE function_definition.oid = expected.function_oid
+           WHERE function_definition.oid = resolved.function_oid
              AND privilege.grantee = 0
              AND privilege.privilege_type = 'EXECUTE'
          )
-       ELSE has_function_privilege(roles.role_oid, expected.function_oid, 'EXECUTE') END AS effective_execute
-FROM expected CROSS JOIN roles
-ORDER BY expected.function_label, roles.role_label;
+       ELSE coalesce(has_function_privilege(roles.role_oid, resolved.function_oid, 'EXECUTE'), false) END AS effective_execute
+FROM resolved CROSS JOIN roles
+ORDER BY resolved.function_label, roles.role_label;
 
 WITH roles(role_oid, role_label) AS (
   VALUES
@@ -46,7 +50,17 @@ SELECT roles.role_label,
          FROM pg_default_acl defaults
          JOIN pg_namespace namespace ON namespace.oid = defaults.defaclnamespace,
               LATERAL aclexplode(defaults.defaclacl) privilege
-         WHERE namespace.nspname = 'public'
+         WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
+           AND namespace.nspname = 'public'
+           AND defaults.defaclobjtype = 'f'
+           AND privilege.grantee = roles.role_oid
+           AND privilege.privilege_type = 'EXECUTE'
+       ) OR EXISTS (
+         SELECT 1
+         FROM pg_default_acl defaults,
+              LATERAL aclexplode(defaults.defaclacl) privilege
+         WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
+           AND defaults.defaclnamespace = 0
            AND defaults.defaclobjtype = 'f'
            AND privilege.grantee = roles.role_oid
            AND privilege.privilege_type = 'EXECUTE'

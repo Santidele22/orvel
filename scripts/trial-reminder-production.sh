@@ -182,16 +182,37 @@ setup_temporary_capability() {
 }
 
 forward_migrate() {
-  local migration_output dry_run_output
+  local migration_output migration_state dry_run_output
   migration_output="$(run_cli migration list --linked)"
-  printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" pending >/dev/null
+  migration_state="$(printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" detect | sed -n 's/^migration_state=//p')"
 
-  run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql" >/dev/null
+  case "$migration_state" in
+    both-pending)
+      run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql" >/dev/null
+      dry_run_output="$(run_cli db push --linked --dry-run --yes 2>&1)"
+      printf '%s' "$dry_run_output" | node "$dry_run_helper" "${expected_migrations[@]}" >/dev/null
+      ;;
+    acl-applied)
+      run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql" >/dev/null
+      dry_run_output="$(run_cli db push --linked --dry-run --yes 2>&1)"
+      printf '%s' "$dry_run_output" | node "$dry_run_helper" "${expected_migrations[1]}" >/dev/null
+      ;;
+    applied)
+      run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-present.sql" >/dev/null
+      echo "forward_migration=ALREADY_APPLIED"
+      return 0
+      ;;
+    *) echo "Migration history is impossible or inconsistent" >&2; return 1 ;;
+  esac
 
-  dry_run_output="$(run_cli db push --linked --dry-run --yes 2>&1)"
-  printf '%s' "$dry_run_output" | node "$dry_run_helper" "${expected_migrations[@]}" >/dev/null
-
-  run_cli db push --linked --yes
+  run_cli db push --linked --yes || {
+    migration_output="$(run_cli migration list --linked)" || return 1
+    migration_state="$(printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" detect | sed -n 's/^migration_state=//p')" || return 1
+    if [[ "$migration_state" == "acl-applied" ]]; then
+      echo "ACL migration committed; generic migration remains pending. Re-run forward-migrate to fix forward; never invoke." >&2
+    fi
+    return 1
+  }
 
   migration_output="$(run_cli migration list --linked)"
   printf '%s' "$migration_output" | node "$migration_helper" "${expected_migrations[@]}" applied >/dev/null
@@ -202,7 +223,7 @@ forward_migrate() {
 case "${1:-}" in
   diagnose)
     expected_state="${2:-}"
-    [[ "$expected_state" == "pristine" || "$expected_state" == "legacy-applied" || "$expected_state" == "present" ]] || { echo "Use diagnose pristine|legacy-applied|present" >&2; exit 2; }
+    [[ "$expected_state" == "pristine" || "$expected_state" == "legacy-acl-drift" || "$expected_state" == "legacy-applied" || "$expected_state" == "present" ]] || { echo "Use diagnose pristine|legacy-acl-drift|legacy-applied|present" >&2; exit 2; }
     run_cli migration list --linked
     run_cli db query --linked --file "$root/supabase/checks/trial-user-activation-reminder-preflight-${expected_state}.sql"
     ;;
@@ -249,7 +270,7 @@ case "${1:-}" in
     cleanup_resources
     ;;
   *)
-    echo "Usage: $0 {prerequisites|diagnose pristine|legacy-applied|present|forward-migrate|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
+    echo "Usage: $0 {prerequisites|diagnose pristine|legacy-acl-drift|legacy-applied|present|forward-migrate|safe-preflight|evidence|record-terminal|prepare-and-invoke SECRET_FILE|recover|cleanup|verify-clean}" >&2
     exit 2
     ;;
 esac

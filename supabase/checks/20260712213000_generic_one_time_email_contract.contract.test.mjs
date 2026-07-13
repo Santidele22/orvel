@@ -62,3 +62,17 @@ test("generic lifecycle values come from one revoked canonical SQL helper", asyn
     assert.doesNotMatch(check, /one_time_operational_email:v2|purpose\s*=\s*'one_time_operational_email'/);
   }
 });
+
+test("ACL normalization closes owner defaults before generic helper creation", async () => {
+  const acl = (await readFile(
+    new URL("../migrations/20260712190000_normalize_legacy_reminder_function_acl.sql", import.meta.url),
+    "utf8",
+  )).toLowerCase();
+  const generic = await migrationSql();
+
+  assert.match(acl, /alter default privileges for role %i revoke execute on functions from public, anon, authenticated, service_role/);
+  assert.match(acl, /alter default privileges for role %i in schema public revoke execute on functions from public, anon, authenticated, service_role/);
+  assert.match(acl, /migration role cannot safely alter reminder function owner defaults/);
+  assert.match(generic, /generic migration requires normalized legacy function acls and defaults/);
+  assert.ok(generic.indexOf("generic migration requires normalized legacy function acls and defaults") < generic.indexOf("create function public.one_time_operational_email_contract"));
+});

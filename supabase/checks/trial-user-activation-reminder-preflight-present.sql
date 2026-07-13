@@ -79,6 +79,21 @@ BEGIN
       OR has_function_privilege('service_role', oid, 'EXECUTE') <> service_role_execute
   ) THEN RAISE EXCEPTION 'Generic reminder function privilege drift detected'; END IF;
 
+  IF EXISTS (
+    SELECT 1 FROM (
+      SELECT privilege.* FROM aclexplode(coalesce(
+        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = (SELECT relowner FROM pg_class WHERE oid = v_table) AND defaclobjtype = 'f' AND defaclnamespace = 0),
+        acldefault('f', (SELECT relowner FROM pg_class WHERE oid = v_table))
+      )) privilege
+      UNION ALL
+      SELECT privilege.* FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+      WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = v_table)
+        AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
+    ) effective_defaults
+    WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND effective_defaults.privilege_type = 'EXECUTE'
+  ) THEN RAISE EXCEPTION 'Generic reminder default function privilege drift detected'; END IF;
+
   IF EXISTS (SELECT 1 FROM public.one_time_email_attempts)
   THEN RAISE EXCEPTION 'Lifecycle attempt already exists; operation is terminal'; END IF;
 END

@@ -6,6 +6,7 @@ SET LOCAL statement_timeout = '30s';
 DO $acl$
 DECLARE
   v_table_owner oid;
+  v_function_owner name;
 BEGIN
   SELECT relowner INTO v_table_owner
   FROM pg_class
@@ -25,6 +26,22 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Legacy reminder function owner or security drift detected';
   END IF;
+
+  SELECT rolname INTO v_function_owner FROM pg_roles WHERE oid = v_table_owner;
+  IF v_function_owner IS NULL
+    OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND (oid = v_table_owner OR rolsuper))
+  THEN
+    RAISE EXCEPTION 'Migration role cannot safely alter reminder function owner defaults';
+  END IF;
+
+  EXECUTE format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role',
+    v_function_owner
+  );
+  EXECUTE format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role',
+    v_function_owner
+  );
 END
 $acl$;
 
@@ -37,7 +54,27 @@ GRANT EXECUTE ON FUNCTION public.reserve_trial_user_activation_reminder_attempt(
 GRANT EXECUTE ON FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) TO service_role;
 
 DO $acl$
+DECLARE
+  v_function_owner oid := (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass);
 BEGIN
+  IF EXISTS (
+    SELECT 1 FROM (
+      SELECT privilege.* FROM aclexplode(coalesce(
+        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = v_function_owner AND defaclobjtype = 'f' AND defaclnamespace = 0),
+        acldefault('f', v_function_owner)
+      )) privilege
+      UNION ALL
+      SELECT privilege.* FROM pg_default_acl defaults,
+           LATERAL aclexplode(defaults.defaclacl) privilege
+      WHERE defaults.defaclrole = v_function_owner AND defaults.defaclobjtype = 'f'
+        AND defaults.defaclnamespace = 'public'::regnamespace
+    ) effective_defaults
+    WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND effective_defaults.privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'Legacy reminder default function ACL normalization failed';
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM (VALUES
