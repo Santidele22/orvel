@@ -5,20 +5,11 @@ DO $preflight$
 DECLARE
   v_table regclass := to_regclass('public.one_time_email_attempts');
   v_owner oid;
-  v_owner_count integer;
   v_row_count bigint;
   v_invalid_count bigint;
 BEGIN
   IF v_table IS NULL THEN RAISE EXCEPTION 'Legacy reminder table is absent'; END IF;
   SELECT relowner INTO v_owner FROM pg_class WHERE oid = v_table;
-  SELECT count(*) INTO v_owner_count FROM (
-    SELECT v_owner AS owner_oid
-    UNION SELECT proowner FROM pg_proc WHERE oid IN (
-      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
-    UNION SELECT current_user::regrole::oid
-  ) owners;
-  IF v_owner_count <> 3 THEN RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production drift'; END IF;
 
   IF to_regprocedure('public.one_time_operational_email_contract()') IS NOT NULL
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NOT NULL

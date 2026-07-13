@@ -24,8 +24,13 @@ UNION SELECT current_user::regrole::oid;
 DO $acl_precondition$
 DECLARE
 BEGIN
-  IF (SELECT count(*) FROM reminder_generic_relevant_owners) NOT BETWEEN 1 AND 3 THEN
-    RAISE EXCEPTION 'Generic migration found an unknown fourth relevant owner';
+  IF EXISTS (
+    SELECT 1
+    FROM reminder_generic_relevant_owners relevant_owner
+    LEFT JOIN pg_roles role_definition ON role_definition.oid = relevant_owner.owner_oid
+    WHERE role_definition.oid IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Generic migration owner cannot be resolved';
   END IF;
 
   IF EXISTS (
@@ -231,19 +236,27 @@ BEGIN
     (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
      UNION SELECT proowner FROM pg_proc WHERE oid IN (
        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-       'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
      UNION SELECT current_user::regrole::oid)
   ) OR EXISTS (
     (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
      UNION SELECT proowner FROM pg_proc WHERE oid IN (
        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-       'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
      UNION SELECT current_user::regrole::oid)
     EXCEPT SELECT owner_oid FROM reminder_generic_relevant_owners
   ) THEN
     RAISE EXCEPTION 'Generic migration relevant owner set changed before commit';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM pg_proc
+    WHERE oid IN (
+      'public.one_time_operational_email_contract()'::regprocedure,
+      'public.normalize_one_time_operational_email_attempt()'::regprocedure)
+      AND proowner <> current_user::regrole::oid
+  ) THEN
+    RAISE EXCEPTION 'Generic migration helper owner drift detected';
   END IF;
 
   IF EXISTS (

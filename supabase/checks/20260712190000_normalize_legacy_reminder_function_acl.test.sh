@@ -12,7 +12,11 @@ DROP ROLE IF EXISTS inherited_executor;
 DROP ROLE IF EXISTS unauthorized_actor;
 DROP ROLE IF EXISTS migration_actor;
 DROP ROLE IF EXISTS table_owner;
-DROP ROLE IF EXISTS unknown_owner;
+DROP ROLE IF EXISTS function_owner_four;
+DROP ROLE IF EXISTS function_owner_three;
+DROP ROLE IF EXISTS function_owner_two;
+DROP ROLE IF EXISTS function_owner_one;
+DROP ROLE IF EXISTS arbitrary_owner;
 DROP ROLE IF EXISTS drift_owner;
 DROP ROLE IF EXISTS anon;
 DROP ROLE IF EXISTS authenticated;
@@ -28,10 +32,14 @@ CREATE ROLE service_role NOLOGIN;
 CREATE ROLE inherited_executor NOLOGIN;
 CREATE ROLE table_owner NOLOGIN;
 CREATE ROLE drift_owner NOLOGIN;
+CREATE ROLE function_owner_one NOLOGIN;
+CREATE ROLE function_owner_two NOLOGIN;
+CREATE ROLE function_owner_three NOLOGIN;
+CREATE ROLE function_owner_four NOLOGIN;
+CREATE ROLE arbitrary_owner NOLOGIN;
 CREATE ROLE migration_actor NOLOGIN;
 CREATE ROLE unauthorized_actor NOLOGIN;
-CREATE ROLE unknown_owner NOLOGIN;
-GRANT table_owner, drift_owner TO migration_actor;
+GRANT table_owner, drift_owner, function_owner_one, function_owner_two, function_owner_three, function_owner_four TO migration_actor;
 SQL
 
 create_case() {
@@ -45,7 +53,7 @@ ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO table_o
 ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO table_owner;
 ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO drift_owner;
 ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO drift_owner;
-GRANT USAGE, CREATE ON SCHEMA public TO table_owner, drift_owner, migration_actor, unauthorized_actor;
+GRANT USAGE, CREATE ON SCHEMA public TO table_owner, drift_owner, function_owner_one, function_owner_two, function_owner_three, function_owner_four, arbitrary_owner, migration_actor, unauthorized_actor;
 SQL
   printf '%s' "$database"
 }
@@ -58,6 +66,74 @@ SET ROLE $actor;
 RESET ROLE;
 SQL
 }
+
+configure_owner_shape() {
+  local database="$1" cardinality="$2"
+  local ownership_sql
+  case "$cardinality" in
+    1) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO migration_actor;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO migration_actor;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO migration_actor;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO migration_actor;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO migration_actor;' ;;
+    2) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO migration_actor;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO migration_actor;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO migration_actor;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO migration_actor;' ;;
+    3) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO drift_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO drift_owner;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO drift_owner;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO drift_owner;' ;;
+    4) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO function_owner_one;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO function_owner_one;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO function_owner_two;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO function_owner_two;' ;;
+    5) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO function_owner_one;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO function_owner_two;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO function_owner_three;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO function_owner_three;' ;;
+    6) ownership_sql='ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO function_owner_one;
+      ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO function_owner_two;
+      ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO function_owner_three;
+      ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO function_owner_four;' ;;
+    *) echo "Unsupported owner cardinality" >&2; exit 1 ;;
+  esac
+  psql -v ON_ERROR_STOP=1 -d "$database" -c "$ownership_sql" >/dev/null
+  psql -v ON_ERROR_STOP=1 -d "$database" >/dev/null <<'SQL'
+ALTER DEFAULT PRIVILEGES FOR ROLE table_owner IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE drift_owner IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE function_owner_one IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE function_owner_two IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE function_owner_three IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE function_owner_four IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE migration_actor IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE arbitrary_owner IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon;
+SQL
+}
+
+for cardinality in 1 2 3 4 5 6; do
+  owner_database="$(create_case "owner_cardinality_${cardinality}")"
+  configure_owner_shape "$owner_database" "$cardinality"
+  run_as_actor_file "$owner_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
+  run_as_actor_file "$owner_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql
+  run_as_actor_file "$owner_database" migration_actor supabase/checks/trial-reminder-function-acl-diagnostic.sql
+  actual_cardinality="$(psql -v ON_ERROR_STOP=1 -Atq -d "$owner_database" -c "SELECT count(*) FROM (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass UNION SELECT proowner FROM pg_proc WHERE oid IN ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure, 'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure) UNION SELECT 'migration_actor'::regrole::oid) owners")"
+  [[ "$actual_cardinality" == "$cardinality" ]] || { echo "Owner fixture did not produce cardinality $cardinality" >&2; exit 1; }
+  [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$owner_database" -c "SELECT EXISTS (SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege WHERE defaults.defaclrole = 'arbitrary_owner'::regrole AND defaults.defaclnamespace = 'public'::regnamespace AND defaults.defaclobjtype = 'f' AND privilege.grantee = 'anon'::regrole AND privilege.privilege_type = 'EXECUTE')")" == "t" ]] || { echo "ACL migration altered an unrelated owner" >&2; exit 1; }
+  run_as_actor_file "$owner_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql
+  run_as_actor_file "$owner_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-present.sql
+done
+
+psql -v ON_ERROR_STOP=1 -d "$owner_database" -c 'ALTER FUNCTION public.one_time_operational_email_contract() OWNER TO arbitrary_owner' >/dev/null
+if run_as_actor_file "$owner_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-present.sql 2>/dev/null; then
+  echo "Present gate accepted helper owner drift" >&2
+  exit 1
+fi
 
 assert_legacy_gate_fails() {
   if psql -v ON_ERROR_STOP=1 -d "$1" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql >/dev/null 2>&1; then
@@ -116,15 +192,15 @@ DROP FUNCTION public.acl_default_probe_second_owner();
 DROP FUNCTION public.acl_default_probe_migration_actor();
 SQL
 run_as_actor_file "$drift_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql
-if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM (SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass UNION SELECT proowner FROM pg_proc WHERE oid IN ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure, 'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure, 'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)) owners")" != "3" ]]; then
-  echo "Generic migration did not preserve the exact three-owner shape" >&2
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM (SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass UNION SELECT proowner FROM pg_proc WHERE oid IN ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure, 'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure) UNION SELECT 'migration_actor'::regrole::oid) owners")" != "3" ]]; then
+  echo "Generic migration changed the exact fixture-derived owner set" >&2
   exit 1
 fi
 if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT bool_and(proowner = 'migration_actor'::regrole) FROM pg_proc WHERE oid IN ('public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure)")" != "t" ]]; then
   echo "Generic helpers were not created by the distinct migration actor" >&2
   exit 1
 fi
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
+run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-present.sql
 run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-reminder-function-acl-diagnostic.sql
 
 partial_database="$(create_case partial)"
@@ -168,7 +244,7 @@ fi
 preservation_database="$(create_case generic_preservation)"
 run_as_actor_file "$preservation_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
 run_as_actor_file "$preservation_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql
-psql -v ON_ERROR_STOP=1 -d "$preservation_database" -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
+run_as_actor_file "$preservation_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-present.sql
 
 partial_actor_database="$(create_case partial_actor_generic)"
 run_as_actor_file "$partial_actor_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
@@ -182,17 +258,17 @@ if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$partial_actor_database" -c "SELECT to
   exit 1
 fi
 
-unknown_database="$(create_case unknown_third_owner)"
-psql -v ON_ERROR_STOP=1 -d "$unknown_database" >/dev/null <<'SQL'
-ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO unknown_owner;
+missing_database="$(create_case missing_function)"
+psql -v ON_ERROR_STOP=1 -d "$missing_database" >/dev/null <<'SQL'
 GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated;
+DROP FUNCTION public.finalize_trial_user_activation_reminder_attempt(text);
 SQL
-if run_as_actor_file "$unknown_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
-  echo "ACL migration accepted an unknown fourth relevant owner" >&2
+if run_as_actor_file "$missing_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
+  echo "ACL migration accepted a missing exact legacy function" >&2
   exit 1
 fi
-[[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$unknown_database" -c "SELECT has_function_privilege('authenticated', 'public.prevent_one_time_email_attempt_delete()', 'EXECUTE')")" == "t" ]] || {
-  echo "Unknown-owner rejection did not roll back atomically" >&2
+[[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$missing_database" -c "SELECT has_function_privilege('authenticated', 'public.prevent_one_time_email_attempt_delete()', 'EXECUTE')")" == "t" ]] || {
+  echo "Missing-object rejection did not preserve prior ACL state" >&2
   exit 1
 }
 
