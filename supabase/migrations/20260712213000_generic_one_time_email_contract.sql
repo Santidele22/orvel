@@ -6,6 +6,41 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 
+-- The preceding ACL migration commits independently. Refuse to create any
+-- helper until its clean legacy ACL/default postcondition is established.
+DO $acl_precondition$
+DECLARE
+  v_owner oid := (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass);
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM (VALUES
+      ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, false),
+      ('public.prevent_one_time_email_attempt_delete()'::regprocedure, false),
+      ('public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, true),
+      ('public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure, true)
+    ) expected(function_oid, service_role_execute)
+    WHERE has_function_privilege('anon', expected.function_oid, 'EXECUTE')
+      OR has_function_privilege('authenticated', expected.function_oid, 'EXECUTE')
+      OR has_function_privilege('service_role', expected.function_oid, 'EXECUTE') <> expected.service_role_execute
+  ) OR EXISTS (
+    SELECT 1 FROM (
+      SELECT privilege.* FROM aclexplode(coalesce(
+        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = v_owner AND defaclobjtype = 'f' AND defaclnamespace = 0),
+        acldefault('f', v_owner)
+      )) privilege
+      UNION ALL
+      SELECT privilege.* FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+      WHERE defaults.defaclrole = v_owner AND defaults.defaclobjtype = 'f'
+        AND defaults.defaclnamespace = 'public'::regnamespace
+    ) effective_defaults
+    WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND effective_defaults.privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'Generic migration requires normalized legacy function ACLs and defaults';
+  END IF;
+END
+$acl_precondition$;
+
 CREATE FUNCTION public.one_time_operational_email_contract()
 RETURNS jsonb
 LANGUAGE sql
@@ -144,6 +179,15 @@ BEGIN
   RETURN coalesce(v_updated, false);
 END;
 $$;
+
+-- CREATE OR REPLACE preserves existing ACLs. Reassert the exact callable
+-- surface so this migration remains safe after any legacy/default ACL state.
+REVOKE ALL ON FUNCTION public.prevent_one_time_email_attempt_mutation() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.prevent_one_time_email_attempt_delete() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.reserve_trial_user_activation_reminder_attempt() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reserve_trial_user_activation_reminder_attempt() TO service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) TO service_role;
 
 DO $$
 DECLARE

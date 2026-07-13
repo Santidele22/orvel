@@ -83,7 +83,6 @@ else action=unknown; fi
 [[ "\${MOCK_MODE:-}" == "fail-$action" ]] && exit 23
 json_list() { local file="$1" first=1 value; printf '['; while IFS= read -r value; do [[ -z "$value" ]] && continue; ((first)) || printf ','; printf '{"name":"%s"}' "$value"; first=0; done <"$file"; printf ']\\n'; }
 remove_targets() { local file="$1" temp="$1.tmp" value; shift; : >"$temp"; while IFS= read -r value; do [[ -z "$value" ]] && continue; contains "$value" "$@" || printf '%s\\n' "$value" >>"$temp"; done <"$file"; mv "$temp" "$file"; }
-if [[ "$action" == migration-list && ! -f "$MOCK_MIGRATION_STATE" ]]; then MOCK_GATE=migration; fi
 case "$action" in
   functions-list) json_list "$MOCK_FUNCTION_STATE" ;;
   secrets-list)
@@ -97,16 +96,34 @@ case "$action" in
     if [[ "\${MOCK_MODE:-}" == delayed-unset ]]; then printf '%s\\n' "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}" >"$MOCK_SECRET_STATE.pending"; printf '0' >"$MOCK_SECRET_STATE.count"
     else remove_targets "$MOCK_SECRET_STATE" "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}"; fi ;;
   db-query) [[ "\${MOCK_GATE:-}" == sql ]] && exit 31; printf '%s\\n' "\${MOCK_EVIDENCE:-PASS}" ;;
-  migration-list) if [[ "\${MOCK_GATE:-}" == migration ]]; then printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \` \` | time\\n'; else printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'; fi ;;
+  migration-list)
+    if [[ "\${MOCK_MIGRATION_HISTORY:-}" == generic-without-acl ]]; then
+      printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \` \` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'
+    elif [[ "\${MOCK_MIGRATION_HISTORY:-}" == unexpected-extra ]]; then
+      printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \` \` | time\\n\`20260712213000\` | \` \` | time\\n\`20260712214000\` | \`20260712214000\` | time\\n'
+    elif [[ "\${MOCK_GATE:-}" == migration || ! -f "$MOCK_MIGRATION_STATE" ]]; then
+      printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \` \` | time\\n\`20260712213000\` | \` \` | time\\n'
+    elif [[ "$(<"$MOCK_MIGRATION_STATE")" == acl-applied ]]; then
+      printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \`20260712190000\` | time\\n\`20260712213000\` | \` \` | time\\n'
+    else
+      printf '\`20260710210000\` | \`20260710210000\` | time\\n\`20260712190000\` | \`20260712190000\` | time\\n\`20260712213000\` | \`20260712213000\` | time\\n'
+    fi ;;
   db-push)
     if contains --dry-run "$@"; then
       case "\${MOCK_DRY_PLAN:-expected}" in
-        expected) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n' ;;
+        expected)
+          if [[ -f "$MOCK_MIGRATION_STATE" && "$(<"$MOCK_MIGRATION_STATE")" == acl-applied ]]; then
+            printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n'
+          else
+            printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 20260712190000_normalize_legacy_reminder_function_acl.sql\n • 20260712213000_generic_one_time_email_contract.sql\nFinished supabase db push.\n'
+          fi ;;
         empty) printf 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n' ;;
-        extra) printf 'Would push these migrations:\n • 20260712213000_generic_one_time_email_contract.sql\n • 20260712214000_extra.sql\n' ;;
+        extra) printf 'Would push these migrations:\n • 20260712190000_normalize_legacy_reminder_function_acl.sql\n • 20260712213000_generic_one_time_email_contract.sql\n • 20260712214000_extra.sql\n' ;;
         malformed) printf 'unexpected output\n' ;;
       esac
-    else touch "$MOCK_MIGRATION_STATE"; fi ;;
+    elif [[ "\${MOCK_SECOND_MIGRATION_FAIL:-0}" == 1 && ! -f "$MOCK_MIGRATION_STATE" ]]; then
+      printf 'acl-applied' >"$MOCK_MIGRATION_STATE"; exit 23
+    else printf 'applied' >"$MOCK_MIGRATION_STATE"; fi ;;
   functions-deploy) [[ "\${MOCK_GATE:-}" == function ]] || printf '%s\\n' "${temporaryFunction}" >>"$MOCK_FUNCTION_STATE" ;;
   secrets-set) if [[ "\${MOCK_GATE:-}" == missing-secret ]]; then printf '%s\\n' "${temporarySecrets[0]}" >>"$MOCK_SECRET_STATE"; else printf '%s\\n' "${temporarySecrets[0]}" "${temporarySecrets[1]}" "${temporarySecrets[2]}" "${temporarySecrets[3]}" >>"$MOCK_SECRET_STATE"; fi ;;
   *) exit 24 ;;
@@ -134,13 +151,17 @@ case "$helper" in
     if [[ "\${3:-}" == init ]]; then printf '{"operation_id":"%s","started_at":"2026-07-11T12:00:00.000Z"}\\n' "$(</proc/sys/kernel/random/uuid)" >"$2"; chmod 600 "$2"; fi
     exit 0 ;;
   trial-reminder-migration-list.mjs)
-    input="$(cat)"; state="\${3:-applied}"
-    [[ "$state" == pending && "$input" == *'\`20260712213000\` | \` \`'* ]] && exit 0
-    [[ "$state" == applied && "$input" == *'\`20260712213000\` | \`20260712213000\`'* ]] && exit 0
-    exit 1 ;;
+    input="$(cat)"; state="\${4:-detect}"; detected=invalid
+    [[ "$input" == *'\`20260712190000\` | \` \`'* && "$input" == *'\`20260712213000\` | \` \`'* && "$input" != *'20260712214000'* ]] && detected=two_pending
+    [[ "$input" == *'\`20260712190000\` | \`20260712190000\`'* && "$input" == *'\`20260712213000\` | \` \`'* ]] && detected=acl_applied_generic_pending
+    [[ "$input" == *'\`20260712190000\` | \`20260712190000\`'* && "$input" == *'\`20260712213000\` | \`20260712213000\`'* ]] && detected=fully_applied
+    [[ "$detected" != invalid && ("$state" == detect || "$state" == "$detected") ]] || exit 1
+    printf 'migration_alignment=aligned\\nmigration_state=%s\\n' "$detected"; exit 0 ;;
   trial-reminder-dry-run.mjs)
-    input="$(cat)"; count="$(grep -o '20260712213000_generic_one_time_email_contract.sql' <<<"$input" | wc -l)"
-    [[ "$count" -eq 1 && "$input" == *'Would push these migrations:'* && "$input" != *'20260712214000'* ]] && exit 0
+    input="$(cat)"; acl_count="$( (grep -o '20260712190000_normalize_legacy_reminder_function_acl.sql' <<<"$input" || true) | wc -l)"; generic_count="$( (grep -o '20260712213000_generic_one_time_email_contract.sql' <<<"$input" || true) | wc -l)"
+    [[ "$input" == *'Would push these migrations:'* && "$input" != *'20260712214000'* ]] || exit 1
+    [[ "\${3:-}" == 20260712213000 && "$acl_count" -eq 1 && "$generic_count" -eq 1 ]] && exit 0
+    [[ "\${2:-}" == 20260712213000 && -z "\${3:-}" && "$acl_count" -eq 0 && "$generic_count" -eq 1 ]] && exit 0
     exit 1 ;;
   trial-reminder-secret-file.mjs)
     mapfile -t lines <"$2"; [[ "\${#lines[@]}" -eq 4 ]] || exit 1; recipient=0; identity=0
@@ -408,8 +429,8 @@ test("runbook documents intrinsic migration timeout rollback, retry, and verific
   assert.match(runbook, /lock_timeout.*5 seconds/is);
   assert.match(runbook, /statement_timeout.*30 seconds/is);
   assert.doesNotMatch(runbook, /db push --include-all/);
-  assert.match(runbook, /transaction rolls back.*no partial schema or data state/is);
-  assert.match(runbook, /pending history/);
+  assert.match(runbook, /ACL and generic migration files are independently committed.*partial progress is possible/is);
+  assert.match(runbook, /fix forward|forward-migrate/is);
   assert.match(runbook, /forward-migrate/);
 });
 
@@ -419,7 +440,7 @@ test("forward-migrate enforces history, legacy gate, exact dry-run, push, alignm
 
   const log = await readFile(fixture.logPath, "utf8");
   const firstHistory = log.indexOf("migration list --linked");
-  const intermediate = log.indexOf("trial-user-activation-reminder-preflight-legacy-applied.sql");
+  const intermediate = log.indexOf("trial-user-activation-reminder-preflight-legacy-acl-drift.sql");
   const dryRun = log.indexOf("db push --linked --dry-run --yes");
   const push = log.indexOf("db push --linked --yes");
   const secondHistory = log.indexOf("migration list --linked", firstHistory + 1);
@@ -429,6 +450,48 @@ test("forward-migrate enforces history, legacy gate, exact dry-run, push, alignm
   assert.ok(push < secondHistory && secondHistory < present);
   assert.doesNotMatch(log, /--include-all|functions deploy|secrets set/);
   await assert.rejects(() => readFile(fixture.invocationLog));
+});
+
+test("second-migration failure stops in a recoverable ACL-applied state and resumes safely", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets, migrationApplied: false });
+  const failed = runStage(["forward-migrate"], fixture, { MOCK_SECOND_MIGRATION_FAIL: "1" });
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /ACL migration committed; generic migration remains pending/);
+  assert.equal(await readFile(fixture.migrationStatePath, "utf8"), "acl-applied");
+  await assert.rejects(() => readFile(fixture.invocationLog));
+  const firstRunLog = await readFile(fixture.logPath, "utf8");
+
+  assertEqualsZero(runStage(["forward-migrate"], fixture));
+  assert.equal(await readFile(fixture.migrationStatePath, "utf8"), "applied");
+  const log = await readFile(fixture.logPath, "utf8");
+  assert.match(log, /preflight-legacy-acl-drift\.sql/);
+  assert.match(log, /preflight-legacy-applied\.sql/);
+  const retryLog = log.slice(firstRunLog.length);
+  assert.match(retryLog, /^supabase@2\.98\.2 migration list --linked/m);
+  assert.doesNotMatch(retryLog, /preflight-legacy-acl-drift\.sql/);
+  assert.match(retryLog, /preflight-legacy-applied\.sql[\s\S]*db push --linked --dry-run --yes[\s\S]*db push --linked --yes[\s\S]*preflight-present\.sql/);
+  await assert.rejects(() => readFile(fixture.invocationLog));
+});
+
+test("unexpected migration histories fail before any SQL or push", async (t) => {
+  for (const history of ["generic-without-acl", "unexpected-extra"]) {
+    const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets, migrationApplied: false });
+    const result = runStage(["forward-migrate"], fixture, { MOCK_MIGRATION_HISTORY: history });
+    assert.notEqual(result.status, 0, history);
+    assert.match(result.stderr, /Migration history is impossible or inconsistent/);
+    const log = await readFile(fixture.logPath, "utf8");
+    assert.match(log, /^supabase@2\.98\.2 migration list --linked\n$/);
+    assert.doesNotMatch(log, /db query|db push/);
+  }
+});
+
+test("fully applied history runs only the present gate without mutation", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  assertEqualsZero(runStage(["forward-migrate"], fixture));
+  const log = await readFile(fixture.logPath, "utf8");
+  assert.match(log, /^supabase@2\.98\.2 migration list --linked\n/);
+  assert.match(log, /preflight-present\.sql/);
+  assert.doesNotMatch(log, /legacy-acl-drift|legacy-applied|db push|functions deploy|secrets set/);
 });
 
 test("invalid dry-run plans fail before push and present preflight", async (t) => {
@@ -464,7 +527,7 @@ test("project ref comes from the local link and preflight uses linked file queri
   assert.match(log, /--project-ref syntheticlinkedproject/);
   assert.doesNotMatch(source, /SUPABASE_PROJECT_REF:\?/);
   assert.match(source, /db query --linked --file/);
-  assert.match(source, /expected_migration="20260712213000"/);
+  assert.match(source, /expected_migrations=\("20260712190000" "20260712213000"\)/);
 });
 
 test("project identity mismatch fails before any CLI command", async (t) => {
