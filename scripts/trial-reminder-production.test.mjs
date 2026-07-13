@@ -51,7 +51,11 @@ async function harness(t, initialState = {
   const sandboxLauncherScript = join(directory, "scripts/trial-reminder-production-launcher.mjs");
   await copyFile(operationScript, sandboxOperationScript);
   await copyFile(launcherScript, sandboxLauncherScript);
-  await writeFile(join(directory, "package.json"), JSON.stringify({ config: { supabaseCliVersion: reviewedSupabaseCliVersion } }));
+  await writeFile(join(directory, "package.json"), JSON.stringify({
+    packageManager: "pnpm@11.0.8",
+    config: { supabaseCliVersion: reviewedSupabaseCliVersion },
+    scripts: { "trial-reminder:production": "scripts/trial-reminder-production-launcher.mjs" },
+  }));
   await writeFile(join(directory, "supabase/.temp/project-ref"), "syntheticlinkedproject\n");
   await writeFile(
     join(directory, "supabase/production-project-ref.sha256"),
@@ -339,8 +343,45 @@ test("package and runbook expose only the trusted production launcher", async ()
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const runbook = await readFile(join(root, "docs/runbooks/trial-user-activation-reminder.md"), "utf8");
   assert.equal(packageJson.scripts["trial-reminder:production"], "scripts/trial-reminder-production-launcher.mjs");
-  assert.match(runbook, /pnpm run trial-reminder:production -- forward-migrate/);
+  assert.match(runbook, /pnpm run trial-reminder:production forward-migrate/);
   assert.doesNotMatch(runbook, /`scripts\/trial-reminder-production\.sh [^`]+`/);
+});
+
+test("pinned pnpm forwards a harmless stage through the sanitizing package boundary", async (t) => {
+  const fixture = await harness(t, { functions: unrelatedFunctions, secrets: unrelatedSecrets });
+  const sentinel = join(fixture.directory, "package-boundary-startup-injection");
+  const startup = join(fixture.directory, "package-boundary-startup.sh");
+  await writeFile(startup, `printf compromised >${JSON.stringify(sentinel)}\n`);
+  const packageJson = JSON.parse(await readFile(join(fixture.directory, "package.json"), "utf8"));
+  assert.equal(packageJson.packageManager, "pnpm@11.0.8");
+
+  const path = await trustedLauncherPath(fixture);
+  const version = spawnSync("pnpm", ["--version"], { cwd: fixture.directory, encoding: "utf8", env: { ...process.env, PATH: path } });
+  assertEqualsZero(version);
+  assert.equal(version.stdout.trim(), "11.0.8");
+
+  const result = spawnSync("pnpm", ["run", "trial-reminder:production", "diagnose", "present"], {
+    cwd: fixture.directory,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ...cleanRuntimeOverrideEnv,
+      PATH: path,
+      BASH_ENV: startup,
+      MOCK_FUNCTION_STATE: fixture.functionStatePath,
+      MOCK_SECRET_STATE: fixture.secretStatePath,
+      MOCK_MIGRATION_STATE: fixture.migrationStatePath,
+      MOCK_LOG: fixture.logPath,
+      MOCK_INVOCATION_LOG: fixture.invocationLog,
+      MOCK_SAFE_PREFLIGHT_LOG: fixture.safePreflightLog,
+    },
+  });
+  assertEqualsZero(result);
+  await assert.rejects(() => readFile(sentinel));
+  assert.match(await readFile(fixture.logPath, "utf8"), /preflight-present\.sql/);
+
+  const runbook = await readFile(join(root, "docs/runbooks/trial-user-activation-reminder.md"), "utf8");
+  assert.doesNotMatch(runbook, /pnpm run trial-reminder:production --(?:\s|`)/);
 });
 
 test("production rejects root and checked-in helper overrides", () => {
