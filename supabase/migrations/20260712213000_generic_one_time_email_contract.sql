@@ -6,12 +6,28 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 
+CREATE TEMP TABLE reminder_generic_relevant_owners (
+  owner_oid oid PRIMARY KEY
+) ON COMMIT DROP;
+
+INSERT INTO reminder_generic_relevant_owners (owner_oid)
+SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+UNION SELECT proowner FROM pg_proc WHERE oid IN (
+  'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
+  'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+  'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
+  'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+UNION SELECT current_user::regrole::oid;
+
 -- The preceding ACL migration commits independently. Refuse to create any
 -- helper until its clean legacy ACL/default postcondition is established.
 DO $acl_precondition$
 DECLARE
-  v_owner oid := (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass);
 BEGIN
+  IF (SELECT count(*) FROM reminder_generic_relevant_owners) NOT BETWEEN 1 AND 3 THEN
+    RAISE EXCEPTION 'Generic migration found an unknown fourth relevant owner';
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM (VALUES
       ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, false),
@@ -23,18 +39,18 @@ BEGIN
       OR has_function_privilege('authenticated', expected.function_oid, 'EXECUTE')
       OR has_function_privilege('service_role', expected.function_oid, 'EXECUTE') <> expected.service_role_execute
   ) OR EXISTS (
-    SELECT 1 FROM (
-      SELECT privilege.* FROM aclexplode(coalesce(
-        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = v_owner AND defaclobjtype = 'f' AND defaclnamespace = 0),
-        acldefault('f', v_owner)
-      )) privilege
-      UNION ALL
-      SELECT privilege.* FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
-      WHERE defaults.defaclrole = v_owner AND defaults.defaclobjtype = 'f'
-        AND defaults.defaclnamespace = 'public'::regnamespace
-    ) effective_defaults
+    SELECT 1 FROM reminder_generic_relevant_owners owners
+    CROSS JOIN LATERAL aclexplode(coalesce(
+      (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
+      acldefault('f', owners.owner_oid))) effective_defaults
     WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND effective_defaults.privilege_type = 'EXECUTE'
+    UNION ALL
+    SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+    WHERE defaults.defaclrole IN (SELECT owner_oid FROM reminder_generic_relevant_owners)
+      AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
+      AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND privilege.privilege_type = 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'Generic migration requires normalized legacy function ACLs and defaults';
   END IF;
@@ -184,6 +200,8 @@ $$;
 -- surface so this migration remains safe after any legacy/default ACL state.
 REVOKE ALL ON FUNCTION public.prevent_one_time_email_attempt_mutation() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.prevent_one_time_email_attempt_delete() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.one_time_operational_email_contract() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.normalize_one_time_operational_email_attempt() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.reserve_trial_user_activation_reminder_attempt() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.reserve_trial_user_activation_reminder_attempt() TO service_role;
@@ -205,6 +223,80 @@ BEGIN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
       MESSAGE = 'generic one-time email migration postcondition failed';
+  END IF;
+
+  IF EXISTS (
+    (SELECT owner_oid FROM reminder_generic_relevant_owners)
+    EXCEPT
+    (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+     UNION SELECT proowner FROM pg_proc WHERE oid IN (
+       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+       'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+     UNION SELECT current_user::regrole::oid)
+  ) OR EXISTS (
+    (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+     UNION SELECT proowner FROM pg_proc WHERE oid IN (
+       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+       'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+     UNION SELECT current_user::regrole::oid)
+    EXCEPT SELECT owner_oid FROM reminder_generic_relevant_owners
+  ) THEN
+    RAISE EXCEPTION 'Generic migration relevant owner set changed before commit';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM (VALUES
+      ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, false),
+      ('public.prevent_one_time_email_attempt_delete()'::regprocedure, false),
+      ('public.one_time_operational_email_contract()'::regprocedure, false),
+      ('public.normalize_one_time_operational_email_attempt()'::regprocedure, false),
+      ('public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, true),
+      ('public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure, true)
+    ) expected(function_oid, service_role_execute)
+    WHERE EXISTS (
+      SELECT 1 FROM pg_proc function_definition,
+        LATERAL aclexplode(coalesce(function_definition.proacl, acldefault('f', function_definition.proowner))) privilege
+      WHERE function_definition.oid = expected.function_oid
+        AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole)
+        AND privilege.privilege_type = 'EXECUTE')
+      OR EXISTS (
+        SELECT 1 FROM pg_proc function_definition,
+          LATERAL aclexplode(coalesce(function_definition.proacl, acldefault('f', function_definition.proowner))) privilege
+        WHERE function_definition.oid = expected.function_oid
+          AND privilege.grantee = 'service_role'::regrole
+          AND privilege.privilege_type = 'EXECUTE'
+          AND NOT privilege.is_grantable) <> expected.service_role_execute
+      OR EXISTS (
+        SELECT 1 FROM pg_proc function_definition,
+          LATERAL aclexplode(coalesce(function_definition.proacl, acldefault('f', function_definition.proowner))) privilege
+        WHERE function_definition.oid = expected.function_oid
+          AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+          AND privilege.privilege_type = 'EXECUTE'
+          AND privilege.is_grantable)
+      OR has_function_privilege('anon', expected.function_oid, 'EXECUTE')
+      OR has_function_privilege('authenticated', expected.function_oid, 'EXECUTE')
+      OR has_function_privilege('service_role', expected.function_oid, 'EXECUTE') <> expected.service_role_execute
+  ) THEN
+    RAISE EXCEPTION 'Generic migration final function ACL matrix failed';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM reminder_generic_relevant_owners owners
+    CROSS JOIN LATERAL aclexplode(coalesce(
+      (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
+      acldefault('f', owners.owner_oid))) privilege
+    WHERE privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND privilege.privilege_type = 'EXECUTE'
+    UNION ALL
+    SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+    WHERE defaults.defaclrole IN (SELECT owner_oid FROM reminder_generic_relevant_owners)
+      AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
+      AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND privilege.privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'Generic migration final default ACL matrix failed';
   END IF;
 END;
 $$;

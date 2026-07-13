@@ -9,6 +9,15 @@ BEGIN
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NULL
   THEN RAISE EXCEPTION 'Generic one-time email helpers are absent'; END IF;
 
+  IF (SELECT count(*) FROM (
+    SELECT relowner AS owner_oid FROM pg_class WHERE oid = v_table
+    UNION SELECT proowner FROM pg_proc WHERE oid IN (
+      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+      'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+  ) owners) NOT BETWEEN 1 AND 3
+  THEN RAISE EXCEPTION 'Generic reminder has an unknown fourth relevant owner'; END IF;
+
   v_contract := public.one_time_operational_email_contract();
   IF md5(v_contract::text) <> '4902909a9a560d428c0da6bf39f4dc89'
   THEN RAISE EXCEPTION 'Generic one-time email contract drift detected'; END IF;
@@ -80,18 +89,29 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Generic reminder function privilege drift detected'; END IF;
 
   IF EXISTS (
-    SELECT 1 FROM (
-      SELECT privilege.* FROM aclexplode(coalesce(
-        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = (SELECT relowner FROM pg_class WHERE oid = v_table) AND defaclobjtype = 'f' AND defaclnamespace = 0),
-        acldefault('f', (SELECT relowner FROM pg_class WHERE oid = v_table))
-      )) privilege
-      UNION ALL
-      SELECT privilege.* FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
-      WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = v_table)
-        AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
-    ) effective_defaults
+    WITH owners(owner_oid) AS (
+      SELECT relowner FROM pg_class WHERE oid = v_table
+      UNION SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+    )
+    SELECT 1 FROM owners CROSS JOIN LATERAL aclexplode(coalesce(
+      (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
+      acldefault('f', owners.owner_oid))) effective_defaults
     WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND effective_defaults.privilege_type = 'EXECUTE'
+    UNION ALL
+    SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+    WHERE defaults.defaclrole IN (
+      SELECT relowner FROM pg_class WHERE oid = v_table
+      UNION SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+      AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
+      AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND privilege.privilege_type = 'EXECUTE'
   ) THEN RAISE EXCEPTION 'Generic reminder default function privilege drift detected'; END IF;
 
   IF EXISTS (SELECT 1 FROM public.one_time_email_attempts)

@@ -9,6 +9,10 @@ cleanup() {
   psql -v ON_ERROR_STOP=1 -d "$PGDATABASE" >/dev/null 2>&1 <<'SQL' || true
 REVOKE inherited_executor FROM anon;
 DROP ROLE IF EXISTS inherited_executor;
+DROP ROLE IF EXISTS unauthorized_actor;
+DROP ROLE IF EXISTS migration_actor;
+DROP ROLE IF EXISTS table_owner;
+DROP ROLE IF EXISTS unknown_owner;
 DROP ROLE IF EXISTS drift_owner;
 DROP ROLE IF EXISTS anon;
 DROP ROLE IF EXISTS authenticated;
@@ -22,7 +26,12 @@ CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN;
 CREATE ROLE inherited_executor NOLOGIN;
+CREATE ROLE table_owner NOLOGIN;
 CREATE ROLE drift_owner NOLOGIN;
+CREATE ROLE migration_actor NOLOGIN;
+CREATE ROLE unauthorized_actor NOLOGIN;
+CREATE ROLE unknown_owner NOLOGIN;
+GRANT table_owner, drift_owner TO migration_actor;
 SQL
 
 create_case() {
@@ -30,7 +39,24 @@ create_case() {
   createdb "$database"
   databases+=("$database")
   psql -v ON_ERROR_STOP=1 -d "$database" -f supabase/migrations/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
+  psql -v ON_ERROR_STOP=1 -d "$database" >/dev/null <<'SQL'
+ALTER TABLE public.one_time_email_attempts OWNER TO table_owner;
+ALTER FUNCTION public.prevent_one_time_email_attempt_mutation() OWNER TO table_owner;
+ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO table_owner;
+ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() OWNER TO drift_owner;
+ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO drift_owner;
+GRANT USAGE, CREATE ON SCHEMA public TO table_owner, drift_owner, migration_actor, unauthorized_actor;
+SQL
   printf '%s' "$database"
+}
+
+run_as_actor_file() {
+  local database="$1" actor="$2" file="$3"
+  psql -v ON_ERROR_STOP=1 -d "$database" >/dev/null <<SQL
+SET ROLE $actor;
+\i $file
+RESET ROLE;
+SQL
 }
 
 assert_legacy_gate_fails() {
@@ -42,56 +68,80 @@ assert_legacy_gate_fails() {
 
 drift_database="$(create_case production_drift)"
 psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/fixtures/legacy-reminder-production-acl-drift.sql >/dev/null
-if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege WHERE defaults.defaclobjtype = 'f' AND privilege.grantee IN ('anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)")" != "3" ]]; then
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege WHERE defaults.defaclobjtype = 'f' AND privilege.grantee IN ('anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)")" != "9" ]]; then
   echo "Sanitized fixture did not reproduce default function ACLs" >&2
   exit 1
 fi
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM pg_default_acl WHERE defaclobjtype = 'f' AND defaclnamespace = 0")" != "0" ]]; then
+  echo "Sanitized fixture unexpectedly created an explicit global default row" >&2
+  exit 1
+fi
 assert_legacy_gate_fails "$drift_database"
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql >/dev/null
+run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql
 drift_mismatch_database="${database_prefix}_drift_mismatch"
 createdb -T "$drift_database" "$drift_mismatch_database"
 databases+=("$drift_mismatch_database")
 psql -v ON_ERROR_STOP=1 -d "$drift_mismatch_database" -c \
   'REVOKE EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() FROM authenticated' >/dev/null
-if psql -v ON_ERROR_STOP=1 -d "$drift_mismatch_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql >/dev/null 2>&1; then
+if run_as_actor_file "$drift_mismatch_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-legacy-acl-drift.sql 2>/dev/null; then
   echo "Drift-aware preflight accepted a partial/non-diagnosed ACL matrix" >&2
   exit 1
 fi
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-reminder-function-acl-diagnostic.sql >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql >/dev/null
+run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-reminder-function-acl-diagnostic.sql
+run_as_actor_file "$drift_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
+run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql
 psql -v ON_ERROR_STOP=1 -d "$drift_database" >/dev/null <<'SQL'
+SET ROLE table_owner;
 CREATE FUNCTION public.acl_default_probe() RETURNS void LANGUAGE sql AS 'SELECT';
+SET ROLE drift_owner;
+CREATE FUNCTION public.acl_default_probe_second_owner() RETURNS void LANGUAGE sql AS 'SELECT';
+SET ROLE migration_actor;
+CREATE FUNCTION public.acl_default_probe_migration_actor() RETURNS void LANGUAGE sql AS 'SELECT';
+RESET ROLE;
 DO $$
 BEGIN
   IF has_function_privilege('anon', 'public.acl_default_probe()', 'EXECUTE')
     OR has_function_privilege('authenticated', 'public.acl_default_probe()', 'EXECUTE')
     OR has_function_privilege('service_role', 'public.acl_default_probe()', 'EXECUTE')
-  THEN RAISE EXCEPTION 'Normalized defaults granted EXECUTE on a newly created helper'; END IF;
+    OR has_function_privilege('anon', 'public.acl_default_probe_second_owner()', 'EXECUTE')
+    OR has_function_privilege('authenticated', 'public.acl_default_probe_second_owner()', 'EXECUTE')
+    OR has_function_privilege('service_role', 'public.acl_default_probe_second_owner()', 'EXECUTE')
+    OR has_function_privilege('anon', 'public.acl_default_probe_migration_actor()', 'EXECUTE')
+    OR has_function_privilege('authenticated', 'public.acl_default_probe_migration_actor()', 'EXECUTE')
+    OR has_function_privilege('service_role', 'public.acl_default_probe_migration_actor()', 'EXECUTE')
+  THEN RAISE EXCEPTION 'Normalized defaults granted EXECUTE on a newly created helper under a relevant owner'; END IF;
 END $$;
 DROP FUNCTION public.acl_default_probe();
+DROP FUNCTION public.acl_default_probe_second_owner();
+DROP FUNCTION public.acl_default_probe_migration_actor();
 SQL
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+run_as_actor_file "$drift_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT count(*) FROM (SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass UNION SELECT proowner FROM pg_proc WHERE oid IN ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure, 'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure, 'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)) owners")" != "3" ]]; then
+  echo "Generic migration did not preserve the exact three-owner shape" >&2
+  exit 1
+fi
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$drift_database" -c "SELECT bool_and(proowner = 'migration_actor'::regrole) FROM pg_proc WHERE oid IN ('public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure)")" != "t" ]]; then
+  echo "Generic helpers were not created by the distinct migration actor" >&2
+  exit 1
+fi
 psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$drift_database" -f supabase/checks/trial-reminder-function-acl-diagnostic.sql >/dev/null
+run_as_actor_file "$drift_database" migration_actor supabase/checks/trial-reminder-function-acl-diagnostic.sql
 
 partial_database="$(create_case partial)"
-psql -v ON_ERROR_STOP=1 -d "$partial_database" -c \
-  'GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated' >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$partial_database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$partial_database" -f supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$partial_database" -f supabase/checks/fixtures/legacy-reminder-production-acl-drift.sql >/dev/null
+psql -v ON_ERROR_STOP=1 -d "$partial_database" >/dev/null <<'SQL'
+ALTER DEFAULT PRIVILEGES FOR ROLE migration_actor REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE migration_actor IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;
+SQL
+run_as_actor_file "$partial_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
+run_as_actor_file "$partial_database" migration_actor supabase/checks/trial-user-activation-reminder-preflight-legacy-applied.sql
 
-for drift in security owner; do
+for drift in security; do
   database="$(create_case "$drift")"
-  if [[ "$drift" == security ]]; then
-    setup='ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() SECURITY INVOKER; GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated;'
-    rollback_function='public.prevent_one_time_email_attempt_delete()'
-  else
-    setup='ALTER FUNCTION public.prevent_one_time_email_attempt_delete() OWNER TO drift_owner; GRANT EXECUTE ON FUNCTION public.reserve_trial_user_activation_reminder_attempt() TO authenticated;'
-    rollback_function='public.reserve_trial_user_activation_reminder_attempt()'
-  fi
+  setup='ALTER FUNCTION public.reserve_trial_user_activation_reminder_attempt() SECURITY INVOKER; GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated;'
+  rollback_function='public.prevent_one_time_email_attempt_delete()'
   psql -v ON_ERROR_STOP=1 -d "$database" -c "$setup" >/dev/null
-  if psql -v ON_ERROR_STOP=1 -d "$database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null 2>&1; then
+  if run_as_actor_file "$database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
     echo "ACL migration accepted $drift drift" >&2
     exit 1
   fi
@@ -106,7 +156,7 @@ psql -v ON_ERROR_STOP=1 -d "$inherited_database" >/dev/null <<'SQL'
 GRANT inherited_executor TO anon;
 GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO inherited_executor;
 SQL
-if psql -v ON_ERROR_STOP=1 -d "$inherited_database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null 2>&1; then
+if run_as_actor_file "$inherited_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
   echo "ACL migration accepted inherited effective access" >&2
   exit 1
 fi
@@ -116,8 +166,45 @@ if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$inherited_database" -c "SELECT has_fu
 fi
 
 preservation_database="$(create_case generic_preservation)"
-psql -v ON_ERROR_STOP=1 -d "$preservation_database" -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
-psql -v ON_ERROR_STOP=1 -d "$preservation_database" -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+run_as_actor_file "$preservation_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
+run_as_actor_file "$preservation_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql
 psql -v ON_ERROR_STOP=1 -d "$preservation_database" -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
+
+partial_actor_database="$(create_case partial_actor_generic)"
+run_as_actor_file "$partial_actor_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql
+psql -v ON_ERROR_STOP=1 -d "$partial_actor_database" -c 'ALTER DEFAULT PRIVILEGES FOR ROLE migration_actor IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon' >/dev/null
+if run_as_actor_file "$partial_actor_database" migration_actor supabase/migrations/20260712213000_generic_one_time_email_contract.sql 2>/dev/null; then
+  echo "Generic migration accepted partially reopened actor defaults" >&2
+  exit 1
+fi
+if [[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$partial_actor_database" -c "SELECT to_regprocedure('public.one_time_operational_email_contract()') IS NULL")" != "t" ]]; then
+  echo "Actor-default rejection left generic helpers behind" >&2
+  exit 1
+fi
+
+unknown_database="$(create_case unknown_third_owner)"
+psql -v ON_ERROR_STOP=1 -d "$unknown_database" >/dev/null <<'SQL'
+ALTER FUNCTION public.finalize_trial_user_activation_reminder_attempt(text) OWNER TO unknown_owner;
+GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated;
+SQL
+if run_as_actor_file "$unknown_database" migration_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
+  echo "ACL migration accepted an unknown fourth relevant owner" >&2
+  exit 1
+fi
+[[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$unknown_database" -c "SELECT has_function_privilege('authenticated', 'public.prevent_one_time_email_attempt_delete()', 'EXECUTE')")" == "t" ]] || {
+  echo "Unknown-owner rejection did not roll back atomically" >&2
+  exit 1
+}
+
+unauthorized_database="$(create_case unauthorized_actor)"
+psql -v ON_ERROR_STOP=1 -d "$unauthorized_database" -c 'GRANT EXECUTE ON FUNCTION public.prevent_one_time_email_attempt_delete() TO authenticated' >/dev/null
+if run_as_actor_file "$unauthorized_database" unauthorized_actor supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql 2>/dev/null; then
+  echo "ACL migration accepted an actor without authority over every relevant owner" >&2
+  exit 1
+fi
+[[ "$(psql -v ON_ERROR_STOP=1 -Atq -d "$unauthorized_database" -c "SELECT has_function_privilege('authenticated', 'public.prevent_one_time_email_attempt_delete()', 'EXECUTE')")" == "t" ]] || {
+  echo "Unauthorized-actor rejection did not roll back atomically" >&2
+  exit 1
+}
 
 echo "legacy ACL fixture RED/GREEN, drift, inheritance, rollback, preservation | PASS"

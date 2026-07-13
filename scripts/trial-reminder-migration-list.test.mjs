@@ -1,41 +1,55 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { validateMigrationList } from "./trial-reminder-migration-list.mjs";
 
 const expected = ["20260712190000", "20260712213000"];
+const productionFixture = readFileSync(new URL("./fixtures/supabase-2.98.2-migration-list-redacted.txt", import.meta.url), "utf8");
+
+test("accepts the exact sanitized Supabase CLI 2.98.2 fixed-width table", () => {
+  assert.deepEqual(validateMigrationList(productionFixture, expected, "two_pending"), { migration_alignment: "aligned", migration_state: "two_pending" });
+});
 
 test("accepts expected migration only when applied and every parsed row is aligned", () => {
-  const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \`20260712190000\` | time\n\`20260712213000\` | \`20260712213000\` | time`;
+  const fixture = productionFixture
+    .replace("20260712190000 |               ", "20260712190000 | 20260712190000")
+    .replace("20260712213000 |               ", "20260712213000 | 20260712213000");
   assert.deepEqual(validateMigrationList(fixture, expected, "fully_applied"), { migration_alignment: "aligned", migration_state: "fully_applied" });
 });
 
 test("rejects missing expected migration and any local/remote mismatch", () => {
   for (const fixture of [
-    "`20260708193000` | `20260708193000` | time",
-    "`20260712213000` | `20260712213001` | time",
-    "Local | Remote | Time\n`20260712213000` | `20260712213000` | time\nunexpected diagnostic",
-    "Local | Remote | Time\nmalformed | row | time\n`20260712213000` | `20260712213000` | time",
-    "`20260712213000` | `20260712213000` | time\n`20260712213000` | `20260712213000` | duplicate",
-    "`20260712190000` | `20260712190000` | time\n`20260712213000` | `20260712213000` | time\n`20260712214000` | `20260712214000` | extra",
+    productionFixture.replace("Local          | Remote", "Local          | Upstream"),
+    productionFixture.replace("----------------|", "--------------- |"),
+    productionFixture.replace("20260710210000 | 20260710210000", "`20260710210000` | `20260710210000`"),
+    productionFixture.replace("20260710210000 | 20260710210000", "20260710210000 | 20260710210001"),
+    `${productionFixture}unexpected diagnostic\n`,
+    productionFixture.replace("20260712190000 |", "malformed      |"),
+    productionFixture.replace("  20260712213000", "  20260712190000"),
+    `${productionFixture}  20260712214000 |                | 2026-07-12 21:40:00\n`,
+    productionFixture.replace(
+      "  20260712190000 |                | 2026-07-12 19:00:00\n  20260712213000 |                | 2026-07-12 21:30:00",
+      "  20260712213000 |                | 2026-07-12 21:30:00\n  20260712190000 |                | 2026-07-12 19:00:00",
+    ),
+    productionFixture.replace("                | 2026-07-12 19:00:00", "               x| 2026-07-12 19:00:00"),
     "unparseable output",
   ]) assert.throws(() => validateMigrationList(fixture, expected), /migration alignment failed/);
 });
 
 test("detects both pending migrations in exact order", () => {
-  const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \` \` | time\n\`20260712213000\` | \` \` | time`;
-  assert.deepEqual(validateMigrationList(fixture, expected, "two_pending"), { migration_alignment: "aligned", migration_state: "two_pending" });
+  assert.deepEqual(validateMigrationList(productionFixture, expected, "two_pending"), { migration_alignment: "aligned", migration_state: "two_pending" });
 });
 
 test("detects the recoverable ACL-applied generic-pending state", () => {
-  const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \`20260712190000\` | time\n\`20260712213000\` | \` \` | time`;
+  const fixture = productionFixture.replace("20260712190000 |               ", "20260712190000 | 20260712190000");
   assert.deepEqual(validateMigrationList(fixture, expected, "acl_applied_generic_pending"), { migration_alignment: "aligned", migration_state: "acl_applied_generic_pending" });
 });
 
 test("rejects impossible generic-without-ACL history and other drift", () => {
   for (const fixture of [
-    "`20260712190000` | ` ` | time\n`20260712213000` | `20260712213000` | time",
-    "`20260710210000` | ` ` | time\n`20260712213000` | ` ` | time",
-    "`20260712190000` | ` ` | time\n`20260712213000` | ` ` | time\n`20260712213000` | ` ` | duplicate",
-    "`20260712190000` | ` ` | time\n`20260712213000` | ` ` | time\n`20260712214000` | `20260712214000` | extra",
+    productionFixture.replace("20260712213000 |               ", "20260712213000 | 20260712213000"),
+    productionFixture.replace("20260710210000 | 20260710210000", "20260710210000 |               "),
+    `${productionFixture}  20260712213000 |                | 2026-07-12 21:30:00\n`,
+    `${productionFixture}  20260712214000 | 20260712214000 | 2026-07-12 21:40:00\n`,
   ]) assert.throws(() => validateMigrationList(fixture, expected), /migration alignment failed/);
 });
