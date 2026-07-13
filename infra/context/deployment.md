@@ -5,7 +5,7 @@ This document records only known deployment facts for the Orvel monorepo migrati
 ## Known Facts
 
 - Supabase functions are deployed.
-- Repository context records that Supabase migration history was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date.
+- Fresh 2026-07-11 evidence shows the one-time reminder guard migration applied. The temporary function/secrets were deployed then removed after a pre-invocation shell error; no invocation or email occurred.
 - No deployment guarantees for dashboard or landing have been verified in this monorepo context.
 
 ## Deployment Boundaries

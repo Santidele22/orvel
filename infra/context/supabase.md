@@ -8,10 +8,10 @@ Supabase assets are expected to live under:
 ## Current Operational Status
 
 - Supabase functions are deployed.
-- Project ref: `tzqgwziyiospmvpdgbnt`.
+- Production operations use the authenticated linked project; identity is checked against the non-revealing digest in `supabase/production-project-ref.sha256`.
 - Migration history was repaired on branch `feat/import-orvel-repos`.
 - `migration list` is aligned.
-- `db push --dry-run --include-all --yes` reports the remote database is up to date.
+- Fresh evidence on 2026-07-11 shows migration `20260710210000_one_time_trial_reminder_attempt.sql` applied and history aligned; the durable attempt remains unconsumed. Forward migration `20260712213000_generic_one_time_email_contract.sql` is locally validated but not yet applied remotely; production invocation must remain blocked until it is applied and alignment is re-verified.
 
 ## Mandatory Rule
 
