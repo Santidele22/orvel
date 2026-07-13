@@ -53,6 +53,7 @@ WITH relevant_owners(owner_oid, owner_category) AS (
   ) owners
 ), roles(role_oid, role_label) AS (
   VALUES
+    (0::oid, 'PUBLIC'),
     ('anon'::regrole::oid, 'anon'),
     ('authenticated'::regrole::oid, 'authenticated'),
     ('service_role'::regrole::oid, 'service_role')

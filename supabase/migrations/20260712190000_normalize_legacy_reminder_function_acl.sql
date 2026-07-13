@@ -19,7 +19,6 @@ UNION SELECT current_user::regrole::oid;
 DO $acl$
 DECLARE
   v_owner record;
-  v_owner_count integer;
 BEGIN
   IF EXISTS (SELECT 1 FROM (VALUES
       ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, false),
@@ -32,9 +31,13 @@ BEGIN
     RAISE EXCEPTION 'Legacy reminder function owner or security drift detected';
   END IF;
 
-  SELECT count(*) INTO v_owner_count FROM reminder_acl_relevant_owners;
-  IF v_owner_count NOT BETWEEN 1 AND 3 THEN
-    RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production shape';
+  IF EXISTS (
+    SELECT 1
+    FROM reminder_acl_relevant_owners relevant_owner
+    LEFT JOIN pg_roles role_definition ON role_definition.oid = relevant_owner.owner_oid
+    WHERE role_definition.oid IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Legacy reminder owner cannot be resolved';
   END IF;
 
   FOR v_owner IN

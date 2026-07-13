@@ -8,15 +8,13 @@ BEGIN
   IF to_regprocedure('public.one_time_operational_email_contract()') IS NULL
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NULL
   THEN RAISE EXCEPTION 'Generic one-time email helpers are absent'; END IF;
-
-  IF (SELECT count(*) FROM (
-    SELECT relowner AS owner_oid FROM pg_class WHERE oid = v_table
-    UNION SELECT proowner FROM pg_proc WHERE oid IN (
-      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-      'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
-      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
-  ) owners) NOT BETWEEN 1 AND 3
-  THEN RAISE EXCEPTION 'Generic reminder has an unknown fourth relevant owner'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_proc
+    WHERE oid IN (
+      'public.one_time_operational_email_contract()'::regprocedure,
+      'public.normalize_one_time_operational_email_attempt()'::regprocedure)
+      AND proowner <> current_user::regrole::oid
+  ) THEN RAISE EXCEPTION 'Generic one-time email helper owner drift detected'; END IF;
 
   v_contract := public.one_time_operational_email_contract();
   IF md5(v_contract::text) <> '4902909a9a560d428c0da6bf39f4dc89'
@@ -93,8 +91,8 @@ BEGIN
       SELECT relowner FROM pg_class WHERE oid = v_table
       UNION SELECT proowner FROM pg_proc WHERE oid IN (
         'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
         'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+      UNION SELECT current_user::regrole::oid
     )
     SELECT 1 FROM owners CROSS JOIN LATERAL aclexplode(coalesce(
       (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
@@ -107,8 +105,8 @@ BEGIN
       SELECT relowner FROM pg_class WHERE oid = v_table
       UNION SELECT proowner FROM pg_proc WHERE oid IN (
         'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
-        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+      UNION SELECT current_user::regrole::oid)
       AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
       AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND privilege.privilege_type = 'EXECUTE'

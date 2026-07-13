@@ -1,6 +1,11 @@
 export function validateMigrationList(output, expectedVersions, expectedState = "detect") {
   const expected = Array.isArray(expectedVersions) ? expectedVersions : [expectedVersions];
-  if (expected.length !== 2) throw new Error("migration alignment failed");
+  if (expected.length !== 2
+    || expected.some((version) => !/^\d{14}$/.test(version))
+    || new Set(expected).size !== expected.length
+    || expected.some((version, index) => index > 0 && version <= expected[index - 1])) {
+    throw new Error("migration alignment failed");
+  }
   const lines = output.replace(/\r\n/g, "\n").split("\n");
   if (lines.at(-1) === "") lines.pop();
   if (lines[0] !== "  Local          | Remote         | Time (UTC)"
@@ -8,9 +13,10 @@ export function validateMigrationList(output, expectedVersions, expectedState = 
     throw new Error("migration alignment failed");
   }
   const rows = lines.slice(2).map((line) => {
-    const match = /^  (\d{14}) \| (\d{14}| {14}) \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec(line);
+    const versionCell = "(?:\\d{8} {6}|\\d{14})";
+    const match = new RegExp(`^  (${versionCell}) \\| (${versionCell}| {14}) \\| (\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})$`).exec(line);
     if (!match) throw new Error("migration alignment failed");
-    return { local: match[1], remote: match[2].trim() };
+    return { local: match[1].trim(), remote: match[2].trim() };
   });
   if (!rows.length || !["detect", "two_pending", "acl_applied_generic_pending", "fully_applied"].includes(expectedState)) {
     throw new Error("migration alignment failed");
