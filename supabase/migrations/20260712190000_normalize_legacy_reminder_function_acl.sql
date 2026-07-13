@@ -5,43 +5,52 @@ SET LOCAL statement_timeout = '30s';
 
 DO $acl$
 DECLARE
-  v_table_owner oid;
-  v_function_owner name;
+  v_owner record;
+  v_owner_count integer;
 BEGIN
-  SELECT relowner INTO v_table_owner
-  FROM pg_class
-  WHERE oid = 'public.one_time_email_attempts'::regclass;
-
-  IF EXISTS (
-    SELECT 1
-    FROM (VALUES
+  IF EXISTS (SELECT 1 FROM (VALUES
       ('public.prevent_one_time_email_attempt_mutation()'::regprocedure, false),
       ('public.prevent_one_time_email_attempt_delete()'::regprocedure, false),
       ('public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, true),
       ('public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure, true)
     ) expected(function_oid, security_definer)
     JOIN pg_proc function_definition ON function_definition.oid = expected.function_oid
-    WHERE function_definition.proowner <> v_table_owner
-      OR function_definition.prosecdef <> expected.security_definer
-  ) THEN
+    WHERE function_definition.prosecdef <> expected.security_definer) THEN
     RAISE EXCEPTION 'Legacy reminder function owner or security drift detected';
   END IF;
 
-  SELECT rolname INTO v_function_owner FROM pg_roles WHERE oid = v_table_owner;
-  IF v_function_owner IS NULL
-    OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND (oid = v_table_owner OR rolsuper))
-  THEN
-    RAISE EXCEPTION 'Migration role cannot safely alter reminder function owner defaults';
+  SELECT count(*) INTO v_owner_count FROM (
+    SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+    UNION
+    SELECT proowner FROM pg_proc WHERE oid IN (
+      'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
+      'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
+      'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+  ) owners;
+  IF v_owner_count NOT BETWEEN 1 AND 2 THEN
+    RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production shape';
   END IF;
 
-  EXECUTE format(
-    'ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role',
-    v_function_owner
-  );
-  EXECUTE format(
-    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role',
-    v_function_owner
-  );
+  FOR v_owner IN
+    SELECT role_definition.oid, role_definition.rolname
+    FROM pg_roles role_definition
+    WHERE role_definition.oid IN (
+      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+      UNION
+      SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
+        'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
+        'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+    ORDER BY role_definition.oid
+  LOOP
+    IF NOT pg_has_role(current_user, v_owner.oid, 'MEMBER')
+      AND NOT (SELECT rolsuper FROM pg_roles WHERE rolname = current_user)
+    THEN RAISE EXCEPTION 'Migration role cannot safely alter every reminder owner default'; END IF;
+    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role', v_owner.rolname);
+    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role', v_owner.rolname);
+  END LOOP;
 END
 $acl$;
 
@@ -55,22 +64,29 @@ GRANT EXECUTE ON FUNCTION public.finalize_trial_user_activation_reminder_attempt
 
 DO $acl$
 DECLARE
-  v_function_owner oid := (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass);
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM (
-      SELECT privilege.* FROM aclexplode(coalesce(
-        (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = v_function_owner AND defaclobjtype = 'f' AND defaclnamespace = 0),
-        acldefault('f', v_function_owner)
-      )) privilege
-      UNION ALL
-      SELECT privilege.* FROM pg_default_acl defaults,
-           LATERAL aclexplode(defaults.defaclacl) privilege
-      WHERE defaults.defaclrole = v_function_owner AND defaults.defaclobjtype = 'f'
-        AND defaults.defaclnamespace = 'public'::regnamespace
-    ) effective_defaults
+    WITH owners(owner_oid) AS (
+      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+      UNION SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+    )
+    SELECT 1 FROM owners CROSS JOIN LATERAL aclexplode(coalesce(
+      (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
+      acldefault('f', owners.owner_oid))) effective_defaults
     WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND effective_defaults.privilege_type = 'EXECUTE'
+    UNION ALL
+    SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+    WHERE defaults.defaclrole IN (
+      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+      UNION SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+      AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
+      AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+      AND privilege.privilege_type = 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'Legacy reminder default function ACL normalization failed';
   END IF;

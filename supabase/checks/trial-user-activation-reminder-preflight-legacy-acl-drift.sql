@@ -5,11 +5,19 @@ DO $preflight$
 DECLARE
   v_table regclass := to_regclass('public.one_time_email_attempts');
   v_owner oid;
+  v_owner_count integer;
   v_row_count bigint;
   v_invalid_count bigint;
 BEGIN
   IF v_table IS NULL THEN RAISE EXCEPTION 'Legacy reminder table is absent'; END IF;
   SELECT relowner INTO v_owner FROM pg_class WHERE oid = v_table;
+  SELECT count(*) INTO v_owner_count FROM (
+    SELECT v_owner AS owner_oid
+    UNION SELECT proowner FROM pg_proc WHERE oid IN (
+      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+  ) owners;
+  IF v_owner_count <> 2 THEN RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production drift'; END IF;
 
   IF to_regprocedure('public.one_time_operational_email_contract()') IS NOT NULL
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NOT NULL
@@ -46,8 +54,7 @@ BEGIN
     ) expected(function_oid, security_definer, return_type, snippets)
     JOIN pg_proc function_definition ON function_definition.oid = expected.function_oid
     JOIN pg_language language_definition ON language_definition.oid = function_definition.prolang
-    WHERE function_definition.proowner <> v_owner
-      OR function_definition.prosecdef <> expected.security_definer
+    WHERE function_definition.prosecdef <> expected.security_definer
       OR language_definition.lanname <> 'plpgsql'
       OR function_definition.provolatile <> 'v'
       OR function_definition.prorettype <> expected.return_type
@@ -93,25 +100,24 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Legacy reminder ACL does not match diagnosed production drift'; END IF;
 
   IF EXISTS (
-    SELECT required_role
-    FROM (VALUES ('anon'::regrole), ('authenticated'::regrole), ('service_role'::regrole)) role(required_role)
-    WHERE NOT EXISTS (
-      SELECT 1
-      FROM pg_default_acl defaults,
-           LATERAL aclexplode(defaults.defaclacl) privilege
-      WHERE defaults.defaclrole = v_owner
-        AND defaults.defaclobjtype = 'f'
-        AND defaults.defaclnamespace IN (0, 'public'::regnamespace)
-        AND privilege.grantee = role.required_role
-        AND privilege.privilege_type = 'EXECUTE'
-        AND NOT privilege.is_grantable
+    WITH owners(owner_oid) AS (
+      SELECT v_owner UNION SELECT proowner FROM pg_proc WHERE oid IN (
+        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
     )
-  ) OR EXISTS (
-    SELECT 1 FROM aclexplode(coalesce(
-      (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = v_owner AND defaclobjtype = 'f' AND defaclnamespace = 0),
-      acldefault('f', v_owner)
-    )) privilege
-    WHERE privilege.grantee = 0 AND privilege.privilege_type = 'EXECUTE'
+    SELECT 1 FROM owners
+    WHERE EXISTS (SELECT 1 FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0)
+      OR (SELECT count(*) FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+          WHERE defaults.defaclrole = owners.owner_oid AND defaults.defaclobjtype = 'f'
+            AND defaults.defaclnamespace = 'public'::regnamespace
+            AND privilege.grantee IN ('anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+            AND privilege.privilege_type = 'EXECUTE' AND NOT privilege.is_grantable) <> 3
+      OR EXISTS (SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
+          WHERE defaults.defaclrole = owners.owner_oid AND defaults.defaclobjtype = 'f'
+            AND defaults.defaclnamespace = 'public'::regnamespace
+            AND privilege.privilege_type = 'EXECUTE'
+            AND (privilege.grantee = 0 OR privilege.is_grantable
+              OR privilege.grantee NOT IN (owners.owner_oid, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)))
   ) THEN RAISE EXCEPTION 'Legacy reminder defaults do not match diagnosed production drift'; END IF;
 
   SELECT count(*), count(*) FILTER (WHERE state <> 'reserved' OR finalized_at IS NOT NULL)

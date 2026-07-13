@@ -38,19 +38,30 @@ SELECT resolved.function_label,
 FROM resolved CROSS JOIN roles
 ORDER BY resolved.function_label, roles.role_label;
 
-WITH roles(role_oid, role_label) AS (
+WITH relevant_owners(owner_oid, owner_category) AS (
+  SELECT owner_oid,
+         CASE WHEN owner_oid = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
+              THEN 'table_owner' ELSE 'function_owner' END
+  FROM (
+    SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+    UNION SELECT proowner FROM pg_proc WHERE oid IN (
+      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+  ) owners
+), roles(role_oid, role_label) AS (
   VALUES
     ('anon'::regrole::oid, 'anon'),
     ('authenticated'::regrole::oid, 'authenticated'),
     ('service_role'::regrole::oid, 'service_role')
 )
-SELECT roles.role_label,
+SELECT relevant_owners.owner_category,
+       roles.role_label,
        EXISTS (
          SELECT 1
          FROM pg_default_acl defaults
          JOIN pg_namespace namespace ON namespace.oid = defaults.defaclnamespace,
               LATERAL aclexplode(defaults.defaclacl) privilege
-         WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
+          WHERE defaults.defaclrole = relevant_owners.owner_oid
            AND namespace.nspname = 'public'
            AND defaults.defaclobjtype = 'f'
            AND privilege.grantee = roles.role_oid
@@ -59,11 +70,16 @@ SELECT roles.role_label,
          SELECT 1
          FROM pg_default_acl defaults,
               LATERAL aclexplode(defaults.defaclacl) privilege
-         WHERE defaults.defaclrole = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
+          WHERE defaults.defaclrole = relevant_owners.owner_oid
            AND defaults.defaclnamespace = 0
            AND defaults.defaclobjtype = 'f'
            AND privilege.grantee = roles.role_oid
            AND privilege.privilege_type = 'EXECUTE'
+       ) OR EXISTS (
+         SELECT 1 FROM aclexplode(coalesce(
+           (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = relevant_owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
+           acldefault('f', relevant_owners.owner_oid))) privilege
+         WHERE privilege.grantee = 0 AND privilege.privilege_type = 'EXECUTE'
        ) AS applicable_default_execute
-FROM roles
-ORDER BY roles.role_label;
+FROM relevant_owners CROSS JOIN roles
+ORDER BY relevant_owners.owner_category, roles.role_label;

@@ -1,17 +1,22 @@
 export function validateMigrationList(output, expectedVersions, expectedState = "detect") {
   const expected = Array.isArray(expectedVersions) ? expectedVersions : [expectedVersions];
   if (expected.length !== 2) throw new Error("migration alignment failed");
-  const rows = [];
-  for (const rawLine of output.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    if (/^Local\s*\|\s*Remote\s*\|\s*Time(?:\s*\(UTC\))?$/i.test(line)) continue;
-    if (/^[\s|:-]+$/.test(line)) continue;
-    const match = /^`([^`]*)`\s*\|\s*`([^`]*)`\s*\|\s*.+$/.exec(line);
-    if (!match) throw new Error("migration alignment failed");
-    rows.push({ local: match[1].trim(), remote: match[2].trim() });
+  const lines = output.replace(/\r\n/g, "\n").split("\n");
+  if (lines.at(-1) === "") lines.pop();
+  if (lines[0] !== "  Local          | Remote         | Time (UTC)"
+    || lines[1] !== " ----------------|----------------|---------------------") {
+    throw new Error("migration alignment failed");
   }
+  const rows = lines.slice(2).map((line) => {
+    const match = /^  (\d{14}) \| (\d{14}| {14}) \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec(line);
+    if (!match) throw new Error("migration alignment failed");
+    return { local: match[1], remote: match[2].trim() };
+  });
   if (!rows.length || !["detect", "two_pending", "acl_applied_generic_pending", "fully_applied"].includes(expectedState)) {
+    throw new Error("migration alignment failed");
+  }
+  if (new Set(rows.map(({ local }) => local)).size !== rows.length
+    || rows.some((row, index) => index > 0 && row.local <= rows[index - 1].local)) {
     throw new Error("migration alignment failed");
   }
   const expectedRows = rows.filter((row) => expected.includes(row.local));
