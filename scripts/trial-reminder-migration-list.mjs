@@ -11,7 +11,7 @@ export function validateMigrationList(output, expectedVersions, expectedState = 
     if (!match) throw new Error("migration alignment failed");
     rows.push({ local: match[1].trim(), remote: match[2].trim() });
   }
-  if (!rows.length || !["detect", "both-pending", "acl-applied", "applied"].includes(expectedState)) {
+  if (!rows.length || !["detect", "two_pending", "acl_applied_generic_pending", "fully_applied"].includes(expectedState)) {
     throw new Error("migration alignment failed");
   }
   const expectedRows = rows.filter((row) => expected.includes(row.local));
@@ -26,9 +26,9 @@ export function validateMigrationList(output, expectedVersions, expectedState = 
 
   const [aclRow, genericRow] = expectedRows;
   let migrationState;
-  if (!aclRow.remote && !genericRow.remote) migrationState = "both-pending";
-  else if (aclRow.remote === aclRow.local && !genericRow.remote) migrationState = "acl-applied";
-  else if (aclRow.remote === aclRow.local && genericRow.remote === genericRow.local) migrationState = "applied";
+  if (!aclRow.remote && !genericRow.remote) migrationState = "two_pending";
+  else if (aclRow.remote === aclRow.local && !genericRow.remote) migrationState = "acl_applied_generic_pending";
+  else if (aclRow.remote === aclRow.local && genericRow.remote === genericRow.local) migrationState = "fully_applied";
   else throw new Error("migration alignment failed");
 
   if (expectedState !== "detect" && expectedState !== migrationState) {
@@ -44,7 +44,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   process.stdin.on("end", () => {
     try {
       const state = process.argv.at(-1);
-      const hasState = ["detect", "both-pending", "acl-applied", "applied"].includes(state);
+      const hasState = ["detect", "two_pending", "acl_applied_generic_pending", "fully_applied"].includes(state);
       const result = validateMigrationList(input, process.argv.slice(2, hasState ? -1 : undefined), hasState ? state : "detect");
       process.stdout.write(`migration_alignment=aligned\nmigration_state=${result.migration_state}\n`);
     } catch {

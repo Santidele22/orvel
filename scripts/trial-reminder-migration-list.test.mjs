@@ -6,7 +6,7 @@ const expected = ["20260712190000", "20260712213000"];
 
 test("accepts expected migration only when applied and every parsed row is aligned", () => {
   const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \`20260712190000\` | time\n\`20260712213000\` | \`20260712213000\` | time`;
-  assert.deepEqual(validateMigrationList(fixture, expected, "applied"), { migration_alignment: "aligned", migration_state: "applied" });
+  assert.deepEqual(validateMigrationList(fixture, expected, "fully_applied"), { migration_alignment: "aligned", migration_state: "fully_applied" });
 });
 
 test("rejects missing expected migration and any local/remote mismatch", () => {
@@ -23,12 +23,12 @@ test("rejects missing expected migration and any local/remote mismatch", () => {
 
 test("detects both pending migrations in exact order", () => {
   const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \` \` | time\n\`20260712213000\` | \` \` | time`;
-  assert.deepEqual(validateMigrationList(fixture, expected, "both-pending"), { migration_alignment: "aligned", migration_state: "both-pending" });
+  assert.deepEqual(validateMigrationList(fixture, expected, "two_pending"), { migration_alignment: "aligned", migration_state: "two_pending" });
 });
 
 test("detects the recoverable ACL-applied generic-pending state", () => {
   const fixture = `Local | Remote | Time\n\`20260710210000\` | \`20260710210000\` | time\n\`20260712190000\` | \`20260712190000\` | time\n\`20260712213000\` | \` \` | time`;
-  assert.deepEqual(validateMigrationList(fixture, expected, "acl-applied"), { migration_alignment: "aligned", migration_state: "acl-applied" });
+  assert.deepEqual(validateMigrationList(fixture, expected, "acl_applied_generic_pending"), { migration_alignment: "aligned", migration_state: "acl_applied_generic_pending" });
 });
 
 test("rejects impossible generic-without-ACL history and other drift", () => {
