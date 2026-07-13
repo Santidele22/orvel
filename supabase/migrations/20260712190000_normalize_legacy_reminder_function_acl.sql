@@ -3,6 +3,19 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 
+CREATE TEMP TABLE reminder_acl_relevant_owners (
+  owner_oid oid PRIMARY KEY
+) ON COMMIT DROP;
+
+INSERT INTO reminder_acl_relevant_owners (owner_oid)
+SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+UNION SELECT proowner FROM pg_proc WHERE oid IN (
+  'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
+  'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+  'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
+  'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+UNION SELECT current_user::regrole::oid;
+
 DO $acl$
 DECLARE
   v_owner record;
@@ -19,30 +32,15 @@ BEGIN
     RAISE EXCEPTION 'Legacy reminder function owner or security drift detected';
   END IF;
 
-  SELECT count(*) INTO v_owner_count FROM (
-    SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
-    UNION
-    SELECT proowner FROM pg_proc WHERE oid IN (
-      'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
-      'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
-      'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
-  ) owners;
-  IF v_owner_count NOT BETWEEN 1 AND 2 THEN
+  SELECT count(*) INTO v_owner_count FROM reminder_acl_relevant_owners;
+  IF v_owner_count NOT BETWEEN 1 AND 3 THEN
     RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production shape';
   END IF;
 
   FOR v_owner IN
     SELECT role_definition.oid, role_definition.rolname
     FROM pg_roles role_definition
-    WHERE role_definition.oid IN (
-      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
-      UNION
-      SELECT proowner FROM pg_proc WHERE oid IN (
-        'public.prevent_one_time_email_attempt_mutation()'::regprocedure,
-        'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure,
-        'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+    JOIN reminder_acl_relevant_owners relevant_owner ON relevant_owner.owner_oid = role_definition.oid
     ORDER BY role_definition.oid
   LOOP
     IF NOT pg_has_role(current_user, v_owner.oid, 'MEMBER')
@@ -66,29 +64,38 @@ DO $acl$
 DECLARE
 BEGIN
   IF EXISTS (
-    WITH owners(owner_oid) AS (
-      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
-      UNION SELECT proowner FROM pg_proc WHERE oid IN (
-        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
-    )
-    SELECT 1 FROM owners CROSS JOIN LATERAL aclexplode(coalesce(
+    SELECT 1 FROM reminder_acl_relevant_owners owners CROSS JOIN LATERAL aclexplode(coalesce(
       (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
       acldefault('f', owners.owner_oid))) effective_defaults
     WHERE effective_defaults.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND effective_defaults.privilege_type = 'EXECUTE'
     UNION ALL
     SELECT 1 FROM pg_default_acl defaults, LATERAL aclexplode(defaults.defaclacl) privilege
-    WHERE defaults.defaclrole IN (
-      SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
-      UNION SELECT proowner FROM pg_proc WHERE oid IN (
-        'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+    WHERE defaults.defaclrole IN (SELECT owner_oid FROM reminder_acl_relevant_owners)
       AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
       AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND privilege.privilege_type = 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'Legacy reminder default function ACL normalization failed';
+  END IF;
+
+  IF EXISTS (
+    SELECT owner_oid FROM reminder_acl_relevant_owners
+    EXCEPT
+    (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+     UNION SELECT proowner FROM pg_proc WHERE oid IN (
+       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+     UNION SELECT current_user::regrole::oid)
+  ) OR EXISTS (
+    (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
+     UNION SELECT proowner FROM pg_proc WHERE oid IN (
+       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+     UNION SELECT current_user::regrole::oid)
+    EXCEPT SELECT owner_oid FROM reminder_acl_relevant_owners
+  ) THEN
+    RAISE EXCEPTION 'Legacy reminder relevant owner set changed during normalization';
   END IF;
 
   IF EXISTS (

@@ -16,8 +16,9 @@ BEGIN
     UNION SELECT proowner FROM pg_proc WHERE oid IN (
       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+    UNION SELECT current_user::regrole::oid
   ) owners;
-  IF v_owner_count <> 2 THEN RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production drift'; END IF;
+  IF v_owner_count <> 3 THEN RAISE EXCEPTION 'Legacy reminder owner set does not match diagnosed production drift'; END IF;
 
   IF to_regprocedure('public.one_time_operational_email_contract()') IS NOT NULL
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NOT NULL
@@ -104,6 +105,7 @@ BEGIN
       SELECT v_owner UNION SELECT proowner FROM pg_proc WHERE oid IN (
         'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
         'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+      UNION SELECT current_user::regrole::oid
     )
     SELECT 1 FROM owners
     WHERE EXISTS (SELECT 1 FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0)

@@ -41,12 +41,15 @@ ORDER BY resolved.function_label, roles.role_label;
 WITH relevant_owners(owner_oid, owner_category) AS (
   SELECT owner_oid,
          CASE WHEN owner_oid = (SELECT relowner FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass)
-              THEN 'table_owner' ELSE 'function_owner' END
+              THEN 'table_owner'
+              WHEN owner_oid = current_user::regrole::oid THEN 'migration_actor'
+              ELSE 'legacy_function_owner' END
   FROM (
     SELECT relowner AS owner_oid FROM pg_class WHERE oid = 'public.one_time_email_attempts'::regclass
     UNION SELECT proowner FROM pg_proc WHERE oid IN (
       'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
       'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+    UNION SELECT current_user::regrole::oid
   ) owners
 ), roles(role_oid, role_label) AS (
   VALUES

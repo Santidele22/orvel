@@ -88,6 +88,7 @@ BEGIN
       UNION SELECT proowner FROM pg_proc WHERE oid IN (
         'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
         'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+      UNION SELECT current_user::regrole::oid
     )
     SELECT 1 FROM owners CROSS JOIN LATERAL aclexplode(coalesce(
       (SELECT defaclacl FROM pg_default_acl WHERE defaclrole = owners.owner_oid AND defaclobjtype = 'f' AND defaclnamespace = 0),
@@ -100,7 +101,8 @@ BEGIN
       SELECT relowner FROM pg_class WHERE oid = v_table
       UNION SELECT proowner FROM pg_proc WHERE oid IN (
         'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
-        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure))
+        'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+      UNION SELECT current_user::regrole::oid)
       AND defaults.defaclobjtype = 'f' AND defaults.defaclnamespace = 'public'::regnamespace
       AND privilege.grantee IN (0, 'anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
       AND privilege.privilege_type = 'EXECUTE'

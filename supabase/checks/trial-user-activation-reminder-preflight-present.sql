@@ -9,6 +9,15 @@ BEGIN
     OR to_regprocedure('public.normalize_one_time_operational_email_attempt()') IS NULL
   THEN RAISE EXCEPTION 'Generic one-time email helpers are absent'; END IF;
 
+  IF (SELECT count(*) FROM (
+    SELECT relowner AS owner_oid FROM pg_class WHERE oid = v_table
+    UNION SELECT proowner FROM pg_proc WHERE oid IN (
+      'public.prevent_one_time_email_attempt_mutation()'::regprocedure, 'public.prevent_one_time_email_attempt_delete()'::regprocedure,
+      'public.one_time_operational_email_contract()'::regprocedure, 'public.normalize_one_time_operational_email_attempt()'::regprocedure,
+      'public.reserve_trial_user_activation_reminder_attempt()'::regprocedure, 'public.finalize_trial_user_activation_reminder_attempt(text)'::regprocedure)
+  ) owners) NOT BETWEEN 1 AND 3
+  THEN RAISE EXCEPTION 'Generic reminder has an unknown fourth relevant owner'; END IF;
+
   v_contract := public.one_time_operational_email_contract();
   IF md5(v_contract::text) <> '4902909a9a560d428c0da6bf39f4dc89'
   THEN RAISE EXCEPTION 'Generic one-time email contract drift detected'; END IF;
