@@ -9,6 +9,16 @@ import { withBuildLock } from '../../scripts/build-lock.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const landingRoot = resolve(__dirname, '..', '..');
 
+async function processIsRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    const processState = (await readFile(`/proc/${pid}/stat`, 'utf8')).split(' ')[2];
+    return processState !== 'Z';
+  } catch {
+    return false;
+  }
+}
+
 describe('landing build idempotency contract', () => {
   it('runs clean and Astro build inside one bounded cross-process lock', async () => {
     const packageJson = JSON.parse(await readFile(resolve(landingRoot, 'package.json'), 'utf8'));
@@ -251,7 +261,11 @@ describe('landing build idempotency contract', () => {
         wrapper.once('exit', (code, signal) => resolvePromise({ code, signal }));
       });
       expect(exit.code).not.toBe(0);
-      expect(() => process.kill(owner!.activeChild!.pid, 0)).toThrow();
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        if (!await processIsRunning(owner!.activeChild!.pid)) break;
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+      }
+      expect(await processIsRunning(owner!.activeChild!.pid)).toBe(false);
       await expect(readFile(resolve(lockDirectory, 'owner.json'), 'utf8')).rejects.toThrow();
     } finally {
       wrapper.kill('SIGKILL');

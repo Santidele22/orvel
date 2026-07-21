@@ -8,10 +8,10 @@ Supabase assets are expected to live under:
 ## Current Operational Status
 
 - Supabase functions are deployed.
-- Project ref: `tzqgwziyiospmvpdgbnt`.
+- Production operations use the authenticated linked project; identity is checked against the non-revealing digest in `supabase/production-project-ref.sha256`.
 - Migration history was repaired on branch `feat/import-orvel-repos`.
 - `migration list` is aligned.
-- `db push --dry-run --include-all --yes` reports the remote database is up to date.
+- Fresh read-only evidence on 2026-07-12 shows migration `20260710210000_one_time_trial_reminder_attempt.sql` applied, the durable attempt unconsumed, and direct/default-ACL EXECUTE drift on its four functions. Forward migrations `20260712190000_normalize_legacy_reminder_function_acl.sql` and `20260712213000_generic_one_time_email_contract.sql` must be applied in that exact order with no extras; each commits independently. An ACL-applied/generic-pending state is recoverable only through the checked-in `forward-migrate` fix-forward path. Production invocation remains blocked until both are applied and alignment/default ACL closure are re-verified.
 
 ## Mandatory Rule
 
