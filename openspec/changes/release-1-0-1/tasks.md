@@ -11,9 +11,9 @@
 
 ### Fase 1 — Navbar: agregar link "Plan"
 
-- [x] 1.1 `src/components/organisms/Header.astro` — Reemplazar los 5 anchor links desktop actuales (`#tipos`, `#beneficios`, `#pricing`, `#resultados`, `#faq`) por un único link "Plan" apuntando a `/auth/signup/plan`. Conservar logo, botones de login y signup intactos.
+- [x] 1.1 `src/components/organisms/Header.astro` — Reemplazar los 5 anchor links desktop actuales (`#tipos`, `#beneficios`, `#pricing`, `#resultados`, `#faq`) por un único link "Plan" apuntando a `#proximos-pasos` (la sección "Próximos pasos", interpretando "Plan" como hoja de ruta pública, NO como plan de suscripción). Conservar logo, botones de login y signup intactos.
 - [x] 1.2 `src/components/organisms/Header.astro` — Replicar el cambio en el dropdown mobile (líneas equivalentes a desktop). Verificar que el script de toggle del menú sigue funcionando.
-- [x] 1.3 Verificar visualmente que el link es clickeable y navega a `/auth/signup/plan`.
+- [x] 1.3 Verificar visualmente que el link es clickeable y scrollea a la sección "Próximos pasos". El flujo de signup vive en el botón "Crear cuenta" de la navbar, que sigue apuntando a `/auth/signup/plan`.
 
 **Commit**: `feat(landing): add Plan link to navbar`
 
