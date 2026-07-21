@@ -127,34 +127,21 @@ El código DEBE incluir un comentario o referencia que documente la reincorporac
 
 ### Requisito: Link "Plan" visible en el navbar
 
-La navbar DEBE exhibir un link con la etiqueta "Plan" que apunte a la sección pública "Próximos pasos" (`#proximos-pasos`), tanto en desktop como en mobile. "Plan" se interpreta como hoja de ruta pública, NO como plan de suscripción — el flujo de signup vive en el botón "Crear cuenta" de la navbar, que sigue apuntando a `/auth/signup/plan`.
+La navbar DEBE exhibir un link con la etiqueta "Plan" que apunte a `/auth/signup/plan`, tanto en desktop como en mobile. No es un anchor a una sección: es una ruta interna de signup.
 
 #### Escenario: Link "Plan" en navbar desktop
 
 - DADO que un visitante carga la landing en desktop
 - CUANDO se renderiza la navbar
 - ENTONCES existe un link visible con el texto "Plan"
-- Y su href es `#proximos-pasos` (anchor a la sección "Próximos pasos")
+- Y su href es `/auth/signup/plan`
 
 #### Escenario: Link "Plan" en navbar mobile
 
 - DADO que un visitante carga la landing en mobile y abre el menú hamburguesa
 - CUANDO se renderiza el dropdown
 - ENTONCES existe un link visible con el texto "Plan"
-- Y su href es `#proximos-pasos`
-
-#### Escenario: Click en "Plan" hace scroll a la sección
-
-- DADO que un visitante está en cualquier parte de la landing
-- CUANDO hace click en el link "Plan" del navbar
-- ENTONCES la página scrollea suave hasta la sección "Próximos pasos"
-
-#### Escenario: "Crear cuenta" sigue siendo el CTA de signup
-
-- DADO que un visitante quiere suscribirse
-- CUANDO ve la navbar
-- ENTONCES el botón "Crear cuenta" sigue apuntando a `/auth/signup/plan`
-- Y ese flujo es independiente del link "Plan" (hoja de ruta)
+- Y su href es `/auth/signup/plan`
 
 ### Requisito: Sección pública "Próximos pasos"
 

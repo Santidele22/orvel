@@ -1,0 +1,72 @@
+* Orvel MVP / Core Cleanup Plan
+
+  Product focus: Orvel is a turnos-first SaaS for beauty businesses.
+  Target: MVP before/around 2026-06-25.
+
+** Billing rule
+
+   - No checkout as source of truth.
+   - Billing source of truth is MercadoPago subscriptions/preapproval only.
+   - Official docs: https://www.mercadopago.com.ar/developers/es/docs/subscriptions/overview
+
+** MVP milestones
+
+   - (-) M1 unified availability :: in_progress via core slices; admin availability backend + admin UX/runtime async behavior GREEN; public end-to-end booking UX pending.
+   - (x) M2 real admin new turno :: done/GREEN.
+   - (x) M3 blocked time form :: done/GREEN.
+   - (x) M4 admin reschedule picker UX :: done/GREEN.
+   - (x) M5 public cancel by private link/token :: done/GREEN.
+   - (x) M6 public reschedule by private link/token :: done/GREEN.
+   - (x) M7 minimal admin auth :: done/GREEN.
+   - (x) M8 remove hardcoded/test hooks :: done/GREEN.
+
+** Core cleanup slices
+
+   - (x) Slice 1 catalog/entitlements backend contract and gateway :: done.
+   - (x) Slice 2 runtime catalog/entitlements wiring :: done.
+   - (x) Slice 3 canonical booking backend + core gateway fail-closed/RPC-only :: done.
+   - (x) Slice 4 PublicBookingService gateway-only + TurnoService admin lifecycle RPC-only :: done.
+   - (x) Slice 5 admin availability backend-first :: done/GREEN.
+   - (x) Slice 6 admin availability UX/runtime async behavior :: done/GREEN.
+
+*** Current working item
+
+    Current/next: final local MVP validation/release gates, unless Santi decides otherwise: full local build/test sweep, Supabase migration push/dry-run when CLI access is available, browser E2E or manual smoke, and fixing any residual release blockers. No Vercel deployment is part of this checkpoint.
+
+    M2 delivered `/dashboard/turnos/new` route, visible primary create action from `/dashboard/turnos`, and form create with branch/service/client or walkIn/date/time/duration/notes using backend availability; success invalidates availability and navigates back.
+
+    M3 delivered visible admin blocked-time CTA/form in the turnos list with date, start time, end time, and reason fields. Real submit uses `TurnoService.createBlockedTime`, resolves `businessId` from validated branch/session metadata, requires branch, passes `branch_id` to the RPC, fails closed without branch, and on success invalidates admin availability then refreshes timeline/list. Removed the previous hardcoded current-time/+1h/Lunch break submit behavior.
+
+    M4 delivered visible per-row admin reschedule action `turnos-admin-reschedule-action` that opens the real picker/form. Runtime quick-shift +60min and hardcoded reason behavior were removed. The picker loads backend-first availability through `TurnoService` with context `admin-reschedule`, booking/service/branch/duration metadata, then submits the selected date/slot through the lifecycle RPC path `reschedule_admin_booking`; success invalidates availability and refreshes the list/timeline.
+
+    M5 delivered public manage-page cancel by private link/token. The page reads the token from the URL, loads through `PublicBookingService.manageBookingByToken`, renders a safe summary, shows cancel only when the backend allows it, calls `PublicBookingService.cancelBookingByToken`, shows terminal cancelled state, and maps fail-closed errors including `TOKEN_REVOKED` and `BOOKING_ALREADY_CANCELLED`. Mapper/gateway behavior preserves those error codes deterministically after the blocker fix.
+
+    M6 delivered public manage-page reschedule by private link/token. The reschedule action is gated by backend `actions.canReschedule` with fail-closed fallback, uses the real `manage-reschedule-picker`, queries backend slots through `PublicBookingService.queryPublicSlotAvailability` with `businessSlug`, `serviceId`, and `dateIso`, validates required/stale/unavailable slot cases, submits through `PublicBookingService.rescheduleBookingByToken(token, nowIso, selected slot)`, and terminal `rescheduled` state hides unsafe actions.
+
+    M7 delivered minimal admin auth hardening. Admin mutations require a Supabase session and fail closed; provider Supabase no longer has a local success fallback; productive admin mutations no longer hardcode `performedBy` as `admin`/`admin-ui` and use `session.user.id`; mock session creation is gated to localhost/127.0.0.1/empty host while production redirects to auth; login/admin errors are sanitized enough for M7. Backend migration `20260609120000_m7_admin_rpc_branch_ownership.sql` validates `branch_id` exists and belongs to `business_id` in `create_admin_manual_booking` and `create_admin_blocked_time`.
+
+    M8 delivered hardcoded/test hooks/fake history cleanup. Hidden sr-only legacy admin action hooks were removed from the turnos list template while preserving visible M2-M4 controls; productive turnos-list logs were removed; mock block IDs and provider turnos fixture dates are deterministic/mock-only with no `Date.now()` or current-day hoy/manana/ayer fake history; onboarding mock session is gated to non-production localhost plus explicit query flag; mock tokens/IDs no longer mint old `mock.jwt`, `mock_`, or `user-001` patterns; dashboard typecheck blockers were fixed in Supabase booking gateway, onboarding wiring, dashboard shell, and narrow undefined user access in `TurnoService`.
+
+    Last validation: M8 GREEN by D-O, from `apps/dashboard`: `npx vitest run src/app/tests/unit/m8-hardcoded-test-hooks-cleanup.red.contract.spec.ts` passed, 1 file / 6 tests; canonical M2-M7 focused list passed, 7 files / 55 tests; `npx tsc -p tsconfig.app.json --noEmit` passed.
+
+    Residual risk: validation recorded here is focused local unit/contract plus dashboard typecheck only; no browser E2E/manual smoke, Supabase remote verification, full local build/test sweep, release cut, or Vercel deployment was run. Final risks remain: `branch_id` is still nullable in DB RPCs; mock `setProvider` escape hatch remains; `TurnoService.delete(id)` has a local-only UX risk; frontend still depends on metadata `businessId` until backend tenant resolution; Supabase CLI availability/credentials must be verified before migration push/dry-run; email outbox still has an old route/raw token exposure risk and remains a follow-up.
+
+    Follow-up: `mini-cal-admin-turnos-ui.contract.spec.ts` is stale/legacy because it expects direct create from list; new admin create flow is route-based.
+
+** Launch gates / checkpoints
+
+   - ( ) Business can configure basic services.
+   - ( ) Business can configure working hours and booking rules.
+   - ( ) Business can share a public booking URL.
+   - ( ) Public users can create bookings without overlaps or double-bookings.
+   - ( ) Admin can see turnos dashboard.
+   - (x) Admin can create manual turnos.
+   - ( ) Admin can cancel and reschedule turnos.
+   - (x) Admin can block unavailable times.
+   - (x) Private token/link cancel and reschedule flows are wired in UI and validated by focused contracts.
+   - (x) Minimal admin auth protects admin flows.
+   - (x) Checkout remnants/hardcoded test hooks removed or migrated to subscription/preapproval semantics for M8 scope.
+   - ( ) Final local MVP build/test sweep passes.
+   - ( ) Supabase migration push/dry-run is verified when CLI access is available.
+   - ( ) Browser E2E or manual smoke passes.
+   - ( ) Residual release blockers are fixed or explicitly accepted.
