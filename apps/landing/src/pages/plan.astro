@@ -1,0 +1,14 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/organisms/Header.astro';
+import Footer from '../components/organisms/Footer.astro';
+import Roadmap from '../components/organisms/Roadmap.astro';
+---
+
+<Layout title="Orvel - Hoja de ruta" showPreloader={false}>
+  <Header />
+  <main class="pt-24 pb-12 min-h-screen bg-bg-primary">
+    <Roadmap />
+  </main>
+  <Footer />
+</Layout>

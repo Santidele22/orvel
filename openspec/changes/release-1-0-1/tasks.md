@@ -11,9 +11,11 @@
 
 ### Fase 1 — Navbar: agregar link "Plan"
 
-- [x] 1.1 `src/components/organisms/Header.astro` — Reemplazar los 5 anchor links desktop actuales (`#tipos`, `#beneficios`, `#pricing`, `#resultados`, `#faq`) por un único link "Plan" apuntando a `#proximos-pasos` (la sección "Próximos pasos", interpretando "Plan" como hoja de ruta pública, NO como plan de suscripción). Conservar logo, botones de login y signup intactos.
+- [x] 1.1 `src/components/organisms/Header.astro` — Reemplazar los 5 anchor links desktop actuales (`#tipos`, `#beneficios`, `#pricing`, `#resultados`, `#faq`) por un único link "Plan" apuntando a `/plan` (la página dedicada de hoja de ruta, interpretando "Plan" como roadmap público, NO como plan de suscripción). Conservar logo, botones de login y signup intactos.
 - [x] 1.2 `src/components/organisms/Header.astro` — Replicar el cambio en el dropdown mobile (líneas equivalentes a desktop). Verificar que el script de toggle del menú sigue funcionando.
-- [x] 1.3 Verificar visualmente que el link es clickeable y scrollea a la sección "Próximos pasos". El flujo de signup vive en el botón "Crear cuenta" de la navbar, que sigue apuntando a `/auth/signup/plan`.
+- [x] 1.3 Verificar visualmente que el link navega a `/plan` (página dedicada, no anchor en la landing). El flujo de signup vive en el botón "Crear cuenta" de la navbar, que sigue apuntando a `/auth/signup/plan`.
+
+**Nota**: La sección "Próximos pasos" se movió de la landing principal a su propia página `/plan` (`src/pages/plan.astro`), que reusa el componente `Roadmap.astro`. La landing principal ya no incluye `<Roadmap />`.
 
 **Commit**: `feat(landing): add Plan link to navbar`
 
