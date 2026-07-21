@@ -127,32 +127,51 @@ El código DEBE incluir un comentario o referencia que documente la reincorporac
 
 ### Requisito: Link "Plan" visible en el navbar
 
-La navbar DEBE exhibir un link con la etiqueta "Plan" que apunte a `/auth/signup/plan`, tanto en desktop como en mobile. No es un anchor a una sección: es una ruta interna de signup.
+La navbar DEBE exhibir un link con la etiqueta "Plan" que apunte a la página dedicada de hoja de ruta (`/plan`), tanto en desktop como en mobile. "Plan" se interpreta como hoja de ruta pública, NO como plan de suscripción — el flujo de signup vive en el botón "Crear cuenta" de la navbar, que sigue apuntando a `/auth/signup/plan`.
 
 #### Escenario: Link "Plan" en navbar desktop
 
 - DADO que un visitante carga la landing en desktop
 - CUANDO se renderiza la navbar
 - ENTONCES existe un link visible con el texto "Plan"
-- Y su href es `/auth/signup/plan`
+- Y su href es `/plan` (página dedicada de hoja de ruta)
 
 #### Escenario: Link "Plan" en navbar mobile
 
 - DADO que un visitante carga la landing en mobile y abre el menú hamburguesa
 - CUANDO se renderiza el dropdown
 - ENTONCES existe un link visible con el texto "Plan"
-- Y su href es `/auth/signup/plan`
+- Y su href es `/plan`
 
-### Requisito: Sección pública "Próximos pasos"
+#### Escenario: Click en "Plan" navega a /plan
 
-La landing DEBE exhibir una sección llamada "Próximos pasos" que muestre el orden público de releases por rubro y mencione Mercado Pago como próximo hito, sin afirmar plazos ni fechas concretas.
+- DADO que un visitante está en cualquier parte de la landing
+- CUANDO hace click en el link "Plan" del navbar
+- ENTONCES navega a `/plan` y ve la hoja de ruta completa
 
-#### Escenario: Timeline de releases visible
+#### Escenario: "Crear cuenta" sigue siendo el CTA de signup
 
-- DADO que un visitante carga la landing
-- CUANDO se renderiza la sección "Próximos pasos"
-- ENTONCES se exhibe una lista ordenada de rubros a habilitar (Masajes primero, después Uñas, Barbería, y luego el resto)
+- DADO que un visitante quiere suscribirse
+- CUANDO ve la navbar
+- ENTONCES el botón "Crear cuenta" sigue apuntando a `/auth/signup/plan`
+- Y ese flujo es independiente del link "Plan" (hoja de ruta)
+
+### Requisito: Página dedicada "Próximos pasos"
+
+La sección pública "Próximos pasos" (hoja de ruta) vive en su propia página `/plan`, separada de la landing principal. Muestra el orden público de releases por rubro y menciona Mercado Pago como próximo hito, sin afirmar plazos ni fechas concretas.
+
+#### Escenario: Timeline de releases en /plan
+
+- DADO que un visitante navega a `/plan`
+- CUANDO se renderiza la página
+- ENTONCES se exhibe el componente Roadmap con la lista ordenada de rubros a habilitar (Masajes primero, después Uñas, Barbería, y luego el resto)
 - Y no se mencionan plazos, fechas ni versiones internas (P0/P1, 1.0.X)
+
+#### Escenario: Landing principal sin sección de hoja de ruta
+
+- DADO que un visitante carga la landing principal
+- CUANDO scrollea por las secciones
+- ENTONCES no se encuentra la sección "Próximos pasos" en la página de inicio
 
 #### Escenario: Mención de Mercado Pago con tono de marketing
 
