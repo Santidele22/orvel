@@ -258,7 +258,6 @@ Restaurar copias locales desde git history. Revertir imports en dashboard y Edge
 **Files**: migración, contract tests, `create_public_booking` RPC con knobs, `_read_business_booking_config` helper, dashboard error codes + types/mappers/gateway
 **Estimated lines**: ~390 → real: 430 (28 sobre el presupuesto, ver 4.5.7)
 **Dependencia**: PR #3 (usa shared package para notificaciones)
-**Split**: ejecutado en PR #4a (config-aware-core, migración + RPC + helpers, 338 líneas) y PR #4b (error-codes-dashboard, error codes + dashboard, 92 líneas). PR #4a → PR #4b chain, ambos branched desde PR #3.
 
 ### Fase 4.1 — Migración: add business_settings knobs (RED → GREEN)
 
@@ -268,7 +267,7 @@ Restaurar copias locales desde git history. Revertir imports en dashboard y Edge
        **GREEN**: contract test → 100% pasa.
 - [x] 4.1.3 REFACTOR: verificar idempotencia, defaults seguros.
 
-**Commit**: `feat(db): add booking config knobs to business_settings` (PR #4a)
+**Commit**: `feat(db): add booking config knobs to business_settings`
 
 ### Fase 4.2 — RPC: create_public_booking lee knobs (RED → GREEN)
 
@@ -278,7 +277,7 @@ Restaurar copias locales desde git history. Revertir imports en dashboard y Edge
        **GREEN**: contract test → 100% pasa.
 - [x] 4.2.3 REFACTOR: lógica de knobs extraída en `_read_business_booking_config(business_id)`.
 
-**Commit**: incluido en `feat(db): add booking config knobs to business_settings` (PR #4a)
+**Commit**: incluido en migración 4.1
 
 ### Fase 4.3 — Slot availability: respetar buffers (RED → GREEN)
 
@@ -288,7 +287,7 @@ Restaurar copias locales desde git history. Revertir imports en dashboard y Edge
        **GREEN**: contract test → 100% pasa.
 - [x] 4.3.3 REFACTOR: buffers integrados en el flujo principal de redefinición.
 
-**Commit**: incluido en `feat(db): add booking config knobs to business_settings` (PR #4a)
+**Commit**: incluido en migración 4.1
 
 ### Fase 4.4 — Error codes: BOOKING_TOO_SOON y BOOKING_TOO_FAR_ADVANCE (RED → GREEN)
 
@@ -300,33 +299,33 @@ Restaurar copias locales desde git history. Revertir imports en dashboard y Edge
        **GREEN**: 5/5 tests unitarios pasan.
 - [x] 4.4.5 REFACTOR: mensajes en español, sin leaks de detalles internos.
 
-**Commit**: `feat(booking): add BOOKING_TOO_SOON and BOOKING_TOO_FAR_ADVANCE error codes` (PR #4b)
+**Commit**: `feat(booking): add BOOKING_TOO_SOON and BOOKING_TOO_FAR_ADVANCE error codes`
 
 ### Fase 4.5 — Verificación final PR #4
 
-- [x] 4.5.1 Contract tests: 14 tests en total (7+7) — 100% pasan (7 en PR #4a, 7 en PR #4b).
-- [x] 4.5.2 Test unitario `public-booking-error-messages.spec.ts` — 5/5 pasan (PR #4b).
-- [x] 4.5.3 `pnpm build` desde `apps/dashboard/` — verificado (PR #4b).
+- [x] 4.5.1 Contract tests: 14 tests en total (7+7) — 100% pasan.
+- [x] 4.5.2 Test unitario `public-booking-error-messages.spec.ts` — 5/5 pasan.
+- [x] 4.5.3 `pnpm build` desde `apps/dashboard/` — verificado.
 - [x] 4.5.4 Deno check: `process-email-outbox/index.ts` no modificado en este PR.
 - [x] 4.5.5 Todos los 55 contract tests pasan (1.0.1 + PR1-4).
 - [x] 4.5.6 E2E: knobs leídos, buffers aplicados en slot conflict.
-- [x] 4.5.7 **⚠️ Línea 430**: diff real 430 líneas (28 sobre presupuesto). Compuesto por migración+RPC (338) + error codes dashboard (92). Split ejecutado en PR #4a + PR #4b. Cada uno bajo el presupuesto de 400.
+- [x] 4.5.7 **⚠️ Línea 430**: diff real 430 líneas (28 sobre presupuesto). Compuesto por migración+RPC (338) + error codes dashboard (92). Divisible en PR #4a + PR #4b si se requiere split.
 
 ### DoD PR #4
 
-- [x] Columnas `prep_buffer_minutes`, `post_buffer_minutes`, `max_advance_days`, `auto_assign_professional` en `business_settings` (PR #4a)
-- [x] `create_public_booking` lee y aplica los 4 knobs (PR #4a)
-- [x] Slot availability respeta buffers prep y post (PR #4a)
-- [x] Errores `BOOKING_TOO_SOON` y `BOOKING_TOO_FAR_ADVANCE` definidos y mapeados (HTTP 422) (PR #4b)
-- [x] `auto_assign_professional` se lee pero no asigna (v1) (PR #4a)
-- [x] Sin branches por `business_type` en código (ADR-014) (PR #4a + PR #4b)
-- [x] `pnpm build` dashboard + contract tests pasan (PR #4b completa el build con error codes)
-- [x] 55 contract tests intactos (incluyendo 1.0.1) (PR #4a + PR #4b)
-- [x] ⚠️ Diff: 430 líneas (28 sobre presupuesto). Split ejecutado en PR #4a (338) + PR #4b (92)
+- [x] Columnas `prep_buffer_minutes`, `post_buffer_minutes`, `max_advance_days`, `auto_assign_professional` en `business_settings`
+- [x] `create_public_booking` lee y aplica los 4 knobs
+- [x] Slot availability respeta buffers prep y post
+- [x] Errores `BOOKING_TOO_SOON` y `BOOKING_TOO_FAR_ADVANCE` definidos y mapeados (HTTP 422)
+- [x] `auto_assign_professional` se lee pero no asigna (v1)
+- [x] Sin branches por `business_type` en código (ADR-014)
+- [x] `pnpm build` dashboard + contract tests pasan
+- [x] 55 contract tests intactos (incluyendo 1.0.1)
+- [x] ⚠️ Diff: 430 líneas (28 sobre presupuesto). Sugerencia: PR #4a (migración+RPC, 338) + PR #4b (error codes, 92)
 
 ### Rollback PR #4
 
-Revertir RPC/helper a versión pre-knobs. Dropear las 4 columnas nuevas de `business_settings`. No tocar `min_notice_minutes`. `git revert` del PR (PR #4b primero, después PR #4a si chain no merged).
+Revertir RPC/helper a versión pre-knobs. Dropear las 4 columnas nuevas de `business_settings`. No tocar `min_notice_minutes`. `git revert` del PR.
 
 ---
 
