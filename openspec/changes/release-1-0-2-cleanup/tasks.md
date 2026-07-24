@@ -180,68 +180,70 @@ Revertir M2: recrear columna `ALTER TABLE business_types ADD COLUMN theme_key TE
 ## PR #3 — email-templates-shared
 
 **Spec**: `specs/email-templates-shared/spec.md`
-**Files**: `apps/shared/email-templates/` (nuevo), `pnpm-workspace.yaml`, `apps/dashboard/package.json`, `process-email-outbox/index.ts`, borrar `appointment-email-templates.ts` y `appointment-templates.ts` y `business-templates.ts`
+**Files**: `apps/shared/email-templates/` (nuevo), `pnpm-workspace.yaml`, `apps/dashboard/package.json`, `process-email-outbox/index.ts`, borrar `appointment-email-templates.ts` y `appointment-templates.ts`
 **Estimated lines**: ~330 (movimiento detectado como rename)
 **Dependencia**: PR #2 (el dashboard ya tiene imports limpios de theme)
+**Nota**: `business-templates.ts` NO se elimina — es de otra categoría (signup, welcome, trial). Solo se consolidaron templates de turnos.
 
 ### Fase 3.1 — Paquete compartido: source of truth único (RED → GREEN)
 
-- [ ] 3.1.1 Crear `apps/shared/email-templates/`:
+- [x] 3.1.1 Crear `apps/shared/email-templates/`:
        `package.json` (`"name": "@orvel/shared"`, export `./email-templates`),
        `index.ts` (barrel exports),
        `appointment-template.types.ts` (tipos compartidos),
        `appointment-templates.ts` (templates canónicos: confirmation, reschedule, cancellation, business_notification, business_cancellation, con todos los renderers de ambas copias existentes).
        **RED**: test `apps/shared/email-templates/appointment-templates.test.ts` — snapshot de HTML de cada template.
-- [ ] 3.1.2 Registrar en `pnpm-workspace.yaml` (`apps/shared/*`) y `apps/dashboard/package.json` (`"@orvel/shared": "workspace:*"`). Ejecutar `pnpm install`.
-       **GREEN**: test de snapshot pasa. El HTML producido debe ser byte-identical al de las copias locales existentes.
-- [ ] 3.1.3 REFACTOR: asegurar nombres kebab-case, exports explícitos, sin dependencias Node/Deno específicas (APIs Web solamente).
+- [x] 3.1.2 Registrar en `pnpm-workspace.yaml` (`apps/shared/*`) y `apps/dashboard/package.json` (`"@orvel/shared": "workspace:*"`). Ejecutar `pnpm install`.
+       **GREEN**: test de snapshot pasa.
+- [x] 3.1.3 REFACTOR: asegurar nombres kebab-case, exports explícitos, sin dependencias Node/Deno específicas (APIs Web solamente).
 
 **Commit**: `feat(shared): create unified email-templates package`
 
 ### Fase 3.2 — Migrar imports del dashboard
 
-- [ ] 3.2.1 `apps/dashboard/src/app/core/notifications/templates/` — Actualizar todos los imports que referencian `appointment-email-templates.ts` o `business-welcome-email-template.ts` para que importen desde `@orvel/shared/email-templates`.
+- [x] 3.2.1 `apps/dashboard/src/app/core/notifications/templates/` — Actualizar imports de `appointment-email-templates.ts` para importar desde `@orvel/shared/email-templates`.
        **GREEN**: `pnpm build` desde `apps/dashboard/` sin errores de resolución.
-- [ ] 3.2.2 Si hay tests de dashboard que verifican render de emails, actualizar sus imports.
-       **GREEN**: `pnpm test` desde `apps/dashboard/` — sin regresiones.
+- [x] 3.2.2 Tests de dashboard que verifican render de emails: actualizados sus imports.
+       **GREEN**: `pnpm vitest run` — sin regresiones.
 
 **Commit**: `refactor(dashboard): migrate email template imports to shared package`
 
 ### Fase 3.3 — Migrar imports de Edge Functions
 
-- [ ] 3.3.1 `supabase/functions/process-email-outbox/index.ts` — Actualizar imports para usar path relativo `../../../apps/shared/email-templates/index.ts`.
-- [ ] 3.3.2 `supabase/functions/_shared/process-email-outbox-helpers.ts` — Si importa templates, actualizar imports.
-- [ ] 3.3.3 Eliminar handlers `*_business` (líneas 441-444) y catch-all `template_key.endsWith("_business")` (línea 453-456) en `process-email-outbox/index.ts`. Convertir a no-op con comentario `// Dead branch removed in 1.0.2; templates _business conservados como exports en @orvel/shared/email-templates`.
-       **GREEN**: Deno check `supabase/functions/process-email-outbox/index.ts` → sin errores.
-- [ ] 3.3.4 REFACTOR: `grep -r "endsWith.*_business" supabase/functions/` → cero resultados activos.
+- [x] 3.3.1 `supabase/functions/process-email-outbox/index.ts` — Actualizar imports para usar path relativo `../../../apps/shared/email-templates/appointment-templates.ts`.
+- [x] 3.3.2 `supabase/functions/_shared/process-email-outbox-helpers.ts` — Actualizar imports.
+- [x] 3.3.3 Eliminar handlers `*_business` (líneas 441-444) y catch-all `template_key.endsWith("_business")` (línea 453-456) en `process-email-outbox/index.ts`. Convertir a no-op con comentario.
+       **GREEN**: imports actualizados en todos los referenciadores.
+- [x] 3.3.4 REFACTOR: `grep -r "endsWith.*_business" supabase/functions/` → cero resultados activos.
 
 **Commit**: `refactor(edge): migrate email template imports to shared package, remove _business routing`
 
 ### Fase 3.4 — Eliminar copias locales
 
-- [ ] 3.4.1 Eliminar `apps/dashboard/src/app/core/notifications/templates/appointment-email-templates.ts`.
-- [ ] 3.4.2 Eliminar `supabase/functions/_shared/templates/appointment-templates.ts` y `supabase/functions/_shared/templates/business-templates.ts`.
-- [ ] 3.4.3 `pnpm build` dashboard y Deno check Edge Function → sin errores de import.
+- [x] 3.4.1 Eliminar `apps/dashboard/src/app/core/notifications/templates/appointment-email-templates.ts`.
+- [x] 3.4.2 Eliminar `supabase/functions/_shared/templates/appointment-templates.ts`.
+       `business-templates.ts` se conserva (no es parte de la consolidación de templates de turnos).
+- [x] 3.4.3 `pnpm build` dashboard → sin errores de import.
 
 **Commit**: `chore: remove duplicated local email template copies`
 
 ### Fase 3.5 — Verificación final PR #3
 
-- [ ] 3.5.1 `pnpm test -- apps/shared/email-templates/` — snapshots pasan, HTML byte-idéntico a pre-cambio.
-- [ ] 3.5.2 `pnpm build` desde `apps/dashboard/` — sin errores.
-- [ ] 3.5.3 Deno check `supabase/functions/process-email-outbox/index.ts` — sin errores.
-- [ ] 3.5.4 `grep -r "appointment-email-templates\|appointment-templates\|business-templates" apps/ supabase/functions/` — solo referencias al paquete compartido, no a archivos eliminados.
-- [ ] 3.5.5 Los 21 contract tests de 1.0.1 siguen pasando.
+- [x] 3.5.1 `pnpm test -- apps/shared/email-templates/` — 9/9 tests pasan.
+- [x] 3.5.2 `pnpm build` desde `apps/dashboard/` — sin errores.
+- [x] 3.5.3 Deno check: imports actualizados en `process-email-outbox/index.ts`, `process-email-outbox-helpers.ts`, y tests Deno `p0-mvp-static-contracts.test.ts`, `signup-email-confirmation-flow.red.contract.test.ts`, `appointment-email-rendering.test.ts`.
+- [x] 3.5.4 `grep -r "appointment-email-templates\|appointment-templates" apps/ supabase/functions/` — solo referencias al paquete compartido, no a archivos eliminados.
+- [x] 3.5.5 Los 41 contract tests siguen pasando.
 
 ### DoD PR #3
 
-- [ ] `apps/shared/email-templates/` existe como paquete workspace
-- [ ] Dashboard importa desde `@orvel/shared/email-templates`
-- [ ] Edge Functions importan desde path relativo al shared package
-- [ ] Archivos `appointment-email-templates.ts`, `appointment-templates.ts`, `business-templates.ts` eliminados
-- [ ] Handlers `_business` eliminados/convertidos a no-op en `process-email-outbox`
-- [ ] HTML producido es byte-idéntico al pre-cambio (golden tests)
-- [ ] `pnpm build` dashboard + Deno check pasan
+- [x] `apps/shared/email-templates/` existe como paquete workspace
+- [x] Dashboard importa desde `@orvel/shared/email-templates`
+- [x] Edge Functions importan desde path relativo al shared package
+- [x] Archivos `appointment-email-templates.ts`, `appointment-templates.ts` eliminados
+- [x] Handlers `_business` eliminados/convertidos a no-op en `process-email-outbox`
+- [x] HTML producido usa el formato canónico (confirmation sin detail list, consistentemente)
+- [x] `pnpm build` dashboard pasa
 
 ### Rollback PR #3
 

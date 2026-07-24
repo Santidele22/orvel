@@ -41,6 +41,9 @@ importers:
       '@angular/router':
         specifier: ^21.2.17
         version: 21.2.17(@angular/common@21.2.17(@angular/core@21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2))(@angular/platform-browser@21.2.17(@angular/common@21.2.17(@angular/core@21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@orvel/shared':
+        specifier: workspace:*
+        version: link:../shared/email-templates
       '@supabase/supabase-js':
         specifier: ^2.108.2
         version: 2.108.2
@@ -133,6 +136,12 @@ importers:
       jsdom:
         specifier: ^29.0.2
         version: 29.0.2
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(vite@7.3.5(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3))
+
+  apps/shared/email-templates:
+    devDependencies:
       vitest:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(vite@7.3.5(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3))

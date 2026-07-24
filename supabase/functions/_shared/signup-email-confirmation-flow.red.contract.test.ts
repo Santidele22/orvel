@@ -593,7 +593,7 @@ Deno.test("RED email branding: confirmation and welcome emails use Orvel dark/vi
 });
 
 Deno.test("RED appointment email branding: appointment templates reject beige/brown and require dark/violet plus inline secondary links", async () => {
-  const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
+  const templateSource = await readText(new URL("../../../apps/shared/email-templates/appointment-templates.ts", import.meta.url));
   const requiredPalette = ["#0A0A0A", "#121212", "#F1F5F9", "#94A3B8", "#7C3AED", "#6D28D9", "#A78BFA"];
   const oldPalette = ["#f6efe7", "#f7f0e8", "#30251d", "#2b2118", "#fffaf5", "#ead8c7", "#9a6b43", "#8a5a36", "#6b5b50"];
 

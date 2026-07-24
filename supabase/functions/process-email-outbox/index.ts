@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import * as AppointmentTemplates from "../_shared/templates/appointment-templates.ts";
+import * as AppointmentTemplates from "../../../apps/shared/email-templates/appointment-templates.ts";
 import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
 import { appointmentTimeLabel, normalizeAppointmentTemplateData, scrubTokenBearingOutboxPayload } from "../_shared/process-email-outbox-helpers.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
@@ -438,10 +438,8 @@ Deno.serve(async (req) => {
             const result = AppointmentTemplates.renderAppointmentReminder24hEmail(fullData);
             subject = result.subject;
             html = result.html;
-          } else if (template_key === "booking_cancelled_business" || template_key === "appointment_cancelled_business") {
-            const result = AppointmentTemplates.renderAppointmentBusinessCancellationEmail(fullData);
-            subject = result.subject;
-            html = result.html;
+          // Dead branch removed in 1.0.2; templates _business conservados como exports
+          // en @orvel/shared/email-templates para uso futuro si se reactiva el ruteo.
           } else if (template_key === "appointment_cancelled" || template_key === "booking_cancelled") {
             const result = AppointmentTemplates.renderAppointmentCancellationEmail(fullData);
             subject = result.subject;
@@ -450,10 +448,9 @@ Deno.serve(async (req) => {
             const result = AppointmentTemplates.renderAppointmentRescheduleEmail(fullData);
             subject = result.subject;
             html = result.html;
-          } else if (template_key.endsWith("_business")) {
-            const result = AppointmentTemplates.renderAppointmentBusinessNotificationEmail(fullData);
-            subject = result.subject;
-            html = result.html;
+          // Dead branch removed in 1.0.2; _business catch-all removed.
+          // Templates business_notification / business_cancellation conservados
+          // como exports en @orvel/shared/email-templates.
           } else if (template_key === "signup_email_confirmation") {
             const result = BusinessTemplates.renderSignupEmailConfirmation({
               confirmationUrl: fullData.confirmation_url,
