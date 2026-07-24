@@ -338,34 +338,30 @@ Revertir RPC/helper a versión pre-knobs. Dropear las 4 columnas nuevas de `busi
 
 ### Fase 5.1 — Crear roadmap.md (RED → GREEN)
 
-- [ ] 5.1.1 **RED**: `ls openspec/changes/release-1-0-1/roadmap.md` → archivo no existe.
-- [ ] 5.1.2 Crear `openspec/changes/release-1-0-1/roadmap.md` con:
-       - Tabla de releases: 1.0.1 (✅ cerrado — landing + emails), 1.0.2 (🔄 en curso — limpieza arquitectónica), 1.0.3 (📋 planeado — multi-profesional), 1.0.4+ (❓ por definir)
-       - Sección "Cambio de estrategia": abandono del modelo per-rubro (releases por vertical) en favor de releases transversales por capacidad. Diferenciación por `business_settings` JSON (ADR-014).
-       - Tabla comparativa antes/después del roadmap (como en `proposal.md:122-129`).
-       **GREEN**: archivo existe, `wc -l` > 20 líneas.
-- [ ] 5.1.3 Verificar que la referencia en `openspec/changes/release-1-0-1/tasks.md:5` (`> **Roadmap público**: ...`) resuelve correctamente al nuevo archivo.
-       **GREEN**: ruta relativa desde raíz del repo resuelve.
+- [x] 5.1.1 **RED**: `ls openspec/changes/release-1-0-1/roadmap.md` → archivo no existe.
+- [x] 5.1.2 Crear `openspec/changes/release-1-0-1/roadmap.md` con tabla de releases, cambio de estrategia, tabla comparativa.
+       **GREEN**: archivo existe, 43 líneas (>20).
+- [x] 5.1.3 Referencia en `tasks.md:5` resuelve correctamente.
 
 **Commit**: `docs: create release roadmap with current status and strategy change`
 
 ### Fase 5.2 — Verificación final PR #5
 
-- [ ] 5.2.1 `ls openspec/changes/release-1-0-1/roadmap.md` → existe y no está vacío.
-- [ ] 5.2.2 `grep "1.0.2" openspec/changes/release-1-0-1/roadmap.md` → describe "limpieza de deuda arquitectónica".
-- [ ] 5.2.3 `grep "1.0.3" openspec/changes/release-1-0-1/roadmap.md` → describe "multi-profesional".
-- [ ] 5.2.4 Archivo contiene sección de abandono per-rubro y referencia a ADR-014.
-- [ ] 5.2.5 Cero cambios de código en este PR (solo markdown). `git diff --stat` → solo `roadmap.md`.
+- [x] 5.2.1 `roadmap.md` existe y no está vacío.
+- [x] 5.2.2 Contiene "limpieza de deuda arquitectónica" para 1.0.2.
+- [x] 5.2.3 Contiene "multi-profesional" para 1.0.3.
+- [x] 5.2.4 Contiene sección de abandono per-rubro y referencia a ADR-014.
+- [x] 5.2.5 Cero cambios de código. `git diff --stat` → solo `roadmap.md`.
 
 ### DoD PR #5
 
-- [ ] `openspec/changes/release-1-0-1/roadmap.md` existe
-- [ ] Tabla incluye releases 1.0.1 al 1.0.4+
-- [ ] 1.0.2 descrito como "limpieza arquitectónica" (este release)
-- [ ] 1.0.3 descrito como "multi-profesional"
-- [ ] Sección de abandono del modelo per-rubro presente
-- [ ] Referencia de `tasks.md:5` resuelve sin enlace roto
-- [ ] Cero cambios de código
+- [x] `openspec/changes/release-1-0-1/roadmap.md` existe
+- [x] Tabla incluye releases 1.0.1 al 1.0.4+
+- [x] 1.0.2 descrito como "limpieza arquitectónica" (este release)
+- [x] 1.0.3 descrito como "multi-profesional"
+- [x] Sección de abandono del modelo per-rubro presente
+- [x] Referencia de `tasks.md:5` resuelve sin enlace roto
+- [x] Cero cambios de código
 
 ### Rollback PR #5
 
