@@ -153,19 +153,24 @@ export function renderAppointmentConfirmationEmail(data: AppointmentTemplateData
 
   return {
     subject: 'Turno confirmado',
-    html: htmlShell(
-      'Turno confirmado',
-      `Hola ${escapeHtml(data.customer.name)},`,
-      'gracias por confiar en nosotros.',
-      renderDetailItems(data),
-      '',
-      viewLink
-        ? `<p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
-              </p>`
-        : '',
-      '',
-    ),
+    html: `
+      <!doctype html>
+      <html lang="es-AR">
+        <body style="margin:0;background:${PALETTE.black};color:${PALETTE.text};font-family:Arial,sans-serif;">
+          <main style="max-width:640px;margin:0 auto;padding:32px;">
+            <section style="background:${PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
+              <p style="letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.violetSoft};font-size:12px;">Orvel</p>
+              <h1 style="font-size:28px;margin:0 0 12px;color:${PALETTE.text};">Turno confirmado</h1>
+              <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
+              ${viewLink ? `
+                <p style="margin-top:28px;">
+                  <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
+                </p>
+              ` : ''}
+            </section>
+          </main>
+        </body>
+      </html>`,
   };
 }
 
