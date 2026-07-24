@@ -249,7 +249,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
-        const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 : 400;
+        const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
+          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' ? 422 : 400;
         return { status: statusCode, error: apiError };
       }
 
@@ -496,7 +497,8 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
-        const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 : 400;
+        const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
+          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' ? 422 : 400;
         return { status: statusCode, error: apiError };
       }
 

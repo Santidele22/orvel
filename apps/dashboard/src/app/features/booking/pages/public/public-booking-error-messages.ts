@@ -25,6 +25,14 @@ export function getPublicBookingSubmitErrorMessage(error?: ApiError): string {
     return SLOT_UNAVAILABLE_MESSAGE;
   }
 
+  if (searchable.includes('BOOKING_TOO_SOON')) {
+    return 'Este turno es muy pronto. El negocio requiere al menos 2 horas de anticipación.';
+  }
+
+  if (searchable.includes('BOOKING_TOO_FAR_ADVANCE')) {
+    return 'Este turno excede el horizonte permitido por el negocio. Elegí una fecha más cercana.';
+  }
+
   if (
     searchable.includes('BUSINESS_NOT_FOUND') ||
     searchable.includes('BRANCH_NOT_FOUND') ||
