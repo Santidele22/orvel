@@ -48,9 +48,13 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(processor).toMatch(/MAILTRAP_API_URL/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
-    expect(processor).toMatch(/booking_cancelled_business[\s\S]*renderAppointmentBusinessCancellationEmail/);
-    expect(sharedTemplates).toMatch(/export function renderAppointmentBusinessCancellationEmail/);
-      expect(sharedTemplates).toMatch(/business_cancellation/);
+    // Post-1.0.1 PR #2 + 1.0.2 PR #3 (email-templates-shared): the processor no longer
+    // routes business-recipient emails. The owner email is no longer enqueued for
+    // ordinary booking events. This contract locks that decision.
+    expect(processor).not.toMatch(/booking_cancelled_business/);
+    expect(processor).not.toMatch(/booking_created_business/);
+    expect(sharedTemplates).toMatch(/export function renderAppointmentConfirmationEmail/);
+      expect(sharedTemplates).toMatch(/export function renderAppointmentRescheduleEmail/);
   });
 
   it('uses clear internal recipient roles and avoids inert appointment action links', () => {
