@@ -42,35 +42,35 @@ describe('Booking lifecycle email notifications contract', () => {
   it('renders distinct booking-user and business-client lifecycle templates through the Mailtrap outbox processor', () => {
     // Arrange
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
-    const templates = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/_shared/templates/appointment-templates.ts'));
+    const sharedTemplates = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     // Act / Assert
     expect(processor).toMatch(/MAILTRAP_API_URL/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
     expect(processor).toMatch(/booking_cancelled_business[\s\S]*renderAppointmentBusinessCancellationEmail/);
-    expect(templates).toMatch(/export function renderAppointmentBusinessCancellationEmail/);
-      expect(templates).toMatch(/business_cancellation/);
+    expect(sharedTemplates).toMatch(/export function renderAppointmentBusinessCancellationEmail/);
+      expect(sharedTemplates).toMatch(/business_cancellation/);
   });
 
   it('uses clear internal recipient roles and avoids inert appointment action links', () => {
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
-    const templates = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/_shared/templates/appointment-templates.ts'));
+    const sharedTemplates2 = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     expect(migration).toMatch(/'booking_user'/);
     expect(migration).toMatch(/'business_client'/);
     expect(migration).not.toMatch(/'usuario'|'cliente'/);
     expect(processor).not.toMatch(/view: "#"|cancel: "#"|reschedule: "#"|return "#"/);
-    expect(templates).not.toMatch(/href="\$\{escapeAttribute\([^}]+\)\}"[\s\S]*safeAppointmentLink\([^)]*\): string[\s\S]*return '#'/);
-    expect(templates).not.toContain('href="#"');
-    expect(templates).toMatch(/renderSecondaryActions/);
+    expect(sharedTemplates2).not.toMatch(/href="\$\{escapeAttribute\([^}]+\)\}"[\s\S]*safeAppointmentLink\([^)]*\): string[\s\S]*return '#'/);
+    expect(sharedTemplates2).not.toContain('href="#"');
+    expect(sharedTemplates2).toMatch(/renderSecondaryActions/);
   });
 
   it('safely formats business notification address, price, duration, and schedule fields', () => {
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql'));
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
-    const templates = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/_shared/templates/appointment-templates.ts'));
+    const sharedTemplates3 = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     expect(migration).toMatch(/'business_address'[\s\S]*COALESCE\(br\.address, ''\)/i);
     expect(migration).toMatch(/'duration_minutes'[\s\S]*EXTRACT\(EPOCH FROM \(p_booking\.ends_at - p_booking\.starts_at\)\)/i);
@@ -80,8 +80,8 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(processor).toMatch(/firstNonBlank\(branch\?\.address, fullData\.business_address, fullData\.branch_address\)/);
     expect(processor).toMatch(/finiteNumber\(bookingRow\.price_at_booking\) \?\? finiteNumber\(service\?\.price\)/);
     expect(processor).toMatch(/minutesBetween\(bookingRow\.starts_at, bookingRow\.ends_at\)/);
-    expect(templates).toMatch(/Number\.isFinite\(price\)/);
-    expect(templates).toMatch(/Number\.isFinite\(duration\)/);
+    expect(sharedTemplates3).toMatch(/Number\.isFinite\(price\)/);
+    expect(sharedTemplates3).toMatch(/Number\.isFinite\(duration\)/);
   });
 
   it('hardens public booking business recipient resolution and logs skipped owner emails', () => {

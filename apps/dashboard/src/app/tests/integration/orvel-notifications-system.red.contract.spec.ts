@@ -112,7 +112,7 @@ async function loadOutboxEmailSenderModule(): Promise<OutboxEmailSenderModule> {
 
 async function loadAppointmentTemplatesModule(): Promise<AppointmentTemplatesModule> {
   try {
-    const mod = await import('../../core/notifications/templates/appointment-email-templates');
+    const mod = await import('@orvel/shared/email-templates');
     return mod as AppointmentTemplatesModule;
   } catch {
     throw new Error(
