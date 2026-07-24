@@ -1,8 +1,22 @@
 ---
 // Organism: Features (Business Types Section)
-// Section for different business types: Peluquerías, Barberías, Spas, etc.
+// Renders promoted business types dynamically from the catalog.
+import { getPromotedBusinessTypes } from '../../lib/business-types';
+
+const promotedTypes = getPromotedBusinessTypes();
+const FEATURE_IMAGES: Record<string, string> = {
+  barberia: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800',
+  masajes: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800',
+  peluqueria: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800',
+  unas: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800',
+};
+const FEATURE_TAGLINES: Record<string, string> = {
+  barberia: 'Reservas automáticas.',
+  masajes: 'Buffers y preparación.',
+  peluqueria: 'Cortes y color sin estrés.',
+  unas: 'Organización al minuto.',
+};
 ---
-<!-- Peluquería se reincorpora en release 1.0.5 -->
 
 <section class="landing-section-compact relative overflow-hidden" id="tipos">
   <div class="landing-container">
@@ -12,57 +26,24 @@
       <p class="landing-lead text-text-secondary font-body mx-auto">Seleccioná tu rubro y descubrí cómo Orvel aumenta tu facturación optimizando la manera en que te compran.</p>
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-      <!-- Barberías -->
-      <div class="group relative h-80 rounded-2xl overflow-hidden block border border-border shadow-md">
-        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800" alt="Barberías" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100" />
-        <div class="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/60 to-transparent transition-opacity group-hover:opacity-90"></div>
-        <div class="absolute inset-0 p-8 flex flex-col justify-end">
-          <div class="flex items-center justify-between">
-            <div>
-              <h4 class="font-headline font-bold text-2xl text-white drop-shadow-sm tracking-tight mb-1">Barberías</h4>
-              <p class="text-white/70 font-body text-xs font-medium">Reservas automáticas.</p>
-            </div>
-            <div class="w-10 h-10 rounded-full bg-primary shadow-[0_0_15px_rgba(162,207,203,0.5)] flex items-center justify-center opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              <i class="ri-arrow-right-line text-[#0e0e0e] text-sm font-bold"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Masajes -->
-      <div class="group relative h-80 rounded-2xl overflow-hidden block border border-border shadow-md">
-        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800" alt="Masajes" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100" />
-        <div class="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/60 to-transparent transition-opacity group-hover:opacity-90"></div>
-        <div class="absolute inset-0 p-8 flex flex-col justify-end">
-          <div class="flex items-center justify-between">
-            <div>
-              <h4 class="font-headline font-bold text-2xl text-white drop-shadow-sm tracking-tight mb-1">Masajes</h4>
-              <p class="text-white/70 font-body text-xs font-medium">Buffers y preparación.</p>
-            </div>
-            <div class="w-10 h-10 rounded-full bg-primary shadow-[0_0_15px_rgba(162,207,203,0.5)] flex items-center justify-center opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              <i class="ri-arrow-right-line text-[#0e0e0e] text-sm font-bold"></i>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5 lg:gap-6">
+      {promotedTypes.map((bt) => (
+        <div class="group relative h-80 rounded-2xl overflow-hidden block border border-border shadow-md">
+          <img loading="lazy" decoding="async" src={FEATURE_IMAGES[bt.code] || 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800'} alt={bt.label} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100" />
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/60 to-transparent transition-opacity group-hover:opacity-90"></div>
+          <div class="absolute inset-0 p-8 flex flex-col justify-end">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-headline font-bold text-2xl text-white drop-shadow-sm tracking-tight mb-1">{bt.label}</h4>
+                <p class="text-white/70 font-body text-xs font-medium">{FEATURE_TAGLINES[bt.code] || ''}</p>
+              </div>
+              <div class="w-10 h-10 rounded-full bg-primary shadow-[0_0_15px_rgba(162,207,203,0.5)] flex items-center justify-center opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                <i class="ri-arrow-right-line text-[#0e0e0e] text-sm font-bold"></i>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Salones de Uñas -->
-      <div class="group relative h-80 rounded-2xl overflow-hidden block border border-border shadow-md">
-        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800" alt="Salones de Uñas" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100" />
-        <div class="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/60 to-transparent transition-opacity group-hover:opacity-90"></div>
-        <div class="absolute inset-0 p-8 flex flex-col justify-end">
-          <div class="flex items-center justify-between">
-            <div>
-              <h4 class="font-headline font-bold text-2xl text-white drop-shadow-sm tracking-tight mb-1">Nail Salons</h4>
-              <p class="text-white/70 font-body text-xs font-medium">Organización al minuto.</p>
-            </div>
-            <div class="w-10 h-10 rounded-full bg-primary shadow-[0_0_15px_rgba(162,207,203,0.5)] flex items-center justify-center opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              <i class="ri-arrow-right-line text-[#0e0e0e] text-sm font-bold"></i>
-            </div>
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   </div>
 </section>
