@@ -22,10 +22,15 @@ export interface DashboardNotification {
   archivedAt?: string | null;
 }
 
+export const DEFAULT_NOTIFICATIONS_LIMIT = 50;
+
 export interface ListAdminNotificationsInput {
   businessId: string;
   unreadOnly?: boolean;
   includeArchived?: boolean;
+  limit?: number;
+  cursor?: string;
+  cursorId?: string;
 }
 
 import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
@@ -38,12 +43,17 @@ export async function listAdminNotifications(
     .from('dashboard_notifications')
     .select('*')
     .eq('business_id', input.businessId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(input.limit ?? DEFAULT_NOTIFICATIONS_LIMIT);
 
   if (input.unreadOnly) {
     query = query.eq('status', 'unread');
   } else if (!input.includeArchived) {
     query = query.in('status', ['unread', 'read']);
+  }
+
+  if (input.cursor && input.cursorId) {
+    query = query.lt('created_at', input.cursor).or(`id.lt.${input.cursorId},created_at.lt.${input.cursor}`);
   }
 
   const { data, error } = await query;
