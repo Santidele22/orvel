@@ -13,6 +13,20 @@ describe('public booking submit error messages', () => {
     expect(message).not.toMatch(/BRANCH_NOT_FOUND|create_public_booking|public\./i);
   });
 
+  it('maps BOOKING_TOO_SOON to a safe message without leaking internals', () => {
+    const message = getPublicBookingSubmitErrorMessage({ code: 'BOOKING_TOO_SOON', message: 'BOOKING_TOO_SOON' });
+
+    expect(message).toMatch(/pronto|anticipación/i);
+    expect(message).not.toMatch(/BOOKING_TOO_SOON|create_public_booking/i);
+  });
+
+  it('maps BOOKING_TOO_FAR_ADVANCE to a safe message without leaking internals', () => {
+    const message = getPublicBookingSubmitErrorMessage({ code: 'BOOKING_TOO_FAR_ADVANCE', message: 'BOOKING_TOO_FAR_ADVANCE' });
+
+    expect(message).toMatch(/horizonte|cercana/i);
+    expect(message).not.toMatch(/BOOKING_TOO_FAR_ADVANCE|create_public_booking/i);
+  });
+
   it('keeps raw backend details in diagnostics logs', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 

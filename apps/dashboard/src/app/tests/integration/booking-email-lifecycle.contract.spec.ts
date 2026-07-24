@@ -48,7 +48,7 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(processor).toMatch(/MAILTRAP_API_URL/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
-    expect(processor).toMatch(/booking_cancelled_business[\s\S]*renderAppointmentBusinessCancellationEmail/);
+    expect(processor).toMatch(/Dead branch removed in 1\.0\.2.*_business/);
     expect(sharedTemplates).toMatch(/export function renderAppointmentBusinessCancellationEmail/);
       expect(sharedTemplates).toMatch(/business_cancellation/);
   });
