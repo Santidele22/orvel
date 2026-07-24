@@ -77,7 +77,7 @@ export class DashboardNotificationsService implements OnDestroy {
     }
   }
 
-  async refreshForAdmin(): Promise<void> {
+  async refreshForAdmin(cursor?: { createdAt: string; id: string }): Promise<void> {
     const businessId = await this.resolveBusinessId();
     if (!businessId) {
       this.applyMissingBusinessContext();
@@ -89,19 +89,41 @@ export class DashboardNotificationsService implements OnDestroy {
 
     try {
       const [notificationList, notificationCount] = await Promise.all([
-        listAdminNotifications({ businessId }),
+        listAdminNotifications({
+          businessId,
+          ...(cursor ? { cursor: cursor.createdAt, cursorId: cursor.id } : {}),
+        }),
         getUnreadNotificationCount(businessId),
       ]);
 
-      this.notificationsState.set(notificationList);
+      if (cursor) {
+        // Append to existing results when loading more
+        this.notificationsState.update((existing) => [...existing, ...notificationList]);
+      } else {
+        this.notificationsState.set(notificationList);
+      }
       this.unreadNotificationCountState.set(notificationCount);
     } catch (error) {
       this.errorState.set(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones');
-      this.notificationsState.set([]);
-      this.unreadNotificationCountState.set(0);
+      if (!cursor) {
+        this.notificationsState.set([]);
+        this.unreadNotificationCountState.set(0);
+      }
     } finally {
       this.loadingState.set(false);
     }
+  }
+
+  /**
+   * Loads the next page of notifications using cursor-based pagination.
+   * The cursor is derived from the last loaded notification (createdAt + id).
+   */
+  loadMore(): void {
+    const current = this.notificationsState();
+    if (current.length === 0) return;
+
+    const last = current[current.length - 1];
+    void this.refreshForAdmin({ createdAt: last.createdAt, id: last.id });
   }
 
   async clearAll(): Promise<void> {
