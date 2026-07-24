@@ -6,9 +6,9 @@ export {
   renderAppointmentBusinessNotificationEmail,
   renderAppointmentBusinessCancellationEmail,
   formatArgentinaAppointmentDate,
-} from './appointment-templates';
+} from './appointment-templates.ts';
 
 export type {
   AppointmentTemplateData,
   EmailPayload,
-} from './appointment-template.types';
+} from './appointment-template.types.ts';
