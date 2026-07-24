@@ -9,7 +9,7 @@ import {
   formatArgentinaAppointmentDate,
   type AppointmentTemplateData,
   type EmailPayload,
-} from './appointment-templates';
+} from './appointment-templates.ts';
 
 const MINIMAL_DATA: AppointmentTemplateData = {
   customer: { name: 'Cliente Test', email: 'cliente@test.test' },

@@ -1,4 +1,4 @@
-import type { AppointmentTemplateData, EmailPayload } from './appointment-template.types';
+import type { AppointmentTemplateData, EmailPayload } from './appointment-template.types.ts';
 
 // ── Palette ──────────────────────────────────────────
 const PALETTE = {
