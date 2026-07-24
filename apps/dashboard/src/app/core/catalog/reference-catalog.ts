@@ -17,7 +17,6 @@ export type CatalogAddOn = {
 export type CatalogBusinessType = {
   code: string;
   label: string;
-  themeKey: string;
   sortOrder: number;
   defaultCapacity: number;
 };
@@ -62,14 +61,14 @@ export const DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD = {
     { alias: 'ESCALA', plan_code: 'PREMIUM' }
   ],
   business_types: [
-    { code: 'peluqueria', label: 'Peluquería', theme_key: 'beauty', sort_order: 10, default_capacity: 2 },
-    { code: 'unas', label: 'Uñas', theme_key: 'beauty', sort_order: 20, default_capacity: 1 },
-    { code: 'barberia', label: 'Barbería', theme_key: 'beauty', sort_order: 30, default_capacity: 2 },
-    { code: 'spa', label: 'Spa', theme_key: 'wellness', sort_order: 40, default_capacity: 2 },
-    { code: 'pestanas', label: 'Pestañas', theme_key: 'beauty', sort_order: 50, default_capacity: 1 },
-    { code: 'cejas', label: 'Cejas', theme_key: 'beauty', sort_order: 60, default_capacity: 1 },
-    { code: 'masajes', label: 'Masajes', theme_key: 'wellness', sort_order: 70, default_capacity: 1 },
-    { code: 'otro', label: 'Otro', theme_key: 'default', sort_order: 999, default_capacity: 1 }
+    { code: 'peluqueria', label: 'Peluquería', sort_order: 10, default_capacity: 2 },
+    { code: 'unas', label: 'Uñas', sort_order: 20, default_capacity: 1 },
+    { code: 'barberia', label: 'Barbería', sort_order: 30, default_capacity: 2 },
+    { code: 'spa', label: 'Spa', sort_order: 40, default_capacity: 2 },
+    { code: 'pestanas', label: 'Pestañas', sort_order: 50, default_capacity: 1 },
+    { code: 'cejas', label: 'Cejas', sort_order: 60, default_capacity: 1 },
+    { code: 'masajes', label: 'Masajes', sort_order: 70, default_capacity: 1 },
+    { code: 'otro', label: 'Otro', sort_order: 999, default_capacity: 1 }
   ],
   business_type_aliases: [
     { alias: 'peluquería', business_type_code: 'peluqueria' },
@@ -263,7 +262,6 @@ export function normalizeDashboardReferenceCatalog(input: unknown): DashboardRef
         return {
           code,
           label: readString(businessType, 'label') || code,
-          themeKey: readString(businessType, 'themeKey', 'theme_key') || 'default',
           sortOrder: readNumber(businessType, 'sortOrder', 'sort_order'),
           defaultCapacity: readNumber(businessType, 'defaultCapacity', 'default_capacity', 1)
         };
