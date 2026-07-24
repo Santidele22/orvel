@@ -107,18 +107,18 @@ Revertir migración M1: `DROP COLUMN IF EXISTS is_promoted`. Revertir `get_dashb
 
 ### Fase 2.1 — Preflight: verificar dependencias de theme_key
 
-- [ ] 2.1.1 Ejecutar `\d+ public.business_types` contra DB local y documentar toda vista, constraint, o función que referencie `theme_key`.
-- [ ] 2.1.2 Verificar que `get_dashboard_reference_catalog()` es la única vista/función activa que referencia `theme_key`. Si hay más, listarlas y planificar recreación en M2.
+- [x] 2.1.1 Ejecutar `\d+ public.business_types` contra DB local y documentar toda vista, constraint, o función que referencie `theme_key`.
+- [x] 2.1.2 Verificar que `get_dashboard_reference_catalog()` es la única vista/función activa que referencia `theme_key`. Si hay más, listarlas y planificar recreación en M2.
        **Bloqueante**: si existen vistas no documentadas, no avanzar hasta resolver.
 
 **Commit**: `docs(db): preflight theme_key dependencies before drop`
 
 ### Fase 2.2 — Migración: drop theme_key column (RED → GREEN)
 
-- [ ] 2.2.1 Crear contract test `supabase/checks/20260724011000_drop_theme_key.contract.test.mjs`:
+- [x] 2.2.1 Crear contract test `supabase/checks/20260724011000_drop_theme_key.contract.test.mjs`:
        verifica que (a) columna `theme_key` ya no existe post-migración, (b) las 8 filas conservan sus demás columnas intactas, (c) `get_dashboard_reference_catalog()` funciona y no incluye `theme_key` en el output JSON.
        **RED**: ejecutar → falla (columna aún existe).
-- [ ] 2.2.2 Crear migración `supabase/migrations/20260724011000_drop_business_types_theme_key.sql`:
+- [x] 2.2.2 Crear migración `supabase/migrations/20260724011000_drop_business_types_theme_key.sql`:
        ```sql
        BEGIN;
        -- Redefinir get_dashboard_reference_catalog() sin theme_key en business_types
@@ -127,49 +127,49 @@ Revertir migración M1: `DROP COLUMN IF EXISTS is_promoted`. Revertir `get_dashb
        COMMIT;
        ```
        **GREEN**: contract test → 100% pasa.
-- [ ] 2.2.3 REFACTOR: verificar idempotencia (`DROP COLUMN IF EXISTS`).
+- [x] 2.2.3 REFACTOR: verificar idempotencia (`DROP COLUMN IF EXISTS`).
 
 **Commit**: `refactor(db): drop theme_key column from business_types`
 
 ### Fase 2.3 — Dashboard: simplificar resolver de tema (RED → GREEN)
 
-- [ ] 2.3.1 Crear/actualizar test unitario `dashboard-business-rules.test.ts`:
+- [x] 2.3.1 Crear/actualizar test unitario `dashboard-business-rules.test.ts`:
        verifica que `resolveDashboardConfig()` siempre retorna tema `'zen'` sin lookup, para cualquier businessType.
        **RED**: test falla (aún existe `THEME_BY_BUSINESS_TYPE`).
-- [ ] 2.3.2 `apps/dashboard/src/app/core/theming/dashboard-business-rules.ts` — Eliminar `THEME_BY_BUSINESS_TYPE`, simplificar `resolveDashboardConfig()` para retornar `theme: 'zen'` sin map lookup. Remover tipo `BusinessType` si no se usa en otro lado.
+- [x] 2.3.2 `apps/dashboard/src/app/core/theming/dashboard-business-rules.ts` — Eliminar `THEME_BY_BUSINESS_TYPE`, simplificar `resolveDashboardConfig()` para retornar `theme: 'zen'` sin map lookup. Remover tipo `BusinessType` si no se usa en otro lado.
        **GREEN**: test unitario pasa.
-- [ ] 2.3.3 `apps/dashboard/src/app/core/theming/dashboard-session-business-types.ts` — Si consume `BusinessType`, actualizar imports.
-- [ ] 2.3.4 `apps/dashboard/src/app/core/catalog/reference-catalog.ts` — Si tipa `theme_key`, remover del tipo.
-- [ ] 2.3.5 REFACTOR: `grep -r "THEME_BY_BUSINESS_TYPE" apps/` → cero resultados.
+- [x] 2.3.3 `apps/dashboard/src/app/core/theming/dashboard-session-business-types.ts` — Si consume `BusinessType`, actualizar imports.
+- [x] 2.3.4 `apps/dashboard/src/app/core/catalog/reference-catalog.ts` — Si tipa `theme_key`, remover del tipo.
+- [x] 2.3.5 REFACTOR: `grep -r "THEME_BY_BUSINESS_TYPE" apps/` → cero resultados.
 
 **Commit**: `refactor(dashboard): simplify theme resolver to always return zen`
 
 ### Fase 2.4 — Tokens: conservar solo palette zen
 
-- [ ] 2.4.1 `apps/dashboard/src/app/core/theming/dashboard-theme-palettes.tokens.ts` — Eliminar palettes/alias no `zen`. Dejar solo la exportación de `zen`.
-- [ ] 2.4.2 `apps/dashboard/src/app/core/theming/theme.tokens.ts` — Si exporta `DashboardThemeName` como union type, simplificar a `type DashboardThemeName = 'zen'` o eliminar el tipo si es innecesario.
-- [ ] 2.4.3 REFACTOR: `grep -r "theme_key" apps/ supabase/functions/` — solo resultados en migraciones históricas o docs, no en código vivo.
+- [x] 2.4.1 `apps/dashboard/src/app/core/theming/dashboard-theme-palettes.tokens.ts` — Eliminar palettes/alias no `zen`. Dejar solo la exportación de `zen`.
+- [x] 2.4.2 `apps/dashboard/src/app/core/theming/theme.tokens.ts` — Si exporta `DashboardThemeName` como union type, simplificar a `type DashboardThemeName = 'zen'` o eliminar el tipo si es innecesario.
+- [x] 2.4.3 REFACTOR: `grep -r "theme_key" apps/ supabase/functions/` — solo resultados en migraciones históricas o docs, no en código vivo.
 
-**Commit**: `refactor(dashboard): keep only zen palette in tokens`
+**Commit**: `refactor(dashboard): remove themeKey from CatalogBusinessType and fixture data`
 
 ### Fase 2.5 — Verificación final PR #2
 
-- [ ] 2.5.1 Contract test `supabase/checks/20260724011000_drop_theme_key.contract.test.mjs` — 100% pasa.
-- [ ] 2.5.2 Test unitario `dashboard-business-rules.test.ts` — 100% pasa.
-- [ ] 2.5.3 `pnpm build` desde `apps/dashboard/` — sin errores.
-- [ ] 2.5.4 `grep -r "theme_key" apps/ supabase/functions/` — sin resultados en código vivo.
-- [ ] 2.5.5 Los 21 contract tests de 1.0.1 siguen pasando.
+- [x] 2.5.1 Contract test `supabase/checks/20260724011000_drop_theme_key.contract.test.mjs` — 100% pasa.
+- [x] 2.5.2 Test unitario `dashboard-business-rules.test.ts` — 100% pasa.
+- [x] 2.5.3 `pnpm build` desde `apps/dashboard/` — sin errores.
+- [x] 2.5.4 `grep -r "theme_key" apps/ supabase/functions/` — sin resultados en código vivo.
+- [x] 2.5.5 Los 41 contract tests (1.0.1 + PR #1 + PR #2) siguen pasando.
 
 ### DoD PR #2
 
-- [ ] Columna `theme_key` eliminada de `business_types`
-- [ ] `get_dashboard_reference_catalog()` no incluye `theme_key`
-- [ ] `THEME_BY_BUSINESS_TYPE` eliminado de `dashboard-business-rules.ts`
-- [ ] Resolver de tema hardcodeado a `'zen'`
-- [ ] Palette `zen` es la única en tokens
-- [ ] `grep theme_key` en código vivo = cero resultados
-- [ ] `pnpm build` dashboard pasa
-- [ ] Contract tests 1.0.1 intactos
+- [x] Columna `theme_key` eliminada de `business_types`
+- [x] `get_dashboard_reference_catalog()` no incluye `theme_key`
+- [x] `THEME_BY_BUSINESS_TYPE` eliminado de `dashboard-business-rules.ts`
+- [x] Resolver de tema hardcodeado a `'zen'`
+- [x] Palette `zen` es la única en tokens
+- [x] `grep theme_key` en código vivo = cero resultados
+- [x] `pnpm build` dashboard pasa
+- [x] Contract tests 1.0.1 intactos
 
 ### Rollback PR #2
 
