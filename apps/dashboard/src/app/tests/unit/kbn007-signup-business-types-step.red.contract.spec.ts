@@ -321,7 +321,7 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
           ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD,
           business_types: [
             ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.business_types,
-            { code: 'depilacion', label: 'Depilación', theme_key: 'beauty', sort_order: 80, default_capacity: 1 }
+            { code: 'depilacion', label: 'Depilación', sort_order: 80, default_capacity: 1 }
           ],
           business_type_aliases: [
             ...catalogModule.DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE_PAYLOAD.business_type_aliases,
