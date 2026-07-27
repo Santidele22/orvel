@@ -11,6 +11,7 @@ import { applyDashboardTheme } from '../../core/theming/theme-runtime';
 import { DashboardThemeName } from '../../core/theming/theme.tokens';
 import { DashboardSidebarComponent } from '../dashboard-sidebar/dashboard-sidebar.component';
 import { DashboardTopbarComponent } from '../dashboard-topbar/dashboard-topbar.component';
+import { MobileBottomNavComponent } from '../../core/shell/mobile-bottom-nav/mobile-bottom-nav.component';
 import { ThemeService } from '../../core/theming/theme.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
@@ -20,7 +21,7 @@ import { navigateAfterLogout } from './logout-navigation';
 @Component({
   selector: 'app-dashboard-shell',
   standalone: true,
-  imports: [RouterOutlet, DashboardSidebarComponent, DashboardTopbarComponent],
+  imports: [RouterOutlet, DashboardSidebarComponent, DashboardTopbarComponent, MobileBottomNavComponent],
   templateUrl: './dashboard-shell.component.html',
   styleUrl: './dashboard-shell.component.scss'
 })
@@ -77,6 +78,10 @@ export class DashboardShellComponent implements AfterViewInit {
 
   protected toggleSidebarCollapsed(): void {
     this.isSidebarCollapsed.update(collapsed => !collapsed);
+  }
+
+  protected navigateToNewTurno(): void {
+    void this.router.navigate(['/dashboard/turnos/new']);
   }
 
   protected async handleLogout(): Promise<void> {
