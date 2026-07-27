@@ -1,6 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { NgClass } from '@angular/common';
 
 export interface NavItem {
   path: string;
@@ -13,7 +12,7 @@ export interface NavItem {
 @Component({
   selector: 'app-mobile-bottom-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, NgClass],
+  imports: [RouterLink, RouterLinkActive],
   template: `
     <nav
       class="fixed bottom-0 inset-x-0 z-50 lg:hidden safe-area-bottom"

@@ -5,29 +5,29 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: 'var(--primary)',
-        'primary-hover': 'var(--primary-hover)',
+        primary: 'rgb(var(--or-primary-rgb) / <alpha-value>)',
+        'primary-hover': 'rgb(var(--or-primary-rgb) / <alpha-value>)',
         'primary-light': 'var(--primary-light)',
-        'primary-soft': 'rgba(124, 58, 237, 0.1)',
+        'primary-soft': 'rgb(var(--or-primary-rgb) / 0.1)',
 
-        'bg-primary': 'var(--bg-primary)',
-        'bg-secondary': 'var(--bg-secondary)',
+        'bg-primary': 'rgb(var(--or-bg-primary-rgb) / <alpha-value>)',
+        'bg-secondary': 'rgb(var(--or-bg-secondary-rgb) / <alpha-value>)',
 
         'text-primary': 'var(--text-primary)',
         'text-secondary': 'var(--text-secondary)',
         'text-tertiary': 'var(--divider)',
 
         success: 'var(--success)',
-        error: 'var(--error)',
+        error: 'rgb(var(--or-error-rgb) / <alpha-value>)',
         warning: 'var(--warning)',
 
         border: 'var(--border)',
         divider: 'var(--divider)',
 
         /* Legacy support mappings */
-        surface: 'var(--bg-secondary)',
-        'surface-muted': 'var(--bg-primary)',
-        bg: 'var(--bg-primary)',
+        surface: 'rgb(var(--or-bg-secondary-rgb) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--or-bg-primary-rgb) / <alpha-value>)',
+        bg: 'rgb(var(--or-bg-primary-rgb) / <alpha-value>)',
         accent: 'var(--primary-light)',
         'secondary-soft': 'rgba(148, 163, 184, 0.1)',
       },
@@ -59,6 +59,9 @@ module.exports = {
         'zen-icon-lg': 'var(--or-space-8)',
         'zen-ornament': 'var(--or-space-12)',
       },
+      maxWidth: {
+        'zen-content': '1200px',
+      },
       borderRadius: {
         sm: 'var(--radius-sm)',
         md: 'var(--radius-md)',
@@ -70,9 +73,11 @@ module.exports = {
         'zen-lg': 'var(--radius-lg)',
         'zen-xl': 'var(--radius-lg)',
         'zen-card': 'var(--radius-lg)',
+        'zen-full': '9999px',
       },
       letterSpacing: {
         'zen-wide': '0.1em',
+        'zen-tight': '-0.02em',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

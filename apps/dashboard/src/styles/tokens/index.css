@@ -3,10 +3,13 @@
   --or-primary: #7C3AED;
   --or-primary-hover: #6D28D9;
   --or-primary-light: #A78BFA;
+  --or-primary-rgb: 124 58 237;
 
   /* Backgrounds */
   --or-bg-primary: #0F172A;
   --or-bg-secondary: #1E293B;
+  --or-bg-primary-rgb: 15 23 42;
+  --or-bg-secondary-rgb: 30 41 59;
 
   /* Text */
   --or-text-primary: #F1F5F9;
@@ -16,6 +19,7 @@
   --or-success: #10B981;
   --or-error: #EF4444;
   --or-warning: #F59E0B;
+  --or-error-rgb: 239 68 68;
 
   /* Neutrals */
   --or-border: #334155;
