@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/**/*.js",
+          "/**/*.css",
+          "/**/*.html",
+          "/icons/*.png",
+          "/manifest.webmanifest"
+        ]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/**/*.woff2",
+          "/**/*.woff",
+          "/**/*.ttf",
+          "/**/*.svg",
+          "/**/*.ico",
+          "/**/*.png",
+          "/**/*.webp",
+          "/**/*.jpg",
+          "/**/*.jpeg",
+          "/**/*.gif"
+        ]
+      }
+    }
+  ]
+}
