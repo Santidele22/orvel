@@ -7,10 +7,23 @@
 
 # Funemon local metadata
 .funemon/
+funemon/
+funemon.project.json
 
 # Client-specific local agent/tooling metadata
 .opencode/
 .atl/
+
+# Brand assets handoff (move to company-os repo, then delete this folder)
+to-company-os-export/
+
+# Local marketing assets (not committed)
+marketing/
+screenshots/
+
+# Skill registry locks (local cache)
+skills-lock.json
+*.build-lock.recovery-*/
 
 # Dependencies
 node_modules/
