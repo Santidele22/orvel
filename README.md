@@ -1,163 +1,145 @@
 # Orvel
 
-> Sistema de gestión de turnos para salones de belleza — multi-tenant SaaS con foco mobile-first.
+> El negocio de tu salón en el bolsillo.
 
-[![CI](https://github.com/Santidele22/orvel/actions/workflows/booking-regression.yml/badge.svg)](https://github.com/Santidele22/orvel/actions/workflows/booking-regression.yml)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Orvel es un sistema de gestión de turnos pensado para salones de belleza — uñas, barbería, peluquería, masajes, estética. Reemplaza el cuaderno, el Excel y el grupo de WhatsApp por una agenda digital que funciona desde el celular.
 
-## ¿Qué es Orvel?
+---
 
-Orvel es un SaaS B2B para salones de belleza (uñas, barbería, peluquería, masajes, estética) que reemplaza la gestión manual de turnos (papel, Excel, WhatsApp) por un sistema digital pensado para celular. Las dueñas y recepcionistas reservan, modifican y dan seguimiento desde el teléfono; los clientes finales reservan solos desde una página pública.
+## El problema que conocemos
 
-## Features
+Si tenés un salón, seguro te pasa alguna de estas:
 
-- **Agenda mobile-first**: day strip con scroll horizontal, cards de turnos con estado y duración, FAB para walk-ins.
-- **Reservas públicas**: cada salón tiene una landing donde sus clientes reservan sin necesidad de login.
-- **Walk-in**: crear turnos en el momento para clientes sin reserva previa.
-- **Multi-profesional** (roadmap): soporte para equipos con varios profesionales, horarios individuales y asignación de turnos.
-- **Notificaciones en tiempo real**: las dueñas ven nuevas reservas al instante vía Supabase Realtime.
-- **Facturación Mercado Pago** (suscripción recurrente).
-- **PWA instalable**: la app puede instalarse en el celular del dueño como aplicación nativa.
+- Anotás turnos en un cuaderno que se pierde o se borra con la lluvia.
+- Manejás todo por WhatsApp y nadie sabe qué horarios están libres.
+- El cliente llama, no atendés, y se va a la competencia.
+- Tenés una app pero nadie la usa porque es fea o complicada.
+- Querés ver cuánto facturás este mes y no sabés ni por dónde empezar.
 
-## Stack
+Orvel existe para sacarte eso de encima.
+
+---
+
+## Qué hace Orvel
+
+### Para vos, dueña o recepcionista
+
+- **Agenda mobile-first**: el día se ve claro, scroll horizontal para mover entre días, tap para ver detalle, botón flotante para crear un walk-in en 3 segundos.
+- **Reservas en vivo**: cuando alguien reserva desde tu página, aparece al instante. Si cancela, también.
+- **Clientes y servicios**: alta de clientes, catálogo de servicios con duración y precio, profesionales con sus horarios.
+- **Notificaciones**: nuevos turnos, cancelaciones, señas pendientes — lo importante, sin ruido.
+- **Reportes simples**: turnos del día, facturación, próximos huecos. Lo que necesitás ver en 10 segundos.
+
+### Para tu cliente final
+
+- **Reserva sin login**: cada salón tiene una página pública (`tusalon.com/orvel`) donde el cliente elige servicio, día y horario en menos de 1 minuto.
+- **Confirmación por email**: el cliente recibe un mail con el detalle y un link para cancelar o reprogramar si necesita.
+- **No necesitás instalar nada**: la página funciona en cualquier celular con browser.
+
+### Para tu equipo (cuando lo necesites)
+
+- **Multi-profesional**: si tenés manicuristas que atienden distintos servicios, cada una ve solo su agenda.
+- **Roles diferenciados**: vos como admin ves todo; tus manicuristas solo ven sus turnos y los clientes que les tocan.
+
+---
+
+## Cómo se usa (3 pasos)
+
+### 1. Creás tu salón
+
+```
+1. Te registrás en orvel.app
+2. Elegís tu rubro (uñas, barbería, etc.)
+3. Cargás tus servicios (con duración y precio)
+4. Configurás tus horarios de atención
+```
+
+Tiempo: 10 minutos.
+
+### 2. Compartís tu página
+
+```
+- orvel.app/tu-salon
+- o un subdominio: salon-bella.orvel.app
+- o tu propio dominio: reserva.tusalon.com
+```
+
+Pegás el link en tu Instagram, tu Google Maps, tu vidriera. Los clientes reservan solos.
+
+### 3. Operás desde el celular
+
+```
+Mañana: abrís Orvel en el celu, ves el día
+Walk-in: tap en "+", elegís cliente y servicio, listo
+Cliente cancela: llega la notificación, lo marcás en 1 tap
+Fin del día: ves la facturación del día
+```
+
+---
+
+## Qué incluye cada plan
+
+| | **Gratis** | **Premium** ($25.000 ARS/mes) |
+|---|---|---|
+| Turnos por mes | Hasta 30 | Ilimitados |
+| Local principal | ✅ | ✅ |
+| Landing pública | ✅ | ✅ |
+| Notificaciones | ✅ | ✅ |
+| Multi-profesional | — | Próximamente |
+| Soporte prioritario | — | ✅ |
+
+---
+
+## Por qué Orvel y no otra cosa
+
+- **Mobile-first desde el día 1**: otras apps son "web responsive" que se rompen en el celu. Orvel está pensada para celular primero.
+- **PWA instalable**: la podés instalar en la pantalla de inicio como una app nativa. No necesitás ir a Play Store.
+- **Sin entrenamiento**: la mayoría de las dueñas operaron sin ver un manual. La interfaz es directa.
+- **Hecho por gente que operó salones**: conocemos el dolor porque lo vivimos.
+
+---
+
+## Roadmap
+
+Ya está:
+- Agenda mobile-first con day strip, cards, FAB
+- Walk-in en 3 pasos (cliente → servicio → horario)
+- Página pública de reservas con email de confirmación
+- Integración Mercado Pago (suscripción recurrente)
+
+Próximamente:
+- Multi-profesional (release 1.0.5)
+- Push notifications reales
+- Reportes avanzados
+- App nativa para iOS/Android (cuando PWA no alcance)
+
+---
+
+## Stack técnico (resumido)
 
 | Capa | Tecnología |
 |------|------------|
-| Dashboard (Angular) | Angular 21 (standalone, esbuild) + Tailwind 3 |
-| Landing (Astro) | Astro 6 + Svelte 5 + Tailwind 4 |
-| Backend (BaaS) | Supabase (Postgres + Auth + Storage + Realtime + Edge Functions) |
+| Frontend dashboard | Angular 21, Tailwind CSS, PWA |
+| Frontend landing | Astro 6 |
+| Backend | Supabase (Postgres + Auth + Storage + Realtime) |
 | Edge Functions | Deno |
-| Tests unit/integration | Vitest 4 (Angular + Deno para Supabase) |
-| E2E | Playwright (chromium) |
-| Hosting dashboard + landing | Vercel |
-| Package manager | pnpm (root + landing) / Bun (dashboard) |
+| Hosting | Vercel |
+| Tests | Vitest + Playwright |
 
-## Arquitectura del monorepo
-
-```
-orvel/
-├── apps/
-│   ├── dashboard/         # Angular 21 — app para dueñas/recepcionistas (PWA mobile-first)
-│   └── landing/           # Astro 6 — landing + página pública de reservas
-├── supabase/
-│   ├── migrations/        # SQL migrations versionadas
-│   ├── functions/         # Edge Functions (Deno)
-│   ├── seed-data.sql      # Datos de prueba para desarrollo
-│   └── config.toml        # Config local de Supabase
-├── infra/
-│   └── context/           # Documentación operativa (deployment, environments, arquitectura)
-├── openspec/              # Cambios arquitectónicos formalizados (proposal/spec/design/tasks)
-├── docs/
-│   ├── adr/               # Architectural Decision Records
-│   └── runbooks/          # Guías operativas
-├── .atl/                  # Skill registry (local)
-└── .github/
-    └── workflows/         # CI/CD pipelines
-```
-
-### Por qué monorepo
-
-- Shared migrations + Edge Functions entre dashboard y landing (ambos consumen Supabase).
-- CI unificado (un solo `pnpm` workspace en root para validación rápida).
-- Mismas dependencias de tooling (Deno para Supabase, pnpm para landing, Bun para dashboard).
-
-## Getting started (local)
-
-### Requisitos
-
-- Node.js 24.x
-- pnpm 11.x (`corepack enable`)
-- Bun 1.3+ (`curl -fsSL https://bun.sh/install | bash`)
-- Deno 2.x (`curl -fsSL https://deno.land/install.sh | sh`)
-- Supabase CLI (`npx supabase --version`)
-- Docker (para Supabase local)
-
-### Setup
-
-```bash
-# 1. Clonar
-git clone https://github.com/Santidele22/orvel.git
-cd orvel
-
-# 2. Instalar deps del root (solo orquesta)
-pnpm install
-
-# 3. Instalar deps del dashboard (Bun)
-cd apps/dashboard && bun install && cd ../..
-
-# 4. Instalar deps del landing (pnpm)
-cd apps/landing && pnpm install && cd ../..
-
-# 5. Levantar Supabase local
-supabase start
-
-# 6. Aplicar migrations + seed
-supabase db reset
-```
-
-### Dev servers
-
-```bash
-# Dashboard (Angular + Vite dev server)
-cd apps/dashboard && bun run start
-# → http://localhost:4200
-
-# Landing (Astro)
-cd apps/landing && pnpm run dev
-# → http://localhost:4321
-
-# Supabase Studio (después de `supabase start`)
-# → http://localhost:54323
-```
-
-### Tests
-
-```bash
-# Dashboard (Vitest)
-cd apps/dashboard && bun run test
-
-# Supabase functions (Deno)
-cd supabase/functions && deno test --allow-read --config deno.json
-```
-
-## Deployment
-
-- **Frontend**: Vercel, deploy automático vía GitHub Actions cuando hay push a `qa` o `main` (ver `.github/workflows/deploy-promotion.yml`).
-- **Backend**: Supabase, 2 proyectos separados:
-  - `orvel-qa-dev` — ambiente compartido de desarrollo + QA
-  - `orvel-prod` — producción
-- **Local dev**: SQLite via Drizzle/Kysely (sin red, instantáneo).
-
-Más detalles en `infra/context/deployment.md` y `infra/context/environments.md`.
-
-## Contribuir
-
-1. Fork y crear branch desde `dev` (`feat/mi-cambio`)
-2. Strict TDD: spec RED → impl GREEN → refactor. Ver `project-skills/orvel-contract-testing-patterns.md`
-3. Commits con [conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`).
-4. PR contra `dev` (no contra `main` directo).
-5. CI debe pasar (`booking-regression` workflow).
-6. Branch protection requiere 1 approving review + linear history.
-
-### Convenciones
-
-- **Lenguaje de UI**: español argentino (voseo). Mensajes directos, sin marketing speak.
-- **Código**: inglés (variables, funciones, comentarios técnicos).
-- **Commits y PR descriptions**: español.
-- **No**: nunca commitear `.env`, secrets, `.funemon/`, ni `.opencode/`.
-
-## Estructura de governance
-
-- `AGENTS.md` — reglas generales del repo (leer primero).
-- `infra/context/` — contexto operativo verificado.
-- `openspec/changes/` — propuestas formales de cambios arquitectónicos.
-- `docs/adr/` — decisiones técnicas tomadas (con contexto y trade-offs).
+---
 
 ## Licencia
 
-[MIT](LICENSE) — ver `LICENSE` file.
+[MIT](LICENSE) — podés usar el código para lo que quieras, atribución appreciated.
+
+---
 
 ## Contacto
 
-- Issues: [GitHub Issues](https://github.com/Santidele22/orvel/issues)
-- Repo: [github.com/Santidele22/orvel](https://github.com/Santidele22/orvel)
+- **Web**: [orvel.app](https://orvel.app)
+- **Issues / feedback**: [github.com/Santidele22/orvel/issues](https://github.com/Santidele22/orvel/issues)
+- **Email**: hola@orvel.app (placeholder)
+
+---
+
+Hecho en Argentina 🇦🇷, pensado para salones de Latinoamérica.
