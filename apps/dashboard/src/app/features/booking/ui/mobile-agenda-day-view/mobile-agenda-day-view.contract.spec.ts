@@ -119,23 +119,49 @@ describe('MobileAgendaDayView contract', () => {
     expect(Math.abs(emptyIdx - timelineIdx)).toBeGreaterThanOrEqual(3); // different blocks
   });
 
-  // ── PR #4: TurnoService data wiring ──────────────────────────────
-  it('imports TurnoService', () => {
-    expect(componentSource).toMatch(/TurnoService/);
+  // ── PR #4 fixup: single-source data wiring (Issue 3) ──────────────
+  it('component does NOT import TurnoService (no inject)', () => {
+    expect(componentSource).not.toMatch(/\binject\(\s*TurnoService\s*\)/);
   });
 
-  it('imports TurnoService from the data-access path', () => {
-    expect(componentSource).toMatch(
-      /import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.service['"]/,
-    );
+  it('component does NOT import TurnoService from data-access path', () => {
+    expect(componentSource).not.toMatch(/import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.service['"]/);
   });
 
-  it('has a computed() signal for appointments', () => {
-    expect(componentSource).toMatch(/appointments\s*=\s*computed\(/);
+  it('component has @Output() selectedDateChange', () => {
+    expect(componentSource).toMatch(/@Output\(\)\s*selectedDateChange/);
   });
 
-  it('template @for iterates over appointments()', () => {
-    expect(templateSource).toMatch(/@for\s*\([^)]+of\s*appointments\(\)/);
+  it('component imports EventEmitter<Date>', () => {
+    expect(componentSource).toMatch(/EventEmitter<Date>/);
+  });
+
+  it('component does NOT import computed (no computed needed)', () => {
+    expect(componentSource).not.toMatch(/\bcomputed\b/);
+  });
+
+  // ── PR #4 fixup: dynamic empty state title (Issue 1) ─────────────
+  it('template uses isToday(_selectedDate()) for dynamic empty state title', () => {
+    expect(templateSource).toMatch(/isToday\(\s*_selectedDate\(\s*\)\s*\)/);
+  });
+
+  // ── PR #4 fixup: disabled CTAs with próximamente hint (Issue 2) ──
+  it('template has data-testid="mobile-agenda-pending-cta-hint"', () => {
+    expect(templateSource).toMatch(/data-testid="mobile-agenda-pending-cta-hint"/);
+  });
+
+  it('walk-in button has disabled attribute', () => {
+    // disabled and button text may be on different lines — search in proximity
+    expect(templateSource).toMatch(/disabled[\s\S]{0,200}Agregar walk-in/);
+  });
+
+  it('compartir button has disabled attribute', () => {
+    expect(templateSource).toMatch(/disabled[\s\S]{0,200}Compartir tu página/);
+  });
+
+  // ── PR #4 fixup: @for over turnos (not appointments()) ───────────
+  it('template @for iterates over turnos (not appointments())', () => {
+    expect(templateSource).toMatch(/@for\s*\([^)]*of\s+turnos[^a-zA-Z]/);
   });
 
   it('component does NOT import any admin action keywords (reschedule/block/cancel)', () => {
