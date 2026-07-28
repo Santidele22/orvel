@@ -20,6 +20,7 @@ import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { TurnoFormPage } from './turno-form.page';
+import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
 
 type BlockedTimeFormState = {
   date: string;
@@ -88,7 +89,8 @@ interface CalendarioEvento {
     CommonModule,
     FormsModule,
     CalendarPickerComponent,
-    TurnoFormPage
+    TurnoFormPage,
+    MobileAgendaDayViewComponent
   ],
   templateUrl: './turnos-list.page.html',
   styleUrl: './turnos-list.page.scss'
@@ -102,6 +104,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private router = inject(Router);
   protected branchContext = getBranchContextService();
+  /** Placeholder mobile viewport signal — PR #4 will wire the real matchMedia listener. */
+  protected isMobile = signal<boolean>(false);
   private readonly onBookingCreated = () => {
     void this.refreshTurnosFromSource();
   };

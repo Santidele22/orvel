@@ -1,0 +1,18 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  /* Bottom margin to clear the FAB + bottom-nav */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+}
+
+/* Hide scrollbar for the day strip */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
