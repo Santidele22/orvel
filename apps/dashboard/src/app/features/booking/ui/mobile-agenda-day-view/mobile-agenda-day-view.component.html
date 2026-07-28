@@ -50,10 +50,12 @@
       </div>
     </div>
   } @else if (!loading) {
-    <!-- Timeline placeholder — MobileAppointmentCard integration deferred to PR #3 -->
-    <div class="px-4 py-8 text-center text-sm text-text-tertiary" data-testid="mobile-agenda-timeline-placeholder">
-      <p>No hay turnos para mostrar.</p>
-    </div>
+    <!-- Timeline: list of MobileAppointmentCard components -->
+    <section data-testid="mobile-agenda-timeline" class="flex flex-col gap-2 px-4 py-4">
+      @for (turno of filteredTurnos(); track turno.id) {
+        <app-mobile-appointment-card [turno]="turno" />
+      }
+    </section>
   }
 
   @if (loading) {

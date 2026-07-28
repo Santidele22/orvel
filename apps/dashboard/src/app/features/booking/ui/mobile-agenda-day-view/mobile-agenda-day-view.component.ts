@@ -2,6 +2,7 @@ import { Component, Input, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { useDayStripController } from '../../../../shared/hooks/use-day-strip-controller/use-day-strip-controller';
+import { MobileAppointmentCardComponent } from '../mobile-appointment-card/mobile-appointment-card.component';
 import type { TurnoWithRelations } from '../../models/turno.model';
 
 const SPANISH_DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -9,7 +10,7 @@ const SPANISH_DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 @Component({
   selector: 'app-mobile-agenda-day-view',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, MobileAppointmentCardComponent],
   templateUrl: './mobile-agenda-day-view.component.html',
   styleUrl: './mobile-agenda-day-view.component.scss',
 })

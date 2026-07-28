@@ -83,9 +83,40 @@ describe('MobileAgendaDayView contract', () => {
     expect(templateSource).toMatch(/routerLink="\/dashboard\/turnos\/new"/);
   });
 
-  // ── PR #3 boundary: NO appointment cards ────────────────────────────────
-  it('component does NOT reference MobileAppointmentCardComponent', () => {
-    expect(componentSource).not.toMatch(/MobileAppointmentCardComponent/);
+  // ── PR #3 integration: MobileAppointmentCard ─────────────────────────────
+  it('imports MobileAppointmentCardComponent', () => {
+    expect(componentSource).toMatch(/MobileAppointmentCardComponent/);
+  });
+
+  it('component has MobileAppointmentCardComponent in imports array', () => {
+    // Verify it's listed in the component decorator imports
+    expect(componentSource).toMatch(/imports:\s*\[[^\]]*MobileAppointmentCardComponent[^\]]*\]/);
+  });
+
+  // ── Timeline section (PR #3) ─────────────────────────────────────────────
+  it('template has data-testid="mobile-agenda-timeline"', () => {
+    expect(templateSource).toMatch(/data-testid="mobile-agenda-timeline"/);
+  });
+
+  it('template renders app-mobile-appointment-card with [turno] binding', () => {
+    expect(templateSource).toMatch(/app-mobile-appointment-card/);
+  });
+
+  it('timeline and empty state are mutually exclusive (@if chains)', () => {
+    // The empty state and timeline should be in different branches of @if
+    const emptyStateLine = templateSource.match(/.*data-testid="mobile-agenda-empty-state".*/);
+    const timelineLine = templateSource.match(/.*data-testid="mobile-agenda-timeline".*/);
+    // Both should exist
+    expect(emptyStateLine).not.toBeNull();
+    expect(timelineLine).not.toBeNull();
+    // Rough check they're in different @if blocks
+    const lines = templateSource.split('\n');
+    const emptyIdx = lines.findIndex((l) => l.includes('data-testid="mobile-agenda-empty-state"'));
+    const timelineIdx = lines.findIndex((l) => l.includes('data-testid="mobile-agenda-timeline"'));
+    // The empty state is rendered when `isEmpty` is true; timeline when there are items
+    expect(emptyIdx).toBeGreaterThanOrEqual(0);
+    expect(timelineIdx).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(emptyIdx - timelineIdx)).toBeGreaterThanOrEqual(3); // different blocks
   });
 
   it('component does NOT import any admin action keywords (reschedule/block/cancel)', () => {
