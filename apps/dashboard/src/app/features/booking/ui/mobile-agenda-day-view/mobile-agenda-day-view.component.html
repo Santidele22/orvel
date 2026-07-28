@@ -52,7 +52,7 @@
   } @else if (!loading) {
     <!-- Timeline: list of MobileAppointmentCard components -->
     <section data-testid="mobile-agenda-timeline" class="flex flex-col gap-2 px-4 py-4">
-      @for (turno of filteredTurnos(); track turno.id) {
+      @for (turno of appointments(); track turno.id) {
         <app-mobile-appointment-card [turno]="turno" />
       }
     </section>
