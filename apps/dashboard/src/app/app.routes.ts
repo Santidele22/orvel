@@ -35,6 +35,14 @@ export const dashboardShellChildren: Routes = [
   {
     path: 'configuracion',
     loadComponent: () => import('./features/settings/pages/configuracion.page').then(m => m.ConfiguracionPage)
+  },
+  {
+    path: 'notificaciones',
+    loadComponent: () => import('./features/notificaciones/pages/notificaciones.page').then(m => m.NotificacionesPage)
+  },
+  {
+    path: 'perfil',
+    loadComponent: () => import('./features/perfil/pages/perfil.page').then(m => m.PerfilPage)
   }
 ];
 

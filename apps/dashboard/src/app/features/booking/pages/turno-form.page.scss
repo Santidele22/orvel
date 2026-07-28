@@ -65,7 +65,7 @@
 }
 
 textarea.form-control {
-  @apply resize-vertical;
+  @apply resize-y;
   min-height: calc(var(--zen-size-control-lg) * 3);
 }
 

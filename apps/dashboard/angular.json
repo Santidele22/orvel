@@ -50,12 +50,20 @@
               {
                 "glob": "**/*",
                 "input": "public"
-              }
+              },
+              {
+                "glob": "**/*",
+                "input": "src/icons",
+                "output": "icons"
+              },
+              "src/manifest.webmanifest"
             ],
             "styles": [
               "node_modules/remixicon/fonts/remixicon.css",
+              "src/styles.css",
               "src/styles.scss"
-            ]
+            ],
+            "serviceWorker": "src/ngsw-config.json"
           },
           "configurations": {
             "production": {
