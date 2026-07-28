@@ -119,6 +119,25 @@ describe('MobileAgendaDayView contract', () => {
     expect(Math.abs(emptyIdx - timelineIdx)).toBeGreaterThanOrEqual(3); // different blocks
   });
 
+  // ── PR #4: TurnoService data wiring ──────────────────────────────
+  it('imports TurnoService', () => {
+    expect(componentSource).toMatch(/TurnoService/);
+  });
+
+  it('imports TurnoService from the data-access path', () => {
+    expect(componentSource).toMatch(
+      /import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.service['"]/,
+    );
+  });
+
+  it('has a computed() signal for appointments', () => {
+    expect(componentSource).toMatch(/appointments\s*=\s*computed\(/);
+  });
+
+  it('template @for iterates over appointments()', () => {
+    expect(templateSource).toMatch(/@for\s*\([^)]+of\s*appointments\(\)/);
+  });
+
   it('component does NOT import any admin action keywords (reschedule/block/cancel)', () => {
     // Check the TS source for admin action patterns that would indicate scope creep
     const adminPattern = /\b(reschedule|blockedTime|cancelTurno|adminReschedule)\b/i;
