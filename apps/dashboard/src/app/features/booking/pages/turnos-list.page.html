@@ -324,7 +324,7 @@
     </div>
   } @else {
       <!-- Mobile agenda day view — gated by isMobile(), wired with real data -->
-      <app-mobile-agenda-day-view [turnos]="filteredTurnos()" [selectedDate]="selectedDate()" [loading]="loading()"></app-mobile-agenda-day-view>
+      <app-mobile-agenda-day-view [turnos]="mobileAppointments()" [selectedDate]="selectedDate()" (selectedDateChange)="selectedDate.set($event)" [loading]="loading()"></app-mobile-agenda-day-view>
   }
 
   }

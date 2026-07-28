@@ -78,4 +78,24 @@ describe('TurnosListPage mobile gating contract', () => {
     );
     expect(hasIfElse).not.toBeNull();
   });
+
+  // ── PR #4 fixup: mobileAppointments signal (Issue 3) ────────────
+  it('page declares mobileAppointments as a computed signal', () => {
+    // computed may have a type parameter like computed<TurnoWithRelations[]>(
+    expect(componentSource).toMatch(/mobileAppointments\s*=\s*computed\b/);
+  });
+
+  it('mobileAppointments does NOT call slice (no limit gating)', () => {
+    // mobileAppointments must exist; within 300 chars of its name, no .slice(
+    expect(componentSource).toMatch(/mobileAppointments/);
+    expect(componentSource).not.toMatch(/mobileAppointments[\s\S]{0,300}\.slice\(/);
+  });
+
+  it('template app-mobile-agenda-day-view includes (selectedDateChange) output binding', () => {
+    // The line with app-mobile-agenda-day-view should have (selectedDateChange)
+    const viewMatch = templateSource.match(/<app-mobile-agenda-day-view[^>]*>/);
+    expect(viewMatch).not.toBeNull();
+    const viewLine = viewMatch![0];
+    expect(viewLine).toMatch(/\(selectedDateChange\)/);
+  });
 });

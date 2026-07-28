@@ -204,6 +204,30 @@ export class TurnosListPage implements OnInit, OnDestroy {
     return filtered.slice(0, this.visibleLimit());
   });
 
+  /**
+   * Mobile-specific appointments: all turnos for the selectedDate, no status filter,
+   * no visibleLimit slice. Mirrors what the mobile day view needs.
+   */
+  protected readonly mobileAppointments = computed<TurnoWithRelations[]>(() => {
+    const allTurnos = this.turnos(); // already enriched by processTurnos()
+    const selectedDate = this.selectedDate();
+    const tStr =
+      selectedDate.getFullYear() +
+      '-' +
+      (selectedDate.getMonth() + 1).toString().padStart(2, '0') +
+      '-' +
+      selectedDate.getDate().toString().padStart(2, '0');
+    return allTurnos.filter((t) => {
+      const ts =
+        t.fecha.getFullYear() +
+        '-' +
+        (t.fecha.getMonth() + 1).toString().padStart(2, '0') +
+        '-' +
+        t.fecha.getDate().toString().padStart(2, '0');
+      return ts === tStr;
+    });
+  });
+
   protected hasMoreTurnos = computed(() => {
     const status = this.filterStatus();
     const total = status === 'todos' 
