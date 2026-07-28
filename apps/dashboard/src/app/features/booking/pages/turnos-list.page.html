@@ -26,6 +26,7 @@
   <div class="sr-only" data-testid="turnos-empty-state" role="status">No appointments available.</div>
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
 
+  @if (!isMobile()) {
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section relative">
     @if (branchContext.branches().length > 1) {
     <section class="mb-zen-xl rounded-zen-card border border-white/10 bg-surface/70 p-zen-lg shadow-xl" aria-live="polite">
@@ -320,7 +321,11 @@
         </div>
       </aside>
     </div>
-  </div>
+    </div>
+  } @else {
+      <!-- Mobile agenda placeholder — feature flag OFF until PR #4 -->
+      <app-mobile-agenda-day-view></app-mobile-agenda-day-view>
+  }
 
   }
 </section>

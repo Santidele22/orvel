@@ -1,0 +1,77 @@
+<!-- Day Strip: horizontally scrollable pills -->
+<section
+  data-testid="mobile-agenda-day-strip"
+  class="flex overflow-x-auto gap-2 px-4 py-3 no-scrollbar border-b border-white/10"
+>
+  @for (day of dayStrip.days(); track day.getTime()) {
+    <button
+      type="button"
+      (click)="selectDate(day)"
+      class="flex flex-col items-center gap-0.5 min-w-[52px] rounded-xl px-3 py-2 text-xs font-medium transition-colors"
+      [class.bg-primary]="isSelected(day)"
+      [class.text-white]="isSelected(day)"
+      [class.bg-surface]="!isSelected(day)"
+      [class.text-text-secondary]="!isSelected(day)"
+    >
+      <span class="text-[10px] uppercase tracking-wider">{{ dayName(day) }}</span>
+      <span class="text-sm font-bold tabular-nums">{{ dayNumber(day) }}</span>
+    </button>
+  }
+</section>
+
+<!-- Main content area: empty state or timeline (timeline comes in PR #3) -->
+<div class="flex-1 overflow-y-auto">
+  @if (!loading && isEmpty) {
+    <!-- Empty state -->
+    <div
+      data-testid="mobile-agenda-empty-state"
+      class="flex flex-col items-center justify-center px-6 py-16 text-center"
+    >
+      <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+        <i class="ri-calendar-line text-3xl text-primary"></i>
+      </div>
+      <h2 class="text-xl font-bold text-text-primary mb-2">Hoy no tenés turnos</h2>
+      <p class="text-sm text-text-tertiary mb-8 max-w-xs">
+        No hay turnos programados para este día. Agregá un walk-in o compartí tu página para recibir reservas.
+      </p>
+      <div class="flex flex-col gap-3 w-full max-w-xs">
+        <button
+          type="button"
+          class="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          + Agregar walk-in
+        </button>
+        <button
+          type="button"
+          class="w-full py-3 rounded-xl border border-white/10 text-text-primary text-sm font-bold hover:border-primary/50 hover:text-primary transition-all"
+        >
+          Compartir tu página
+        </button>
+      </div>
+    </div>
+  } @else if (!loading) {
+    <!-- Timeline placeholder — MobileAppointmentCard integration deferred to PR #3 -->
+    <div class="px-4 py-8 text-center text-sm text-text-tertiary" data-testid="mobile-agenda-timeline-placeholder">
+      <p>No hay turnos para mostrar.</p>
+    </div>
+  }
+
+  @if (loading) {
+    <!-- Loading skeleton -->
+    <div class="px-4 py-8 space-y-4">
+      @for (_ of [1, 2, 3]; track $index) {
+        <div class="h-20 rounded-xl bg-surface-muted/50 animate-pulse"></div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Floating Action Button -->
+<a
+  data-testid="mobile-agenda-fab"
+  routerLink="/dashboard/turnos/new"
+  class="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/30 hover:bg-primary/90 active:scale-95 transition-all"
+  [style.padding-bottom]="'env(safe-area-inset-bottom, 0px)'"
+>
+  <i class="ri-add-line text-2xl"></i>
+</a>
