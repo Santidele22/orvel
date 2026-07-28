@@ -1,0 +1,76 @@
+name: Deploy promotion
+
+on:
+  push:
+    branches:
+      - qa
+      - main
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine target environment
+        id: target
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
+            echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_QA }}" >> $GITHUB_OUTPUT
+            echo "vercel_target=preview" >> $GITHUB_OUTPUT
+            echo "angular_config=qa" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
+            echo "vercel_target=production" >> $GITHUB_OUTPUT
+            echo "angular_config=production" >> $GITHUB_OUTPUT
+          else
+            echo "Unknown branch: ${{ github.ref }}" >&2
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ steps.target.outputs.supabase_ref }}
+
+      - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dashboard
+        run: pnpm --dir apps/dashboard exec ng build --configuration=${{ steps.target.outputs.angular_config }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./apps/dashboard
+          production: ${{ steps.target.outputs.vercel_target == 'production' }}
