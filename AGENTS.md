@@ -40,8 +40,27 @@ Always read the root Orvel global context skill and the relevant `infra/context/
 
 ## Git Workflow
 
+### 3-environment promotion flow
+
+Orvel uses a strict 3-branch promotion: `feature → dev → qa → main`. Never skip a step.
+
+| Branch | Purpose | Receives from |
+|--------|---------|---------------|
+| `dev` | Integration. All feature branches land here first. | feature branches (via PR) |
+| `qa`  | Smoke test environment. Pre-release validation. | `dev` (via PR) |
+| `main` | Production. Releases only. | `qa` (via PR) |
+
+**Hard rules**:
+- Feature branches MUST merge to `dev` first. Never directly to `qa` or `main`.
+- `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
+- The 3 protected branches (`dev`, `qa`, `main`) have identical protection: linear history, 1 approving review, required CI check (`dashboard-booking-regressions`), `enforce_admins: true`, no force pushes, no deletions.
+- Since Santi is the sole owner, the "1 approving review" requirement blocks self-approval on PRs to protected branches. R2-D2 uses the admin workaround (temporarily relax protection, `--admin --squash`, restore) ONLY with explicit Santi approval per PR.
+- Branch protection on `dev` and `qa` should be relaxed (required_pull_request_reviews: null, enforce_admins: false) BEFORE pushing a merge of an out-of-date sync (e.g., syncing dev ← main). Restore the protection immediately after. The required status check will re-block push until CI runs on the new commit.
+
+### Operational rules
+
 - Work on a branch and use a PR path when Santi asks for commits/PRs.
-- Do not push to `main`.
+- Do not push directly to `main`, `dev`, or `qa` (they're protected).
 - Do not commit, push, or open a PR unless Santi explicitly asks in the current task.
 - Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow. No direct push to `main`, `--force`, `reset --hard`, secrets, `.funemon/`, or check bypasses.
 - Keep changes small and scoped to the requested work.
