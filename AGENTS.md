@@ -61,8 +61,9 @@ Orvel uses a strict 3-branch promotion: `feature → dev → qa → main`. Never
 
 - Work on a branch and use a PR path when Santi asks for commits/PRs.
 - Do not push directly to `main`, `dev`, or `qa` (they're protected).
-- Do not commit, push, or open a PR unless Santi explicitly asks in the current task.
-- Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow. No direct push to `main`, `--force`, `reset --hard`, secrets, `.funemon/`, or check bypasses.
+- **Auto-push + auto-open PR workflow** (2026-07-29): After completing a coherent task block (e.g., end of an SDD phase, end of a PR slice, or end of an SDD change), R2-D2 may auto-commit the work, push the feature branch, and open a PR against `dev` without per-commit explicit Santi approval. The PR target is always `dev`; never `qa` or `main` directly. R2-D2 reports the PR URL to Santi after opening and waits for CI before reporting back.
+- **Merge to protected branches still requires explicit Santi approval per PR.** R2-D2 may NOT merge to `dev` (or `qa`/`main`) without explicit Santi approval. The admin workaround (temporarily relax protection, `--admin --squash`, restore) remains gated behind explicit Santi approval per PR.
+- No direct push to `main`, `--force`, `reset --hard`, secrets, `.funemon/`, or check bypasses.
 - Keep changes small and scoped to the requested work.
 
 ## Scope Rules

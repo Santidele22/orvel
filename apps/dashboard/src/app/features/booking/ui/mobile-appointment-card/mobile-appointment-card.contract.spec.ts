@@ -120,6 +120,46 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).not.toMatch(/\(mouseleave\)/);
   });
 
+  // ── PR #2: Card tap output ───────────────────────────────────────
+  it('has @Output() cardTapped emitting TurnoWithRelations', () => {
+    expect(componentSource).toMatch(
+      /@Output\(\)\s+cardTapped\s*=\s*new\s+EventEmitter<TurnoWithRelations>/,
+    );
+  });
+
+  it('imports EventEmitter from @angular/core', () => {
+    expect(componentSource).toMatch(
+      /import\s*\{[^}]*\bEventEmitter\b[^}]*\}\s*from\s+['"]@angular\/core['"]/,
+    );
+  });
+
+  it('imports Output from @angular/core', () => {
+    expect(componentSource).toMatch(
+      /import\s*\{[^}]*\bOutput\b[^}]*\}\s*from\s+['"]@angular\/core['"]/,
+    );
+  });
+
+  it('card root has min-h-[44px] tap target', () => {
+    expect(templateSource).toMatch(/min-h-\[44px\]/);
+  });
+
+  it('has active:scale-[0.98] tactile feedback on tap', () => {
+    expect(templateSource).toMatch(/active:scale-\[0\.98\]/);
+  });
+
+  it('has (click) handler that calls cardTapped.emit(turno()) for signal input', () => {
+    // Angular 21 `input.required<T>()` exposes an InputSignal; the template must call turno() to read it.
+    expect(templateSource).toMatch(/\(click\)="cardTapped\.emit\(turno\(\)\)"/);
+  });
+
+  it('has NO [routerLink] on card root (navigation is parent responsibility)', () => {
+    expect(templateSource).not.toMatch(/\[routerLink\]/);
+  });
+
+  it('has NO (touchstart) or (touchend) handlers (use Angular click)', () => {
+    expect(templateSource).not.toMatch(/\(touchstart\)|\(touchend\)/);
+  });
+
   // ── NO admin action references ──────────────────────────────────
   it('has NO cancelar keyword', () => {
     expect(componentSource + templateSource).not.toMatch(/cancelar/i);

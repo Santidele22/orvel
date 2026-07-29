@@ -4,8 +4,8 @@
 
 - Work inside this monorepo for Orvel tasks.
 - Do not touch the existing source repos unless Santi explicitly authorizes it in the current task.
-- Do not commit, push, or open PRs unless Santi explicitly requests it.
-- Narrow exception: R2-D2 may merge/fix Orvel PRs only with explicit Santi approval per PR/task and the normal branch -> PR -> checks -> merge flow; never direct-push to `main`, force-push, run `reset --hard`, commit secrets or `.funemon/`, or bypass checks.
+- **Auto-push + auto-open PR workflow** (2026-07-29): After completing a coherent task block (e.g., end of an SDD phase, end of a PR slice, or end of an SDD change), R2-D2 may auto-commit, push the feature branch, and open a PR against `dev` without per-commit explicit Santi approval. PR target is always `dev`; never `qa` or `main` directly.
+- **Merge to protected branches still requires explicit Santi approval per PR.** R2-D2 may NOT merge to `dev` (or `qa`/`main`) without explicit Santi approval. The admin workaround (temporarily relax protection, `--admin --squash`, restore) remains gated behind explicit Santi approval per PR; never direct-push to `main`, force-push, run `reset --hard`, commit secrets or `.funemon/`, or bypass checks.
 
 ## Accuracy
 
