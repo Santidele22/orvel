@@ -1,27 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-type DashboardTheme = 'industrial' | 'zen' | 'chic' | 'ink';
-type BusinessType = 'uñas' | 'peluqueria' | 'barberia' | 'spa' | 'pestañas' | 'cejas' | 'masajes' | 'otro';
-
 type DashboardConfig = {
   dashboards: Array<{
-    businessType: BusinessType;
-    theme: DashboardTheme;
+    businessType: string;
+    theme: string;
   }>;
 };
 
-type ResolveDashboardConfigFn = (selectedBusinessTypes?: BusinessType[]) => DashboardConfig;
-
-const THEME_BY_BUSINESS_TYPE: Record<BusinessType, DashboardTheme> = {
-  uñas: 'chic',
-  pestañas: 'chic',
-  cejas: 'chic',
-  spa: 'zen',
-  masajes: 'zen',
-  peluqueria: 'industrial',
-  barberia: 'ink',
-  otro: 'industrial'
-};
+type ResolveDashboardConfigFn = (selectedBusinessTypes?: string[]) => DashboardConfig;
 
 async function loadResolver(): Promise<ResolveDashboardConfigFn> {
   let module: Record<string, unknown>;
@@ -45,60 +31,51 @@ async function loadResolver(): Promise<ResolveDashboardConfigFn> {
   return resolver;
 }
 
-describe('Business contract: single vs multiple dashboards + strict template colors', () => {
-  it('returns single dashboard by default when selectedBusinessTypes is omitted', async () => {
+describe('Single theme: resolveDashboardConfig always returns zen', () => {
+  it('returns single dashboard with theme zen by default when selectedBusinessTypes is omitted', async () => {
     const resolveDashboardConfig = await loadResolver();
     const result = resolveDashboardConfig();
 
     expect(result.dashboards).toHaveLength(1);
+    expect(result.dashboards[0].theme).toBe('zen');
   });
 
-  it('returns single dashboard by default (no selected business types)', async () => {
+  it('returns single dashboard with theme zen when empty array', async () => {
     const resolveDashboardConfig = await loadResolver();
     const result = resolveDashboardConfig([]);
 
     expect(result.dashboards).toHaveLength(1);
+    expect(result.dashboards[0].theme).toBe('zen');
   });
 
-  it('returns single dashboard when one business type is selected', async () => {
+  it('returns single dashboard with theme zen for any single business type', async () => {
     const resolveDashboardConfig = await loadResolver();
-    const result = resolveDashboardConfig(['spa']);
+    const result = resolveDashboardConfig(['peluqueria']);
 
     expect(result.dashboards).toHaveLength(1);
-    expect(result.dashboards[0].businessType).toBe('spa');
-    expect(result.dashboards[0].theme).toBe(THEME_BY_BUSINESS_TYPE['spa']);
+    expect(result.dashboards[0].businessType).toBe('peluqueria');
+    expect(result.dashboards[0].theme).toBe('zen');
   });
 
-  it('returns multiple dashboards only when user selected multiple business types', async () => {
+  it('returns all dashboards with theme zen for multiple business types', async () => {
     const resolveDashboardConfig = await loadResolver();
-    const selected: BusinessType[] = ['spa', 'uñas', 'peluqueria'];
-    const result = resolveDashboardConfig(selected);
+    const result = resolveDashboardConfig(['spa', 'unas', 'peluqueria']);
 
     expect(result.dashboards).toHaveLength(3);
-    expect(result.dashboards.map((d) => d.businessType)).toEqual(selected);
-  });
-
-  it('maps every selected business type to its strict template color theme', async () => {
-    const resolveDashboardConfig = await loadResolver();
-    const selected: BusinessType[] = ['spa', 'masajes', 'uñas', 'pestañas', 'cejas', 'peluqueria', 'barberia', 'otro'];
-    const result = resolveDashboardConfig(selected);
-
+    expect(result.dashboards.map((d) => d.businessType)).toEqual(['spa', 'unas', 'peluqueria']);
     for (const dashboard of result.dashboards) {
-      expect(dashboard.theme).toBe(THEME_BY_BUSINESS_TYPE[dashboard.businessType]);
+      expect(dashboard.theme).toBe('zen');
     }
   });
 
-  it('never cross-mixes themes between selected business types in the same response', async () => {
+  it('every possible business type receives theme zen', async () => {
     const resolveDashboardConfig = await loadResolver();
-    const selected: BusinessType[] = ['barberia', 'uñas', 'spa', 'peluqueria'];
-    const result = resolveDashboardConfig(selected);
+    const allTypes = ['unas', 'peluqueria', 'barberia', 'spa', 'pestanas', 'cejas', 'masajes', 'otro'];
+    const result = resolveDashboardConfig(allTypes);
 
-    expect(result.dashboards).toHaveLength(4);
-    expect(result.dashboards).toEqual([
-      { businessType: 'barberia', theme: 'ink' },
-      { businessType: 'uñas', theme: 'chic' },
-      { businessType: 'spa', theme: 'zen' },
-      { businessType: 'peluqueria', theme: 'industrial' }
-    ]);
+    expect(result.dashboards).toHaveLength(8);
+    for (const dashboard of result.dashboards) {
+      expect(dashboard.theme).toBe('zen');
+    }
   });
 });

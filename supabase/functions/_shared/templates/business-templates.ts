@@ -13,6 +13,19 @@ export interface SignupEmailConfirmationData {
   planCode?: string;
 }
 
+export interface TrialUserActivationReminder {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+export interface TrialUserActivationReminderData {
+  recipientEmail: string;
+  businessName: string;
+  dashboardUrl: string;
+  bookingUrl: string;
+}
+
 const palette = {
   black: "#0A0A0A",
   panel: "#121212",
@@ -72,6 +85,22 @@ export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { su
         <a href="${escapeAttribute(ctaUrl)}" style="display:inline-block;background:${palette.violetDark};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">${escapeHtml(ctaLabel)}</a>
       </p>
       <p style="color:${palette.muted};font-size:14px;line-height:1.5;">Si necesitás ayuda, estamos en ${escapeHtml(data.supportContact)}.</p>
+    `),
+  };
+}
+
+export function renderTrialUserActivationReminder(data: TrialUserActivationReminderData): TrialUserActivationReminder {
+  return {
+    to: data.recipientEmail,
+    subject: "Tu turnero de Orvel ya está listo",
+    html: renderShell("Tu turnero ya está listo", `
+      <p style="color:${palette.text};font-size:16px;line-height:1.6;">Gracias por confiar en Orvel para acompañar a ${escapeHtml(data.businessName)}.</p>
+      <p style="color:${palette.muted};font-size:16px;line-height:1.6;">Tu turnero ya está listo. Configurá tus horarios para que tus clientes puedan empezar a reservar.</p>
+      <p style="margin:28px 0;">
+        <a href="${escapeAttribute(data.dashboardUrl)}" style="display:inline-block;background:${palette.violet};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">Configurar mis horarios</a>
+      </p>
+      <p style="color:${palette.muted};font-size:14px;line-height:1.5;">Después podés copiar y compartir este enlace con tus clientes:</p>
+      <p style="color:${palette.text};font-size:14px;line-height:1.5;word-break:break-all;">${escapeHtml(data.bookingUrl)}</p>
     `),
   };
 }

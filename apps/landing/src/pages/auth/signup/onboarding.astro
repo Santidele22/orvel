@@ -1,5 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import { getBusinessTypesForSignup } from '../../../lib/business-types';
+
+const signupOptions = getBusinessTypesForSignup();
 ---
 
 <Layout title="Orvel - Alta creada" showPreloader={false}>
@@ -13,14 +16,9 @@ import Layout from '../../../layouts/Layout.astro';
       <form id="completeForm" data-form-alias="onboardingForm" class="mt-8 space-y-6">
         <fieldset class="grid gap-3 sm:grid-cols-2" aria-describedby="onboardingHelper onboardingError">
           <legend class="sr-only">Categoría del negocio</legend>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="peluqueria" /><span>Peluquería</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="unas" /><span>Uñas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="barberia" /><span>Barbería</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="spa" /><span>Spa</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="pestanas" /><span>Pestañas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="cejas" /><span>Cejas</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="masajes" /><span>Masajes</span></label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value="otro" /><span>Otro</span></label>
+          {signupOptions.map((opt) => (
+            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-bg-primary/60 p-4 text-sm font-semibold transition hover:border-primary/60"><input class="h-4 w-4 accent-primary" type="radio" name="rubro" value={opt.code} /><span>{opt.label}</span></label>
+          ))}
         </fieldset>
         <p id="onboardingHelper" class="text-xs text-text-secondary">Seleccioná una categoría para continuar.</p>
         <p id="onboardingError" class="hidden rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error" role="alert"></p>

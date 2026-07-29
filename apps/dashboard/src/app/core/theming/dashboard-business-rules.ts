@@ -17,17 +17,6 @@ export type DashboardConfig = {
   }>;
 };
 
-const THEME_BY_BUSINESS_TYPE: Record<BusinessType, DashboardThemeName> = {
-  uñas: 'zen',
-  pestañas: 'zen',
-  cejas: 'zen',
-  spa: 'zen',
-  masajes: 'zen',
-  peluqueria: 'zen',
-  barberia: 'zen',
-  otro: 'zen'
-};
-
 const DEFAULT_BUSINESS_TYPE: BusinessType = 'spa';
 
 export function resolveDashboardConfig(selectedBusinessTypes?: BusinessType[]): DashboardConfig {
@@ -38,20 +27,18 @@ export function resolveDashboardConfig(selectedBusinessTypes?: BusinessType[]): 
       dashboards: [
         {
           businessType: DEFAULT_BUSINESS_TYPE,
-          theme: THEME_BY_BUSINESS_TYPE[DEFAULT_BUSINESS_TYPE]
+          theme: 'zen'
         }
       ]
     };
   }
 
   if (resolvedBusinessTypes.length === 1) {
-    const businessType = resolvedBusinessTypes[0];
-
     return {
       dashboards: [
         {
-          businessType,
-          theme: THEME_BY_BUSINESS_TYPE[businessType]
+          businessType: resolvedBusinessTypes[0],
+          theme: 'zen'
         }
       ]
     };
@@ -60,7 +47,7 @@ export function resolveDashboardConfig(selectedBusinessTypes?: BusinessType[]): 
   return {
     dashboards: resolvedBusinessTypes.map((businessType) => ({
       businessType,
-      theme: THEME_BY_BUSINESS_TYPE[businessType]
+      theme: 'zen'
     }))
   };
 }

@@ -68,7 +68,6 @@ describe('BillingSubscriptionPage manual cancellation request state', () => {
       subscription: {
         id: 'sub_123',
         status: 'active',
-        providerSubscriptionId: null,
         periodEnd: null
       }
     }));
@@ -126,7 +125,6 @@ describe('BillingSubscriptionPage manual cancellation request state', () => {
       subscription: {
         id: 'sub_123',
         status: 'active',
-        providerSubscriptionId: 'mp_preapproval_123',
         periodEnd: '2026-08-01T00:00:00.000Z'
       }
     }));
@@ -172,8 +170,8 @@ describe('requestSubscriptionCancellation API contract', () => {
         subscription: {
           id: 'sub_123',
           status: 'active',
-          provider_subscription_id: 'mp_preapproval_123',
-          period_end: '2026-08-01T00:00:00.000Z'
+          period_end: '2026-08-01T00:00:00.000Z',
+          provider_subscription_id: 'mp-subscription-1'
         }
       },
       error: null
@@ -193,11 +191,56 @@ describe('requestSubscriptionCancellation API contract', () => {
       subscription: {
         id: 'sub_123',
         status: 'active',
-        providerSubscriptionId: 'mp_preapproval_123',
-        periodEnd: '2026-08-01T00:00:00.000Z'
+        periodEnd: '2026-08-01T00:00:00.000Z',
+        providerSubscriptionId: 'mp-subscription-1'
       }
     });
     expect(invokeCancelSubscription).toHaveBeenCalledWith({ business_id: 'biz_123', reason: 'manual_request' });
+  });
+
+  it('includes account closure date only for account cancellation responses', async () => {
+    const invokeCancelSubscription = vi.fn(async () => ({
+      data: {
+        success: true as const,
+        message: 'Baja de cuenta solicitada',
+        account_closure_at: '2026-08-01T00:00:00.000Z',
+        request: {
+          status: 'scheduled_account_closure' as const,
+          requested_at: '2026-07-03T00:00:00.000Z',
+          reason: 'manual_request'
+        },
+        subscription: {
+          id: 'sub_123',
+          status: 'active',
+          period_end: '2026-08-01T00:00:00.000Z'
+        }
+      },
+      error: null
+    }));
+
+    await expect(
+      requestSubscriptionCancellation(
+        { businessId: 'biz_123', mode: 'account_cancellation' },
+        { invokeCancelSubscription }
+      )
+    ).resolves.toEqual({
+      ok: true,
+      requestStatus: 'scheduled_account_closure',
+      requestedAt: '2026-07-03T00:00:00.000Z',
+      reason: 'manual_request',
+      message: 'Baja de cuenta solicitada',
+      subscription: {
+        id: 'sub_123',
+        status: 'active',
+        periodEnd: '2026-08-01T00:00:00.000Z'
+      },
+      accountClosureAt: '2026-08-01T00:00:00.000Z'
+    });
+    expect(invokeCancelSubscription).toHaveBeenCalledWith({
+      business_id: 'biz_123',
+      reason: 'manual_request',
+      mode: 'account_cancellation'
+    });
   });
 
   it('keeps the backend NO_ACTIVE_SUBSCRIPTION error code when the function returns HTTP 404', async () => {

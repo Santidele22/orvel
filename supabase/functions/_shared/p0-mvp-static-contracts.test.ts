@@ -594,11 +594,11 @@ Deno.test("P0 booking management link contract: process-email-outbox normalizes 
 });
 
 Deno.test("P0 customer appointment confirmation email is minimal and links to the exact booking manager", async () => {
-  const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
+  const templateSource = await readText(new URL("apps/shared/email-templates/appointment-templates.ts", repoRoot));
   const migrationsSource = await readAllSqlMigrations();
   const confirmationSection = templateSource.slice(
     templateSource.indexOf("export function renderAppointmentConfirmationEmail"),
-    templateSource.indexOf("export function renderAppointmentBusinessNotificationEmail"),
+    templateSource.indexOf("export function renderAppointmentReminder24hEmail"),
   );
 
   assert(confirmationSection.length > 0, "Guard must inspect the appointment confirmation renderer");
@@ -616,7 +616,7 @@ Deno.test("P0 customer appointment confirmation email is minimal and links to th
 });
 
 Deno.test("P0 business appointment notification never receives or renders customer management bearer links", async () => {
-  const templateSource = await readText(new URL("_shared/templates/appointment-templates.ts", functionsDir));
+  const templateSource = await readText(new URL("apps/shared/email-templates/appointment-templates.ts", repoRoot));
   const migrationsSource = await readAllSqlMigrations();
   const businessOutboxInsert = migrationsSource.match(
     /'appointment_created_business'[\s\S]*?jsonb_build_object\([\s\S]*?\)\s*\n\s*WHERE NOT EXISTS/,
@@ -628,7 +628,7 @@ Deno.test("P0 business appointment notification never receives or renders custom
     "Business appointment notification payload must not include public management links or bearer tokens",
   );
   assert(
-    /const\s+canRenderSelfServiceLinks\s*=\s*kind\s*!==\s*['"]business_notification['"]/.test(templateSource),
+    /const\s+isBusinessRecipient/.test(templateSource),
     "Business appointment template must suppress self-service action links even if links are present",
   );
 });

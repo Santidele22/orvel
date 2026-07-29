@@ -432,3 +432,12 @@ verify_jwt = false
 
 [functions.process-email-outbox]
 verify_jwt = true
+
+[functions.send-trial-user-activation-reminder-once]
+verify_jwt = true
+
+# Account closure is invoked by a privileged scheduler after paid-through access ends.
+# Deployment follow-up: configure the external scheduler to POST this function with
+# `Authorization: Bearer $ACCOUNT_CLOSURE_CRON_SECRET` or `x-cron-key`.
+[functions.account-closure]
+verify_jwt = false

@@ -5,98 +5,19 @@
   <meta charset="utf-8">
   <title>Orvel</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Orvel">
+  <meta name="theme-color" content="#0F172A">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
   <!-- Consolidated Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
     rel="stylesheet">
-
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "var(--primary)",
-            "primary-hover": "var(--primary-hover)",
-            "primary-light": "var(--primary-light)",
-            "primary-soft": "rgba(124, 58, 237, 0.1)", /* Compatibility */
-
-            "bg-primary": "var(--bg-primary)",
-            "bg-secondary": "var(--bg-secondary)",
-
-            "text-primary": "var(--text-primary)",
-            "text-secondary": "var(--text-secondary)",
-            "text-tertiary": "var(--divider)", /* Mapping tertiary to divider for better contrast */
-
-            "success": "var(--success)",
-            "error": "var(--error)",
-            "warning": "var(--warning)",
-
-            "border": "var(--border)",
-            "divider": "var(--divider)",
-
-            /* Legacy support mappings */
-            "surface": "var(--bg-secondary)",
-            "surface-muted": "var(--bg-primary)",
-            "bg": "var(--bg-primary)",
-            "accent": "var(--primary-light)",
-            "secondary-soft": "rgba(148, 163, 184, 0.1)",
-          },
-          spacing: {
-            "1": "var(--or-space-1)",
-            "2": "var(--or-space-2)",
-            "3": "var(--or-space-3)",
-            "4": "var(--or-space-4)",
-            "6": "var(--or-space-6)",
-            "8": "var(--or-space-8)",
-            "10": "var(--or-space-10)",
-            "12": "var(--or-space-12)",
-
-            /* Legacy Zen spacing mappings */
-            "zen-xs": "var(--or-space-1)",
-            "zen-sm": "var(--or-space-2)",
-            "zen-md": "var(--or-space-4)",
-            "zen-lg": "var(--or-space-6)",
-            "zen-xl": "var(--or-space-8)",
-            "zen-xxl": "var(--or-space-10)",
-            "zen-section": "var(--or-space-12)",
-
-            /* Legacy Zen control/icon mappings */
-            "zen-control-sm": "var(--or-space-8)",
-            "zen-control-md": "var(--or-space-10)",
-            "zen-control-lg": "var(--or-space-12)",
-            "zen-icon-sm": "var(--or-space-4)",
-            "zen-icon-md": "var(--or-space-6)",
-            "zen-icon-lg": "var(--or-space-8)",
-            "zen-ornament": "var(--or-space-12)",
-          },
-          borderRadius: {
-            "sm": "var(--radius-sm)",
-            "md": "var(--radius-md)",
-            "lg": "var(--radius-lg)",
-
-            /* Legacy Zen radius mappings */
-            "zen-sm": "var(--radius-sm)",
-            "zen-md": "var(--radius-md)",
-            "zen-lg": "var(--radius-lg)",
-            "zen-xl": "var(--radius-lg)",
-            "zen-card": "var(--radius-lg)",
-          },
-          letterSpacing: {
-            "zen-wide": "0.1em",
-          },
-          fontFamily: {
-            "sans": ["Inter", "sans-serif"],
-          }
-        },
-      },
-    }
-  </script>
   <style>
     body {
       font-family: 'Inter', sans-serif;

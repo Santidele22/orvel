@@ -14,7 +14,6 @@ type CatalogPlan = {
 type CatalogBusinessType = {
   code: string;
   label: string;
-  themeKey: string;
   sortOrder: number;
 };
 
@@ -61,9 +60,9 @@ const rawCatalogFromSupabase = {
     { alias: 'medium', plan_code: 'growth' }
   ],
   business_types: [
-    { code: 'hair_salon', label: 'Peluquería', theme_key: 'zen', sort_order: 2 },
-    { code: 'barber_shop', label: 'Barbería', theme_key: 'zen', sort_order: 1 },
-    { code: 'spa', label: 'Spa', theme_key: 'zen', sort_order: 3 }
+    { code: 'hair_salon', label: 'Peluquería', sort_order: 2 },
+    { code: 'barber_shop', label: 'Barbería', sort_order: 1 },
+    { code: 'spa', label: 'Spa', sort_order: 3 }
   ],
   business_type_aliases: [{ alias: 'peluqueria', business_type_code: 'hair_salon' }],
   plan_business_types: [

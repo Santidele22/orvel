@@ -1,4 +1,4 @@
-import * as AppointmentTemplates from "./templates/appointment-templates.ts";
+import * as AppointmentTemplates from "../../../apps/shared/email-templates/index.ts";
 
 type AppointmentLinks = {
   view?: string | null;

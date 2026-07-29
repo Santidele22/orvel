@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from "std/assert/mod.ts";
 
-import { formatArgentinaAppointmentDate, renderAppointmentReminder24hEmail } from "./templates/appointment-templates.ts";
+import { formatArgentinaAppointmentDate, renderAppointmentReminder24hEmail } from "../../../apps/shared/email-templates/appointment-templates.ts";
 import { appointmentTimeLabel, normalizeAppointmentTemplateData } from "./process-email-outbox-helpers.ts";
 
 Deno.test("appointment lifecycle email dates render in Argentina business timezone", () => {

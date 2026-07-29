@@ -18,6 +18,10 @@ import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-prim
 import { AuthService } from '../../../services/auth.service';
 import { validateConfiguracionForm } from './configuracion.validation';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
+import {
+  requestSubscriptionCancellation,
+  RequestSubscriptionCancellationError
+} from '../../billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
 
 type WeekdayRow = {
   key: WeekdayKey;
@@ -196,8 +200,12 @@ export class ConfiguracionPage {
   readonly selectedHour = signal<number>(9);
   readonly selectedMinute = signal<number>(0);
   readonly isAccountSettingsModalOpen = signal(false);
+  readonly isAccountCancellationModalOpen = signal(false);
   readonly isResetSent = signal(false);
   readonly resetError = signal<string | null>(null);
+  readonly accountCancellationError = signal<string | null>(null);
+  readonly accountCancellationMessage = signal<string | null>(null);
+  readonly accountCancellationSubmitted = signal(false);
   readonly attemptedSubmit = signal(false);
 
   // Mock user businesses - in real app would come from auth service
@@ -256,6 +264,63 @@ export class ConfiguracionPage {
     }, 300);
   }
 
+  openAccountCancellationModal(): void {
+    this.accountCancellationError.set(null);
+    this.accountCancellationMessage.set(null);
+    this.accountCancellationSubmitted.set(false);
+    this.isAccountCancellationModalOpen.set(true);
+  }
+
+  cancelAccountCancellationModal(): void {
+    this.isAccountCancellationModalOpen.set(false);
+    setTimeout(() => {
+      this.accountCancellationError.set(null);
+      this.accountCancellationMessage.set(null);
+      this.accountCancellationSubmitted.set(false);
+    }, 300);
+  }
+
+  async confirmAccountCancellation(): Promise<void> {
+    const user = this.authService.user();
+    if (!user) {
+      this.accountCancellationError.set('No se encontró sesión de usuario. Volvé a iniciar sesión.');
+      return;
+    }
+
+    this.loading.set(true);
+    this.accountCancellationError.set(null);
+    this.accountCancellationMessage.set(null);
+
+    try {
+      const activeBusinessId = await this.facade.getActiveBusinessId(user.id);
+      if (!activeBusinessId) {
+        this.accountCancellationError.set('No pudimos identificar tu negocio activo. Reintentá en unos segundos.');
+        return;
+      }
+
+      const result = await requestSubscriptionCancellation({
+        businessId: activeBusinessId,
+        reason: 'manual_request',
+        mode: 'account_cancellation'
+      });
+
+      this.accountCancellationSubmitted.set(true);
+      this.accountCancellationMessage.set(
+        result.accountClosureAt
+          ? `Listo. Cancelamos la renovación y tu cuenta queda activa hasta ${this.formatAccountClosureDate(result.accountClosureAt)}.`
+          : result.message
+      );
+    } catch (error) {
+      this.accountCancellationError.set(
+        error instanceof RequestSubscriptionCancellationError
+          ? error.message
+          : 'No pudimos solicitar la baja de la cuenta. Contactá soporte.'
+      );
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   async sendPasswordResetEmail(): Promise<void> {
     const user = this.authService.user();
     if (!user?.email) return;
@@ -275,6 +340,19 @@ export class ConfiguracionPage {
 
   saveAccountSettingsFromModal(): void {
     this.sendPasswordResetEmail();
+  }
+
+  private formatAccountClosureDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'el final del período pago';
+    }
+
+    return new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }).format(date);
   }
 
   resetAccountSettingsDraft(): void {
