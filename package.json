@@ -28,6 +28,7 @@
     "dev:dashboard:proxy": "pnpm --dir apps/dashboard exec ng serve --host 127.0.0.1 --port 4200 --serve-path /dashboard",
     "dev:landing:proxy": "pnpm --dir apps/landing exec astro dev --host 127.0.0.1 --port 4321",
     "dev:local-proxy": "node scripts/local-dev-proxy.mjs",
+    "dev:all": "concurrently -n proxy,dashboard,landing -c blue,green,magenta --kill-others-on-fail \"pnpm run dev:local-proxy\" \"pnpm run dev:dashboard:proxy\" \"pnpm run dev:landing:proxy\"",
     "design:install": "pnpm dlx impeccable install",
     "design:update": "pnpm dlx impeccable update",
     "design:check": "pnpm dlx impeccable check",
@@ -57,6 +58,7 @@
     "apps/dashboard"
   ],
   "devDependencies": {
-    "@playwright/test": "^1.61.1"
+    "@playwright/test": "^1.61.1",
+    "concurrently": "^9.2.4"
   }
 }
