@@ -1,0 +1,75 @@
+<article
+  data-testid="mobile-appointment-card"
+  class="flex gap-4 rounded-xl bg-surface-container p-4 min-h-[48px] md:hover:bg-surface-container-high transition-colors"
+>
+  <!-- Left column: time pill -->
+  <div class="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary py-2">
+    <span class="text-sm font-bold text-white tabular-nums leading-none">{{ turno().hora }}</span>
+  </div>
+
+  <!-- Right column: service + client + status -->
+  <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+    <!-- Top row: service name + price -->
+    <div class="flex items-start justify-between gap-2">
+      <span class="truncate text-sm font-semibold text-text-primary">{{ turno().servicioNombre }}</span>
+      <span class="shrink-0 text-xs text-text-secondary tabular-nums">{{ turno().precio | currency }}</span>
+    </div>
+
+    <!-- Middle row: client name -->
+    <span class="truncate text-sm text-text-secondary">{{ turno().clienteNombre }}</span>
+
+    <!-- Bottom row: status pill -->
+    <div class="flex items-center gap-1.5">
+      @switch (turno().estado) {
+        @case ('confirmado') {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-success/20 text-success border-success/40"
+          >
+            Confirmado
+          </span>
+        }
+        @case ('en-proceso') {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning border-warning/40"
+          >
+            En proceso
+          </span>
+        }
+        @case ('completado') {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-success/20 text-success border-success/40"
+          >
+            Completado
+          </span>
+        }
+        @case ('cancelado') {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-error/20 text-error border-error/40"
+          >
+            Cancelado
+          </span>
+        }
+        @case ('no-asistio') {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-error/80 text-error border-error/60"
+          >
+            No-show
+          </span>
+        }
+        @default {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-surface-muted text-text-tertiary border-border/40"
+          >
+            {{ turno().estado }}
+          </span>
+        }
+      }
+    </div>
+  </div>
+</article>

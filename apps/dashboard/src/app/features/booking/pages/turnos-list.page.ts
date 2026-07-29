@@ -20,6 +20,8 @@ import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { TurnoFormPage } from './turno-form.page';
+import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
+import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
 
 type BlockedTimeFormState = {
   date: string;
@@ -88,7 +90,8 @@ interface CalendarioEvento {
     CommonModule,
     FormsModule,
     CalendarPickerComponent,
-    TurnoFormPage
+    TurnoFormPage,
+    MobileAgendaDayViewComponent
   ],
   templateUrl: './turnos-list.page.html',
   styleUrl: './turnos-list.page.scss'
@@ -102,6 +105,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private router = inject(Router);
   protected branchContext = getBranchContextService();
+  /** Real viewport-gated signal: true when viewport < 1024px (Tailwind lg breakpoint). */
+  protected readonly isMobile = createIsMobileSignal().isMobile;
   private readonly onBookingCreated = () => {
     void this.refreshTurnosFromSource();
   };
@@ -197,6 +202,30 @@ export class TurnosListPage implements OnInit, OnDestroy {
       : daily.filter(t => t.estado === status);
       
     return filtered.slice(0, this.visibleLimit());
+  });
+
+  /**
+   * Mobile-specific appointments: all turnos for the selectedDate, no status filter,
+   * no visibleLimit slice. Mirrors what the mobile day view needs.
+   */
+  protected readonly mobileAppointments = computed<TurnoWithRelations[]>(() => {
+    const allTurnos = this.turnos(); // already enriched by processTurnos()
+    const selectedDate = this.selectedDate();
+    const tStr =
+      selectedDate.getFullYear() +
+      '-' +
+      (selectedDate.getMonth() + 1).toString().padStart(2, '0') +
+      '-' +
+      selectedDate.getDate().toString().padStart(2, '0');
+    return allTurnos.filter((t) => {
+      const ts =
+        t.fecha.getFullYear() +
+        '-' +
+        (t.fecha.getMonth() + 1).toString().padStart(2, '0') +
+        '-' +
+        t.fecha.getDate().toString().padStart(2, '0');
+      return ts === tStr;
+    });
   });
 
   protected hasMoreTurnos = computed(() => {
