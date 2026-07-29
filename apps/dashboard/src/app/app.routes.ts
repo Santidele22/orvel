@@ -25,6 +25,10 @@ export const dashboardShellChildren: Routes = [
     loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
   },
   {
+    path: 'turnos/:id',
+    loadComponent: () => import('./features/booking/ui/mobile-turno-detail/mobile-turno-detail.component').then(m => m.MobileTurnoDetailComponent)
+  },
+  {
     path: 'servicios',
     loadComponent: () => import('./features/servicios/pages/servicios.page').then(m => m.ServiciosPage)
   },
