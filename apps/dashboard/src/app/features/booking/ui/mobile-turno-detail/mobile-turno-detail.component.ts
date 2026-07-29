@@ -19,14 +19,17 @@ export class MobileTurnoDetailComponent {
   private readonly isMobileSignal = createIsMobileSignal();
   readonly isMobile = this.isMobileSignal.isMobile;
 
-  readonly turno = computed(() => {
+  readonly turno = computed<TurnoWithRelations | undefined>(() => {
     const fromState = this.router.getCurrentNavigation()?.extras.state?.['turno'] as
       | TurnoWithRelations
       | undefined;
     if (fromState) return fromState;
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) return undefined;
-    return this.turnoService.items().find((t) => t.id === id) ?? undefined;
+    // Fallback: items() returns Turno[]. Cast to TurnoWithRelations — runtime may lack optional
+    // fields (clienteNombre, servicioNombre, cliente, servicio). The template uses optional chaining
+    // so missing fields render gracefully. Primary path (router state) is always populated.
+    return this.turnoService.items().find((t) => t.id === id) as TurnoWithRelations | undefined;
   });
 
   readonly telefono = computed(() => this.turno()?.cliente?.telefono ?? null);

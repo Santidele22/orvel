@@ -147,8 +147,9 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).toMatch(/active:scale-\[0\.98\]/);
   });
 
-  it('has (click) handler that calls cardTapped.emit(turno)', () => {
-    expect(templateSource).toMatch(/\(click\)="cardTapped\.emit\(turno\)"/);
+  it('has (click) handler that calls cardTapped.emit(turno()) for signal input', () => {
+    // Angular 21 `input.required<T>()` exposes an InputSignal; the template must call turno() to read it.
+    expect(templateSource).toMatch(/\(click\)="cardTapped\.emit\(turno\(\)\)"/);
   });
 
   it('has NO [routerLink] on card root (navigation is parent responsibility)', () => {

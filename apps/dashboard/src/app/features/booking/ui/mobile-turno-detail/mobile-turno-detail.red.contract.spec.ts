@@ -45,7 +45,14 @@ describe('MobileTurnoDetailComponent contract', () => {
   });
 
   it('R1b: falls back to TurnoService.items().find()', () => {
-    expect(componentSource).toMatch(/items\(\)\.find\b/);
+    expect(componentSource).toMatch(/items\(\)\.find\b/  );
+  });
+
+  it('R1c: turno computed is typed TurnoWithRelations (avoid union with raw Turno)', () => {
+    // Without the explicit generic, the computed result is `TurnoWithRelations | Turno | undefined`
+    // (TurnoService.items() returns Turno[]), which makes `turno()?.clienteNombre` fail to compile
+    // under Angular's strictTemplates. The generic parameter is the structural guard.
+    expect(componentSource).toMatch(/computed<[^>]*TurnoWithRelations[^>]*>/);
   });
 
   // ── R2 — Mobile-only viewport gating ──────────────────────────────────
