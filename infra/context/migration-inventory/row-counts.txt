@@ -1,0 +1,48 @@
+Row Counts + Table Sizes — orvel-qa-dev (rloovjtdaqvcgzlbppfr)
+Generated: 2026-07-30 (via pg_stat_user_tables)
+=======================================================
+
+PUBLIC SCHEMA (domain tables):
+  appointments              |      3 rows | 96 kB
+  services                  |      2 rows | 64 kB
+  clients                   |      2 rows | 48 kB
+  business_settings         |      1 row  | 56 kB
+  users                     |      1 row  | 64 kB
+  professionals             |      1 row  | 48 kB
+  service_categories        |      1 row  | 48 kB
+  businesses                |      1 row  | 64 kB
+  professional_hours        |      0 rows | 24 kB
+  professional_services     |      0 rows |  8 kB
+  notifications             |      0 rows | 32 kB
+  email_outbox              |      0 rows | 32 kB
+
+AUTH SCHEMA:
+  users                     |      1 row  | 208 kB
+  identities                |      1 row  |  80 kB
+  (other auth tables)       |      0 rows each
+
+STORAGE SCHEMA:
+  buckets                   |      0 rows | 24 kB
+  objects                   |      0 rows | 48 kB
+  migrations                |     61 rows | 40 kB
+  (other storage tables)    |      0 rows
+
+REALTIME SCHEMA:
+  schema_migrations         |     81 rows | 24 kB
+  (other realtime tables)   |      0 rows
+
+VAULT SCHEMA:
+  secrets                   |      0 rows | 24 kB
+
+SUPABASE_MIGRATIONS SCHEMA:
+  schema_migrations         |      6 rows | 48 kB
+
+=======================================================
+Notes:
+- 8 of 12 public tables have data (test/seed data).
+- Legacy schema uses `business_id` FK pattern throughout.
+- 6 remote-only migrations applied (20260729*).
+- All tables have RLS disabled.
+- No auth.users beyond 1 root/setup user.
+- Storage buckets: 0.
+- Vault secrets: 0.

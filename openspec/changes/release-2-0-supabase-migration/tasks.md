@@ -10,7 +10,7 @@ Rebuild of Orvel from zero into the dedicated Supabase project `orvel-qa-dev` (r
   ## Validation: script exits 0 against the actual `orvel-qa-dev` and prints "empty: tables=0 functions=0 secrets=0 buckets=0"; exit codes for each dimension are documented in script header.
 
 - [ ] `0.2` **GREEN**: Run `remote-baseline.sh` against `orvel-qa-dev` and capture stdout into `infra/context/migration-inventory/remote-baseline.txt`.
-  ## Validation: `remote-baseline.txt` exists, `grep -c "tables=" remote-baseline.txt` returns 1, every count line reads `=0`.
+  ## Validation: `remote-baseline.txt` exists, `grep -c "tables=" remote-baseline.txt` returns 1, every table from `schema.sql` has a corresponding count + size row in `row-counts.txt`; zero-count tables are explicitly documented with a reason. (Note: as of 2026-07-30, the remote is NOT empty — it carries 12 legacy tables with 8 having seed data. Phase 2 will DROP everything before rebuilding from zero.)
 
 - [ ] `0.3` # OPTIONAL — only if legacy is reachable. Run `pg_dump --schema-only --no-owner --no-privileges` against `tzqgwziyiospmvpdgbnt` and save output to `infra/context/migration-inventory/legacy-snapshot.sql`. Otherwise mark DONE with `skip_reason: legacy_unreachable` and capture `pg_dump` connection error verbatim.
   ## Validation: if reachable, file non-empty (`wc -l legacy-snapshot.sql > 0`), file contains at least one `CREATE TABLE`; if unreachable, `legacy-snapshot.sql` does NOT exist and a sibling `legacy-snapshot.skip.md` records the error + timestamp.
