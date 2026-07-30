@@ -1,0 +1,41 @@
+=== remote-baseline.sh ===
+Project: orvel-qa-dev (rloovjtdaqvcgzlbppfr)
+Timestamp: 2026-07-30T...
+
+--- Tables ---
+  tables=12   (via MCP execute_sql: SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE')
+
+--- Functions ---
+  functions=0   (via MCP supabase_list_edge_functions)
+
+--- Secrets ---
+  secrets=0   (via MCP execute_sql: SELECT * FROM vault.secrets)
+
+--- Buckets ---
+  buckets=0    (via MCP execute_sql: SELECT * FROM storage.buckets)
+
+--- Summary ---
+  exit_code=1  (tables found — project is NOT empty)
+  NOTE: remote-baseline.sh requires supabase CLI or psql for full automation.
+        MCP tools were used as fallback for this initial baseline.
+        The script will produce the same output once CLI is configured.
+
+DIMENSION BREAKDOWN:
+  tables=12     (expected: 0 — ⚠️ 12 tables deployed, 8 with seed data)
+  functions=0   (expected: 0 — ✓)
+  secrets=0     (expected: 0 — ✓)
+  buckets=0     (expected: 0 — ✓)
+
+APPLIED MIGRATIONS (6 total, all from 2026-07-29):
+  20260729000000_create_businesses
+  20260729001000_create_professionals_and_categories
+  20260729002000_create_services_and_professional_services
+  20260729003000_create_users_and_professional_hours
+  20260729004000_create_clients_and_appointments
+  20260729005000_create_settings_notifications_outbox
+
+NOTE: The remote schema was deployed via 6 migrations on 2026-07-29.
+      These migration files are NOT present in the local repo (which has ~20
+      legacy migrations from 202604*-202606*).
+      This is NOT the empty project described in design.md — it has the
+      legacy-like schema with `business_id` FK pattern.
