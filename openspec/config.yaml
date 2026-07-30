@@ -3,5 +3,5 @@ project: orvel
 version: 1
 rules:
   require_validation_per_task: true
-  phases: 7
+  phases: 5
   spec_format: delta

@@ -19,13 +19,13 @@ Local development SHALL run against SQLite and SHALL NOT require a network conne
 
 ### Requirement: Shared remote development and QA
 
-Dev-remote and QA SHALL share the single Supabase project `orvel-dev-qa` and SHALL use non-production data and credentials.
+Dev-remote and QA SHALL share the single Supabase project `orvel-qa-dev` and SHALL use non-production data and credentials.
 
 #### Scenario: QA build accesses backend services
 
 - GIVEN a QA deployment is running
 - WHEN it accesses Supabase services
-- THEN it connects to `orvel-dev-qa`
+- THEN it connects to `orvel-qa-dev`
 - AND it does not use production credentials or data
 
 ### Requirement: Isolated production backend

@@ -2,7 +2,7 @@
 
 ## Context
 
-Orvel currently uses the personal Supabase project `tzqgwziyiospmvpdgbnt`, a single remote environment, and no verified end-to-end CI/CD promotion pipeline. The repository contains Supabase migrations and 12 deployed Edge Functions, but the migration must first inventory actual remote state and reconcile any drift. The target separates product ownership, rebuilds the schema from first principles, and adds safe environment promotion at a recurring infrastructure cost of $0 under current free-tier assumptions.
+The personal legacy Supabase project `tzqgwziyiospmvpdgbnt` is operationally abandoned. The new canonical remote is the dedicated Supabase project `orvel-qa-dev` (ref `rloovjtdaqvcgzlbppfr`), which is empty — no schema, no Edge Functions, no secrets, no storage buckets. The repository contains legacy migrations and 12 Edge Functions, plus no verified end-to-end CI/CD promotion pipeline. Release 2.0 fills `orvel-qa-dev` with the new schema, provisions `orvel-main` from the same migration set, and adds safe environment promotion at a recurring infrastructure cost of $0 under current free-tier assumptions. There is no ETL, no parallel cutover, and no 30-day legacy cleanup window.
 
 ### Cross-references
 
@@ -23,7 +23,7 @@ GitHub ---------------------------> Vercel project
   |                                  `- Main: orvel.app
   v
 GitHub Actions
-  |- qa   -> migrate/deploy -> Supabase orvel-dev-qa
+  |- qa   -> migrate/deploy -> Supabase orvel-qa-dev
   |                           (dev-remote + QA, sandbox integrations)
   `- main -> migrate/deploy -> Supabase orvel-main
                               (isolated production integrations)
@@ -31,15 +31,13 @@ GitHub Actions
 
 ## Migration Strategy
 
-Option C rebuilds the schema from zero instead of treating historical migrations as the desired design. Delivery is sequential:
+Option C rebuilds the schema from zero inside `orvel-qa-dev` instead of treating historical migrations as the desired design. The legacy is abandoned, so there is no ETL and no parallel cutover. Delivery is sequential:
 
-1. Inventory remote schema, data, storage, policies, functions, secrets, and drift.
-2. Design and peer-review the replacement schema and RLS model.
-3. Build and validate the schema in `orvel-dev-qa`; redeploy backend assets.
-4. Develop repeatable ETL and validate it at 10%, 50%, and 100% scale.
-5. Provision `orvel-main`, take a final backup, run ETL, switch configuration, and smoke test.
-6. Preserve the old project read-only for 30 days and update canonical references.
-7. Complete SQLite, branch, Vercel, GitHub Actions, and environment automation.
+1. Confirm `orvel-qa-dev` is empty; optionally capture a one-shot read-only `pg_dump --schema-only` of the abandoned legacy as a historical snapshot.
+2. Design and peer-review the replacement schema and RLS model (ADRs 0001–0004).
+3. Build and validate the schema in `orvel-qa-dev`; redeploy backend assets (12 Edge Functions rebuilt, not migrated); enter sandbox secrets.
+4. Provision `orvel-main`, apply the same migrations, redeploy the 12 Edge Functions with production secrets, smoke test critical flows.
+5. Complete SQLite, branch, Vercel, GitHub Actions, and environment automation.
 
 ## Schema Design Principles
 
@@ -127,14 +125,14 @@ Notes:
 
 ## Cutover Strategy
 
-A scheduled maintenance window prevents writes during final synchronization. Before cutover, the team takes and verifies a complete backup, rehearses ETL against staging data, and prepares environment-variable rollback. The old and new projects run in parallel for verification, but only one accepts canonical writes. If critical smoke tests fail, runtime configuration reverts to the personal project and the maintenance window remains active until consistency is confirmed.
+There is no dual-write window. The legacy project is operationally abandoned. `orvel-qa-dev` is filled with the new schema; `orvel-main` is provisioned by applying the same migration set and the 12 Edge Functions with production secrets, then smoke-tested. Before provisioning `orvel-main`, the team takes a pre-provisioning backup of `orvel-qa-dev` so rollback has a concrete restore point. If smoke tests fail on `orvel-main`, the deployment is rolled back within the Supabase project layer: re-apply migrations to return the schema to a known-good state, or restore from the pre-provisioning backup. The rollback triggers, owners, and configuration reversal are documented in `infra/context/migration-inventory/main-rollback.md`.
 
 ## 3-Env Strategy
 
 | Environment | Data platform | Integration mode | Deployment source |
 |---|---|---|---|
 | Local dev | SQLite | Local/fake or sandbox | Developer workstation |
-| dev-remote + QA | Shared `orvel-dev-qa` Supabase | Sandbox | `dev`, feature, and `qa` workflows |
+| dev-remote + QA | Shared `orvel-qa-dev` Supabase | Sandbox | `dev`, feature, and `qa` workflows |
 | Main | Isolated `orvel-main` Supabase | Production | `main` |
 
 SQLite optimizes local iteration, while remote QA exercises PostgreSQL, RLS, Edge Functions, storage, and external integration boundaries before production promotion. Test data and credentials remain environment-scoped.
@@ -146,16 +144,15 @@ SQLite optimizes local iteration, while remote QA exercises PostgreSQL, RLS, Edg
 | Three separate Supabase projects | Maximum isolation | At least one paid project, approximately $25/month | Rejected to preserve $0/month target |
 | Pure SQLite across non-production | Lowest cost and simplest local loop | Cannot faithfully validate PostgreSQL, RLS, storage, or Edge Functions | Rejected due to production-parity risk |
 | Option B hybrid schema migration | Lower initial rewrite effort | Preserves historical inconsistencies and complicates ownership boundaries | Rejected in favor of Option C |
-| Option C full rebuild | Clean model and explicit invariants | Highest short-term effort and migration risk | Accepted with staged ETL and rollback |
+| Option C full rebuild from zero in `orvel-qa-dev` | Clean model and explicit invariants | Highest short-term effort; requires rebuild of the 12 Edge Functions | Accepted with documented rollback for `orvel-main` |
 
 ## Risks & Mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Data loss or transformation defects | Verified backup, repeatable ETL, counts, checksums, samples, staged scale tests |
-| Excessive downtime | Rehearsed ETL, maintenance runbook, final delta sync, explicit stop conditions |
-| Booking/auth regression | Automated integration tests plus post-cutover critical-flow smoke tests |
-| Mercado Pago/billing disruption | Environment-scoped credentials, webhook verification, sandbox rehearsal, rollback configuration |
+| Smoke-test failures during `orvel-main` cutover | Documented rollback (re-apply migrations or restore from pre-provisioning backup); smoke tests for booking, login, billing, notifications before sign-off |
+| Booking/auth regression | Automated integration tests plus post-provisioning critical-flow smoke tests in both `orvel-qa-dev` and `orvel-main` |
+| Mercado Pago/billing disruption | Environment-scoped credentials, webhook verification, sandbox rehearsal before production credentials are entered |
 | RLS authorization gaps | RLS per-table review, role checks; explicit non-multi-tenant stance documented so future multi-tenant work does not silently regress; no `tenant_id` column in 2.0. |
 | SQLite/PostgreSQL behavioral drift | Keep SQLite for fast local work; require remote QA before promotion |
 | Shared dev/QA interference | Namespace test data, reset procedures, QA windows, and environment ownership rules |
