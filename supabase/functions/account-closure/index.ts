@@ -1,11 +1,11 @@
 // 2.0 cleanup PR-1 — stubbed. Real implementation arrives when account-closure returns to scope.
-import { billingSecurityHeaders } from "../_shared/billing-security.ts";
+import { getBillingCorsHeaders } from "../_shared/billing-security.ts";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "METHOD_NOT_ALLOWED" }), {
       status: 405,
-      headers: { ...billingSecurityHeaders(req), "content-type": "application/json" },
+      headers: { ...getBillingCorsHeaders(req), "content-type": "application/json" },
     });
   }
   return new Response(
@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     }),
     {
       status: 501,
-      headers: { ...billingSecurityHeaders(req), "content-type": "application/json" },
+      headers: { ...getBillingCorsHeaders(req), "content-type": "application/json" },
     },
   );
 });
