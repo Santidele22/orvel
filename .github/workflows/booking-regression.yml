@@ -62,7 +62,8 @@ jobs:
         run: deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/booking-time-schema-cleanup-static-contract.test.ts
 
       - name: Run booking billing subscription payments regression
-        run: deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/subscription-payments-contract.test.ts
+        # subscription-payments-contract.test.ts removed in 2.0 cleanup PR-1 — module deleted
+        run: echo "Skipped: supabase/functions/_shared/subscription-payments-contract.test.ts (deleted in 2.0 cleanup PR-1)"
 
       - name: Reject focused Deno tests
         run: |
