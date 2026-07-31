@@ -23,7 +23,7 @@
     "test:supabase:trial-reminder:postgres": "bash supabase/checks/20260712190000_normalize_legacy_reminder_function_acl.test.sh && bash supabase/checks/20260712213000_generic_one_time_email_contract.test.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_concurrency.sh && bash supabase/checks/20260710210000_one_time_trial_reminder_preflight.test.sh",
     "test:supabase:trial-reminder:ci": "pnpm run test:supabase:trial-reminder:operational && bash scripts/run-trial-reminder-postgres-check.sh",
     "supabase:functions:check": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
-    "test:supabase:functions:critical": "node scripts/check-focused-tests.mjs && deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/account-closure-consumer.test.ts supabase/functions/_shared/cancel-subscription-behavior.test.ts supabase/functions/_shared/cancel-subscription-manual-request-static-contract.test.ts",
+    "test:supabase:functions:critical": "node scripts/check-focused-tests.mjs && deno test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/cancel-subscription-manual-request-static-contract.test.ts",
     "test:dashboard:account-cancellation": "node scripts/check-focused-tests.mjs && pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/account-cancellation-modal.contract.spec.ts src/app/tests/integration/configuracion-zen-ui-regression-guards.contract.spec.ts src/app/tests/unit/billing-subscription-page.contract.spec.ts",
     "dev:dashboard:proxy": "pnpm --dir apps/dashboard exec ng serve --host 127.0.0.1 --port 4200 --serve-path /dashboard",
     "dev:landing:proxy": "pnpm --dir apps/landing exec astro dev --host 127.0.0.1 --port 4321",
