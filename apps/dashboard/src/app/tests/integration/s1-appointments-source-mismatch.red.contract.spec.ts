@@ -13,7 +13,7 @@ function directBookingsReadPattern(): RegExp {
 
 describe('S1 RED - Appointments must read from same source as public booking writes', () => {
   it('write/read source contract: public flow writes behind RPC and appointments list through least-privilege RPC', () => {
-    const migrationSql = readSource('supabase/migrations/20260428110000_fix_public_booking_customers.sql');
+    const migrationSql = readSource('supabase/migrations/_legacy/20260428110000_fix_public_booking_customers.sql');
     const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     const writeTargetIsPublicBookings = /insert\s+into\s+public\.bookings/i.test(migrationSql);

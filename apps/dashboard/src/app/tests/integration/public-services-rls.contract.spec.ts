@@ -23,8 +23,8 @@ function findRepoRoot(start: string): string {
 
 const REPO_ROOT = findRepoRoot(ROOT);
 const MIGRATION_PATHS = [
-  path.join(REPO_ROOT, 'supabase/migrations/20260629190000_harden_public_services_rls.sql'),
-  path.join(REPO_ROOT, 'supabase/migrations/20260629191000_drop_legacy_broad_public_services_policies.sql')
+  path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260629190000_harden_public_services_rls.sql'),
+  path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260629191000_drop_legacy_broad_public_services_policies.sql')
 ];
 const SMOKE_PATH = path.join(REPO_ROOT, 'supabase/checks/20260629190000_public_services_rls_smoke.sql');
 

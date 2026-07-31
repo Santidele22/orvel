@@ -69,7 +69,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('RPC persistence contract keeps customer(name+phone) and appointment creation chain in SQL function', () => {
-    const migrationSql = readSource('supabase/migrations/20260428110000_fix_public_booking_customers.sql');
+    const migrationSql = readSource('supabase/migrations/_legacy/20260428110000_fix_public_booking_customers.sql');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.create_public_booking/i);
     expect(migrationSql).toMatch(/client\s*->>\s*'fullName'/i);
@@ -79,7 +79,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('public booking success is atomic with canonical branch visibility, bell notification, and confirmation email outbox', () => {
-    const migrationSql = readSource('supabase/migrations/20260629234000_atomic_public_booking_visibility_notifications.sql');
+    const migrationSql = readSource('supabase/migrations/_legacy/20260629234000_atomic_public_booking_visibility_notifications.sql');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.create_public_booking/i);
     expect(migrationSql).toMatch(/alter\s+table\s+public\.branches[\s\S]*add\s+column\s+if\s+not\s+exists\s+is_active\s+boolean/i);
@@ -98,7 +98,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('fix-forward migration keeps public bookings listable under default branch context and backfills bell notifications', () => {
-    const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
+    const migrationSql = readSource('supabase/migrations/_legacy/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
     const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.list_admin_bookings/i);
@@ -111,7 +111,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('manage-reservation contract returns service display data instead of only service UUID', () => {
-    const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
+    const migrationSql = readSource('supabase/migrations/_legacy/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
     const pageSource = readSource('src/app/features/booking/pages/public/manage-booking.page.ts');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.manage_booking_by_token/i);

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260713000002_add_customer_cancellation_email.sql",
+  "../migrations/_legacy/20260713000002_add_customer_cancellation_email.sql",
   import.meta.url,
 );
 

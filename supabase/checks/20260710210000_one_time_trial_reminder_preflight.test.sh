@@ -22,9 +22,9 @@ if psql -v ON_ERROR_STOP=1 -d "$database" \
 fi
 
 psql -v ON_ERROR_STOP=1 -d "$database" \
-  -f supabase/migrations/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
+  -f supabase/migrations/_legacy/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$database" \
-  -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
+  -f supabase/migrations/_legacy/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
 
 # Exact production intermediate state: legacy migration applied, generic
 # migration pending. Both accepted row shapes must pass without mutation.
@@ -100,11 +100,11 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 SQL
 psql -v ON_ERROR_STOP=1 -d "$database" \
-  -f supabase/migrations/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
+  -f supabase/migrations/_legacy/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$database" \
-  -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
+  -f supabase/migrations/_legacy/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$database" \
-  -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+  -f supabase/migrations/_legacy/20260712213000_generic_one_time_email_contract.sql >/dev/null
 psql -v ON_ERROR_STOP=1 -d "$database" \
   -f supabase/checks/trial-user-activation-reminder-preflight-present.sql >/dev/null
 

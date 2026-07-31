@@ -8,8 +8,8 @@ function readSql(path: string): string {
 
 describe('Orvel capacity booking RED contracts', () => {
   it('DB schema defines business.capacity as INT with min value 1', () => {
-    const bookingCore = readSql('supabase/migrations/20260420121000_booking_core_schema.sql');
-    const businessSettings = readSql('supabase/migrations/20260426210000_update_business_settings_schema.sql');
+    const bookingCore = readSql('supabase/migrations/_legacy/20260420121000_booking_core_schema.sql');
+    const businessSettings = readSql('supabase/migrations/_legacy/20260426210000_update_business_settings_schema.sql');
     const merged = `${bookingCore}\n${businessSettings}`.toLowerCase();
 
     expect(merged).toMatch(/\bcapacity\b\s+integer|\bcapacity\b\s+int\b/);
@@ -17,8 +17,8 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it("DB schema constrains appointment states to 'booked' | 'cancelled'", () => {
-    const bookingCore = readSql('supabase/migrations/20260420121000_booking_core_schema.sql').toLowerCase();
-    const bookingRpcs = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const bookingCore = readSql('supabase/migrations/_legacy/20260420121000_booking_core_schema.sql').toLowerCase();
+    const bookingRpcs = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
     const merged = `${bookingCore}\n${bookingRpcs}`;
 
     expect(merged).toMatch(/status\s+text\s+not\s+null\s+default\s+'booked'/);
@@ -26,7 +26,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('create_appointment is atomic for last capacity under concurrent attempts', () => {
-    const bookingRpcs = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const bookingRpcs = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
 
     expect(bookingRpcs).toMatch(/create\s+(or\s+replace\s+)?function\s+public\.create_appointment\s*\(/);
     expect(bookingRpcs).toMatch(/for\s+update/);
@@ -35,7 +35,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('create_appointment contract serializes overlapping ranges (10:00-11:00 vs 10:30-11:30) for same business', () => {
-    const bookingRpcs = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const bookingRpcs = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
 
     expect(bookingRpcs).toMatch(/create\s+(or\s+replace\s+)?function\s+public\.create_appointment\s*\(/);
     expect(bookingRpcs).toMatch(/pg_advisory_xact_lock/);
@@ -47,7 +47,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('create_appointment validates null/missing required inputs with deterministic BOOKING_VALIDATION_ERROR', () => {
-    const bookingRpcs = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const bookingRpcs = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
 
     expect(bookingRpcs).toMatch(/create\s+(or\s+replace\s+)?function\s+public\.create_appointment\s*\(/);
     expect(bookingRpcs).toMatch(/if\s+p_business_id\s+is\s+null\s+then\s+raise\s+exception\s+using\s+errcode\s*=\s*'p0001'\s*,\s*message\s*=\s*'booking_validation_error'/);
@@ -56,7 +56,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('create_appointment enforces explicit auth + membership guard for p_business_id', () => {
-    const bookingRpcs = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const bookingRpcs = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
     const createAppointmentFn = bookingRpcs.match(
       /create\s+(or\s+replace\s+)?function\s+public\.create_appointment\s*\([\s\S]*?\)\s*returns\s+jsonb\s+language\s+plpgsql\s+as\s+\$\$([\s\S]*?)\$\$\s*;/,
     );
@@ -76,8 +76,8 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('availability RPC uses overlap occupancy, 30-min slots, and America/Argentina/Buenos_Aires timezone', () => {
-    const availabilityMigration = readSql('supabase/migrations/20260426220000_improve_availability_rpc.sql').toLowerCase();
-    const coreBookingRpc = readSql('supabase/migrations/20260420122000_booking_rpcs.sql').toLowerCase();
+    const availabilityMigration = readSql('supabase/migrations/_legacy/20260426220000_improve_availability_rpc.sql').toLowerCase();
+    const coreBookingRpc = readSql('supabase/migrations/_legacy/20260420122000_booking_rpcs.sql').toLowerCase();
     const merged = `${availabilityMigration}\n${coreBookingRpc}`;
 
     expect(merged).toMatch(/america\/argentina\/buenos_aires/);
@@ -104,7 +104,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('bookings status constraint remains centralized as bookings_status_check with only booked/cancelled', () => {
-    const businessSettingsMigration = readSql('supabase/migrations/20260426210000_update_business_settings_schema.sql').toLowerCase();
+    const businessSettingsMigration = readSql('supabase/migrations/_legacy/20260426210000_update_business_settings_schema.sql').toLowerCase();
 
     expect(businessSettingsMigration).toMatch(/conname\s*=\s*'bookings_status_check'/);
     expect(businessSettingsMigration).toMatch(/add\s+constraint\s+bookings_status_check\s+check\s*\(\s*status\s+in\s*\(\s*'booked'\s*,\s*'cancelled'\s*\)\s*\)/);

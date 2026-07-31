@@ -74,7 +74,7 @@ Deno.test("cancel-subscription uses a deterministic manual cancellation idempote
 Deno.test("subscription_events allows nullable provider_subscription_id for honest manual requests", async () => {
   const migration = await Deno.readTextFile(
     new URL(
-      "../../migrations/20260703190000_allow_nullable_subscription_event_provider_subscription_id.sql",
+      "../../migrations/_legacy/20260703190000_allow_nullable_subscription_event_provider_subscription_id.sql",
       import.meta.url,
     ),
   );

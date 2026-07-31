@@ -6,11 +6,11 @@ const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
 const REPO_ROOT = path.resolve(TEST_DIR, '../../../../../..');
 const MIGRATION_PATH = path.join(
   REPO_ROOT,
-  'supabase/migrations/20260628143000_enforce_reschedule_canonical_availability.sql'
+  'supabase/migrations/_legacy/20260628143000_enforce_reschedule_canonical_availability.sql'
 );
 const EMAIL_LIFECYCLE_PATH = path.join(
   REPO_ROOT,
-  'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'
+  'supabase/migrations/_legacy/20260628120000_booking_lifecycle_email_outbox.sql'
 );
 const ROLLBACK_SMOKE_PATH = path.join(
   REPO_ROOT,
@@ -18,15 +18,15 @@ const ROLLBACK_SMOKE_PATH = path.join(
 );
 const HARDENING_MIGRATION_PATH = path.join(
   REPO_ROOT,
-  'supabase/migrations/20260628145500_harden_reschedule_rpc_execute_grants.sql'
+  'supabase/migrations/_legacy/20260628145500_harden_reschedule_rpc_execute_grants.sql'
 );
 const BRANCH_SCOPE_MIGRATION_PATH = path.join(
   REPO_ROOT,
-  'supabase/migrations/20260628152000_admin_reschedule_branch_scope_telemetry.sql'
+  'supabase/migrations/_legacy/20260628152000_admin_reschedule_branch_scope_telemetry.sql'
 );
 const BRANCH_GUARD_SEMANTICS_MIGRATION_PATH = path.join(
   REPO_ROOT,
-  'supabase/migrations/20260628161000_document_admin_reschedule_branch_guard.sql'
+  'supabase/migrations/_legacy/20260628161000_document_admin_reschedule_branch_guard.sql'
 );
 const TURNO_SERVICE_PATH = path.join(
   REPO_ROOT,

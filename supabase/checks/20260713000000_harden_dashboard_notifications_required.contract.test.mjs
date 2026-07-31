@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260713000000_harden_dashboard_notifications_required.sql",
+  "../migrations/_legacy/20260713000000_harden_dashboard_notifications_required.sql",
   import.meta.url,
 );
 

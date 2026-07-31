@@ -22,7 +22,7 @@ const REPO_ROOT = findRepoRoot(process.cwd());
 
 const MIGRATION_PATH = resolve(
   REPO_ROOT,
-  'supabase/migrations/20260627210000_enforce_public_booking_canonical_availability.sql'
+  'supabase/migrations/_legacy/20260627210000_enforce_public_booking_canonical_availability.sql'
 );
 
 function readMigration(): string {

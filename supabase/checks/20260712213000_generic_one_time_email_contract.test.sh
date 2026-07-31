@@ -29,15 +29,15 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 SQL
   psql -v ON_ERROR_STOP=1 -d "$database" \
-    -f supabase/migrations/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
+    -f supabase/migrations/_legacy/20260710210000_one_time_trial_reminder_attempt.sql >/dev/null
   psql -v ON_ERROR_STOP=1 -d "$database" \
-    -f supabase/migrations/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
+    -f supabase/migrations/_legacy/20260712190000_normalize_legacy_reminder_function_acl.sql >/dev/null
   printf '%s' "$database"
 }
 
 apply_forward_migration() {
   psql -v ON_ERROR_STOP=1 -d "$1" \
-    -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+    -f supabase/migrations/_legacy/20260712213000_generic_one_time_email_contract.sql >/dev/null
 }
 
 wait_for_activity() {
@@ -192,7 +192,7 @@ wait_for_activity "$race_reservation_first" 'orvel-reservation-first' \
   "state = 'idle in transaction'" 'historical reservation committed its INSERT before migration queued'
 (
   PGAPPNAME='orvel-migration-after-reservation' timeout 15s psql -v ON_ERROR_STOP=1 -d "$race_reservation_first" \
-    -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+    -f supabase/migrations/_legacy/20260712213000_generic_one_time_email_contract.sql >/dev/null
 ) &
 reservation_first_migration_pid=$!
 wait_for_activity "$race_reservation_first" 'orvel-migration-after-reservation' \
@@ -223,7 +223,7 @@ wait_for_activity "$race_migration_first" 'orvel-migration-blocker' \
   "state = 'idle in transaction'" 'exclusive blocker acquired before migration'
 (
   PGAPPNAME='orvel-migration-first' timeout 15s psql -v ON_ERROR_STOP=1 -d "$race_migration_first" \
-    -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null
+    -f supabase/migrations/_legacy/20260712213000_generic_one_time_email_contract.sql >/dev/null
 ) &
 migration_pid=$!
 wait_for_activity "$race_migration_first" 'orvel-migration-first' \
@@ -262,7 +262,7 @@ wait_for_activity "$race_timeout" 'orvel-timeout-holder' \
 timeout_started_at="$(date +%s%3N)"
 (
   PGAPPNAME='orvel-intrinsic-timeout' timeout 12s psql -v ON_ERROR_STOP=1 -d "$race_timeout" \
-    -f supabase/migrations/20260712213000_generic_one_time_email_contract.sql >/dev/null 2>&1
+    -f supabase/migrations/_legacy/20260712213000_generic_one_time_email_contract.sql >/dev/null 2>&1
 ) &
 timeout_migration_pid=$!
 wait_for_activity "$race_timeout" 'orvel-intrinsic-timeout' \

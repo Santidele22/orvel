@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260710210000_one_time_trial_reminder_attempt.sql",
+  "../migrations/_legacy/20260710210000_one_time_trial_reminder_attempt.sql",
   import.meta.url,
 );
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const MIGRATION_PATH = resolve(
   process.cwd(),
-  '../../supabase/migrations/20260702110000_ensure_business_principal_branch_for_public_booking.sql'
+  '../../supabase/migrations/_legacy/20260702110000_ensure_business_principal_branch_for_public_booking.sql'
 );
 
 const MIGRATION_SQL = readFileSync(MIGRATION_PATH, 'utf8');

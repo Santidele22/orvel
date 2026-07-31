@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260724010000_add_business_types_is_promoted.sql",
+  "../migrations/_legacy/20260724010000_add_business_types_is_promoted.sql",
   import.meta.url,
 );
 

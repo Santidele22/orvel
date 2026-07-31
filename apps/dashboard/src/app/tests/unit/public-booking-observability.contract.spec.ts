@@ -28,7 +28,7 @@ function findRepoRoot(startDir: string): string {
 
 const TELEMETRY_MIGRATION = resolve(
   findRepoRoot(process.cwd()),
-  'supabase/migrations/20260627235500_public_booking_failure_telemetry.sql'
+  'supabase/migrations/_legacy/20260627235500_public_booking_failure_telemetry.sql'
 );
 
 async function flushPromises(): Promise<void> {

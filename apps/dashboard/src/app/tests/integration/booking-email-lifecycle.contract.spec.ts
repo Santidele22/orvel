@@ -14,7 +14,7 @@ function readRequiredFile(filePath: string): string {
 describe('Booking lifecycle email notifications contract', () => {
   it('centralizes the lifecycle matrix in a forward-only Supabase migration', () => {
     // Arrange
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628120000_booking_lifecycle_email_outbox.sql'));
 
     // Act / Assert
     expect(migration).toMatch(/ADD COLUMN IF NOT EXISTS lifecycle_event_key text/i);
@@ -58,7 +58,7 @@ describe('Booking lifecycle email notifications contract', () => {
   });
 
   it('uses clear internal recipient roles and avoids inert appointment action links', () => {
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628120000_booking_lifecycle_email_outbox.sql'));
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
     const sharedTemplates2 = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
@@ -72,7 +72,7 @@ describe('Booking lifecycle email notifications contract', () => {
   });
 
   it('safely formats business notification address, price, duration, and schedule fields', () => {
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql'));
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
     const sharedTemplates3 = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
@@ -89,7 +89,7 @@ describe('Booking lifecycle email notifications contract', () => {
   });
 
   it('hardens public booking business recipient resolution and logs skipped owner emails', () => {
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260704193000_harden_public_booking_business_email_recipient.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260704193000_harden_public_booking_business_email_recipient.sql'));
 
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\._resolve_booking_business_email/);
     expect(migration).toMatch(/bs\.support_email/);
