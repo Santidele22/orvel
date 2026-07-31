@@ -7,11 +7,11 @@ import { createAccountClosureHandler, processDueAccountClosures } from "../accou
 
 const fixedNow = new Date("2026-08-01T00:00:00.000Z");
 const accountClosureOwnerFkMigrationPath = new URL(
-  "../../migrations/20260708223500_business_owner_fk_set_null_for_account_closure.sql",
+  "../../migrations/_legacy/20260708223500_business_owner_fk_set_null_for_account_closure.sql",
   import.meta.url,
 );
 const accountClosurePublicBookingMigrationPath = new URL(
-  "../../migrations/20260708234500_account_closure_blocks_public_booking.sql",
+  "../../migrations/_legacy/20260708234500_account_closure_blocks_public_booking.sql",
   import.meta.url,
 );
 
