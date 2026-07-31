@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260713000001_relax_business_email_outbox.sql",
+  "../migrations/_legacy/20260713000001_relax_business_email_outbox.sql",
   import.meta.url,
 );
 

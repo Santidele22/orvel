@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260724012000_add_business_settings_booking_knobs.sql",
+  "../migrations/_legacy/20260724012000_add_business_settings_booking_knobs.sql",
   import.meta.url,
 );
 

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL(
-  "../migrations/20260712213000_generic_one_time_email_contract.sql",
+  "../migrations/_legacy/20260712213000_generic_one_time_email_contract.sql",
   import.meta.url,
 );
 
@@ -14,7 +14,7 @@ async function migrationSql() {
 test("forward migration uses a generic lifecycle contract and preserves the original migration", async () => {
   const sql = await migrationSql();
   const original = await readFile(
-    new URL("../migrations/20260710210000_one_time_trial_reminder_attempt.sql", import.meta.url),
+    new URL("../migrations/_legacy/20260710210000_one_time_trial_reminder_attempt.sql", import.meta.url),
     "utf8",
   );
 
@@ -65,7 +65,7 @@ test("generic lifecycle values come from one revoked canonical SQL helper", asyn
 
 test("ACL normalization closes owner defaults before generic helper creation", async () => {
   const acl = (await readFile(
-    new URL("../migrations/20260712190000_normalize_legacy_reminder_function_acl.sql", import.meta.url),
+    new URL("../migrations/_legacy/20260712190000_normalize_legacy_reminder_function_acl.sql", import.meta.url),
     "utf8",
   )).toLowerCase();
   const generic = await migrationSql();
