@@ -230,8 +230,8 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
   });
 
   it('keeps the dashboard branch RPC contract scoped to can_manage_business for owners and business_members', () => {
-    const appliedMigration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/20260703143000_dashboard_owned_branches_rpc.sql'), 'utf8');
-    const migration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/20260704160000_business_scoped_dashboard_branches_rpc.sql'), 'utf8');
+    const appliedMigration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/_legacy/20260703143000_dashboard_owned_branches_rpc.sql'), 'utf8');
+    const migration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/_legacy/20260704160000_business_scoped_dashboard_branches_rpc.sql'), 'utf8');
 
     expect(appliedMigration).toMatch(/b\.owner_id\s*=\s*\(SELECT auth\.uid\(\)\)/i);
     expect(appliedMigration).not.toMatch(/get_dashboard_branches\(p_business_id uuid\)/i);
@@ -244,7 +244,7 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
   });
 
   it('keeps the dashboard branch RPC execute grants restricted to authenticated safe overloads', () => {
-    const migration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/20260707113000_fix_dashboard_branches_execute_grants.sql'), 'utf8');
+    const migration = readFileSync(resolve(process.cwd(), '../../supabase/migrations/_legacy/20260707113000_fix_dashboard_branches_execute_grants.sql'), 'utf8');
 
     expect(migration).toMatch(/get_dashboard_branches\(p_business_id uuid\)/i);
     expect(migration).toMatch(/SECURITY DEFINER/i);

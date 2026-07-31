@@ -11,7 +11,7 @@ function readRepoFile(pathFromRoot: string): string {
 
 describe('RED contract: public booking slug policy', () => {
   it('generates a canonical slug server-side from normalized business name plus a unique suffix and returns persisted identity', () => {
-    const migration = readRepoFile('supabase/migrations/20260617130000_dashboard_auth_state.sql');
+    const migration = readRepoFile('supabase/migrations/_legacy/20260617130000_dashboard_auth_state.sql');
 
     expect(migration, 'Slug base must use the shared/canonical DB normalizer, not raw client-style regexp logic.').toMatch(
       /canonical_booking_slug\s*\(\s*v_business_name\s*\)/i
@@ -53,7 +53,7 @@ describe('RED contract: public booking slug policy', () => {
 
 describe('RED contract: signup onboarding server-owned plan and catalog inputs', () => {
   it('does not persist a paid plan supplied by authenticated caller input', () => {
-    const migration = readRepoFile('supabase/migrations/20260617130000_dashboard_auth_state.sql');
+    const migration = readRepoFile('supabase/migrations/_legacy/20260617130000_dashboard_auth_state.sql');
     const functionBody = migration.match(
       /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.complete_signup_onboarding[\s\S]*?\$\$([\s\S]*?)\$\$/i
     )?.[1] ?? '';
@@ -71,7 +71,7 @@ describe('RED contract: signup onboarding server-owned plan and catalog inputs',
   });
 
   it('bounds and validates signup business input against the Supabase catalog', () => {
-    const migration = readRepoFile('supabase/migrations/20260617130000_dashboard_auth_state.sql');
+    const migration = readRepoFile('supabase/migrations/_legacy/20260617130000_dashboard_auth_state.sql');
 
     expect(migration, 'Business name length must be bounded before persistence.').toMatch(
       /char_length\s*\(\s*v_business_name\s*\)\s*>\s*120/i

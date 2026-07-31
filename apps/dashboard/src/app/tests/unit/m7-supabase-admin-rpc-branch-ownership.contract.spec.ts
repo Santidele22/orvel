@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const MIGRATION_SOURCE = readFileSync(
-  new URL('../../../../../../supabase/migrations/20260609120000_m7_admin_rpc_branch_ownership.sql', import.meta.url),
+  new URL('../../../../../../supabase/migrations/_legacy/20260609120000_m7_admin_rpc_branch_ownership.sql', import.meta.url),
   'utf8'
 );
 

@@ -5,7 +5,7 @@ import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../core
 
 const PUBLIC_BOOKING_SLUG_MIGRATION = resolve(
   process.cwd(),
-  'supabase/migrations/20260529001000_public_booking_slug_resolver.sql'
+  'supabase/migrations/_legacy/20260529001000_public_booking_slug_resolver.sql'
 );
 
 function readPublicBookingSlugMigration(): string {

@@ -25,7 +25,7 @@ describe('Admin booking cancel RPC contract', () => {
 
   it('allows admin cancellation for active bookings and rejects terminal bookings', () => {
     // Arrange
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628123000_fix_admin_booking_cancel_status_scope.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628123000_fix_admin_booking_cancel_status_scope.sql'));
 
     // Act / Assert
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.cancel_admin_booking/i);
@@ -37,7 +37,7 @@ describe('Admin booking cancel RPC contract', () => {
 
   it('requires direct authenticated RPC callers to provide branch scope and denies cross-branch cancellation', () => {
     // Arrange
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628134500_require_branch_scope_for_admin_cancel.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628134500_require_branch_scope_for_admin_cancel.sql'));
     const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
 
     // Act / Assert
@@ -51,7 +51,7 @@ describe('Admin booking cancel RPC contract', () => {
 
   it('keeps the old 4-arg RPC signature as a fail-closed compatibility wrapper', () => {
     // Arrange
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628133000_restore_admin_cancel_compat_defaults.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628133000_restore_admin_cancel_compat_defaults.sql'));
 
     // Act / Assert
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.cancel_admin_booking\(\s*booking_id uuid,\s*performed_by uuid DEFAULT NULL,\s*notes text DEFAULT NULL,\s*reason text DEFAULT NULL\s*\)/i);
@@ -63,7 +63,7 @@ describe('Admin booking cancel RPC contract', () => {
 
   it('adds durable sanitized telemetry for admin cancel failures and wires the UI failure path to it', () => {
     // Arrange
-    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628131500_admin_cancel_failure_telemetry_compat.sql'));
+    const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628131500_admin_cancel_failure_telemetry_compat.sql'));
     const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
     const page = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/pages/turnos-list.page.ts'));
     const telemetryTable = migration.match(/CREATE TABLE IF NOT EXISTS public\.admin_booking_cancel_failure_events \([\s\S]*?\);/i)?.[0] ?? '';
@@ -81,7 +81,7 @@ describe('Admin booking cancel RPC contract', () => {
 
   it('keeps admin cancellation email delivery owned by the bookings update trigger', () => {
     // Arrange
-    const lifecycleMigration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
+    const lifecycleMigration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/_legacy/20260628120000_booking_lifecycle_email_outbox.sql'));
     const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
 
     // Act / Assert

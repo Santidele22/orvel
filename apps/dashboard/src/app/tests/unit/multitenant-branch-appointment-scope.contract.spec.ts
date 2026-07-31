@@ -83,7 +83,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
 
   it('keeps admin booking RPC migrations on the canonical branches.is_active column', () => {
     const activeBranchMigration = readFileSync(
-      resolve(process.cwd(), '../../supabase/migrations/20260705193000_fix_admin_booking_active_branch_column.sql'),
+      resolve(process.cwd(), '../../supabase/migrations/_legacy/20260705193000_fix_admin_booking_active_branch_column.sql'),
       'utf-8'
     );
 
