@@ -11,5 +11,9 @@
   "include": [
     "src/**/*.d.ts",
     "src/**/*.spec.ts"
+  ],
+  "exclude": [
+    "src/**/*.skip.ts",
+    "src/**/*.skip.spec.ts"
   ]
 }
