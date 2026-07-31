@@ -25,9 +25,7 @@ All edge functions import common utilities from `../_shared/`:
 
 ```typescript
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
-import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
 import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
-import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
 import { resolveTrustedPaidPlanMapping } from "../_shared/mp-subscription-guards.ts";
 ```
 
@@ -35,9 +33,7 @@ Available shared modules:
 | Module | Purpose |
 |--------|---------|
 | `billing-security.ts` | CORS, origin validation, server secret, HMAC signature verification |
-| `mp-plan-catalog.ts` | Plan tier/cadence normalization and catalog row resolution |
 | `mp-rollout-control.ts` | Percentage-based rollout gating for MP features |
-| `mp-rollout-observability.ts` | Structured metrics for preapproval create and webhook process |
 | `mp-subscription-guards.ts` | Plan mapping validation, webhook status mapping, domain error codes |
 | `mercadopago-plan-variants.ts` | Plan variant builders (monthly, quarterly, annual) |
 
