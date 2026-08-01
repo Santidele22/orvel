@@ -42,12 +42,14 @@ describe('TypeScript compile-fix RED contracts (type-safe handling only)', () =>
     expect(source).not.toMatch(/Exclude<PlanCode/);
   });
 
-  it('dashboard notification sender must queue outbox rows without provider secrets', () => {
-    const source = readSource(NOTIFICATION_SENDER_PATH);
-
-    expect(source).toMatch(/notification_email_outbox/);
-    expect(source).toMatch(/to_email/);
-    expect(source).not.toMatch(/SENDGRID_API_KEY|MAILTRAP_TOKEN|MAILTRAP_API_KEY|apiKey\s*:/);
+  it('removes the dashboard-side notification sender boundary (Phase 2 dropped notification_email_outbox)', () => {
+    // Phase 2 (release 2.0) removed notification-sender.ts; the legacy dashboard-side outbox
+    // boundary no longer exists. The file path is intentionally unused now, but is retained
+    // as a constant for historical traceability.
+    expect(
+      fs.existsSync(NOTIFICATION_SENDER_PATH),
+      'notification-sender.ts was removed in Phase 2 (release 2.0); the dashboard must not own a notification_email_outbox boundary.',
+    ).toBe(false);
   });
 
   it('createSubscription must narrow response union before reading server error code', () => {

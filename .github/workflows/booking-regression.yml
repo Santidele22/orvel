@@ -47,6 +47,18 @@ jobs:
       - name: Run dashboard corrective action contracts
         run: pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/dashboard-corrective-actions-ui.contract.spec.ts src/app/tests/unit/dashboard-service-actions-behavior.contract.spec.ts
 
+      - name: Outbox grep guard
+        run: |
+          set -o pipefail
+          if grep -rn -E 'notification_email_outbox|email_outbox' \
+               apps/ supabase/functions/ \
+               --include='*.ts' --include='*.tsx' --include='*.astro' \
+               --exclude='*.spec.ts' --exclude='*.test.ts' \
+               | grep -v 'apps/dashboard/supabase/migrations/'; then
+            echo "::error::Outbox references found in runtime code; c2 cleanup incomplete"
+            exit 1
+          fi
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:

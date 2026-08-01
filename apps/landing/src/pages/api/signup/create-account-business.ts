@@ -91,12 +91,6 @@ async function cleanupCreatedAuthUser(supabaseAdmin: ReturnType<typeof createCli
   }
 }
 
-function buildConfirmationUrl(request: Request, token: string): string {
-  const url = new URL("/api/signup/confirm-email", request.url);
-  url.searchParams.set("token", token);
-  return url.toString();
-}
-
 export const POST: APIRoute = async ({ request }) => {
   let body: Record<string, unknown>;
   try {
@@ -158,24 +152,12 @@ export const POST: APIRoute = async ({ request }) => {
     .limit(1)
     .maybeSingle();
   if (activeConfirmation.data) {
-    const { data: existingOutbox, error: existingOutboxError } = await supabaseAdmin
-      .from("notification_email_outbox")
-      .select("id")
-      .eq("to_email", email)
-      .eq("template_key", "signup_email_confirmation")
-      .is("sent_at", null)
-      .limit(1)
-      .maybeSingle();
-    if (!existingOutboxError && existingOutbox) {
-      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
-    }
     return jsonResponse({ error: "signup_confirmation_retry", message: "Si los datos son válidos, reintentá pedir la confirmación en unos segundos." }, 503);
   }
 
   const token = createOpaqueToken();
   const token_hash = await sha256Text(token);
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-  const confirmationUrl = buildConfirmationUrl(request, token);
 
   const { data: createdAuthUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
     email,
@@ -225,25 +207,6 @@ export const POST: APIRoute = async ({ request }) => {
   if (confirmationError || !confirmation) {
     await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
     throw confirmationError || new Error("confirmation_insert_missing_row");
-  }
-
-  const outboxInsertRequest = supabaseAdmin.from("notification_email_outbox").insert({
-    to_email: email,
-    template_key: "signup_email_confirmation",
-    payload: {
-      confirmation_url: confirmationUrl,
-      owner_name: firstName,
-      business_name: businessName,
-      plan_code: plan,
-    },
-  });
-  const { data: outbox, error: outboxError } = typeof (outboxInsertRequest as { select?: unknown }).select === "function"
-    ? await (outboxInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
-    : { data: { id: "outbox_insert_unverified_by_mock" }, ...(await outboxInsertRequest) };
-  if (outboxError || !outbox) {
-    await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
-    await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
-    throw outboxError || new Error("outbox_insert_missing_row");
   }
 
   // Deferred provisioning happens only after consume_signup_email_confirmation in the confirmation callback.

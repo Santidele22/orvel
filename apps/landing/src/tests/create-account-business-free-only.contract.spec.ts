@@ -40,7 +40,6 @@ async function postCreateAccountBusiness(body: unknown): Promise<Response> {
 function createFreeSignupSupabaseMock() {
   const authCreateUser = vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user-123' } }, error: null });
   const confirmationInsert = vi.fn().mockResolvedValue({ error: null });
-  const confirmationOutboxInsert = vi.fn().mockResolvedValue({ error: null });
   const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
   const tableCalls: string[] = [];
   const emptyMaybeSingleChain = () => {
@@ -62,9 +61,6 @@ function createFreeSignupSupabaseMock() {
         update: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnThis() }),
       };
     }
-    if (table === 'notification_email_outbox') {
-      return { insert: confirmationOutboxInsert };
-    }
     return { insert: vi.fn().mockResolvedValue({ error: null }) };
   });
 
@@ -78,7 +74,7 @@ function createFreeSignupSupabaseMock() {
     rpc,
   };
 
-  return { client, from, tableCalls, authCreateUser, confirmationInsert, confirmationOutboxInsert };
+  return { client, from, tableCalls, authCreateUser, confirmationInsert };
 }
 
 describe('legacy create-account-business boundary', () => {
@@ -107,7 +103,7 @@ describe('legacy create-account-business boundary', () => {
     },
   );
 
-  it('FREE signup creates the Supabase Auth user with password, then confirmation intent and outbox without domain provisioning', async () => {
+  it('FREE signup creates the Supabase Auth user with password, then queues only the signup email confirmation without domain provisioning', async () => {
     const supabase = createFreeSignupSupabaseMock();
     createClientMock.mockReturnValue(supabase.client);
 
@@ -121,7 +117,7 @@ describe('legacy create-account-business boundary', () => {
       password: 'correct-horse-battery-staple',
       email_confirm: false,
     }));
-    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['signup_email_confirmations', 'notification_email_outbox']));
+    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['signup_email_confirmations']));
     expect(supabase.tableCalls).not.toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions', 'account_first_intents']));
     expect(supabase.confirmationInsert).toHaveBeenCalledWith(expect.objectContaining({
       purpose: 'free_signup',
@@ -139,16 +135,6 @@ describe('legacy create-account-business boundary', () => {
       password: expect.anything(),
       protected_metadata: expect.objectContaining({ password: expect.anything() }),
     }));
-    expect(supabase.confirmationOutboxInsert).toHaveBeenCalledWith({
-      to_email: 'ada@example.test',
-      template_key: 'signup_email_confirmation',
-      payload: {
-        confirmation_url: expect.stringContaining('/api/signup/confirm-email?token='),
-        business_name: 'Ada Studio',
-        owner_name: 'Ada',
-        plan_code: 'FREE',
-      },
-    });
   });
 
   it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {

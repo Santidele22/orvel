@@ -99,14 +99,15 @@ async function loadDashboardNotificationsModule(): Promise<DashboardNotification
   }
 }
 
-async function loadOutboxEmailSenderModule(): Promise<OutboxEmailSenderModule> {
+async function loadOutboxEmailSenderModule(): Promise<OutboxEmailSenderModule | null> {
+  // Phase 2 (release 2.0) removed the legacy dashboard-side outbox adapter. The module is
+  // intentionally absent from src/app/core/notifications/. Return null so callers can assert
+  // the boundary has been removed instead of throwing a TODO.
   try {
     const mod = await import('../../core/notifications/outbox-email-sender');
     return mod as OutboxEmailSenderModule;
   } catch {
-    throw new Error(
-      'TODO(Magnus): add src/app/core/notifications/outbox-email-sender.ts queueing repository-rendered HTML through notification_email_outbox without browser provider calls.',
-    );
+    return null;
   }
 }
 
@@ -225,12 +226,10 @@ describe('Orvel notification system RED contracts', () => {
       expect(sql).toMatch(/is_business_owner\s*\(\s*business_id\s*\)|auth\.role\(\)\s*=\s*'service_role'/);
     });
 
-    it('creates admin notifications for appointment-created events and keeps customer email in the outbox', () => {
+    it('does not insert into the legacy notification_email_outbox from the active schema (Phase 2 dropped it)', () => {
       const sql = readSqlCorpus().toLowerCase();
 
-      expect(sql).toMatch(/appointment\.created|booking\.created/);
-      expect(sql).toMatch(/insert\s+into\s+public\.dashboard_notifications[\s\S]*event_type[\s\S]*created/);
-      expect(sql).toMatch(/insert\s+into\s+public\.notification_email_outbox[\s\S]*(booking_created|appointment_confirmation)/);
+      expect(sql).not.toMatch(/insert\s+into\s+public\.notification_email_outbox[\s\S]*(booking_created|appointment_confirmation)/);
     });
 
     it('exposes frontend data/actions contract consumed by the existing bell', async () => {
@@ -246,15 +245,14 @@ describe('Orvel notification system RED contracts', () => {
   });
 
   describe('2) Outbox email sender + repo HTML templates', () => {
-    it('queues repository-rendered HTML and does not depend on provider templates from dashboard code', async () => {
+    it('removes the dashboard-side outbox adapter in schema 2.0 (no queueHtmlEmail boundary)', async () => {
       const sender = await loadOutboxEmailSenderModule();
       const senderSourcePath = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'outbox-email-sender.ts');
       const source = fs.existsSync(senderSourcePath) ? fs.readFileSync(senderSourcePath, 'utf8') : '';
 
-      expect(typeof sender.queueHtmlEmail).toBe('function');
-      expect(source).toMatch(/html\s*:/);
-      expect(source).not.toMatch(/template[_-]?id|dynamic[_-]?template[_-]?data/i);
-      expect(source).not.toMatch(/mailtrap|sendgrid|providerMessageId/i);
+      expect(sender, 'outbox-email-sender.ts was removed in Phase 2 (release 2.0); queueHtmlEmail must not be importable from dashboard.').toBeNull();
+      expect(source, 'outbox-email-sender.ts source must not exist in schema 2.0.').toBe('');
+      expect(fs.existsSync(senderSourcePath), 'outbox-email-sender.ts source file must not exist on disk.').toBe(false);
     });
   });
 

@@ -35,7 +35,7 @@ function migrationsDefineBusinessIsActive(migrations: string): boolean {
 }
 
 describe('RED signup email confirmation flow contract', () => {
-  it('FREE signup request creates the Supabase Auth user with the canonical password before confirmation intent/outbox', async () => {
+  it('FREE signup request creates the Supabase Auth user with the canonical password before the confirmation intent (no outbox)', async () => {
     const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
     const authCreateIndex = source.search(/auth\.admin\.createUser\s*\(/);
     const confirmationInsertIndex = source.search(/\.from\(["']signup_email_confirmations["']\)[\s\S]{0,180}\.insert\(/);
@@ -44,7 +44,7 @@ describe('RED signup email confirmation flow contract', () => {
 
     expect(authCreateIndex, 'signup must create Supabase Auth user during the signup request, not during confirm').toBeGreaterThan(0);
     expect(confirmationInsertIndex, 'signup must still create a confirmation intent').toBeGreaterThan(authCreateIndex);
-    expect(outboxInsertIndex, 'signup must enqueue only the email-confirmation email after auth user creation').toBeGreaterThan(confirmationInsertIndex);
+    expect(outboxInsertIndex, 'signup must no longer enqueue legacy notification_email_outbox rows after auth user creation').toBe(-1);
     expect(authCreateSlice, 'password is the canonical credential and must be passed only to Supabase Auth signup/createUser').toMatch(/password\s*:\s*(?:password|body\.password|cleanPassword|validated\.password|payload\.password)/i);
     expect(authCreateSlice).toMatch(/email_confirm\s*:\s*false|email_confirm\s*:\s*undefined|confirm/i);
     expect(source.slice(0, confirmationInsertIndex)).not.toMatch(/\.from\(["']businesses["']\)|\.from\(["']business_subscriptions["']\)|template_key\s*:\s*["']business_welcome["']/i);
@@ -68,24 +68,20 @@ describe('RED signup email confirmation flow contract', () => {
     expect(source).not.toMatch(/error\s*:\s*["']signup_create_failed["'][\s\S]{0,160}No pudimos crear la cuenta/i);
   });
 
-  it('FREE success is durable only after both confirmation intent and email outbox inserts are checked', async () => {
+  it('FREE success is durable only after the confirmation intent insert is checked (no outbox step)', async () => {
     const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
     const confirmationInsertIndex = source.search(/\.from\(["']signup_email_confirmations["']\)[\s\S]{0,120}\.insert\(/);
     const outboxInsertIndex = source.search(/\.from\(["']notification_email_outbox["']\)[\s\S]{0,120}\.insert\(/);
     const successMatches = Array.from(source.matchAll(/return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']signup_confirmation_requested["']/gi));
-    const successIndex = successMatches.map((match) => match.index ?? -1).find((index) => index > outboxInsertIndex) ?? -1;
-    const confirmationSlice = confirmationInsertIndex >= 0 && outboxInsertIndex > confirmationInsertIndex ? source.slice(confirmationInsertIndex, outboxInsertIndex) : '';
-    const outboxSlice = outboxInsertIndex >= 0 && successIndex > outboxInsertIndex ? source.slice(outboxInsertIndex, successIndex) : '';
+    const successIndex = successMatches.map((match) => match.index ?? -1).find((index) => index > confirmationInsertIndex) ?? -1;
+    const confirmationSlice = confirmationInsertIndex >= 0 && successIndex > confirmationInsertIndex ? source.slice(confirmationInsertIndex, successIndex) : '';
 
     expect(confirmationInsertIndex, 'confirmation insert must happen before public success').toBeGreaterThan(0);
-    expect(outboxInsertIndex, 'confirmation email outbox insert must happen before public success').toBeGreaterThan(confirmationInsertIndex);
-    expect(successIndex, 'public success response must be inspectable').toBeGreaterThan(outboxInsertIndex);
+    expect(outboxInsertIndex, 'legacy notification_email_outbox insert must be absent from the signup endpoint').toBe(-1);
+    expect(successIndex, 'public success response must be inspectable').toBeGreaterThan(confirmationInsertIndex);
     expect(confirmationSlice).toMatch(/error\s*:\s*(?:confirmationError|confirmationInsertError)|if\s*\(\s*(?:confirmationError|confirmationInsertError|!\s*confirmation)/i);
-    expect(confirmationSlice, 'confirmation insert failure must not be ignored as public success unless an existing usable confirmation and outbox are verified').not.toMatch(/if\s*\(\s*confirmationError\s*\)\s*\{[\s\S]{0,240}return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']signup_confirmation_requested["']/i);
-    expect(confirmationSlice).toMatch(/throw|rollback|delete\(\)|status\s*:\s*["']failed|existing[\s\S]{0,160}(?:notification_email_outbox|outbox)/i);
-    expect(outboxSlice).toMatch(/error\s*:\s*(?:outboxError|emailOutboxError|confirmationEmailError)|if\s*\(\s*(?:outboxError|emailOutboxError|confirmationEmailError|!\s*outbox)/i);
-    expect(outboxSlice, 'outbox insert failure must not return public success after cancelling a confirmation unless a durable outbox exists').not.toMatch(/if\s*\(\s*outboxError\s*\)\s*\{[\s\S]{0,360}return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']signup_confirmation_requested["']/i);
-    expect(outboxSlice).toMatch(/throw|rollback|delete\(\)|status\s*:\s*["']failed|existing[\s\S]{0,160}(?:notification_email_outbox|outbox)/i);
+    expect(confirmationSlice, 'confirmation insert failure must not be ignored as public success').not.toMatch(/if\s*\(\s*confirmationError\s*\)\s*\{[\s\S]{0,240}return\s+jsonResponse\s*\(\s*\{\s*ok\s*:\s*true\s*,\s*status\s*:\s*["']signup_confirmation_requested["']/i);
+    expect(confirmationSlice).toMatch(/throw|rollback|delete\(\)|status\s*:\s*["']failed/i);
   });
 
   it('FREE confirm endpoint does not create/reset credentials or enqueue second welcome/password email after confirmation', async () => {
@@ -93,7 +89,6 @@ describe('RED signup email confirmation flow contract', () => {
 
     expect(source, 'auth user must already exist from signup request; confirm only materializes domain rows').not.toMatch(/auth\.admin\.createUser\s*\(/i);
     expect(source, 'password remains canonical from signup; confirmation must not generate recovery/reset/change-password links').not.toMatch(/auth\.admin\.generateLink|type\s*:\s*["']recovery["']|set_password_url|reset|change-password/i);
-    expect(source, 'email confirmation must not enqueue business_welcome or any second post-confirmation email').not.toMatch(/template_key\s*:\s*["']business_welcome["']|welcomeOutbox|notification_email_outbox[\s\S]{0,260}insert/i);
   });
 
   it('FREE confirm endpoint marks the trusted signup-created Auth user email confirmed and checks the admin result before success', async () => {
@@ -216,11 +211,11 @@ describe('RED signup email confirmation flow contract', () => {
     expect(beforeConfirmationInsert).toMatch(/signup_email_confirmations[\s\S]*(email_hmac|active|pending)|rpc\(["'](?:claim|guard|reissue)_signup/i);
   });
 
-  it('signup endpoint does not call Mailtrap directly; only the outbox processor may deliver email', async () => {
+  it('signup endpoint does not call Mailtrap directly and no longer references the legacy outbox', async () => {
     const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
 
     expect(source).not.toMatch(/send\.api\.mailtrap\.io|MAILTRAP_API_URL|fetch\([\s\S]{0,120}mailtrap/i);
-    expect(source).toMatch(/notification_email_outbox/i);
+    expect(source, 'legacy notification_email_outbox must be absent from the signup endpoint (schema 2.0)').not.toMatch(/notification_email_outbox/i);
   });
 
   it('confirm-email browser route returns Orvel-friendly HTML UX with a login CTA instead of raw JSON', async () => {
