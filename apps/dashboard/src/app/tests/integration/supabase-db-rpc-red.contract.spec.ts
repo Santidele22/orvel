@@ -3,8 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
+const REPO_ROOT = path.resolve(ROOT, '..', '..');
 const SUPABASE_DIR = path.join(ROOT, 'supabase');
-const MIGRATIONS_DIR = path.join(SUPABASE_DIR, 'migrations');
+const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
 
 const REQUIRED_TABLE_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   {
@@ -22,10 +23,6 @@ const REQUIRED_TABLE_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   {
     name: 'blocked_times table',
     pattern: /create\s+table\s+(if\s+not\s+exists\s+)?(?:public\.)?blocked_times\b/i
-  },
-  {
-    name: 'notification_email_outbox table',
-    pattern: /create\s+table\s+(if\s+not\s+exists\s+)?(?:public\.)?notification_email_outbox\b/i
   }
 ];
 
@@ -45,10 +42,6 @@ const REQUIRED_TABLE_COLUMNS: Array<{ name: string; pattern: RegExp }> = [
   {
     name: 'blocked_times window contract',
     pattern: /blocked_times[\s\S]*?starts_at[\s\S]*?ends_at/i
-  },
-  {
-    name: 'email outbox receiver contract',
-    pattern: /notification_email_outbox[\s\S]*?(to_email|recipient_email)/i
   }
 ];
 
@@ -117,6 +110,12 @@ function readSqlFilesRecursive(dirPath: string): string[] {
   return sqlFiles.sort();
 }
 
+function readActiveSqlFiles(dirPath: string): string[] {
+  return readSqlFilesRecursive(dirPath).filter(
+    (filePath) => !filePath.includes(`${path.sep}_legacy${path.sep}`),
+  );
+}
+
 describe('Supabase DB/RPC RED contracts (static checks before real runtime wiring)', () => {
   it('detects current infra mode and enforces static SQL contract checks', () => {
     const packageJsonPath = path.join(ROOT, 'package.json');
@@ -180,5 +179,21 @@ describe('Supabase DB/RPC RED contracts (static checks before real runtime wirin
     for (const errorCode of REQUIRED_ERROR_CODES) {
       expect(sqlCorpus, `Missing deterministic error code literal: ${errorCode}`).toContain(errorCode);
     }
+  });
+
+  it('removes legacy notification_email_outbox from active migrations (kept only in _legacy/)', () => {
+    const activeSqlCorpus = readActiveSqlFiles(MIGRATIONS_DIR)
+      .map((filePath) => fs.readFileSync(filePath, 'utf8'))
+      .join('\n\n');
+
+    expect(
+      activeSqlCorpus,
+      'Active migrations must not redeclare the legacy notification_email_outbox table (kept only under supabase/migrations/_legacy/)',
+    ).not.toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?(?:public\.)?notification_email_outbox\b/i);
+
+    expect(
+      activeSqlCorpus,
+      'Active migrations must not reference notification_email_outbox recipient columns (to_email|recipient_email)',
+    ).not.toMatch(/notification_email_outbox[\s\S]*?(to_email|recipient_email)/i);
   });
 });

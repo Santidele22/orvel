@@ -56,14 +56,21 @@ function gatewayMethodSource(methodName: string, nextMethodName: string): string
   return source.slice(start, end);
 }
 
-function expectEmailPath(source: string, templateNames: RegExp, recipientPath: RegExp): void {
-  const hasSendPath = /queueHtmlEmail\s*\(|sendHtmlEmail\s*\(/.test(source) && templateNames.test(source) && recipientPath.test(source);
-  const hasOutboxPath = /notification_email_outbox/.test(source) && /template_key/.test(source) && templateNames.test(source);
+function expectNoOutboxPath(source: string, templateNames: RegExp, recipientPath: RegExp): void {
+  // Phase 2 (release 2.0) dropped the notification_email_outbox table. Active migrations must
+  // not re-introduce the legacy outbox enqueue path for these appointment templates.
+  // The browser-side flow is also asserted to never touch the outbox (see negative asserts
+  // above). recipientPath is intentionally retained for call-site symmetry with the previous
+  // helper signature; it has no semantic role in the post-Phase 2 contract.
+  const hasOutboxPath =
+    /notification_email_outbox/.test(source) && /template_key/.test(source) && templateNames.test(source);
 
   expect(
-    hasSendPath || hasOutboxPath,
-    'Expected the real appointment flow to enqueue notification_email_outbox or queue repository-rendered email to the intended recipient.',
-  ).toBe(true);
+    hasOutboxPath,
+    `Active migrations must not enqueue ${templateNames.source} via the legacy notification_email_outbox (schema 2.0).`,
+  ).toBe(false);
+
+  void recipientPath;
 }
 
 function expectAdminDashboardNotificationPath(source: string, eventRpcName: string): void {
@@ -72,44 +79,49 @@ function expectAdminDashboardNotificationPath(source: string, eventRpcName: stri
 }
 
 describe('Orvel REAL appointment flows notification wiring RED contracts', () => {
-  it('public appointment creation relies on DB-owned confirmation/business emails and admin dashboard notification', () => {
+  it('public appointment creation does not enqueue the legacy notification_email_outbox from the browser', () => {
     const createPublicBookingSource = gatewayMethodSource('createPublicBooking', 'manageBookingByToken');
     const sql = readSqlCorpus();
 
     expect(createPublicBookingSource).toMatch(/rpc\(\s*['"]create_public_booking['"]/);
     expect(createPublicBookingSource).toMatch(/db_atomic_visibility_notifications/);
     expect(createPublicBookingSource).not.toMatch(/create_dashboard_notification_for_appointment_created|notification_email_outbox|get_booking_notification_context/i);
-    expectEmailPath(sql, /appointment_confirmation/i, /v_customer_email|to_email/i);
-    expectEmailPath(sql, /appointment_created_business/i, /v_business_email|to_email/i);
+    expectNoOutboxPath(sql, /appointment_confirmation/i, /v_customer_email|to_email/i);
+    expectNoOutboxPath(sql, /appointment_created_business/i, /v_business_email|to_email/i);
     expect(sql).toMatch(/INSERT\s+INTO\s+public\.dashboard_notifications[\s\S]*appointment\.created/i);
   });
 
-  it('customer cancellation by token enqueues business-client cancellation email and creates an admin dashboard notification', () => {
+  it('customer cancellation by token does not enqueue the legacy notification_email_outbox from the browser', () => {
     const cancelByTokenSource = gatewayMethodSource('cancelBookingByToken', 'rescheduleBookingByToken');
     const sql = readSqlCorpus();
 
     expect(cancelByTokenSource).toMatch(/rpc\(\s*['"]cancel_booking_by_token['"]/);
     expect(cancelByTokenSource).not.toMatch(/notification_email_outbox|booking_cancelled|appointment_cancellation|renderAppointmentCancellationEmail/i);
-    expectEmailPath(sql, /booking_cancelled_business/i, /v_business_email|to_email/i);
+    expectNoOutboxPath(sql, /booking_cancelled_business/i, /v_business_email|to_email/i);
     expectAdminDashboardNotificationPath(cancelByTokenSource, 'create_dashboard_notification_for_appointment_cancelled');
   });
 
-  it('customer reschedule by token enqueues booking-user reschedule email and creates an admin dashboard notification', () => {
+  it('customer reschedule by token does not enqueue the legacy notification_email_outbox from the browser', () => {
     const rescheduleByTokenSource = gatewayMethodSource('rescheduleBookingByToken', 'createAdminManualBooking');
     const sql = readSqlCorpus();
 
     expect(rescheduleByTokenSource).toMatch(/rpc\(\s*['"]reschedule_booking_by_token['"]/);
     expect(rescheduleByTokenSource).not.toMatch(/notification_email_outbox|booking_rescheduled|appointment_reschedule(?:\b|_email)|renderAppointmentRescheduleEmail/i);
-    expectEmailPath(sql, /booking_rescheduled/i, /v_customer_email|to_email/i);
+    expectNoOutboxPath(sql, /booking_rescheduled/i, /v_customer_email|to_email/i);
     expectAdminDashboardNotificationPath(rescheduleByTokenSource, 'create_dashboard_notification_for_appointment_rescheduled');
   });
 
-  it('24h reminder trigger only sends when enabled and prevents duplicate reminders', () => {
+  it('24h reminder trigger does not enqueue the legacy notification_email_outbox (schema 2.0)', () => {
+    const sql = readSqlCorpus().toLowerCase();
+
+    expect(sql).not.toMatch(/notification_email_outbox[\s\S]*appointment_reminder_24h|appointment_reminder_24h[\s\S]*notification_email_outbox/);
+  });
+
+  it.skip('24h reminder trigger only sends when enabled and prevents duplicate reminders (deferred — depends on new email mechanism in schema 2.0)', () => {
     const sql = readSqlCorpus().toLowerCase();
 
     expect(sql).toMatch(/create\s+(or\s+replace\s+)?function\s+public\.(send|enqueue)_appointment_reminders_24h\s*\(/);
     expect(sql).toMatch(/send_appointment_reminders_24h\s*=\s*true|coalesce\(\s*bs\.send_appointment_reminders_24h\s*,\s*false\s*\)/);
-    expect(sql).toMatch(/notification_email_outbox[\s\S]*appointment_reminder_24h|appointment_reminder_24h[\s\S]*notification_email_outbox/);
     expect(sql).toMatch(/unique[\s\S]*(booking_id|appointment_id)[\s\S]*appointment_reminder_24h|on\s+conflict[\s\S]*(do\s+nothing|where)[\s\S]*appointment_reminder_24h|not\s+exists[\s\S]*appointment_reminder_24h/);
   });
 

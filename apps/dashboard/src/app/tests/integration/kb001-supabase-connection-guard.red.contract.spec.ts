@@ -337,8 +337,8 @@ describe('KB-001.2: Database Schema Verification', () => {
     expect(tableExists).toBe(true);
   });
 
-  it('KB-001.2.5 @RED - Should verify notification_email_outbox table exists', async () => {
-    let tableExists = false;
+  it('KB-001.2.5 @RED - Should verify notification_email_outbox table is removed from schema 2.0', async () => {
+    let tableExists: boolean | null = null;
 
     try {
       if (!supabaseClient) {
@@ -349,10 +349,14 @@ describe('KB-001.2: Database Schema Verification', () => {
       const result = await supabaseClient.rpc('check_table_exists', { table_name: 'notification_email_outbox' }) as RpcResult<boolean>;
       tableExists = result.data === true;
     } catch {
+      // RPC failure is an acceptable signal that the legacy outbox is no longer part of the active schema.
       tableExists = false;
     }
 
-    expect(tableExists).toBe(true);
+    expect(
+      tableExists,
+      'notification_email_outbox was dropped in Phase 2 (release 2.0); schema 2.0 must not contain the legacy outbox table.',
+    ).toBe(false);
   });
 
   it('KB-001.2.6 @RED - Should verify RLS policies are in place (via RPC check)', async () => {
@@ -698,13 +702,13 @@ describe('KB-001.5: Success Criteria - All Tests Should Pass After Implementatio
       'businesses',
       'customers',
       'bookings',
-      'blocked_times',
-      'notification_email_outbox'
+      'blocked_times'
     ];
 
-    // After Magnus implementation, all these tables should exist in Supabase
+    // After Magnus implementation, all these tables should exist in Supabase.
+    // notification_email_outbox was dropped in Phase 2 (release 2.0) and is intentionally absent.
     // Currently: Fails because no real connection
-    expect(expectedTables.length).toBe(5);
+    expect(expectedTables.length).toBe(4);
   });
 
   it('KB-001.5.2 - Environment variables should be properly configured', async () => {
