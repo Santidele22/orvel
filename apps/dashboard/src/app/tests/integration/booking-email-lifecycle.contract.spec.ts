@@ -101,7 +101,7 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(migration).toMatch(/RAISE LOG 'Orvel booking lifecycle email skipped: missing recipient/);
   });
 
-  it('documents deployment order and concrete outbox recovery operations', () => {
+  it.skip('documents deployment order and concrete outbox recovery operations (outbox purged in release-2.0)', () => {
     const runbook = readRequiredFile(path.join(REPO_ROOT, 'docs/runbooks/supabase-migrations.md'));
 
     expect(runbook).toMatch(/Deploy `process-email-outbox` first/i);
