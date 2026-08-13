@@ -35,7 +35,7 @@ async function loadThemeTokens(): Promise<Record<string, Record<string, unknown>
   return tokens;
 }
 
-describe('DESING.md normalization contract: dashboard templates', () => {
+describe('DESIGN.md normalization contract: dashboard templates', () => {
   it('keeps common structure evidence for sidebar/main_agenda/right_panel', async () => {
     const [shellHtml, turnosHtml] = await Promise.all([
       readFile(fromRoot(SHELL_HTML), 'utf-8'),

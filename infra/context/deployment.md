@@ -1,12 +1,17 @@
 # Deployment Context
 
-This document records only known deployment facts for the Orvel monorepo migration.
+## Branch Promotion (3-env)
 
-## Known Facts
+- Sequence: `feature → dev → qa → main`. Skip no step.
+- Per-branch protection on `dev`, `qa`, and `main`: linear history, 1 approving review, required CI check `dashboard-booking-regressions`, `enforce_admins: true`, no force-pushes, no deletions.
+- Required CI gate: `dashboard-booking-regressions` (job defined in `.github/workflows/booking-regression.yml`).
+- Admin workaround (temporarily relax protection → `--admin --squash` → restore) is gated on explicit Santi approval per PR; never direct-push to `main`, never `--force`, never bypass checks.
 
-- Supabase functions are deployed.
-- Fresh 2026-07-11 evidence shows the one-time reminder guard migration applied. The temporary function/secrets were deployed then removed after a pre-invocation shell error; no invocation or email occurred.
-- No deployment guarantees for dashboard or landing have been verified in this monorepo context.
+## Environments
+
+- `dev` — integration. Receives feature PRs.
+- `qa` — pre-release smoke. Receives `dev → qa` PRs.
+- `main` — production. Receives `qa → main` PRs only.
 
 ## Deployment Boundaries
 
@@ -14,12 +19,7 @@ This document records only known deployment facts for the Orvel monorepo migrati
 - Do not assume hosting providers or deployment workflows from folder names alone.
 - Do not include secrets or environment-specific credentials in documentation.
 
-## Required Deployment Notes for Future Changes
+## Source-of-truth
 
-When a deployment process is added or verified, document:
-
-- Owner and approval requirement.
-- Command(s) used.
-- Required environment variables by name only, never values.
-- Rollback or stop conditions.
-- Verification steps.
+- Promotion flow + admin-workaround policy: root `AGENTS.md` §3.
+- Operational rules: `infra/context/operational-rules.md`.
