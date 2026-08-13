@@ -89,6 +89,14 @@ Decisión: **PWA mobile-first con scope limitado** primero; mobile nativo (RN/Fl
 - [Audit estratégico 24/07](#) (Path C: híbrido core + behavior packs)
 - [Propuesta 1.0.2](../release-1-0-2-cleanup/proposal.md)
 - [Tasks 1.0.2](../release-1-0-2-cleanup/tasks.md)
-- [Propuesta 1.0.3 PWA](../release-1-0-3-pwa/proposal.md)
-- [Tasks 1.0.3 PWA](../release-1-0-3-pwa/tasks.md)
+- [Propuesta 1.0.3 PWA](../release-1-0-3-pwa/proposal.md) _(see deferred note below)_
+- [Tasks 1.0.3 PWA](../release-1-0-3-pwa/tasks.md) _(see deferred note below)_
+
+> **Forward refs (legacy)** — the lines above referenced `release-1-0-3-pwa/{proposal,tasks}.md`. Per maintainer decision 2026-08-13, Fase 3 (offline IndexedDB queue) and Fase 4 (mobile verification) were deferred post-MVP. The corresponding change folder was archived at `openspec/changes/archive/2026-08-13-release-1-0-3-pwa/` on the same date. The forward refs above are intentionally kept as historical record; the live tree no longer carries the targeted files.
+>
+> [historical] Original forward refs (kept for traceability):
+>
+> > - [Propuesta 1.0.3 PWA](../release-1-0-3-pwa/proposal.md)
+> > - [Tasks 1.0.3 PWA](../release-1-0-3-pwa/tasks.md)
+
 - [Plan MP subscriptions](../../plans/stabilize-mercadopago-subscriptions.norg)
