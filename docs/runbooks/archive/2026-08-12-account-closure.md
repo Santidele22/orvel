@@ -1,3 +1,8 @@
+---
+status: archived, function → 501 stub per release-2.0
+archived-on: 2026-08-12
+---
+
 # Account Closure Consumer Runbook
 
 ## Purpose
