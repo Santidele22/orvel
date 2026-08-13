@@ -1,6 +1,6 @@
-# Proposal: Release 1.0.3 — PWA Mobile-First (Fase 3 + Fase 4)
+# Proposal: Release 1.0.3 — PWA Mobile-First
 
-> **Status**: forward proposal for Fase 3 (offline walk-in queue) and Fase 4 (mobile verification). Fase 1+2 (shipped 2026-07-27) is archived at `openspec/changes/archive/2026-08-12-release-1-0-3-pwa/`. Closes the forward refs from `openspec/changes/release-1-0-1/roadmap.md` (lines 92–93) to `release-1-0-3-pwa/proposal.md` and `tasks.md`.
+> **Status**: retroactive proposal. Closes dangling forward refs from `openspec/changes/release-1-0-1/roadmap.md` (lines 92–93) to `release-1-0-3-pwa/proposal.md` and `tasks.md`.
 
 ## Intent
 
@@ -12,7 +12,25 @@ This proposal stands on the roadmap's shoulders. It does not re-litigate the mob
 
 ## Scope
 
-### 2.1 Forward Scope — Fase 3 + Fase 4
+### 2.1 Already Shipped — DO NOT RE-DESIGN
+
+> `[ALREADY SHIPPED — DO NOT RE-DESIGN]` Evidence: commit `c1127a0` on `main` ("feat(dashboard): PWA mobile-first Fase 1+2", PR #180, merged 2026-07-27).
+
+- **Tailwind build pipeline**: `tailwindcss@3` + `postcss` + `autoprefixer`; `apps/dashboard/tailwind.config.js` (Orvel dark/violet palette), `apps/dashboard/postcss.config.js`, `apps/dashboard/src/styles.css` with `@tailwind base/components/utilities`; CDN removed from `index.html`.
+- **PWA artifacts**: `@angular/service-worker@^21.2.18` registered via `app.config.ts`; `apps/dashboard/src/manifest.webmanifest` (name `Orvel`, start_url `/dashboard/turnos`, scope `/dashboard/`, display `standalone`, maskable icon); `apps/dashboard/src/ngsw-config.json` (assetGroups `app` + `assets`); placeholder icons at `apps/dashboard/src/icons/icon-{192,512}x512.png`.
+- **iOS meta tags** in `index.html`: `apple-mobile-web-app-capable`, `black-translucent` status bar, `apple-touch-icon`, `viewport-fit=cover`, `theme-color`.
+- **Mobile bottom nav**: `apps/dashboard/src/app/core/shell/mobile-bottom-nav/mobile-bottom-nav.component.ts` — 5 items (Inicio / Turnos / Clientes / Notificaciones / Perfil), `lg:hidden`, `safe-area-inset-bottom`, per-item test-ids, Remix icons.
+- **Dashboard shell integration**: FAB activated (mobile-only, `lg:hidden`), `pb-16` on mobile to clear the nav, `navigateToNewTurno()` routes to `/dashboard/turnos/new`.
+- **Stub pages**: `apps/dashboard/src/app/features/notificaciones/pages/notificaciones.page.ts` and `apps/dashboard/src/app/features/perfil/pages/perfil.page.ts` so the bottom-nav routes resolve end-to-end.
+- **Contract tests shipped with PR #180**:
+  - `apps/dashboard/src/app/tests/integration/pwa-manifest.contract.spec.ts` — manifest, ngsw-config, iOS meta tag assertions.
+  - `apps/dashboard/src/app/tests/integration/mobile-shell.contract.spec.ts` — FAB activation, lg-hidden visibility, route additions, bottom-nav render.
+  - `apps/dashboard/src/app/tests/integration/tailwind-migration.contract.spec.ts` — Tailwind v3 build pipeline.
+  - `apps/dashboard/src/app/core/shell/mobile-bottom-nav/mobile-bottom-nav.component.spec.ts` — nav items, routes, icons, lg-hidden, safe-area class, test-ids.
+
+Locked follow-on (per roadmap, not re-verified in this session): viewport gating and `tel:` action on turno detail. **TBD — to be confirmed in spec phase against current `main`.**
+
+### 2.2 Pending — Forward Scope
 
 **Fase 3 — Offline walk-in queue**
 - IndexedDB persistence layer for walk-in intents.
@@ -56,7 +74,7 @@ Per roadmap §"Scope desktop-only", these stay desktop-only even after 1.0.3 shi
 
 ### Modified
 
-- **None.** Fase 1+2 shipped and is archived at `openspec/changes/archive/2026-08-12-release-1-0-3-pwa/`. This change extends the PWA surface without modifying spec-level behavior of existing capabilities.
+- **None.** Fase 1+2 already shipped and is documented retroactively in §2.1. This change extends the PWA surface without modifying spec-level behavior of existing capabilities.
 
 ## Affected Areas
 
