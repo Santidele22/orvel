@@ -40,12 +40,12 @@ sequenceDiagram
     else slot available
         PR->>DB: _lock_booking_conflict_window + _assert_no_slot_conflict
         PR->>DB: INSERT customers + INSERT bookings (manage_token_hash, manage_token_expires_at = ends_at + 1h, source='client-self-service')
-        PR->>DB: INSERT notification_email_outbox (appointment_created_business) — REQUIRED
+        PR->>DB: INSERT notification_email_outbox (appointment_created_business) - REQUIRED
         opt customer email provided
             PR->>DB: INSERT notification_email_outbox (appointment_confirmation)
         end
         PR-->>Dash: 201 { booking_id, status='confirmed', manage_token, branch_id, db_atomic_visibility_notifications=true }
-        Dash->>Dash: bookingConfirmed = true; dispatch 'booking.created'
+        Dash->>Dash: bookingConfirmed = true; dispatch booking.created
         Dash-->>C: render "Tu reserva está confirmada"
     end
 
@@ -53,7 +53,7 @@ sequenceDiagram
     OB->>DB: SELECT notification_email_outbox WHERE sent_at IS NULL
     DB-->>OB: pending rows
     OB->>OB: render template (appointment_confirmation / appointment_created_business)
-    OB->>C: SMTP — email with manage URLs /booking/manage?token=...&action=cancel|reschedule
+    OB->>C: SMTP - email with manage URLs /booking/manage?token=...&action=cancel|reschedule
     OB->>DB: UPDATE notification_email_outbox SET sent_at = now()
 ```
 
