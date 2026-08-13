@@ -24,3 +24,27 @@
 - Keep context files concise and operational.
 - Prefer concrete commands only after they are verified.
 - Link ADRs and runbooks when a decision or procedure becomes stable.
+
+## 3-Environment Promotion
+
+Orvel uses a strict 3-branch promotion: `feature → dev → qa → main`. Never skip a step.
+
+| Branch | Purpose | Receives from |
+|--------|---------|---------------|
+| `dev` | Integration. All feature branches land here first. | feature branches (via PR) |
+| `qa` | Smoke test environment. Pre-release validation. | `dev` (via PR) |
+| `main` | Production. Releases only. | `qa` (via PR) |
+
+Hard rules:
+
+- Feature branches MUST merge to `dev` first. Never directly to `qa` or `main`.
+- `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
+- The 3 protected branches (`dev`, `qa`, `main`) have identical protection: linear history, 1 approving review, required CI check (`dashboard-booking-regressions`), `enforce_admins: true`, no force pushes, no deletions.
+- Since Santi is the sole owner, the "1 approving review" requirement blocks self-approval on PRs to protected branches. The admin workaround (temporarily relax protection, `--admin --squash`, restore) is used ONLY with explicit Santi approval per PR.
+- Branch protection on `dev` and `qa` is relaxed (required_pull_request_reviews: null, enforce_admins: false) BEFORE pushing a merge of an out-of-date sync, and restored immediately after; the required status check re-blocks push until CI runs on the new commit.
+
+## CI Gate
+
+- Required CI check on protected branches: `dashboard-booking-regressions` (job defined in `.github/workflows/booking-regression.yml`).
+- Root `pnpm run check` runs the dashboard + landing builds, critical Supabase function tests, and static checks; CI must be green before merge.
+- No direct push to `main`, no `--force`, no `reset --hard`, no secrets or `.funemon/` in commits.
