@@ -71,8 +71,8 @@ describe('@orvel/auth package shape contract (chore-extract-auth-package)', () =
     expect(sessionContract).toContain('export interface TurneaSessionUser');
     expect(sessionContract).toContain('export interface TurneaSession');
     expect(sessionContract).toContain('export type SelectedBusinessType');
-    expect(sessionContract).toContain('export type RequiredRubro');
-    expect(sessionContract).toContain('export type TemplateCatalog');
+    expect(sessionContract).toContain('export interface RequiredRubro');
+    expect(sessionContract).toContain('export interface TemplateCatalog');
     expect(sessionContract).toContain('export type ValidateSessionSchema');
     // NO runtime function body
     expect(sessionContract).not.toContain('function validateSessionSchema');
