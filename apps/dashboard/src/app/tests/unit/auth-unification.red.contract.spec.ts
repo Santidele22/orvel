@@ -52,10 +52,16 @@ describe('RED: auth unification contract', () => {
   it('fails closed for legacy dashboard local/mock auth paths', () => {
     const authService = source('src/app/services/auth.service.ts');
     const sessionContract = source('src/app/core/auth/session-contract.ts');
+    const sessionContractPackage = source('packages/auth/src/session-contract.ts');
 
     expect(authService).not.toMatch(/provider:\s*'mock'|setProvider\(|createMockUser|getMockUser|generateToken|saveSession|loadStoredSession/);
     expect(authService).not.toMatch(/localStorage\.setItem\([^)]*(salon_auth|turnea\.session|token)/i);
     expect(sessionContract).not.toContain('TURNERA_SESSION_KEY');
+    // post-chore-extract-auth-package: the canonical source of truth lives at packages/auth/.
+    // The dashboard-local shim at apps/dashboard/src/app/core/auth/session-contract.ts
+    // is for the migration window and must re-export from @orvel/auth.
+    expect(sessionContractPackage).toContain("LEGACY_DASHBOARD_SESSION_STORAGE_KEY");
+    expect(sessionContract).toMatch(/from\s+['"]@orvel\/auth['"]/);
   });
 
   it('does not expose secrets in frontend config; only public Supabase anon-key env names are allowed', () => {
