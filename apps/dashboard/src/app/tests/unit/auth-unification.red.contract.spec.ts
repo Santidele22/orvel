@@ -52,7 +52,7 @@ describe('RED: auth unification contract', () => {
   it('fails closed for legacy dashboard local/mock auth paths', () => {
     const authService = source('src/app/services/auth.service.ts');
     const sessionContract = source('src/app/core/auth/session-contract.ts');
-    const sessionContractPackage = source('packages/auth/src/session-contract.ts');
+    const sessionContractPackage = source('../../packages/auth/src/session-contract.ts');
 
     expect(authService).not.toMatch(/provider:\s*'mock'|setProvider\(|createMockUser|getMockUser|generateToken|saveSession|loadStoredSession/);
     expect(authService).not.toMatch(/localStorage\.setItem\([^)]*(salon_auth|turnea\.session|token)/i);
