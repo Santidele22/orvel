@@ -20,7 +20,7 @@ import {
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
   AdminStatusUpdatePayload
-} from '../../../core/api/supabase-booking/types';
+} from '@orvel/booking';
 
 type AdminSessionContext = {
   userId: string;

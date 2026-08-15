@@ -1,5 +1,6 @@
-// Re-export shim for the @orvel/booking migration window.
-// Types live in @orvel/booking. Kept for migration; delete after consumers migrate.
+// @orvel/booking public surface barrel.
+// Second of 7 planned extractions; see packages/booking/README.md.
+
 export type {
   ApiErrorCode,
   ApiError,
@@ -19,4 +20,8 @@ export type {
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
   AdminStatusUpdatePayload,
-} from '@orvel/booking';
+} from './types';
+
+export type { SupabaseBookingGateway } from './gateway-interface';
+
+export { normalizePublicBookingSlug, isValidPublicBookingSlug } from './public-booking-slug';
