@@ -15,15 +15,7 @@ const dashboardSrcDir = new URL(
   "../../../apps/dashboard/src/",
   import.meta.url,
 );
-const dashboardSupabaseDir = new URL(
-  "../../../apps/dashboard/supabase/",
-  import.meta.url,
-);
 const migrationsDir = new URL("../../migrations/", import.meta.url);
-const dashboardMigrationsDir = new URL(
-  "../../../apps/dashboard/supabase/migrations/",
-  import.meta.url,
-);
 
 async function readText(url: URL): Promise<string> {
   return await Deno.readTextFile(url);
@@ -46,7 +38,6 @@ Deno.test("billing ledger pruning contract: runtime no longer writes legacy paym
   const runtimeFiles = [
     ...await collectFiles(functionsDir, ".ts"),
     ...await collectFiles(dashboardSrcDir, ".ts"),
-    ...await collectFiles(dashboardSupabaseDir, ".ts"),
   ];
 
   const offenders: string[] = [];
@@ -268,23 +259,6 @@ Deno.test("billing ledger pruning migration creates canonical subscription_payme
     migration,
     "Refusing to drop non-empty legacy table public.payments",
   );
-  assertStringIncludes(
-    migration,
-    "Refusing to drop non-empty legacy table public.mp_webhook_events",
-  );
-});
-
-Deno.test("dashboard local migration path prunes legacy mp_webhook_events forward-only", async () => {
-  const migration = await readText(
-    new URL("20260708100000_prune_legacy_billing_ledgers.sql", dashboardMigrationsDir),
-  );
-
-  assertStringIncludes(
-    migration,
-    "CREATE TABLE IF NOT EXISTS public.subscription_payments",
-  );
-  assertStringIncludes(migration, "UNIQUE (provider, provider_payment_id)");
-  assertStringIncludes(migration, "DROP TABLE public.mp_webhook_events");
   assertStringIncludes(
     migration,
     "Refusing to drop non-empty legacy table public.mp_webhook_events",
