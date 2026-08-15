@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { createMockSessionFromLogin } from '../../../core/auth/mock-login-business-types';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
 import {
   RequiredRubro,
