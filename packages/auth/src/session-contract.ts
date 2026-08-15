@@ -54,7 +54,9 @@ export interface TurneaSession {
   token: string;
   user: TurneaSessionUser;
   selectedBusinessTypes: SelectedBusinessType[];
-  selectedRubros?: RequiredRubro[];
+  // Rubro values are business-type codes (strings); the opaque RequiredRubro
+  // type above stays exported for consumers to reference.
+  selectedRubros?: string[];
   selectedTemplateIds?: string[];
   preloadedCatalog?: TemplateCatalog;
   issuedAt: number;
