@@ -32,6 +32,44 @@ Apply this template to extract `billing`, `booking`, `config`, `domain`, `shared
 - Spec fix-forward — re-point file-system-path assertions; add a `packages-<name>-shape.red.contract.spec.ts` drift-guard.
 - This README updated with the package-specific decisions.
 
+## Concrete template for each new `packages/<name>/`
+
+### `packages/<name>/package.json`
+
+```json
+{
+  "name": "@orvel/<name>",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}
+```
+
+### `pnpm-workspace.yaml` diff
+
+```diff
+ packages:
+   - apps/landing
+   - apps/dashboard
+   - apps/shared/*
++  - packages/*
+```
+
+### Conventional commits for each slice (one per slice, in order)
+
+```
+chore(repo): wire pnpm-workspace for packages/*
+chore(dashboard): split <feature> runtime, migrate <N> consumers to @orvel/<name>
+chore(test): fix-forward <N> specs to read <feature> from @orvel/<name> + add shape spec
+chore(docs): expand packages/<name>/README with 7-step recipe for next 6 extractions
+```
+
 ## Pattern provenance
 
 Established by `chore-extract-auth-package` (PR landed in `dev`). See `openspec/changes/chore-docs-and-context-align-release-2-0/` for the SDD artifacts that documented the original monorepo shape, and the Engram topic key `sdd/chore-extract-auth-package/{explore,propose,spec,design,tasks}` for the extraction decisions.
