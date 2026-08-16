@@ -13,10 +13,7 @@ import {
   normalizeCadence,
   normalizeTier,
   resolvePlanCatalogRow,
-} from "../_shared/mp-plan-catalog.ts";
-import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
-import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
-import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
+} from "../_shared/plan-catalog.ts";
 import { buildAppUrl } from "../_shared/orvel-url.ts";
 import {
   getBearerToken,
@@ -914,47 +911,6 @@ export async function createSubscriptionHandler(
       );
     }
 
-    const rolloutDecision = evaluatePreapprovalPlanRollout({
-      tenantId: business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      environment: (envGet("DENO_ENV") as
-        | "development"
-        | "staging"
-        | "production"
-        | undefined) || "production",
-    });
-
-    if (!rolloutDecision.allowed) {
-      recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        rolloutPercent: rolloutDecision.rolloutPercent,
-        rolloutBucket: rolloutDecision.bucket,
-        result: "blocked",
-        retryable: false,
-        idempotencyDecision: "not_applicable",
-        latencyMs: Date.now() - requestStartedAt,
-        httpStatus: 503,
-      });
-
-      return new Response(
-        JSON.stringify({
-          error: "ROLLOUT_BLOCKED",
-          message:
-            "Mercado Pago subscription flow temporarily unavailable for this tenant during canary rollout",
-          rollout_percent: rolloutDecision.rolloutPercent,
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
     const idempotencyScope = business?.owner_id || pendingSignupRecord?.id ||
       "pending_signup";
@@ -963,9 +919,7 @@ export async function createSubscriptionHandler(
         `idem:${idempotencyScope}:${plan.code}:${idempotencyKey}`,
       )
       : subscriptionSessionToken;
-    const externalReference = createSubscriptionSessionReference(
-      idempotencySuffix,
-    );
+    const externalReference = `preapproval-session:${idempotencySuffix.trim()}`;
     const subscriptionSessionExpiresAt = new Date(
       now.getTime() + 30 * 60 * 1000,
     );
@@ -1122,19 +1076,6 @@ export async function createSubscriptionHandler(
         errorText,
         mpResponse.status,
       );
-      recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        rolloutPercent: rolloutDecision.rolloutPercent,
-        rolloutBucket: rolloutDecision.bucket,
-        result: "error",
-        retryable: mpResponse.status >= 500 || mpResponse.status === 429,
-        idempotencyDecision: "not_applicable",
-        latencyMs: Date.now() - requestStartedAt,
-        httpStatus: mpResponse.status,
-      });
       console.error("Mercado Pago API Error", {
         correlation_id: correlationId,
         status: mpResponse.status,
@@ -1285,20 +1226,6 @@ export async function createSubscriptionHandler(
       ? mpData.sandbox_init_point
       : mpData.init_point;
 
-    recordPreapprovalCreateMetric({
-      tenantId: business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      rolloutPercent: rolloutDecision.rolloutPercent,
-      rolloutBucket: rolloutDecision.bucket,
-      result: "success",
-      retryable: false,
-      idempotencyDecision: "not_applicable",
-      latencyMs: Date.now() - requestStartedAt,
-      httpStatus: 200,
-    });
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -1326,17 +1253,6 @@ export async function createSubscriptionHandler(
       },
     );
   } catch (error) {
-    recordPreapprovalCreateMetric({
-      tenantId: "unknown",
-      userId: "unknown",
-      rolloutPercent: 100,
-      rolloutBucket: 0,
-      result: "error",
-      retryable: true,
-      idempotencyDecision: "not_applicable",
-      latencyMs: Date.now() - requestStartedAt,
-      httpStatus: 500,
-    });
     console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({

@@ -58,26 +58,6 @@ Deno.test("billing ledger pruning contract: runtime no longer writes legacy paym
   );
 });
 
-Deno.test("billing ledger pruning contract: mercadopago webhook writes subscription_payments", async () => {
-  const source = await readText(
-    new URL("mercadopago-webhook/index.ts", functionsDir),
-  );
-  const helper = await readText(new URL("_shared/subscription-payments.ts", functionsDir));
-
-  assertStringIncludes(source, "upsertSubscriptionPayment");
-  assertStringIncludes(helper, '.from("subscription_payments")');
-  assertStringIncludes(helper, 'onConflict: "provider,provider_payment_id"');
-  assertStringIncludes(source, "subscription_payment_upsert_failed");
-  assert(
-    !source.includes('.from("payments")'),
-    "mercadopago-webhook must not write public.payments",
-  );
-  assert(
-    !source.includes('.from("mp_webhook_events")'),
-    "mercadopago-webhook must not write public.mp_webhook_events",
-  );
-});
-
 function createSubscriptionPaymentMock(error: unknown | null = null) {
   const calls: Array<{ table: string; row: unknown; options: unknown }> = [];
   const client: SubscriptionPaymentSupabaseClient = {
@@ -94,12 +74,12 @@ function createSubscriptionPaymentMock(error: unknown | null = null) {
   return { client, calls };
 }
 
-Deno.test("subscription payment builder maps mocked Mercado Pago payment payload to canonical insert", () => {
+Deno.test("subscription payment builder maps a mocked payment payload to canonical insert", () => {
   const record = buildSubscriptionPaymentInsert({
     subscriptionId: "sub-1",
     businessId: "business-1",
     tenantId: "tenant-1",
-    provider: "mercado_pago",
+    provider: "manual",
     providerPaymentId: "payment-123",
     providerSubscriptionId: "preapproval-123",
     providerEventId: "event-123",
@@ -116,7 +96,7 @@ Deno.test("subscription payment builder maps mocked Mercado Pago payment payload
     subscription_id: "sub-1",
     business_id: "business-1",
     tenant_id: "tenant-1",
-    provider: "mercado_pago",
+    provider: "manual",
     provider_payment_id: "payment-123",
     provider_subscription_id: "preapproval-123",
     provider_event_id: "event-123",
@@ -130,14 +110,14 @@ Deno.test("subscription payment builder maps mocked Mercado Pago payment payload
   });
 });
 
-Deno.test("webhook payment recording behavior: mocked approved payment writes one canonical subscription_payments row", async () => {
+Deno.test("payment recording behavior: mocked approved payment writes one canonical subscription_payments row", async () => {
   const { client, calls } = createSubscriptionPaymentMock();
 
   const result = await upsertSubscriptionPayment(client, {
     subscriptionId: "sub-1",
     businessId: "business-1",
     tenantId: "tenant-1",
-    provider: "mercado_pago",
+    provider: "manual",
     providerPaymentId: "payment-123",
     providerSubscriptionId: "preapproval-123",
     providerEventId: "event-123",
@@ -158,7 +138,7 @@ Deno.test("webhook payment recording behavior: mocked approved payment writes on
       subscription_id: "sub-1",
       business_id: "business-1",
       tenant_id: "tenant-1",
-      provider: "mercado_pago",
+      provider: "manual",
       provider_payment_id: "payment-123",
       provider_subscription_id: "preapproval-123",
       provider_event_id: "event-123",
@@ -174,13 +154,13 @@ Deno.test("webhook payment recording behavior: mocked approved payment writes on
   });
 });
 
-Deno.test("webhook payment recording behavior: mocked duplicate payment uses provider payment id upsert key", async () => {
+Deno.test("payment recording behavior: mocked duplicate payment uses provider payment id upsert key", async () => {
   const { client, calls } = createSubscriptionPaymentMock();
 
   await upsertSubscriptionPayment(client, {
     subscriptionId: "sub-1",
     businessId: "business-1",
-    provider: "mercado_pago",
+    provider: "manual",
     providerPaymentId: "payment-duplicate",
     providerEventId: "event-1",
     amount: 16800,
@@ -191,7 +171,7 @@ Deno.test("webhook payment recording behavior: mocked duplicate payment uses pro
   await upsertSubscriptionPayment(client, {
     subscriptionId: "sub-1",
     businessId: "business-1",
-    provider: "mercado_pago",
+    provider: "manual",
     providerPaymentId: "payment-duplicate",
     providerEventId: "event-2",
     amount: 16800,
@@ -209,14 +189,14 @@ Deno.test("webhook payment recording behavior: mocked duplicate payment uses pro
   );
 });
 
-Deno.test("webhook payment recording behavior: payment write failure is returned before processed finalization", async () => {
+Deno.test("payment recording behavior: payment write failure is returned before processed finalization", async () => {
   const writeError = new Error("subscription_payments unavailable");
   const { client, calls } = createSubscriptionPaymentMock(writeError);
 
   const result = await upsertSubscriptionPayment(client, {
     subscriptionId: "sub-1",
     businessId: "business-1",
-    provider: "mercado_pago",
+    provider: "manual",
     providerPaymentId: "payment-123",
     providerEventId: "event-123",
     amount: 16800,
@@ -224,19 +204,9 @@ Deno.test("webhook payment recording behavior: payment write failure is returned
     status: "approved",
     processedAt: "2026-07-08T10:00:01.000Z",
   });
-  const webhookSource = await readText(
-    new URL("mercadopago-webhook/index.ts", functionsDir),
-  );
-  const paymentFailure = webhookSource.search(/subscription_payment_upsert_failed/);
-  const processedFinalize = webhookSource.search(/p_state:\s*"processed"/);
 
   assertEquals(result.error, writeError);
   assertEquals(calls.length, 1);
-  assert(paymentFailure > -1, "webhook must handle subscription payment write failure");
-  assert(
-    paymentFailure < processedFinalize,
-    "webhook must handle payment write failure before marking the event processed",
-  );
 });
 
 Deno.test("billing ledger pruning migration creates canonical subscription_payments and guards legacy drops", async () => {

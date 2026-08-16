@@ -1,4 +1,4 @@
-export type PaymentProvider = 'mercado_pago' | 'stripe';
+import type { PaymentProvider } from '../../../../../core/payments/manual/payment-provider';
 
 export type WebhookProcessingDecision = {
   shouldProcess: boolean;
@@ -40,8 +40,8 @@ export function decideWebhookProcessing(input: {
     };
   }
 
-  // Mercado Pago readiness note:
-  // if Mercado Pago retries with the same provider_event_id but a changed payload hash,
+  // Manual payments readiness note:
+  // if the provider retries with the same provider_event_id but a changed payload hash,
   // we keep the decision deterministic and block side effects until manual reconciliation.
   return {
     shouldProcess: false,

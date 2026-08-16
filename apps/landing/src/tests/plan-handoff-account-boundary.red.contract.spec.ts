@@ -97,7 +97,7 @@ describe('Feature B contract: plan handoff before account creation', () => {
     expect(planGuardIndex).toBeLessThan(rejectionIndex);
     expect(rejectionIndex).toBeLessThan(adapterIndex);
     expect(source).toMatch(/plan:\s*FREE_SIGNUP_PLAN/);
-    expect(source).not.toMatch(/\b(?:STARTER|GROWTH|PRO)\b|createSubscription|mercadopago/i);
+    expect(source).not.toMatch(/\b(?:STARTER|GROWTH|PRO)\b|createSubscription/i);
   });
 
   it('signup plan handoff does not expose Google auth as a user-facing account creation path', async () => {

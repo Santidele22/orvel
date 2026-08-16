@@ -21,7 +21,7 @@ describe('Contract: Supabase Edge Function authorization forwarding', () => {
 
   it.each([
     ['random bearer token', 'Bearer random'],
-    ['APP_USR MercadoPago token', 'Bearer APP_USR-1234567890'],
+    ['APP_USR-style token', 'Bearer APP_USR-1234567890'],
     ['Supabase publishable key', 'Bearer sb_publishable_public-key'],
     ['HMAC-like non-JWT token', 'Bearer hmac_sha256:abcdef1234567890'],
   ])('drops malformed inbound Authorization: %s', (_caseName, inboundAuthorization) => {
@@ -52,7 +52,7 @@ describe('Contract: /api/subscriptions/start Supabase headers', () => {
     vi.stubEnv('SUPABASE_ANON_KEY', 'sb_publishable_public-key');
 
     const fetchSpy = vi.fn(async () => new Response(
-      JSON.stringify({ init_point: 'https://mercadopago.example.test/preapproval' }),
+      JSON.stringify({ init_point: 'https://payments.example.test/preapproval' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ));
     vi.stubGlobal('fetch', fetchSpy);
