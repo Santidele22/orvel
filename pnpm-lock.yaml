@@ -50,6 +50,9 @@ importers:
       '@orvel/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@orvel/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@orvel/booking':
         specifier: workspace:*
         version: link:../../packages/booking

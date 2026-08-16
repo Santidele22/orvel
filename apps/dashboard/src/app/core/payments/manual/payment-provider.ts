@@ -1,27 +1,9 @@
-// Manual Payments — type-only stub.
-// See docs/adr/0009-remove-mercadopago.md for removal context.
-// Re-add design requires redesign of the webhook contract.
-export type PaymentProvider = 'manual';
-export interface BillingEvent {
-  readonly id: string;
-  readonly provider: PaymentProvider;
-  readonly amount: number;
-  readonly currency: string;
-  readonly status: 'pending' | 'received' | 'cancelled';
-  readonly createdAt: string;
-}
-export interface PaymentRecord {
-  readonly id: string;
-  readonly provider: PaymentProvider;
-  readonly amount: number;
-  readonly currency: string;
-  readonly status: 'pending' | 'received' | 'cancelled';
-  readonly createdAt: string;
-  readonly memo?: string;
-}
-export interface ManualPaymentInput {
-  readonly amount: number;
-  readonly currency: string;
-  readonly status?: 'pending' | 'received' | 'cancelled';
-  readonly memo?: string;
-}
+// Re-export shim for the @orvel/billing migration window.
+// Source moved to packages/billing/src/payment-provider.ts (chore-extract-billing-package).
+// Deletable once no importer references this old path.
+export type {
+  PaymentProvider,
+  BillingEvent,
+  PaymentRecord,
+  ManualPaymentInput,
+} from '@orvel/billing';

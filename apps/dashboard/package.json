@@ -24,6 +24,7 @@
     "@angular/service-worker": "^21.2.18",
     "@orvel/shared": "workspace:*",
     "@orvel/auth": "workspace:*",
+    "@orvel/billing": "workspace:*",
     "@orvel/domain": "workspace:*",
     "@orvel/booking": "workspace:*",
     "@supabase/supabase-js": "^2.108.2",
