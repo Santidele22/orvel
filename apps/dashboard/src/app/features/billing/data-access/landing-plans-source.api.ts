@@ -5,7 +5,7 @@ import {
   type CanonicalPlanCode,
   type PlanCode
 } from '../../../core/plans/plan-entitlements';
-import { type DashboardReferenceCatalog } from '../../../core/catalog/reference-catalog';
+import type { DashboardReferenceCatalog } from '@orvel/domain';
 import {
   createDashboardReferenceCatalogRepository,
   type DashboardReferenceCatalogRepository

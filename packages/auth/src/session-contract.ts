@@ -9,6 +9,8 @@
 // derives from app-internal onboarding reference catalog).
 // See sdd-design D1 for the split rationale.
 
+import type { RequiredRubro, TemplateCatalog } from '@orvel/domain';
+
 export const LEGACY_DASHBOARD_SESSION_STORAGE_KEY = 'turnea.session.v1';
 
 export interface TurneaSessionUser {
@@ -17,45 +19,34 @@ export interface TurneaSessionUser {
   name: string;
 }
 
-// D2: SelectedBusinessType is declared as a string literal union here because
-// the runtime source (REQUIRED_RUBROS, derived from onboarding reference
-// catalog) is app-internal and lives in the dashboard. The values below are
-// the business types known as of release-1.0.4 plan (uñas, peluquería,
-// barbería, masajes, estética, cejas/pestañas, spa). New business types
-// added via onboarding catalog will require a sync here; this drift is
-// caught by packages-auth-shape.red.contract.spec.ts.
-export type SelectedBusinessType =
-  | 'uñas'
-  | 'peluquería'
-  | 'barbería'
-  | 'masajes'
-  | 'estética'
-  | 'cejas/pestañas'
-  | 'spa'
-  | 'otro'
-  | (string & {}); // escape hatch for future types added via catalog
+// D2 (chore-extract-domain-package): SelectedBusinessType is derived from the
+// canonical @orvel/domain RequiredRubro type instead of a hardcoded literal
+// union. The literal union used to duplicate the dashboard reference catalog
+// here and drifted; deriving keeps it in sync (guarded by the
+// packages-domain-shape + packages-auth-shape red contract specs).
+//
+// RequiredRubro is the canonical business-type code type from the dashboard
+// reference catalog. Extracted dependency-free it widens to `string`, so the
+// derivation is a direct alias (`RequiredRubro['businessType']` indexing in
+// the design assumed an object shape; the real catalog-derived type is a
+// string, making the direct alias the equivalent derivation). Type-level this
+// is identical to the old union — which collapsed to `string` — so the
+// `(string & {})` escape hatch for future catalog business types is preserved.
+export type SelectedBusinessType = RequiredRubro;
 
-// D2: RequiredRubro and TemplateCatalog are opaque shapes here. Their full
-// definitions live in apps/dashboard (onboarding-rubros, onboarding-templates)
-// and are app-internal. The opaque shapes here exist so consumers can
-// reference the types. When packages/domain and packages/types are extracted
-// (the next 6 packages in this pattern), these can be replaced with the
-// real definitions.
-export interface RequiredRubro {
-  [key: string]: unknown;
-}
-
-export interface TemplateCatalog {
-  [key: string]: unknown;
-}
+// D2 (chore-extract-domain-package): RequiredRubro and TemplateCatalog were
+// opaque stubs here; the domain extraction replaced them with the real
+// definitions from @orvel/domain (packages/domain/src/required-rubro.ts and
+// packages/domain/src/onboarding-templates.ts).
+export type { RequiredRubro, TemplateCatalog } from '@orvel/domain';
 
 export interface TurneaSession {
   version: string;
   token: string;
   user: TurneaSessionUser;
   selectedBusinessTypes: SelectedBusinessType[];
-  // Rubro values are business-type codes (strings); the opaque RequiredRubro
-  // type above stays exported for consumers to reference.
+  // Rubro values are business-type codes (strings); the real RequiredRubro
+  // type from @orvel/domain stays exported for consumers to reference.
   selectedRubros?: string[];
   selectedTemplateIds?: string[];
   preloadedCatalog?: TemplateCatalog;
