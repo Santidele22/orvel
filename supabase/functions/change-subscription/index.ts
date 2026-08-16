@@ -5,8 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
-import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
-import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
+import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/plan-catalog.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -300,7 +299,7 @@ Deno.serve(async (req) => {
       }
 
       const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
-      const externalReference = createSubscriptionSessionReference(subscriptionSessionToken);
+      const externalReference = `preapproval-session:${subscriptionSessionToken.trim()}`;
       const subscriptionSessionExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
 
       const { data: subscriptionSession, error: subscriptionSessionError } = await supabaseAdmin
