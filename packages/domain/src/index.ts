@@ -30,4 +30,4 @@ export {
   type TemplateCatalog,
 } from './onboarding-templates';
 
-export type { RequiredRubro } from './required-rubro';
+export { type RequiredRubro } from './required-rubro';

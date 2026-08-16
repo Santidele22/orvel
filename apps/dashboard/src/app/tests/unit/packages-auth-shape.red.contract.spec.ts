@@ -71,8 +71,14 @@ describe('@orvel/auth package shape contract (chore-extract-auth-package)', () =
     expect(sessionContract).toContain('export interface TurneaSessionUser');
     expect(sessionContract).toContain('export interface TurneaSession');
     expect(sessionContract).toContain('export type SelectedBusinessType');
-    expect(sessionContract).toContain('export interface RequiredRubro');
-    expect(sessionContract).toContain('export interface TemplateCatalog');
+    // chore-extract-domain-package (REQ-DOMAIN-AUTH-OPAQUES): SelectedBusinessType is
+    // derived from the canonical @orvel/domain RequiredRubro type (the design's
+    // `RequiredRubro['businessType']` indexing assumed an object shape; the real
+    // catalog-derived type is a string, so the equivalent derivation is a direct
+    // alias). The opaque RequiredRubro/TemplateCatalog stubs are re-exported from
+    // @orvel/domain.
+    expect(sessionContract).toContain('SelectedBusinessType = RequiredRubro');
+    expect(sessionContract).toContain("export type { RequiredRubro, TemplateCatalog } from '@orvel/domain'");
     expect(sessionContract).toContain('export type ValidateSessionSchema');
     // NO runtime function body
     expect(sessionContract).not.toContain('function validateSessionSchema');
