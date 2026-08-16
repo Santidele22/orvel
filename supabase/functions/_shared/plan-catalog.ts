@@ -1,7 +1,7 @@
 export type BillingTier = 'premium';
 export type BillingCadence = 'monthly';
 
-export type MpPlanCatalogRow = {
+export type PlanCatalogRow = {
   tier: string;
   cadence: string;
   tier_code: string;
@@ -39,10 +39,10 @@ export function buildTierCode(tier: string, cadence: string): string {
 }
 
 export function resolvePlanCatalogRow(
-  rows: MpPlanCatalogRow[],
+  rows: PlanCatalogRow[],
   tier: string,
   cadence: string
-): MpPlanCatalogRow | null {
+): PlanCatalogRow | null {
   const canonicalTier = normalizeTier(tier);
   const canonicalCadence = normalizeCadence(cadence);
   if (!canonicalTier || !canonicalCadence) return null;
