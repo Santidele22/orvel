@@ -24,6 +24,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
+          # MP webhook deploy step removed 2026-08 (see ADR 0009)
           supabase functions deploy create-subscription --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy change-subscription --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy cancel-subscription --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
