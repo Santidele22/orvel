@@ -11,9 +11,6 @@ import {
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const MP_API_BASE = "https://api.mercadopago.com";
-const MP_CANCEL_ATTEMPT_TIMEOUT_MS = 10_000;
-const MP_CANCEL_RETRY_BACKOFF_MS = [250, 1_000];
 const rateLimitStore = new Map<string, number[]>();
 
 function getClientIp(req: Request): string {
@@ -105,84 +102,6 @@ function resolvePaidThroughDate(subscription: CurrentSubscription): string | nul
   return subscription.period_end || subscription.current_period_end || null;
 }
 
-function isTransientMercadoPagoCancellationFailure(result: { ok: false; status?: number }): boolean {
-  return result.status === undefined || result.status === 408 || result.status === 409 || result.status === 425 ||
-    result.status === 429 || result.status >= 500;
-}
-
-async function cancelMercadoPagoRenewalAttempt(input: {
-  providerSubscriptionId: string;
-  accessToken: string;
-  fetchFn: typeof fetch;
-  timeoutMs: number;
-}): Promise<{ ok: true } | { ok: false; status?: number }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs);
-
-  try {
-    const response = await input.fetchFn(
-      `${MP_API_BASE}/preapproval/${encodeURIComponent(input.providerSubscriptionId)}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${input.accessToken}`,
-        },
-        body: JSON.stringify({ status: "cancelled" }),
-        signal: controller.signal,
-      },
-    );
-
-    if (!response.ok) return { ok: false, status: response.status };
-
-    const responseText = await response.text().catch(() => "");
-    if (!responseText.trim()) return { ok: false, status: response.status };
-
-    try {
-      const payload = JSON.parse(responseText) as Record<string, unknown>;
-      const returnedStatus = typeof payload.status === "string" ? payload.status.toLowerCase() : null;
-      const returnedId = typeof payload.id === "string" ? payload.id : null;
-
-      if ((returnedStatus !== "cancelled" && returnedStatus !== "canceled") || returnedId !== input.providerSubscriptionId) {
-        return { ok: false, status: response.status };
-      }
-    } catch {
-      return { ok: false, status: response.status };
-    }
-
-    return { ok: true };
-  } catch {
-    return { ok: false };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function cancelMercadoPagoRenewal(input: {
-  providerSubscriptionId: string;
-  accessToken: string;
-  fetchFn: typeof fetch;
-  sleepFn?: (ms: number) => Promise<void>;
-  retryBackoffMs?: number[];
-  timeoutMs?: number;
-}): Promise<{ ok: true } | { ok: false; status?: number }> {
-  const retryBackoffMs = input.retryBackoffMs ?? MP_CANCEL_RETRY_BACKOFF_MS;
-  const sleepFn = input.sleepFn ?? sleep;
-  const timeoutMs = input.timeoutMs ?? MP_CANCEL_ATTEMPT_TIMEOUT_MS;
-  let lastFailure: { ok: false; status?: number } = { ok: false };
-
-  for (let attempt = 0; attempt <= retryBackoffMs.length; attempt += 1) {
-    const result = await cancelMercadoPagoRenewalAttempt({ ...input, timeoutMs });
-    if (result.ok) return result;
-
-    lastFailure = result;
-    if (!isTransientMercadoPagoCancellationFailure(result) || attempt === retryBackoffMs.length) break;
-    await sleepFn(retryBackoffMs[attempt]);
-  }
-
-  return lastFailure;
-}
-
 function buildSubscriptionResponse(
   subscription: CurrentSubscription,
   options: { includeProviderSubscriptionId?: boolean } = {},
@@ -211,18 +130,6 @@ function needsAccountCancellationStateRepair(subscription: CurrentSubscription):
   return subscription.cancel_at_period_end !== true ||
     subscription.cancel_reason !== "account_cancellation_requested" ||
     !subscription.cancelled_at;
-}
-
-function requiresProviderCancellation(subscription: CurrentSubscription): boolean {
-  if (!subscription) return false;
-
-  const provider = String(subscription.provider || "mercado_pago").toLowerCase();
-  const status = String(subscription.status || "").toLowerCase();
-  const planCode = String(subscription.plan_code || "").toLowerCase();
-
-  return provider === "mercado_pago" &&
-    ["active", "pending", "trialing", "scheduled_change"].includes(status) &&
-    !["free", "gratis", "none"].includes(planCode);
 }
 
 function requiresPaidThroughAccess(subscription: CurrentSubscription): boolean {
@@ -308,19 +215,6 @@ async function buildScheduledAccountCancellationResponse(input: {
   hasProviderCancelledEvidence: boolean;
   logError: (...args: unknown[]) => void;
 }): Promise<Response> {
-  if (input.needsProviderCancellation && !input.hasProviderCancelledEvidence) {
-    return new Response(
-      JSON.stringify({
-        error: "ACCOUNT_CANCELLATION_PROVIDER_EVIDENCE_MISSING",
-        message: "La baja de cuenta no tiene evidencia durable de cancelación de renovación en Mercado Pago",
-      }),
-      {
-        status: 409,
-        headers: { ...input.corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const persistedAt = input.scheduledAt || input.requestedAt;
   if (needsAccountCancellationStateRepair(input.currentSubscription)) {
     const { error: subscriptionRepairError } = await updateAccountCancellationSubscriptionState({
@@ -494,7 +388,7 @@ export function createCancelSubscriptionHandler(
     isRateLimited;
   const fetchFn = dependencies.fetch ?? fetch;
   const sleepFn = dependencies.sleep ?? sleep;
-  const mpCancelAttemptTimeoutMs = dependencies.mpCancelAttemptTimeoutMs ?? MP_CANCEL_ATTEMPT_TIMEOUT_MS;
+  const mpCancelAttemptTimeoutMs = dependencies.mpCancelAttemptTimeoutMs ?? 10_000;
   const envGet = dependencies.envGet ?? ((key: string) => Deno.env.get(key));
   const now = dependencies.now ?? (() => new Date());
   const logError = dependencies.logError ?? console.error;
@@ -689,7 +583,7 @@ export function createCancelSubscriptionHandler(
       const providerSubscriptionId = resolveProviderSubscriptionId(currentSubscription);
       const paidThroughDate = resolvePaidThroughDate(currentSubscription);
       const isAccountCancellation = mode === "account_cancellation";
-      const needsProviderCancellation = isAccountCancellation && requiresProviderCancellation(currentSubscription);
+      const needsProviderCancellation = false;
       const needsPaidThroughAccess = isAccountCancellation && requiresPaidThroughAccess(currentSubscription);
       const eventProvider = isAccountCancellation ? "orvel_account" : "orvel_manual";
       const accountCancellationBaseId =
@@ -1190,132 +1084,6 @@ export function createCancelSubscriptionHandler(
         );
       }
 
-      if (needsProviderCancellation && providerSubscriptionId && !accountCancellationEvents?.data.providerCancelled) {
-        const mpAccessToken = envGet("MP_ACCESS_TOKEN");
-        if (!mpAccessToken) {
-          const failureEvent = await recordSubscriptionEvent({
-            supabaseAdmin,
-            subscription: currentSubscription,
-            businessId: business_id,
-            provider: eventProvider,
-            providerEventId: accountCancellationFailureEventId,
-            providerSubscriptionId,
-            eventType: "account.cancellation_provider_failed",
-            occurredAt: now().toISOString(),
-            payload: { ...requestPayload, failure_reason: "mp_access_token_missing" },
-            transitionAction: "ACCOUNT_CANCELLATION_PROVIDER_FAILED",
-          });
-
-          if (!failureEvent.ok) {
-            logError("Error recording provider cancellation failure:", failureEvent.error);
-            return new Response(
-              JSON.stringify({
-                error: "ACCOUNT_CANCELLATION_PROVIDER_FAILURE_AUDIT_FAILED",
-                message: "Error al registrar la falla de baja de cuenta",
-              }),
-              {
-                status: 500,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              },
-            );
-          }
-
-          return new Response(
-            JSON.stringify({
-              error: "MP_CONFIG_ERROR",
-              message: "Mercado Pago no configurado en el servidor",
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-
-        const providerCancellation = await cancelMercadoPagoRenewal({
-          providerSubscriptionId,
-          accessToken: mpAccessToken,
-          fetchFn,
-          sleepFn,
-          timeoutMs: mpCancelAttemptTimeoutMs,
-        });
-
-        if (!providerCancellation.ok) {
-          const failureEvent = await recordSubscriptionEvent({
-            supabaseAdmin,
-            subscription: currentSubscription,
-            businessId: business_id,
-            provider: eventProvider,
-            providerEventId: accountCancellationFailureEventId,
-            providerSubscriptionId,
-            eventType: "account.cancellation_provider_failed",
-            occurredAt: now().toISOString(),
-            payload: {
-              ...requestPayload,
-              failure_reason: providerCancellation.status
-                ? `mp_http_${providerCancellation.status}`
-                : "mp_network_error",
-            },
-            transitionAction: "ACCOUNT_CANCELLATION_PROVIDER_FAILED",
-          });
-
-          if (!failureEvent.ok) {
-            logError("Error recording provider cancellation failure:", failureEvent.error);
-            return new Response(
-              JSON.stringify({
-                error: "ACCOUNT_CANCELLATION_PROVIDER_FAILURE_AUDIT_FAILED",
-                message: "Error al registrar la falla de baja de cuenta",
-              }),
-              {
-                status: 500,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              },
-            );
-          }
-
-          logError("Mercado Pago renewal cancellation failed", {
-            status: providerCancellation.status,
-          });
-          return new Response(
-            JSON.stringify({
-              error: "MP_CANCEL_FAILED",
-              message: "No pudimos cancelar la renovación en Mercado Pago",
-            }),
-            {
-              status: 502,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-
-        const providerSuccessEvent = await recordSubscriptionEvent({
-          supabaseAdmin,
-          subscription: currentSubscription,
-          businessId: business_id,
-          provider: eventProvider,
-          providerEventId: accountCancellationProviderCancelledEventId,
-          providerSubscriptionId,
-          eventType: "account.cancellation_provider_cancelled",
-          occurredAt: now().toISOString(),
-          payload: { ...requestPayload, provider_status: "cancelled" },
-          transitionAction: "ACCOUNT_CANCELLATION_PROVIDER_CANCELLED",
-        });
-
-        if (!providerSuccessEvent.ok) {
-          logError("Error recording provider cancellation success:", providerSuccessEvent.error);
-          return new Response(
-            JSON.stringify({
-              error: "ACCOUNT_CANCELLATION_PROVIDER_SUCCESS_AUDIT_FAILED",
-              message: "Error al registrar la cancelación de renovación en Mercado Pago",
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-      }
-
       const scheduledEvent = await recordSubscriptionEvent({
         supabaseAdmin,
         subscription: currentSubscription,
@@ -1325,9 +1093,7 @@ export function createCancelSubscriptionHandler(
         providerSubscriptionId,
         eventType: "account.cancellation_scheduled",
         occurredAt: now().toISOString(),
-        payload: needsProviderCancellation
-          ? { ...requestPayload, provider_status: "cancelled" }
-          : requestPayload,
+        payload: requestPayload,
         transitionAction: "SCHEDULE_ACCOUNT_CANCELLATION",
       });
 
