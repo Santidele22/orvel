@@ -53,6 +53,9 @@ importers:
       '@orvel/booking':
         specifier: workspace:*
         version: link:../../packages/booking
+      '@orvel/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@orvel/shared':
         specifier: workspace:*
         version: link:../shared/email-templates
