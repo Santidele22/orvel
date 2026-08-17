@@ -187,6 +187,13 @@ importers:
         version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(vite@7.3.5(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3))
 
   packages/booking:
+    dependencies:
+      '@angular/core':
+        specifier: ^21.2.17
+        version: 21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2)
+      '@supabase/supabase-js':
+        specifier: ^2.108.2
+        version: 2.108.2
     devDependencies:
       vitest:
         specifier: ^4.1.4

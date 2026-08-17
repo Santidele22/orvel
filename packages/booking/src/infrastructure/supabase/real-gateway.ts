@@ -1,16 +1,9 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { loadDashboardRuntimeEnv } from '../../runtime/dashboard-env';
-import { SupabaseBookingGateway } from './gateway-interface';
+import { inject, Injectable } from '@angular/core';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from './supabase-client.token';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
+import type { SupabaseBookingGateway } from '../../gateway-interface';
 import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail } from './mappers';
-import { isValidPublicBookingSlug, normalizePublicBookingSlug } from './public-booking-slug';
-
-// Initialize real Supabase client
-export function createSupabaseClient(): SupabaseClient {
-  const env = loadDashboardRuntimeEnv();
-  const urlEnvKey = 'NEXT_PUBLIC_SUPABASE_URL';
-  const anonKeyEnvKey = 'NEXT_PUBLIC_SUPABASE_ANON_KEY';
-  return createClient(env[urlEnvKey], env[anonKeyEnvKey]);
-}
 
 type BookingNotificationRow = {
   id: string;
@@ -76,7 +69,7 @@ function notificationPayload(row: BookingNotificationRow, manageToken?: string |
         reschedule: `${manageBaseUrl}&action=reschedule`,
       }
       : undefined,
-  };
+  }
 }
 
 async function runPostBookingSideEffect(operation: string, effect: () => Promise<void>): Promise<void> {
@@ -87,11 +80,19 @@ async function runPostBookingSideEffect(operation: string, effect: () => Promise
   }
 }
 
-// Real Supabase-powered gateway implementation
-export const realSupabaseGateway: SupabaseBookingGateway = {
+// Real Supabase-powered gateway implementation.
+// Resolves SupabaseClient exclusively through the SUPABASE_CLIENT DI token;
+// never creates its own client at module scope.
+@Injectable({ providedIn: 'root' })
+export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
+  private readonly supabaseClient: SupabaseClient;
+
+  constructor(supabaseClient?: SupabaseClient) {
+    this.supabaseClient = supabaseClient ?? inject(SUPABASE_CLIENT);
+  }
   async resolveBusinessBySlug({ businessSlug }) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const normalizedSlug = normalizePublicBookingSlug(businessSlug);
 
       if (!isValidPublicBookingSlug(normalizedSlug)) {
@@ -140,7 +141,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async queryPublicSlotAvailability({ businessSlug, serviceId, dateIso }) {
     if (!businessSlug?.trim() || !serviceId?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
@@ -154,7 +155,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
     }
 
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
 
       // Call the improved PostgreSQL RPC
       const { data, error } = await supabase.rpc('query_public_slot_availability', {
@@ -187,7 +188,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(err as { message?: string })
       };
     }
-  },
+  }
 
   async createPublicBooking(payload) {
     const { businessSlug } = payload;
@@ -233,7 +234,7 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
 
     // Call real Supabase RPC to create booking
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_public_booking', {
         business_slug: normalizePublicBookingSlug(businessSlug),
         service_id: payload.serviceId,
@@ -296,11 +297,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async manageBookingByToken({ token, nowIso }) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('manage_booking_by_token', {
         token,
         now_iso: nowIso
@@ -366,11 +367,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async cancelBookingByToken({ token, nowIso }) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('cancel_booking_by_token', {
         token,
         now_iso: nowIso
@@ -420,11 +421,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async rescheduleBookingByToken({ token, nowIso, startsAtIso }) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('reschedule_booking_by_token', {
         token,
         now_iso: nowIso,
@@ -477,11 +478,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async createAdminManualBooking(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_admin_manual_booking', {
         business_id: payload.businessId,
         branch_id: payload.branchId ?? null,
@@ -518,11 +519,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async createAdminBlockedTime(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_admin_blocked_time', {
         business_id: payload.businessId,
         branch_id: payload.branchId,
@@ -552,11 +553,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async updateAdminBooking(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('update_admin_booking', {
         booking_id: payload.bookingId,
         performed_by: payload.performedBy,
@@ -583,11 +584,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async cancelAdminBooking(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('cancel_admin_booking', {
         booking_id: payload.bookingId,
         performed_by: payload.performedBy,
@@ -614,11 +615,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async rescheduleAdminBooking(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('reschedule_admin_booking', {
         booking_id: payload.bookingId,
         starts_at_iso: payload.startsAtIso,
@@ -647,11 +648,11 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
         error: mapRpcErrorToApiError(error)
       };
     }
-  },
+  }
 
   async updateBookingStatus(payload) {
     try {
-      const supabase = createSupabaseClient();
+      const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('update_booking_status', {
         booking_id: payload.bookingId,
         status: payload.status,
@@ -678,4 +679,4 @@ export const realSupabaseGateway: SupabaseBookingGateway = {
       };
     }
   }
-};
+}
