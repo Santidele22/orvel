@@ -65,8 +65,8 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     expect(packageJson.exports['.']).toBeDefined();
     expect(packageJson.exports['.'].types).toBe('./src/index.ts');
     expect(packageJson.exports['.'].default).toBe('./src/index.ts');
-    // Single exports."." entry — no subpath per sdd-design D1
-    expect(Object.keys(packageJson.exports)).toEqual(['.']);
+    // Subpath exports per hexagonal pilot REQ-CONSUMER-2 (./domain added in WU1).
+    expect(Object.keys(packageJson.exports)).toEqual(['.', './domain']);
   });
 
   it('src/index.ts re-exports the full public surface (18 types + interface + 2 functions)', () => {
@@ -172,8 +172,20 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
   it('resolves at runtime through the workspace junction with working slug helpers and no runtime leak', async () => {
     const booking = await import('@orvel/booking');
 
-    // The runtime surface is exactly the 2 slug functions (type-only exports are erased)
-    expect(Object.keys(booking).sort()).toEqual(['isValidPublicBookingSlug', 'normalizePublicBookingSlug']);
+    // Runtime surface: the 2 slug functions + the booking-core domain layer
+    // (WU1 of the hexagonal pilot re-exports domain from the package root;
+    // grows as availability-core and public-booking-url land in WU1).
+    expect(Object.keys(booking).sort()).toEqual([
+      'buildPublicBookingUrl',
+      'canClientCancelOrReschedule',
+      'computeAvailableSlots',
+      'computePublicAvailability',
+      'createAppointment',
+      'getPublicBookingOrigin',
+      'isValidPublicBookingSlug',
+      'normalizePublicBookingSlug',
+      'validateSelfServiceToken'
+    ]);
     expect(typeof booking.normalizePublicBookingSlug).toBe('function');
     expect(typeof booking.isValidPublicBookingSlug).toBe('function');
     expect(booking.normalizePublicBookingSlug('  Peluquería   Ñandú Central  ')).toBe('peluqueria-nandu-central');

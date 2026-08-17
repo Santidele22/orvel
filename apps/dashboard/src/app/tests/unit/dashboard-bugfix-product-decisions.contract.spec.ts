@@ -24,7 +24,7 @@ describe('Dashboard bugfix product decisions contract', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
     const settingsTemplate = readDashboardFile('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
     const dashboardHome = readDashboardFile('src/app/features/dashboard-home/pages/dashboard-home.page.html');
-    const publicBookingUrlHelper = readDashboardFile('src/app/core/booking/public-booking-url.ts');
+    const publicBookingUrlHelper = readDashboardFile('../../packages/booking/src/domain/public-booking-url.ts');
 
     expect(`${settingsPage}\n${publicBookingUrlHelper}`).toMatch(/buildPublicBookingUrl/);
     expect(publicBookingUrlHelper).toMatch(/https:\/\/orvel\.pro/);

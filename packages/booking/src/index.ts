@@ -25,3 +25,6 @@ export type {
 export type { SupabaseBookingGateway } from './gateway-interface';
 
 export { normalizePublicBookingSlug, isValidPublicBookingSlug } from './public-booking-slug';
+
+// Domain layer (WU1 of hexagonal pilot; see packages/booking/README.md).
+export * from './domain';
