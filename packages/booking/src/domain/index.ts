@@ -12,3 +12,6 @@ export {
   canClientCancelOrReschedule,
   validateSelfServiceToken,
 } from './booking-core';
+
+export type { TimeWindow, ComputeAvailableSlotsInput } from './availability-core';
+export { computeAvailableSlots } from './availability-core';
