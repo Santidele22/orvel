@@ -5,7 +5,7 @@ import {
   createAppointment,
   validateSelfServiceToken,
   type CalendarEntry
-} from './booking-core';
+} from '../booking-core';
 
 describe('booking-core contract', () => {
   describe('createAppointment', () => {
