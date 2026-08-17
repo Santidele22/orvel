@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPublicBookingUrl, getPublicBookingOrigin } from './public-booking-url';
+import { buildPublicBookingUrl, getPublicBookingOrigin } from '../public-booking-url';
 
 describe('public booking URL helpers', () => {
   it('uses the canonical root domain for hosted dashboard origins', () => {

@@ -176,10 +176,12 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     // (WU1 of the hexagonal pilot re-exports domain from the package root;
     // grows as availability-core and public-booking-url land in WU1).
     expect(Object.keys(booking).sort()).toEqual([
+      'buildPublicBookingUrl',
       'canClientCancelOrReschedule',
       'computeAvailableSlots',
       'computePublicAvailability',
       'createAppointment',
+      'getPublicBookingOrigin',
       'isValidPublicBookingSlug',
       'normalizePublicBookingSlug',
       'validateSelfServiceToken'
