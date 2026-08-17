@@ -65,8 +65,8 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     expect(packageJson.exports['.']).toBeDefined();
     expect(packageJson.exports['.'].types).toBe('./src/index.ts');
     expect(packageJson.exports['.'].default).toBe('./src/index.ts');
-    // Subpath exports per hexagonal pilot REQ-CONSUMER-2 (./domain added in WU1).
-    expect(Object.keys(packageJson.exports)).toEqual(['.', './domain']);
+    // Subpath exports per hexagonal pilot REQ-CONSUMER-2 (./domain added in WU1, ./infrastructure added in WU2).
+    expect(Object.keys(packageJson.exports)).toEqual(['.', './domain', './infrastructure']);
   });
 
   it('src/index.ts re-exports the full public surface (18 types + interface + 2 functions)', () => {

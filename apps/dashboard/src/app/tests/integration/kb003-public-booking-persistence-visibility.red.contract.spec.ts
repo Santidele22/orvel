@@ -42,7 +42,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
       })
     }));
 
-    const { realSupabaseGateway } = await import('../../core/api/supabase-booking/real-gateway');
+    const { RealSupabaseBookingGateway } = await import('@orvel/booking/infrastructure');
+    const realSupabaseGateway = new RealSupabaseBookingGateway({ rpc: rpcSpy } as never);
 
     await realSupabaseGateway.createPublicBooking({
       businessSlug: 'studio-roma',
@@ -137,7 +138,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
       })
     }));
 
-    const { realSupabaseGateway } = await import('../../core/api/supabase-booking/real-gateway');
+    const { RealSupabaseBookingGateway } = await import('@orvel/booking/infrastructure');
+    const realSupabaseGateway = new RealSupabaseBookingGateway({ rpc: rpcSpy } as never);
 
     await expect(
       realSupabaseGateway.createPublicBooking({
@@ -159,8 +161,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('browser public create does not queue success email or bell notification outside the booking RPC', () => {
-    const gatewaySource = readSource('src/app/core/api/supabase-booking/real-gateway.ts');
-    const createPublicBookingBody = gatewaySource.match(/async createPublicBooking\(payload\) \{([\s\S]*?)\n    \} catch \(err\) \{/m)?.[1] ?? '';
+    const gatewaySource = readSource('packages/booking/src/infrastructure/supabase/real-gateway.ts');
+    const createPublicBookingBody = gatewaySource.match(/async createPublicBooking\(payload[\s\S]*?\) \{([\s\S]*?)\n    \} catch \(err\) \{/m)?.[1] ?? '';
 
     expect(createPublicBookingBody).toMatch(/rpc\('create_public_booking'/);
     expect(createPublicBookingBody).not.toMatch(/notification_email_outbox/i);

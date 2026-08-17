@@ -1,9 +1,26 @@
-import { inject, Injectable } from '@angular/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './supabase-client.token';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
 import type { SupabaseBookingGateway } from '../../gateway-interface';
 import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail } from './mappers';
+import type {
+  ApiResponse,
+  BusinessPublicView,
+  PublicSlot,
+  PublicBookingConfirmation,
+  ManageBookingDetails,
+  PublicSlotAvailabilityInput,
+  PublicBookingPayload,
+  ManageBookingInput,
+  CancelBookingByTokenInput,
+  RescheduleBookingByTokenInput,
+  AdminManualBookingPayload,
+  AdminBlockedTimePayload,
+  AdminUpdateBookingPayload,
+  AdminCancelBookingPayload,
+  AdminRescheduleBookingPayload,
+  AdminStatusUpdatePayload
+} from '../../types';;
 
 type BookingNotificationRow = {
   id: string;
@@ -81,16 +98,16 @@ async function runPostBookingSideEffect(operation: string, effect: () => Promise
 }
 
 // Real Supabase-powered gateway implementation.
-// Resolves SupabaseClient exclusively through the SUPABASE_CLIENT DI token;
-// never creates its own client at module scope.
-@Injectable({ providedIn: 'root' })
+// Resolves SupabaseClient through the SUPABASE_CLIENT DI token; the adapter is
+// provided at the application root via useFactory (see app.config.ts) and never
+// creates its own client at module scope.
 export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
   private readonly supabaseClient: SupabaseClient;
 
-  constructor(supabaseClient?: SupabaseClient) {
-    this.supabaseClient = supabaseClient ?? inject(SUPABASE_CLIENT);
+  constructor(supabaseClient: SupabaseClient) {
+    this.supabaseClient = supabaseClient;
   }
-  async resolveBusinessBySlug({ businessSlug }) {
+  async resolveBusinessBySlug({ businessSlug }: { businessSlug: string }): Promise<ApiResponse<BusinessPublicView>> {
     try {
       const supabase = this.supabaseClient;
       const normalizedSlug = normalizePublicBookingSlug(businessSlug);
@@ -143,7 +160,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async queryPublicSlotAvailability({ businessSlug, serviceId, dateIso }) {
+  async queryPublicSlotAvailability({ businessSlug, serviceId, dateIso }: PublicSlotAvailabilityInput): Promise<ApiResponse<{ slots: PublicSlot[] }>> {
     if (!businessSlug?.trim() || !serviceId?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
       return {
         status: 422,
@@ -190,7 +207,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async createPublicBooking(payload) {
+  async createPublicBooking(payload: PublicBookingPayload): Promise<ApiResponse<PublicBookingConfirmation>> {
     const { businessSlug } = payload;
 
     const invalidFields: string[] = [];
@@ -299,7 +316,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async manageBookingByToken({ token, nowIso }) {
+  async manageBookingByToken({ token, nowIso }: ManageBookingInput): Promise<ApiResponse<ManageBookingDetails>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('manage_booking_by_token', {
@@ -369,7 +386,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async cancelBookingByToken({ token, nowIso }) {
+  async cancelBookingByToken({ token, nowIso }: CancelBookingByTokenInput): Promise<ApiResponse<{ bookingId: string; status: "cancelled" }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('cancel_booking_by_token', {
@@ -423,7 +440,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async rescheduleBookingByToken({ token, nowIso, startsAtIso }) {
+  async rescheduleBookingByToken({ token, nowIso, startsAtIso }: RescheduleBookingByTokenInput): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('reschedule_booking_by_token', {
@@ -480,7 +497,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async createAdminManualBooking(payload) {
+  async createAdminManualBooking(payload: AdminManualBookingPayload): Promise<ApiResponse<{ bookingId: string; type: "manual-admin-appointment"; status: "confirmed"; source: "admin-manual" }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_admin_manual_booking', {
@@ -521,7 +538,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async createAdminBlockedTime(payload) {
+  async createAdminBlockedTime(payload: AdminBlockedTimePayload): Promise<ApiResponse<{ blockId: string; type: "blocked-time" }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_admin_blocked_time', {
@@ -555,7 +572,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async updateAdminBooking(payload) {
+  async updateAdminBooking(payload: AdminUpdateBookingPayload): Promise<ApiResponse<{ bookingId: string; updatedAt: string }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('update_admin_booking', {
@@ -586,7 +603,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async cancelAdminBooking(payload) {
+  async cancelAdminBooking(payload: AdminCancelBookingPayload): Promise<ApiResponse<{ bookingId: string; status: "cancelled" }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('cancel_admin_booking', {
@@ -617,7 +634,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async rescheduleAdminBooking(payload) {
+  async rescheduleAdminBooking(payload: AdminRescheduleBookingPayload): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('reschedule_admin_booking', {
@@ -650,7 +667,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async updateBookingStatus(payload) {
+  async updateBookingStatus(payload: AdminStatusUpdatePayload): Promise<ApiResponse<{ bookingId: string; status: string }>> {
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('update_booking_status', {

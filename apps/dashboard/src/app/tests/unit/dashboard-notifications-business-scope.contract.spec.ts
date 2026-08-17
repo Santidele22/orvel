@@ -36,7 +36,7 @@ vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => (
   archiveNotification: mocks.archiveNotification
 }));
 
-vi.mock('../../core/api/supabase-booking/real-gateway', () => ({
+vi.mock('../../core/runtime/supabase-client', () => ({
   createSupabaseClient: () => ({
     channel: mocks.channel.mockReturnValue({
       on: vi.fn().mockReturnThis(),

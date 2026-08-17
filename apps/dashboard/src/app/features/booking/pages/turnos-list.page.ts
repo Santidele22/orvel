@@ -17,7 +17,7 @@ import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
-import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
+import type { AdminBlockedTimePayload } from '@orvel/booking';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';

@@ -7,7 +7,7 @@ import { BusinessService } from '../../../settings/data-access/business.service'
 import { PublicBookingService } from '../../data-access/public-booking.service';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
-import type { PublicSlot } from '../../../../core/api/supabase-booking.api';
+import type { PublicSlot } from '@orvel/booking';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
 import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';

@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
-import * as supabaseBookingApi from '../../../core/api/supabase-booking.api';
-import type { ApiResponse, BusinessPublicView } from '../../../core/api/supabase-booking.api';
+import { Injectable, inject } from '@angular/core';
+import { RealSupabaseBookingGateway } from '@orvel/booking/infrastructure';
+import type { ApiResponse, BusinessPublicView } from '@orvel/booking';
 
 export interface PublicSlot {
   startsAtIso: string;
@@ -50,24 +50,26 @@ export interface ManageBookingDetails {
   providedIn: 'root'
 })
 export class PublicBookingService {
+  private readonly gateway = inject(RealSupabaseBookingGateway);
+
   async resolveBusinessBySlug(payload: { businessSlug: string }): Promise<ApiResponse<BusinessPublicView>> {
-    return supabaseBookingApi.resolveBusinessBySlug(payload);
+    return this.gateway.resolveBusinessBySlug(payload);
   }
 
   async queryPublicSlotAvailability(payload: { businessSlug: string; serviceId: string; dateIso: string }): Promise<ApiResponse<AvailabilityResponse>> {
-    return supabaseBookingApi.queryPublicSlotAvailability(payload);
+    return this.gateway.queryPublicSlotAvailability(payload);
   }
 
   async createPublicBooking(payload: CreatePublicBookingPayload): Promise<ApiResponse<BookingResponse>> {
-    return supabaseBookingApi.createPublicBooking(payload);
+    return this.gateway.createPublicBooking(payload);
   }
 
   async manageBookingByToken(token: string, nowIso: string): Promise<ApiResponse<ManageBookingDetails>> {
-    return supabaseBookingApi.manageBookingByToken({ token, nowIso });
+    return this.gateway.manageBookingByToken({ token, nowIso });
   }
 
   async cancelBookingByToken(token: string, nowIso: string): Promise<ApiResponse<{ bookingId: string; status: string }>> {
-    return supabaseBookingApi.cancelBookingByToken({ token, nowIso });
+    return this.gateway.cancelBookingByToken({ token, nowIso });
   }
 
   async rescheduleBookingByToken(
@@ -75,6 +77,6 @@ export class PublicBookingService {
     nowIso: string,
     startsAtIso: string
   ): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
-    return supabaseBookingApi.rescheduleBookingByToken({ token, nowIso, startsAtIso });
+    return this.gateway.rescheduleBookingByToken({ token, nowIso, startsAtIso });
   }
 }

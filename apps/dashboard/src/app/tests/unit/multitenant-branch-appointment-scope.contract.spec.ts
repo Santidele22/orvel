@@ -95,7 +95,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   it('scopes appointment writes by branch and rejects missing or invalid branch context before RPC', () => {
     const turnoService = readSource('src/app/features/booking/data-access/turno.service.ts');
     const apiTypes = readSource('../../packages/booking/src/types.ts');
-    const realGateway = readSource('src/app/core/api/supabase-booking/real-gateway.ts');
+    const realGateway = readSource('../../packages/booking/src/infrastructure/supabase/real-gateway.ts');
 
     expect(apiTypes).toMatch(/AdminManualBookingPayload[\s\S]*(branchId|branch_id|salonId|salon_id|locationId|location_id)/);
     expect(turnoService).toMatch(/BRANCH_REQUIRED|LOCATION_REQUIRED|SALON_REQUIRED|ACTIVE_BRANCH_REQUIRED|branch context/i);
@@ -116,7 +116,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
     const sources = readExistingSources([
       'src/app/features/booking/data-access/turno.service.ts',
       '../../packages/booking/src/types.ts',
-      'src/app/core/api/supabase-booking/real-gateway.ts',
+      '../../packages/booking/src/infrastructure/supabase/real-gateway.ts',
       'src/app/features/booking/models/turno.model.ts'
     ]);
 
