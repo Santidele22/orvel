@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SupabaseBookingGateway } from './gateway-interface';
+import type { SupabaseBookingGateway } from '../../gateway-interface';
 import {
   cancelAdminBooking,
   cancelBookingByToken,
@@ -14,7 +14,7 @@ import {
   setSupabaseBookingGateway,
   updateAdminBooking,
   updateBookingStatus
-} from './api-wrapper';
+} from '../api-wrapper';
 
 function createMockGateway(): SupabaseBookingGateway {
   return {

@@ -1,6 +1,6 @@
 import { Injectable, computed, signal, inject, OnDestroy } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
-import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
+import { createSupabaseClient } from '../runtime/supabase-client';
 import {
   archiveNotification,
   getUnreadNotificationCount,

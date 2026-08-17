@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapBusinessToPublicView, mapRpcErrorToApiError } from './mappers';
+import { mapBusinessToPublicView, mapRpcErrorToApiError } from '../mappers';
 
 describe('mapBusinessToPublicView source-of-truth mapping', () => {
   it('uses businesses for public identity even if legacy settings identity fields are present', () => {

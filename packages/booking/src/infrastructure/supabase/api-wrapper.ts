@@ -1,16 +1,26 @@
-import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from './types';
-import { SupabaseBookingGateway } from './gateway-interface';
-import { realSupabaseGateway } from './real-gateway';
+import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from '../../types';
+import { SupabaseBookingGateway } from '../../gateway-interface';
+import { RealSupabaseBookingGateway } from './real-gateway';
+import { createSupabaseClient } from './supabase-client.factory';
 
-// Use real Supabase gateway by default
-let gateway: SupabaseBookingGateway = realSupabaseGateway;
+// Default gateway is the real Supabase adapter. Consumers that need a different
+// gateway (tests, feature providers) override it via setSupabaseBookingGateway.
+let gateway: SupabaseBookingGateway | null = null;
+
+function createDefaultGateway(): SupabaseBookingGateway {
+  return new RealSupabaseBookingGateway(createSupabaseClient());
+}
+
+function currentGateway(): SupabaseBookingGateway {
+  return gateway ?? createDefaultGateway();
+}
 
 export function setSupabaseBookingGateway(nextGateway: SupabaseBookingGateway): void {
   gateway = nextGateway;
 }
 
 export async function resolveBusinessBySlug(input: { businessSlug: string }): Promise<ApiResponse<BusinessPublicView>> {
-  return gateway.resolveBusinessBySlug(input);
+  return currentGateway().resolveBusinessBySlug(input);
 }
 
 export async function queryPublicSlotAvailability(
@@ -20,17 +30,17 @@ export async function queryPublicSlotAvailability(
   if (typeof maybeFn === 'function') {
     return maybeFn(input);
   }
-  return realSupabaseGateway.queryPublicSlotAvailability(input);
+  return createDefaultGateway().queryPublicSlotAvailability(input);
 }
 
 export async function createPublicBooking(
   payload: PublicBookingPayload
 ): Promise<ApiResponse<PublicBookingConfirmation>> {
-  return gateway.createPublicBooking(payload);
+  return currentGateway().createPublicBooking(payload);
 }
 
 export async function manageBookingByToken(input: ManageBookingInput): Promise<ApiResponse<ManageBookingDetails>> {
-  return gateway.manageBookingByToken(input);
+  return currentGateway().manageBookingByToken(input);
 }
 
 export async function cancelBookingByToken(
@@ -40,7 +50,7 @@ export async function cancelBookingByToken(
   if (typeof maybeFn === 'function') {
     return maybeFn(input);
   }
-  return realSupabaseGateway.cancelBookingByToken(input);
+  return createDefaultGateway().cancelBookingByToken(input);
 }
 
 export async function rescheduleBookingByToken(
@@ -50,7 +60,7 @@ export async function rescheduleBookingByToken(
   if (typeof maybeFn === 'function') {
     return maybeFn(input);
   }
-  return realSupabaseGateway.rescheduleBookingByToken(input);
+  return createDefaultGateway().rescheduleBookingByToken(input);
 }
 
 export async function createAdminManualBooking(payload: AdminManualBookingPayload): Promise<
@@ -61,35 +71,35 @@ export async function createAdminManualBooking(payload: AdminManualBookingPayloa
     source: 'admin-manual';
   }>
 > {
-  return gateway.createAdminManualBooking(payload);
+  return currentGateway().createAdminManualBooking(payload);
 }
 
 export async function createAdminBlockedTime(
   payload: AdminBlockedTimePayload
 ): Promise<ApiResponse<{ blockId: string; type: 'blocked-time' }>> {
-  return gateway.createAdminBlockedTime(payload);
+  return currentGateway().createAdminBlockedTime(payload);
 }
 
 export async function updateAdminBooking(
   payload: AdminUpdateBookingPayload
 ): Promise<ApiResponse<{ bookingId: string; updatedAt: string }>> {
-  return gateway.updateAdminBooking(payload);
+  return currentGateway().updateAdminBooking(payload);
 }
 
 export async function cancelAdminBooking(
   payload: AdminCancelBookingPayload
 ): Promise<ApiResponse<{ bookingId: string; status: 'cancelled' }>> {
-  return gateway.cancelAdminBooking(payload);
+  return currentGateway().cancelAdminBooking(payload);
 }
 
 export async function rescheduleAdminBooking(
   payload: AdminRescheduleBookingPayload
 ): Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>> {
-  return gateway.rescheduleAdminBooking(payload);
+  return currentGateway().rescheduleAdminBooking(payload);
 }
 
 export async function updateBookingStatus(
   payload: AdminStatusUpdatePayload
 ): Promise<ApiResponse<{ bookingId: string; status: string }>> {
-  return gateway.updateBookingStatus(payload);
+  return currentGateway().updateBookingStatus(payload);
 }

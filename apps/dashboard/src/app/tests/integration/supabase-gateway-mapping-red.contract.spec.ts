@@ -180,7 +180,7 @@ function buildRpcClient(result: SupabaseRpcResult): { client: SupabaseRpcClient;
 }
 
 async function wireGateway(client: SupabaseRpcClient): Promise<SupabaseApiModule> {
-  const api = (await import('../../core/api/supabase-booking.api')) as SupabaseApiModule;
+  const api = (await import('@orvel/booking/infrastructure')) as SupabaseApiModule;
   const gatewayFactory = await loadSupabaseGatewayFactory();
 
   api.setSupabaseBookingGateway(gatewayFactory.createSupabaseBookingGateway({ client }));

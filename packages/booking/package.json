@@ -11,10 +11,19 @@
     "./domain": {
       "types": "./src/domain/index.ts",
       "default": "./src/domain/index.ts"
+    },
+    "./infrastructure": {
+      "types": "./src/infrastructure/index.ts",
+      "default": "./src/infrastructure/index.ts"
     }
   },
   "scripts": {
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@angular/core": "^21.2.17",
+    "@supabase/supabase-js": "^2.108.2",
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "vitest": "^4.1.4"

@@ -26,7 +26,7 @@ function findRepoRoot(startDir: string): string {
 
 const REPO_ROOT = findRepoRoot(CWD);
 const DASHBOARD_ROOT = path.join(REPO_ROOT, 'apps', 'dashboard');
-const REAL_GATEWAY_PATH = path.join(DASHBOARD_ROOT, 'src', 'app', 'core', 'api', 'supabase-booking', 'real-gateway.ts');
+const REAL_GATEWAY_PATH = path.join(REPO_ROOT, 'packages', 'booking', 'src', 'infrastructure', 'supabase', 'real-gateway.ts');
 const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
 
 function readRealGatewaySource(): string {

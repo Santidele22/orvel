@@ -586,7 +586,7 @@ describe('KB-004.4: Error Handling', () => {
 
       // ACT & ASSERT - Should return structured error
       const apiSpy = vi.fn();
-      vi.doMock('../../core/api/supabase-booking.api', () => ({
+      vi.doMock('@orvel/booking/infrastructure', () => ({
         createAdminManualBooking: apiSpy
       }));
 
@@ -626,7 +626,7 @@ describe('KB-004.4: Error Handling', () => {
   describe('KB-004.4.3: Network errors', () => {
     it('KB-004.4.3.1 @RED - Should handle Supabase offline gracefully', async () => {
       // ARRANGE - Set up mock to simulate offline
-      vi.doMock('../../core/api/supabase-booking.api', () => ({
+      vi.doMock('@orvel/booking/infrastructure', () => ({
         createAdminManualBooking: async () => {
           throw new Error('Supabase not available');
         }

@@ -505,7 +505,7 @@ describe('KB-001.4: API Gateway Integration', () => {
 
   it('KB-001.4.1 @RED - Should use real Supabase client instead of mock data', async () => {
     // ARRANGE
-    const { resolveBusinessBySlug } = await import('../../core/api/supabase-booking.api');
+    const { resolveBusinessBySlug } = await import('@orvel/booking/infrastructure');
 
     // ACT - Try to get a real business
     const result = await resolveBusinessBySlug({ businessSlug: 'studio-roma' });

@@ -1,4 +1,4 @@
-import { ApiErrorCode, ApiError, BusinessPublicView } from './types';
+import { ApiErrorCode, ApiError, BusinessPublicView } from '../../types';
 
 type RpcErrorLike = {
   message?: string;

@@ -1,4 +1,4 @@
-import type { ApiError, ApiResponse } from '../../../../core/api/supabase-booking.api';
+import type { ApiError, ApiResponse } from '@orvel/booking';
 
 const GENERIC_BOOKING_ERROR_MESSAGE = 'No pudimos confirmar la reserva. Revisá los datos e intentá nuevamente.';
 
