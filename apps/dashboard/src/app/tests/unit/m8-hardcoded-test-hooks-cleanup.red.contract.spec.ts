@@ -78,7 +78,7 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
   });
 
   it('admin action payloads do not use stale hardcoded identities, reasons, or current-time fake history defaults', () => {
-    const adminActionSource = `${turnosController}\n${readApp('features/booking/data-access/turno.service.ts')}`;
+    const adminActionSource = `${turnosController}\n${readApp('features/booking/data-access/turno.facade.ts')}`;
     const mockProviderHistorySegment = sourceFrom(adminActionSource, 'private getMockProviderTurnos');
 
     expect(adminActionSource).not.toMatch(/['"]Lunch break['"]|['"]\+60min quick reschedule['"]|['"]admin-ui['"]|performedBy:\s*['"]admin['"]/i);

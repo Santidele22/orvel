@@ -1,5 +1,5 @@
 import { describe, expectTypeOf, it } from 'vitest';
-import { AdminManualBookingPayload } from '../features/booking/data-access/turno.service';
+import { AdminManualBookingPayload } from '../features/booking/data-access/turno.facade';
 
 describe('Turno manual booking payload contract', () => {
   it('defines expected AdminManualBookingPayload structure in TurnoService', () => {

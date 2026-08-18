@@ -11,7 +11,7 @@ import { ActivatedRoute } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { TurnoFormPage } from './turno-form.page';
-import { TurnoService } from '../data-access/turno.service';
+import { TurnoService } from '../data-access/turno.facade';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';

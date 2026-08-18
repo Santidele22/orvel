@@ -12,6 +12,10 @@
       "types": "./src/domain/index.ts",
       "default": "./src/domain/index.ts"
     },
+    "./application": {
+      "types": "./src/application/index.ts",
+      "default": "./src/application/index.ts"
+    },
     "./infrastructure": {
       "types": "./src/infrastructure/index.ts",
       "default": "./src/infrastructure/index.ts"

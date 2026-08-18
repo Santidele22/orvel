@@ -6,14 +6,16 @@ const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
-const TURNO_SERVICE_TS_PATH = new URL('../data-access/turno.service.ts', import.meta.url);
+const TURNO_FACADE_TS_PATH = new URL('../data-access/turno.facade.ts', import.meta.url);
 
 const appRoutesSource = fs.readFileSync(APP_ROUTES_PATH, 'utf8');
 const turnosListSource = fs.readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = fs.readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = fs.readFileSync(TURNO_FORM_TS_PATH, 'utf8');
 const turnoFormTemplate = fs.readFileSync(TURNO_FORM_HTML_PATH, 'utf8');
-const turnoServiceSource = fs.readFileSync(TURNO_SERVICE_TS_PATH, 'utf8');
+const turnoServiceSource = fs.readFileSync(TURNO_FACADE_TS_PATH, 'utf8')
+  + fs.readFileSync(new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url), 'utf8')
+  + fs.readFileSync(new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url), 'utf8');
 
 function methodBody(sourceText: string, methodName: string): string {
   const signatureMatch = new RegExp(`\\n\\s{2}(?:private\\s+|protected\\s+|public\\s+)?(?:async\\s+)?${methodName}\\s*\\(`).exec(sourceText);

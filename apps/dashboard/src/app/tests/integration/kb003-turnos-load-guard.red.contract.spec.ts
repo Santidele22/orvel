@@ -5,7 +5,7 @@
 // Tests will pass after Magnus implements real Supabase queries
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { TurnoService } from '../../features/booking/data-access/turno.facade';
 import type { ClienteService } from '../../services/cliente.service';
 import type { ServicioService } from '../../services/servicio.service';
 import { firstValueFrom } from 'rxjs';
