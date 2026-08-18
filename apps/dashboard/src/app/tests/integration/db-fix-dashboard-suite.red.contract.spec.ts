@@ -163,8 +163,8 @@ describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned
     const homeSource = readSource('src/app/pages/dashboard/home/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 
-    // Must use real services (TurnoService, ClienteService) for dynamic data
-    expect(merged).toMatch(/TurnoService/);
+    // Must use real services (BookingQueries, ClienteService) for dynamic data
+    expect(merged).toMatch(/BookingQueries/);
     expect(merged).toMatch(/ClienteService/);
     
     // Must have dynamic metric IDs from DASHBOARD_SYSTEM

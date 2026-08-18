@@ -1,19 +1,22 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import { TurnoService } from '../../features/booking/data-access/turno.facade';
+import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
+import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { WeekdayKey } from '../../models/business.model';
+import { getBranchContextService } from '../branches/branch-context.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
-  private readonly turnoService = inject(TurnoService);
+  private readonly bookingQueries = inject<BookingQueries>(BOOKING_QUERIES);
   private readonly clienteService = inject(ClienteService);
   private readonly servicioService = inject(ServicioService);
   private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly bookings = signal<BookingRecord[]>([]);
 
   // Time signal for real-time updates
   readonly now = signal(new Date());
@@ -26,7 +29,7 @@ export class DashboardService {
    * Calculates agenda status for today based on real working hours and appointments.
    */
   readonly agendaStatus = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const settings = this.businessService.settings();
     const now = this.now();
     
@@ -155,7 +158,7 @@ export class DashboardService {
    * Returns a prioritized list of appointments for the home roadmap.
    */
   readonly featuredAppointments = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const services = this.servicioService.items();
     const clients = this.clienteService.items();
     const servicesMap = new Map(services.map(s => [s.id, s.nombre]));
@@ -207,8 +210,8 @@ export class DashboardService {
 
       return {
         ...t,
-        clienteNombre: clientsMap.get(t.clienteId) || 'Cliente',
-        servicioNombre: servicesMap.get(t.servicioId) || 'Servicio',
+        clienteNombre: clientsMap.get(t.clienteId ?? '') || 'Cliente',
+        servicioNombre: servicesMap.get(t.servicioId ?? '') || 'Servicio',
         dateLabel
       };
     });
@@ -218,7 +221,7 @@ export class DashboardService {
    * Calculates overall business stats for the dashboard.
    */
   readonly stats = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const clientes = this.clienteService.items();
     
     const hoy = new Date();
@@ -263,8 +266,17 @@ export class DashboardService {
 
   refreshData(): void {
     this.isLoading.set(true);
-    this.turnoService.getAll().subscribe({
-      next: () => {
+    const branchId = getBranchContextService().getActiveBranchId() ?? '';
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 14);
+    const load = branchId
+      ? this.bookingQueries.listBookingsByBranch(branchId, { from, to })
+      : Promise.resolve([] as BookingRecord[]);
+    void load
+      .then((rows) => {
+        this.bookings.set(rows);
         this.clienteService.getAll().subscribe({
           next: () => {
             this.servicioService.getAll().subscribe({
@@ -274,8 +286,7 @@ export class DashboardService {
           },
           error: () => this.isLoading.set(false)
         });
-      },
-      error: () => this.isLoading.set(false)
-    });
+      })
+      .catch(() => this.isLoading.set(false));
   }
 }
