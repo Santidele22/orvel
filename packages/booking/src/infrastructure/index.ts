@@ -9,6 +9,10 @@ export {
   ADMIN_BOOKING_REPOSITORY,
   SupabaseAdminBookingRepository
 } from './supabase/admin-booking.repository';
+export {
+  BOOKING_QUERIES,
+  SupabaseBookingQueries
+} from './supabase/booking-queries.adapter';
 export type {
   AdminAvailabilityRequest,
   AdminBookingRepository,

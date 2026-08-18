@@ -6,3 +6,5 @@ export { BookingNotificationsService } from './booking-notifications.service';
 export type { NotificationEmitPort } from './booking-notifications.service';
 export type { BookingEstado, BookingRecord } from './booking-record';
 export type { AdminAvailabilityRequest, AdminBookingRepository } from './ports/admin-booking.repository';
+export type { AvailabilityWindow, BookingCounts, BookingQueries } from './ports/booking-queries';
+export { utcDayRange } from './ports/booking-queries';
