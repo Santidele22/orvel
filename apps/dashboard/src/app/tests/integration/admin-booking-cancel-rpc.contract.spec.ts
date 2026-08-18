@@ -46,7 +46,7 @@ describe('Admin booking cancel RPC contract', () => {
     expect(migration).toMatch(/auth\.role\(\) <> 'service_role' AND cancel_admin_booking\.branch_id IS NULL[\s\S]{0,120}_raise_rpc\('ACTIVE_BRANCH_REQUIRED'\)/i);
     expect(migration).toMatch(/cancel_admin_booking\.branch_id IS NOT NULL AND v_booking\.branch_id IS DISTINCT FROM cancel_admin_booking\.branch_id[\s\S]{0,120}_raise_rpc\('UNAUTHORIZED'\)/i);
     expect(service).toMatch(/const branchScope = await this\.assertBookingInActiveBranch\(supabase, payload\.bookingId\)/i);
-    expect(service).toMatch(/rpc\('cancel_admin_booking',[\s\S]{0,160}branch_id: branchScope\.branchId/i);
+    expect(service).toMatch(/invoke\('cancel_admin_booking',[\s\S]{0,160}branch_id: branchScope\.branchId/i);
   });
 
   it('keeps the old 4-arg RPC signature as a fail-closed compatibility wrapper', () => {

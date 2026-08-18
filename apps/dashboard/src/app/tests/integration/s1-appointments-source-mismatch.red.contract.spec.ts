@@ -19,7 +19,7 @@ describe('S1 RED - Appointments must read from same source as public booking wri
     const writeTargetIsPublicBookings = /insert\s+into\s+public\.bookings/i.test(migrationSql);
 
     expect(writeTargetIsPublicBookings).toBe(true);
-    expect(turnoServiceSource).toMatch(/\.rpc\(\s*['"]list_admin_bookings['"]/i);
+    expect(turnoServiceSource).toMatch(/(?:\.rpc|invoke)\(\s*['"]list_admin_bookings['"]/i);
     expect(turnoServiceSource).toMatch(/list_admin_bookings[\s\S]{0,240}p_branch_id/i);
     expect(turnoServiceSource, 'dashboard must not read public.bookings directly after direct SELECT grants are removed').not.toMatch(
       directBookingsReadPattern()
@@ -32,7 +32,7 @@ describe('S1 RED - Appointments must read from same source as public booking wri
 
     expect(turnosListSource).toMatch(/window\.addEventListener\('booking\.created'/);
     expect(turnosListSource).toMatch(/refreshTurnosFromSource\(\)/);
-    expect(turnoServiceSource).toMatch(/\.rpc\(\s*['"]list_admin_bookings['"]/i);
+    expect(turnoServiceSource).toMatch(/(?:\.rpc|invoke)\(\s*['"]list_admin_bookings['"]/i);
     expect(turnoServiceSource, 'refresh must not depend on direct public.bookings reads').not.toMatch(directBookingsReadPattern());
   });
 });
