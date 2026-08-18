@@ -6,6 +6,15 @@ export { SUPABASE_CLIENT } from './supabase/supabase-client.token';
 export { createSupabaseClient } from './supabase/supabase-client.factory';
 export { RealSupabaseBookingGateway } from './supabase/real-gateway';
 export {
+  ADMIN_BOOKING_REPOSITORY,
+  SupabaseAdminBookingRepository
+} from './supabase/admin-booking.repository';
+export type {
+  AdminAvailabilityRequest,
+  AdminBookingRepository,
+  AdminSlotAvailabilityRow
+} from '../application/ports/admin-booking.repository';
+export {
   setSupabaseBookingGateway,
   resolveBusinessBySlug,
   queryPublicSlotAvailability,
