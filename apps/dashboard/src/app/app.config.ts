@@ -4,6 +4,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { RealSupabaseBookingGateway, SUPABASE_CLIENT } from '@orvel/booking/infrastructure';
 
 import { routes } from './app.routes';
+import { provideBooking } from './features/booking/booking.providers';
 import { createSupabaseClient } from './core/runtime/supabase-client';
 
 export const appConfig: ApplicationConfig = {
@@ -18,6 +19,7 @@ export const appConfig: ApplicationConfig = {
     {
       provide: RealSupabaseBookingGateway,
       useFactory: () => new RealSupabaseBookingGateway(inject(SUPABASE_CLIENT))
-    }
+    },
+    provideBooking()
   ]
 };

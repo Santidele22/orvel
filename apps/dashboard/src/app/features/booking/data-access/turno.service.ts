@@ -21,6 +21,11 @@ import {
   AdminRescheduleBookingPayload,
   AdminStatusUpdatePayload
 } from '@orvel/booking';
+import {
+  ADMIN_BOOKING_REPOSITORY,
+  SupabaseAdminBookingRepository,
+  type AdminBookingRepository
+} from '@orvel/booking/infrastructure';
 
 type AdminSessionContext = {
   userId: string;
@@ -164,6 +169,11 @@ export class TurnoService {
   private ignoredImplicitBranchIds = new Set<string>();
   private authService = inject(AuthService);
   private branchContext = getBranchContextService();
+  private readonly injectedAdminRepo = inject(ADMIN_BOOKING_REPOSITORY, { optional: true });
+
+  private adminRepo(client: SupabaseClient): AdminBookingRepository {
+    return this.injectedAdminRepo ?? new SupabaseAdminBookingRepository(client);
+  }
 
   // Readonly signals
   items = this.turnos.asReadonly();
@@ -208,7 +218,7 @@ export class TurnoService {
     const supabase = this.getSupabaseClient();
     if (!supabase) return { status: 500, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'Supabase client not available' } };
 
-    const { data, error } = await supabase.rpc('create_admin_manual_booking', {
+    const { data, error } = await this.adminRepo(supabase).invoke('create_admin_manual_booking', {
       business_id: payload.businessId,
       branch_id: payload.branchId,
       service_id: payload.serviceId,
@@ -238,7 +248,7 @@ export class TurnoService {
 
     await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
-    const { data, error } = await supabase.rpc('update_admin_booking', {
+    const { data, error } = await this.adminRepo(supabase).invoke('update_admin_booking', {
       booking_id: payload.bookingId,
       performed_by: payload.performedBy,
       notes: payload.notes,
@@ -270,7 +280,7 @@ export class TurnoService {
 
     const branchScope = await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
-    const { data, error } = await supabase.rpc('cancel_admin_booking', {
+    const { data, error } = await this.adminRepo(supabase).invoke('cancel_admin_booking', {
       booking_id: payload.bookingId,
       branch_id: branchScope.branchId,
       performed_by: payload.performedBy,
@@ -294,7 +304,7 @@ export class TurnoService {
     if (!supabase) return;
 
     try {
-      await supabase.rpc('record_admin_booking_cancel_failure', {
+      await this.adminRepo(supabase).invoke('record_admin_booking_cancel_failure', {
         p_stage: input.stage,
         p_code: this.sanitizeAdminCancelTelemetryCode(input.code),
         p_status: this.sanitizeAdminCancelTelemetryStatus(input.status),
@@ -339,7 +349,7 @@ export class TurnoService {
 
     const branchScope = await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
-    const { data, error } = await supabase.rpc('reschedule_admin_booking', {
+    const { data, error } = await this.adminRepo(supabase).invoke('reschedule_admin_booking', {
       booking_id: payload.bookingId,
       starts_at_iso: payload.startsAtIso,
       branch_id: branchScope.branchId,
@@ -364,7 +374,7 @@ export class TurnoService {
     if (!supabase) return;
 
     try {
-      await supabase.rpc('record_admin_booking_reschedule_failure', {
+      await this.adminRepo(supabase).invoke('record_admin_booking_reschedule_failure', {
         p_stage: input.stage,
         p_code: this.sanitizeAdminCancelTelemetryCode(input.code),
         p_status: this.sanitizeAdminCancelTelemetryStatus(input.status),
@@ -415,7 +425,7 @@ export class TurnoService {
 
     await this.assertBookingInActiveBranch(supabase, payload.bookingId);
 
-    const { data, error } = await supabase.rpc('update_booking_status', {
+    const { data, error } = await this.adminRepo(supabase).invoke('update_booking_status', {
       booking_id: payload.bookingId,
       status: payload.status,
       performed_by: payload.performedBy
@@ -440,7 +450,7 @@ export class TurnoService {
       return { status: 400, error: { code: 'VALIDATION_ERROR' as ApiErrorCode, message: 'ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa para bloquear horarios' } };
     }
 
-    const { data, error } = await supabase.rpc('create_admin_blocked_time', {
+    const { data, error } = await this.adminRepo(supabase).invoke('create_admin_blocked_time', {
       business_id: payload.businessId,
       branch_id: payload.branchId,
       starts_at_iso: payload.startsAtIso,
@@ -504,10 +514,10 @@ export class TurnoService {
 
     // Query bookings through the least-privilege RPC. Direct bookings table
     // SELECT grants are intentionally revoked for dashboard browser roles.
-    const { data: bookings, error } = await supabaseClient.rpc('list_admin_bookings', {
+    const { data, error } = await this.adminRepo(supabaseClient).invoke('list_admin_bookings', {
       p_branch_id: branchScope.branchId,
     });
-
+    const bookings = data as Record<string, unknown>[] | null;
 
     if (error) {
       emitPublicBookingFailureEvent({
@@ -791,7 +801,7 @@ export class TurnoService {
     const businessId = sessionContext.businessId ?? await this.resolveBusinessId(supabaseClient);
     if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No se pudo identificar la cuenta activa');
 
-    const { data, error } = await supabaseClient.rpc('get_dashboard_branches', { p_business_id: businessId });
+    const { data, error } = await this.adminRepo(supabaseClient).invoke('get_dashboard_branches', { p_business_id: businessId });
     if (error) {
       emitPublicBookingFailureEvent({
         stage: 'service',
@@ -916,7 +926,7 @@ export class TurnoService {
     const branchScope = await this.validateBranchTenant(supabaseClient, this.resolveActiveBranchId() ?? undefined);
     if (!branchScope) throw new Error('BRANCH_REQUIRED: Active branch context is required');
 
-    const { data: booking, error } = await supabaseClient.rpc('assert_admin_booking_in_branch', {
+    const { data: booking, error } = await this.adminRepo(supabaseClient).invoke('assert_admin_booking_in_branch', {
       p_booking_id: bookingId,
       p_branch_id: branchScope.branchId,
     });
@@ -1563,7 +1573,7 @@ export class TurnoService {
         return [];
       }
 
-      const response = await supabase.rpc('query_admin_slot_availability', {
+      const response = await this.adminRepo(supabase).invoke('query_admin_slot_availability', {
         business_id: branchScope.businessId,
         service_id: request.serviceId ?? null,
         date_iso: this.toDateKey(request.fecha),

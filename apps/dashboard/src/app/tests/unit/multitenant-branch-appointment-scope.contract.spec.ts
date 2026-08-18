@@ -70,10 +70,10 @@ describe('Multitenant branch appointment scope RED contract', () => {
       /\.from\(\s*['"](?:public\.)?branches['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
     );
     expect(turnoService, 'appointment branch validation must use the dashboard-owned branches RPC before list_admin_bookings').toMatch(
-      /validateBranchTenant[\s\S]*\.rpc\(\s*['"]get_dashboard_branches['"]/i
+      /validateBranchTenant[\s\S]*invoke\(\s*['"]get_dashboard_branches['"]/i
     );
     expect(turnoService, 'appointment listing must use the least-privilege branch-scoped RPC').toMatch(
-      /\.rpc\(\s*['"]list_admin_bookings['"]\s*,\s*\{[\s\S]{0,240}p_branch_id\s*:/i
+      /invoke\(\s*['"]list_admin_bookings['"]\s*,\s*\{[\s\S]{0,240}p_branch_id\s*:/i
     );
     expect(turnoService, 'direct bookings reads conflict with revoked SELECT grants').not.toMatch(
       /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
