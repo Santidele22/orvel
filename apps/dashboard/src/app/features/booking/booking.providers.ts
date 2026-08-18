@@ -7,18 +7,24 @@ import {
 } from '@orvel/booking/application';
 import {
   ADMIN_BOOKING_REPOSITORY,
+  BOOKING_QUERIES,
   SUPABASE_CLIENT,
-  SupabaseAdminBookingRepository
+  SupabaseAdminBookingRepository,
+  SupabaseBookingQueries
 } from '@orvel/booking/infrastructure';
 import { TurnoService } from './data-access/turno.facade';
 
-export { ADMIN_BOOKING_REPOSITORY };
+export { ADMIN_BOOKING_REPOSITORY, BOOKING_QUERIES };
 
 export function provideBooking() {
   return makeEnvironmentProviders([
     {
       provide: ADMIN_BOOKING_REPOSITORY,
       useFactory: () => new SupabaseAdminBookingRepository(inject(SUPABASE_CLIENT))
+    },
+    {
+      provide: BOOKING_QUERIES,
+      useFactory: () => new SupabaseBookingQueries(inject(SUPABASE_CLIENT))
     },
     { provide: BookingCrudService, useFactory: () => new BookingCrudService(inject(ADMIN_BOOKING_REPOSITORY)) },
     { provide: BookingSchedulingService, useFactory: () => new BookingSchedulingService(inject(ADMIN_BOOKING_REPOSITORY)) },
