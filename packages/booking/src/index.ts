@@ -23,6 +23,8 @@ export type {
 } from './types';
 
 export type { SupabaseBookingGateway } from './gateway-interface';
+export type { AvailabilityWindow, BookingCounts, BookingQueries } from './application/ports/booking-queries';
+export { utcDayRange } from './application/ports/booking-queries';
 
 export { normalizePublicBookingSlug, isValidPublicBookingSlug } from './public-booking-slug';
 
