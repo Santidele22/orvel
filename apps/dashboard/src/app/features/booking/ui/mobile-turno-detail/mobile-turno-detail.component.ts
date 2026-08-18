@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { createIsMobileSignal } from '../../../../core/shell/is-mobile/is-mobile';
-import { TurnoService } from '../../data-access/turno.service';
+import { TurnoService } from '../../data-access/turno.facade';
 import type { TurnoWithRelations } from '../../models/turno.model';
 
 @Component({

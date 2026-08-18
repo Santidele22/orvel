@@ -125,7 +125,7 @@ describe('MobileAgendaDayView contract', () => {
   });
 
   it('component does NOT import TurnoService from data-access path', () => {
-    expect(componentSource).not.toMatch(/import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.service['"]/);
+    expect(componentSource).not.toMatch(/import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.facade['"]/);
   });
 
   it('component has @Output() selectedDateChange', () => {

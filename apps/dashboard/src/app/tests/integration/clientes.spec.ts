@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { ClienteService } from '../../services/cliente.service';
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { TurnoService } from '../../features/booking/data-access/turno.facade';
 import { CreateClienteDTO } from '../../models/cliente.model';
 import { createMockClienteService, createMockTurnoService } from '../helpers/turno-service-testbed';
 

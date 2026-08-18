@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = resolve(process.cwd(), 'src/app');
 const STORAGE_KEYS_PATH = resolve(APP_ROOT, 'core/storage/browser-storage-keys.ts');
-const TURNO_SERVICE_PATH = resolve(APP_ROOT, 'features/booking/data-access/turno.service.ts');
+const TURNO_SERVICE_PATH = resolve(APP_ROOT, 'features/booking/data-access/turno.facade.ts');
 const CLIENTE_SERVICE_PATH = resolve(APP_ROOT, 'features/clientes/data-access/cliente.service.ts');
 const SERVICIO_SERVICE_PATH = resolve(APP_ROOT, 'features/servicios/data-access/servicio.service.ts');
 

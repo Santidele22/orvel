@@ -100,7 +100,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
 
   it('fix-forward migration keeps public bookings listable under default branch context and backfills bell notifications', () => {
     const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.facade.ts');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.list_admin_bookings/i);
     expect(migrationSql).toMatch(/coalesce\(br\.is_active,\s*true\)\s+is\s+true/i);
@@ -171,7 +171,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('appointments/home pipelines must resolve tenant business_id and avoid direct auth uid filtering', () => {
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.facade.ts');
     const clienteServiceSource = readSource('src/app/features/clientes/data-access/cliente.service.ts');
 
     expect(turnoServiceSource).toMatch(/(resolve|load|get)\w*business\w*id/i);

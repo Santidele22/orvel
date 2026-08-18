@@ -18,7 +18,7 @@ describe('KB-012 RED - booking persistence must sync Turnos + Home source of tru
   });
 
   it('Date filter contract: same-day bookings must compare normalized local date keys (no UTC drift)', () => {
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.facade.ts');
 
     // Contract: filtering APIs should reuse timezone-safe date-key helper, not toISOString split
     // which can hide valid same-day records in UTC boundary scenarios.

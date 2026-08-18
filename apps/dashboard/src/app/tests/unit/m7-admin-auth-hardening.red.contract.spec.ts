@@ -3,13 +3,13 @@ import { firstValueFrom } from 'rxjs';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
 
 const ROUTES_SOURCE = readFileSync(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 const ROUTE_PROTECTION_SOURCE = readFileSync(new URL('../../core/auth/route-protection.ts', import.meta.url), 'utf8');
 const AUTH_SERVICE_SOURCE = readFileSync(new URL('../../services/auth.service.ts', import.meta.url), 'utf8');
-const TURNO_SERVICE_SOURCE = readFileSync(new URL('../../features/booking/data-access/turno.service.ts', import.meta.url), 'utf8');
+const TURNO_SERVICE_SOURCE = readFileSync(new URL('../../features/booking/data-access/turno.facade.ts', import.meta.url), 'utf8');
 const TURNOS_LIST_SOURCE = readFileSync(new URL('../../features/booking/pages/turnos-list.page.ts', import.meta.url), 'utf8');
 const TURNO_FORM_SOURCE = readFileSync(new URL('../../features/booking/pages/turno-form.page.ts', import.meta.url), 'utf8');
 

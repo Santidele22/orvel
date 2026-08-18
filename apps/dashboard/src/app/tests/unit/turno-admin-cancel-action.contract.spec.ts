@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { throwError } from 'rxjs';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { BookingCrudService, BookingNotificationsService } from '@orvel/booking/application';
+import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
 import { AuthService } from '../../services/auth.service';
@@ -86,11 +87,27 @@ function createServiceWithSupabaseDouble() {
   const authService = {
     user: () => ({ id: ADMIN_ID, activeBranchId: BRANCH_ID })
   };
+  const supabase = createSupabaseClientDouble();
+  const crud = {
+    cancelByAdmin: async (id: string, payload: { branchId: string }) => {
+      const result = await supabase.rpc('cancel_admin_booking', { booking_id: id, branch_id: payload.branchId });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
+    }
+  };
+  const notifications = {
+    recordAdminCancelFailureTelemetry: async (input: { stage: string; code: unknown }) => {
+      await supabase.rpc('record_admin_booking_cancel_failure', { p_stage: input.stage, p_code: input.code });
+    }
+  };
   const injector = Injector.create({
-    providers: [{ provide: AuthService, useValue: authService }]
+    providers: [
+      { provide: AuthService, useValue: authService },
+      { provide: BookingCrudService, useValue: crud },
+      { provide: BookingNotificationsService, useValue: notifications }
+    ]
   });
   const service = runInInjectionContext(injector, () => new TurnoService());
-  const supabase = createSupabaseClientDouble();
   (service as unknown as { supabaseClient: unknown }).supabaseClient = supabase;
   (service as unknown as { turnos: { set: (turnos: Turno[]) => void } }).turnos.set([
     {

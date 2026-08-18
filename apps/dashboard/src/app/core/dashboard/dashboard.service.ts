@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';

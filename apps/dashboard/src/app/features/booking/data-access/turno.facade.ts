@@ -2,13 +2,13 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, from, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { BookingAvailabilityService, BookingCrudService, BookingNotificationsService, BookingSchedulingService, type BookingRecord } from '@orvel/booking/application';
-import type { AdminAvailabilityRequest, AdminBlockedTimePayload } from '@orvel/booking/infrastructure';
+import type { AdminAvailabilityRequest } from '@orvel/booking/infrastructure';
+import type { AdminBlockedTimePayload, AdminManualBookingPayload } from '@orvel/booking';
 import { AuthService } from '../../../services/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import type { NotificationServicePort } from '../../../services/notification.service';
 import type { CreateTurnoDTO, Turno, TurnoEstado, UpdateTurnoDTO } from '../models/turno.model';
-export type { AdminAvailabilityRequest } from '@orvel/booking/infrastructure';
-export type { AdminManualBookingPayload } from '@orvel/booking';
+export type { AdminAvailabilityRequest, AdminBlockedTimePayload, AdminManualBookingPayload };
 const toTurno = (row: BookingRecord): Turno => ({ ...row, clienteId: row.clienteId ?? '', servicioId: row.servicioId ?? '', precio: row.precio ?? 0 });
 @Injectable({ providedIn: 'root' })
 export class TurnoService {

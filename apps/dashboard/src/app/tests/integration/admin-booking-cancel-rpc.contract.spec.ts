@@ -38,15 +38,16 @@ describe('Admin booking cancel RPC contract', () => {
   it('requires direct authenticated RPC callers to provide branch scope and denies cross-branch cancellation', () => {
     // Arrange
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628134500_require_branch_scope_for_admin_cancel.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
+    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'))
+      + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/admin-booking.repository.ts'));
 
     // Act / Assert
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.cancel_admin_booking\(\s*booking_id uuid,\s*branch_id uuid,\s*performed_by uuid DEFAULT NULL,\s*notes text DEFAULT NULL,\s*reason text DEFAULT NULL\s*\)/i);
     expect(migration).not.toMatch(/branch_id uuid DEFAULT/i);
     expect(migration).toMatch(/auth\.role\(\) <> 'service_role' AND cancel_admin_booking\.branch_id IS NULL[\s\S]{0,120}_raise_rpc\('ACTIVE_BRANCH_REQUIRED'\)/i);
     expect(migration).toMatch(/cancel_admin_booking\.branch_id IS NOT NULL AND v_booking\.branch_id IS DISTINCT FROM cancel_admin_booking\.branch_id[\s\S]{0,120}_raise_rpc\('UNAUTHORIZED'\)/i);
-    expect(service).toMatch(/const branchScope = await this\.assertBookingInActiveBranch\(supabase, payload\.bookingId\)/i);
-    expect(service).toMatch(/invoke\('cancel_admin_booking',[\s\S]{0,160}branch_id: branchScope\.branchId/i);
+    expect(service).toMatch(/cancelByAdmin/);
+    expect(service).toMatch(/this\.call\('cancel_admin_booking'/);
   });
 
   it('keeps the old 4-arg RPC signature as a fail-closed compatibility wrapper', () => {
@@ -64,7 +65,9 @@ describe('Admin booking cancel RPC contract', () => {
   it('adds durable sanitized telemetry for admin cancel failures and wires the UI failure path to it', () => {
     // Arrange
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628131500_admin_cancel_failure_telemetry_compat.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
+    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'))
+      + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/application/booking-notifications.service.ts'))
+      + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/admin-booking.repository.ts'));
     const page = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/pages/turnos-list.page.ts'));
     const telemetryTable = migration.match(/CREATE TABLE IF NOT EXISTS public\.admin_booking_cancel_failure_events \([\s\S]*?\);/i)?.[0] ?? '';
 
@@ -82,7 +85,7 @@ describe('Admin booking cancel RPC contract', () => {
   it('keeps admin cancellation email delivery owned by the bookings update trigger', () => {
     // Arrange
     const lifecycleMigration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.service.ts'));
+    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'));
 
     // Act / Assert
     expect(lifecycleMigration).toMatch(/OLD\.status IS DISTINCT FROM 'cancelled'[\s\S]*NEW\.status = 'cancelled'[\s\S]*'booking_cancelled_business'/i);

@@ -5,7 +5,7 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import { CreateTurnoDTO, TurnoEstado } from '../../features/booking/models/turno.model';
 import { createMockTurnoService } from '../helpers/turno-service-testbed';
 

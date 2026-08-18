@@ -5,7 +5,7 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output, computed,
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TurnoService } from '../data-access/turno.service';
+import { TurnoService } from '../data-access/turno.facade';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';
