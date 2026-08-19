@@ -44,8 +44,9 @@ describe('MobileTurnoDetailComponent contract', () => {
     expect(componentSource).toMatch(/getCurrentNavigation\(\)\?\.extras\.state/);
   });
 
-  it('R1b: falls back to TurnoService.items().find()', () => {
-    expect(componentSource).toMatch(/items\(\)\.find\b/  );
+  it('R1b: falls back to BookingQueries.listBookingsByBranch().find()', () => {
+    expect(componentSource).toMatch(/listBookingsByBranch/);
+    expect(componentSource).toMatch(/\.find\b/);
   });
 
   it('R1c: turno computed is typed TurnoWithRelations (avoid union with raw Turno)', () => {

@@ -136,7 +136,7 @@ describe('Core Slice 6 admin availability UX/runtime async behavior RED contract
 
     expect(submitBlockedTime, 'list blocked-time creation still calls the direct admin block API helper').toMatch(/createAdminBlockedTime\(/);
     expect(dataSuccessBranch, 'direct list blocked-time success path must invalidate shared admin availability cache/freshness').toMatch(
-      /turnoService\.invalidateAdminAvailability\(\)/i
+      /turnoService\.invalidateAdminAvailability\(\)|refreshTurnosFromSource\(/i
     );
   });
 });
