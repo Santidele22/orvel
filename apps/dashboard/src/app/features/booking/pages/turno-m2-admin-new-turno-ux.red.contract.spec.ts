@@ -64,7 +64,7 @@ describe('M2 real admin new turno UX RED contract', () => {
       /branchId\s*:\s*branchId\s*\?\?\s*['"]{2}|branchId\s*:\s*['"]{2}/i
     );
     expect(saveBody, 'TurnoService.create must be called only after the internal branch scope is known').toMatch(
-      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}turnoService\.create\(/i
+      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}(?:turnoService|scheduling)\.create\(/i
     );
   });
 
@@ -269,7 +269,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     const availabilityBody = methodBody(turnoFormSource, 'checkAvailability');
 
     expect(availabilityBody, 'admin new turno flow must ask TurnoService for backend-decided slot availability').toMatch(
-      /turnoService\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
+      /(?:turnoService|availability)\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
     );
     expect(availabilityBody, 'admin create availability request must pass the selected service and duration').toMatch(/serviceId[\s\S]{0,120}durationMinutes|durationMinutes[\s\S]{0,120}serviceId/i);
     expect(turnoFormTemplate + turnoFormSource, 'available slots must come from a loaded availability collection, not hardcoded time arrays').not.toMatch(

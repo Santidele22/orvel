@@ -139,12 +139,12 @@ export class TurnoFormPage implements OnInit {
       const items = await this.crud.getAll(this.resolveScope().branchId);
       const turno = this.crud.getById(items, id);
       if (turno) {
-        this.clienteId.set(turno.clienteId);
-        this.servicioId.set(turno.servicioId);
+        this.clienteId.set(turno.clienteId ?? '');
+        this.servicioId.set(turno.servicioId ?? '');
         this.fecha.set(turno.fecha.toISOString().split('T')[0]);
         this.hora.set(turno.hora);
         this.duracionMinutos.set(turno.duracionMinutos);
-        this.precio.set(turno.precio);
+        this.precio.set(turno.precio ?? 0);
         this.notas.set(turno.notas || '');
         this.estado.set(turno.estado);
         

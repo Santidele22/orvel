@@ -422,7 +422,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected async deleteTurno(turnoId: string) {
     if (confirm('¿Está seguro de cancelar este turno?')) {
       try {
-        this.bookings.set(this.crud.delete(this.bookings(), turnoId));
+        this.bookings.set(this.crud.delete(this.bookings() as never, turnoId).map((row) => this.toTurno(row)));
         await this.processTurnos();
       } catch {
         // Keep runtime details out of logs/UI for admin actions.

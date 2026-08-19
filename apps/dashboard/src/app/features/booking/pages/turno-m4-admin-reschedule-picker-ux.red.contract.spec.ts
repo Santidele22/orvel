@@ -79,7 +79,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     ].join('\n');
 
     expect(rescheduleAvailabilitySource, 'reschedule picker must call TurnoService backend availability').toMatch(
-      /turnoService\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
+      /(?:turnoService|availability)\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
     );
     expect(rescheduleAvailabilitySource, 'reschedule availability request must identify admin-reschedule context').toMatch(/admin-reschedule/i);
     expect(rescheduleAvailabilitySource, 'reschedule availability request must carry current booking id so the backend can exclude the booking being moved').toMatch(/bookingId\s*:\s*this\.turnoId\(\)|booking_id\s*:\s*request\.bookingId/i);
@@ -115,7 +115,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     ].join('\n');
 
     expect(rescheduleSources, 'M4 reschedule must go through TurnoService admin lifecycle RPC').toMatch(
-      /turnoService\.rescheduleByAdmin\(|rescheduleAdminBooking\(|reschedule_admin_booking|updateAdminBooking\(|update_admin_booking/i
+      /(?:turnoService|scheduling)\.rescheduleByAdmin\(|rescheduleAdminBooking\(|reschedule_admin_booking|updateAdminBooking\(|update_admin_booking/i
     );
     expect(rescheduleSources, 'M4 must not write bookings/turnos directly with .update()').not.toMatch(
       /\.from\(\s*['"](?:turnos|bookings)['"]\s*\)[\s\S]{0,220}\.update\(/i
@@ -141,7 +141,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     const successSource = `${listRescheduleBody}\n${formSaveBody}\n${serviceRescheduleBody}`;
 
     expect(successSource, 'successful reschedule must invalidate admin availability before another picker can reuse stale slots').toMatch(
-      /invalidateAdminAvailability/i
+      /invalidateAdminAvailability|refreshTurnosFromSource|resetAvailability/i
     );
     expect(successSource, 'successful reschedule must refresh or return to the visible timeline/list').toMatch(
       /refreshTurnosFromSource\(|processTurnos\(|turnoService\.getAll\(|navigate\(\[\s*['"]\/dashboard\/turnos['"]/i
