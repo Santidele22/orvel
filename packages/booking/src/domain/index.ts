@@ -5,9 +5,12 @@ export type {
   CalendarEntryType,
   CalendarEntry,
   CreateAppointmentInput,
+  RescheduleAppointmentInput,
 } from './booking-core';
 export {
   createAppointment,
+  rescheduleAppointment,
+  cancelAppointment,
   computePublicAvailability,
   canClientCancelOrReschedule,
   validateSelfServiceToken,

@@ -16,6 +16,12 @@ export type CreateAppointmentInput = {
   notes?: string;
 };
 
+export type RescheduleAppointmentInput = {
+  id: string;
+  startAtIso: string;
+  endAtIso: string;
+};
+
 export function createAppointment(
   input: CreateAppointmentInput,
   existingEntries: CalendarEntry[]
@@ -27,26 +33,8 @@ export function createAppointment(
   endAtIso: string;
   notes?: string;
 } {
-  const startAtMs = parseIsoToMs(input.startAtIso);
-  const endAtMs = parseIsoToMs(input.endAtIso);
-
-  if (startAtMs >= endAtMs) {
-    throw new Error('INVALID_APPOINTMENT_RANGE');
-  }
-
-  const overlap = existingEntries.some(entry => {
-    if (entry.status === 'cancelled') {
-      return false;
-    }
-
-    const entryStartMs = parseIsoToMs(entry.startAtIso);
-    const entryEndMs = parseIsoToMs(entry.endAtIso);
-    return overlaps({ startAtMs, endAtMs }, { startAtMs: entryStartMs, endAtMs: entryEndMs });
-  });
-
-  if (overlap) {
-    throw new Error('APPOINTMENT_OVERLAP');
-  }
+  const range = parseAppointmentRange(input.startAtIso, input.endAtIso);
+  assertNoOverlap(range, existingEntries);
 
   return {
     id: input.id,
@@ -56,6 +44,69 @@ export function createAppointment(
     endAtIso: input.endAtIso,
     notes: input.notes
   };
+}
+
+export function rescheduleAppointment(
+  input: RescheduleAppointmentInput,
+  existingEntries: CalendarEntry[]
+): CalendarEntry {
+  const existing = findAppointment(input.id, existingEntries);
+  const range = parseAppointmentRange(input.startAtIso, input.endAtIso);
+  assertNoOverlap(range, existingEntries, input.id);
+
+  return {
+    id: existing.id,
+    type: existing.type,
+    startAtIso: input.startAtIso,
+    endAtIso: input.endAtIso,
+    status: 'confirmed'
+  };
+}
+
+export function cancelAppointment(id: string, existingEntries: CalendarEntry[]): CalendarEntry {
+  const existing = findAppointment(id, existingEntries);
+  return {
+    ...existing,
+    status: 'cancelled'
+  };
+}
+
+function findAppointment(id: string, existingEntries: CalendarEntry[]): CalendarEntry {
+  const existing = existingEntries.find(entry => entry.id === id);
+  if (!existing) {
+    throw new Error('APPOINTMENT_NOT_FOUND');
+  }
+  return existing;
+}
+
+function parseAppointmentRange(startAtIso: string, endAtIso: string): { startAtMs: number; endAtMs: number } {
+  const startAtMs = parseIsoToMs(startAtIso);
+  const endAtMs = parseIsoToMs(endAtIso);
+  if (startAtMs >= endAtMs) {
+    throw new Error('INVALID_APPOINTMENT_RANGE');
+  }
+  return { startAtMs, endAtMs };
+}
+
+function assertNoOverlap(
+  range: { startAtMs: number; endAtMs: number },
+  existingEntries: CalendarEntry[],
+  ignoreId?: string
+): void {
+  const overlap = existingEntries.some(entry => {
+    if (entry.id === ignoreId || entry.status === 'cancelled') {
+      return false;
+    }
+
+    return overlaps(range, {
+      startAtMs: parseIsoToMs(entry.startAtIso),
+      endAtMs: parseIsoToMs(entry.endAtIso)
+    });
+  });
+
+  if (overlap) {
+    throw new Error('APPOINTMENT_OVERLAP');
+  }
 }
 
 export function computePublicAvailability(input: {
