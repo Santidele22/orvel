@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const TURNO_FACADE_PATH = new URL('./turno.facade.ts', import.meta.url);
 const ADMIN_ADAPTER_PATH = new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url);
 const AVAILABILITY_PATH = new URL('../../../../../../../packages/booking/src/application/booking-availability.service.ts', import.meta.url);
-const turnoServiceSource = fs.readFileSync(TURNO_FACADE_PATH, 'utf8')
-  + fs.readFileSync(ADMIN_ADAPTER_PATH, 'utf8')
-  + fs.readFileSync(AVAILABILITY_PATH, 'utf8');
+const SCHEDULING_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
+const turnoServiceSource = fs.readFileSync(ADMIN_ADAPTER_PATH, 'utf8')
+  + fs.readFileSync(AVAILABILITY_PATH, 'utf8')
+  + fs.readFileSync(SCHEDULING_PATH, 'utf8');
 
 function methodBody(sourceText: string, methodName: string): string {
   const signatureMatch = new RegExp(`\\n\\s{2}(?:private\\s+)?(?:async\\s+)?${methodName}\\s*\\(`).exec(sourceText);
@@ -116,7 +116,7 @@ describe('TurnoService Core Slice 5 admin availability runtime lockdown RED cont
   });
 
   it('allows availability-core helpers only in tests/fixtures, not runtime TurnoService or other production files', () => {
-    const dashboardSrc = path.resolve(path.dirname(TURNO_FACADE_PATH.pathname), '../../../../..');
+    const dashboardSrc = path.resolve(process.cwd(), 'src');
     const runtimeFilesImportingAvailabilityCore = allRuntimeTypeScriptFiles(dashboardSrc).filter((filePath) =>
       fs.readFileSync(filePath, 'utf8').includes('availability-core')
     );

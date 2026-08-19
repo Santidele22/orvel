@@ -38,7 +38,7 @@ describe('Admin booking cancel RPC contract', () => {
   it('requires direct authenticated RPC callers to provide branch scope and denies cross-branch cancellation', () => {
     // Arrange
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628134500_require_branch_scope_for_admin_cancel.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'))
+    const service = readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/application/booking-crud.service.ts'))
       + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/admin-booking.repository.ts'));
 
     // Act / Assert
@@ -65,8 +65,7 @@ describe('Admin booking cancel RPC contract', () => {
   it('adds durable sanitized telemetry for admin cancel failures and wires the UI failure path to it', () => {
     // Arrange
     const migration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628131500_admin_cancel_failure_telemetry_compat.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'))
-      + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/application/booking-notifications.service.ts'))
+    const service = readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/application/booking-notifications.service.ts'))
       + readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/admin-booking.repository.ts'));
     const page = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/pages/turnos-list.page.ts'));
     const telemetryTable = migration.match(/CREATE TABLE IF NOT EXISTS public\.admin_booking_cancel_failure_events \([\s\S]*?\);/i)?.[0] ?? '';
@@ -85,7 +84,7 @@ describe('Admin booking cancel RPC contract', () => {
   it('keeps admin cancellation email delivery owned by the bookings update trigger', () => {
     // Arrange
     const lifecycleMigration = readRequiredFile(path.join(REPO_ROOT, 'supabase/migrations/20260628120000_booking_lifecycle_email_outbox.sql'));
-    const service = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/features/booking/data-access/turno.facade.ts'));
+    const service = readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/application/booking-notifications.service.ts'));
 
     // Act / Assert
     expect(lifecycleMigration).toMatch(/OLD\.status IS DISTINCT FROM 'cancelled'[\s\S]*NEW\.status = 'cancelled'[\s\S]*'booking_cancelled_business'/i);

@@ -14,7 +14,7 @@ function directBookingsReadPattern(): RegExp {
 describe('S1 RED - Appointments must read from same source as public booking writes', () => {
   it('write/read source contract: public flow writes behind RPC and appointments list through least-privilege RPC', () => {
     const migrationSql = readSource('supabase/migrations/20260428110000_fix_public_booking_customers.sql');
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const turnoServiceSource = readSource('../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts');
 
     const writeTargetIsPublicBookings = /insert\s+into\s+public\.bookings/i.test(migrationSql);
 
@@ -28,7 +28,7 @@ describe('S1 RED - Appointments must read from same source as public booking wri
 
   it('regression contract: appointments dataset refresh path must refresh via list_admin_bookings after booking.created', () => {
     const turnosListSource = readSource('src/app/features/booking/pages/turnos-list.page.ts');
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const turnoServiceSource = readSource('../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts');
 
     expect(turnosListSource).toMatch(/window\.addEventListener\('booking\.created'/);
     expect(turnosListSource).toMatch(/refreshTurnosFromSource\(\)/);

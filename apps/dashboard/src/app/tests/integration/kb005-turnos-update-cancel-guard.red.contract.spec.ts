@@ -16,9 +16,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // Imports
 // =============================================================================
 
-import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import type { CreateTurnoDTO, Turno, TurnoEstado, UpdateTurnoDTO } from '../../features/booking/models/turno.model';
-import { createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 // =============================================================================
 // Test Fixtures

@@ -30,7 +30,7 @@ const BRANCH_GUARD_SEMANTICS_MIGRATION_PATH = path.join(
 );
 const TURNO_SERVICE_PATH = path.join(
   REPO_ROOT,
-  'apps/dashboard/src/app/features/booking/data-access/turno.facade.ts'
+  'packages/booking/src/application/booking-scheduling.service.ts'
 );
 
 const TURNOS_LIST_PAGE_PATH = path.join(

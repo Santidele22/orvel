@@ -17,7 +17,7 @@ const FORBIDDEN_DOT_ACCESS: ForbiddenAccess[] = [
     snippets: ['payload.name', 'payload.duration_minutes', 'row.created_at', 'item.duracionMinutos', 'sanitized.createdAt']
   },
   {
-    file: 'src/app/features/booking/data-access/turno.facade.ts',
+    file: '../../packages/booking/src/application/booking-notifications.service.ts',
     snippets: ['booking.starts_at', 'booking.ends_at', 'booking.customer_id', 'booking.service_id', 'booking.created_at']
   },
   {

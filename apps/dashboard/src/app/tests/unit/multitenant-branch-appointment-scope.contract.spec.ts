@@ -59,7 +59,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('scopes appointment reads by active branch and rejects legacy business-wide reads', () => {
-    const turnoService = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const turnoService = readSource('../../packages/booking/src/application/booking-crud.service.ts');
     const branchContextService = readSource('src/app/core/branches/branch-context.service.ts');
 
     expect(turnoService).toMatch(/activeBranch|activeLocation|activeSalon|branchId|branch_id|salonId|salon_id|locationId|location_id/);
@@ -93,7 +93,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('scopes appointment writes by branch and rejects missing or invalid branch context before RPC', () => {
-    const turnoService = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const turnoService = readSource('../../packages/booking/src/application/booking-crud.service.ts');
     const apiTypes = readSource('../../packages/booking/src/types.ts');
     const realGateway = readSource('../../packages/booking/src/infrastructure/supabase/real-gateway.ts');
 
@@ -105,7 +105,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
   });
 
   it('removes old ambiguous owner_id + maybeSingle business resolution for booking scope', () => {
-    const turnoService = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const turnoService = readSource('../../packages/booking/src/application/booking-crud.service.ts');
 
     expect(turnoService).not.toMatch(/owner_id[\s\S]{0,240}maybeSingle\(\)/);
     expect(turnoService).not.toMatch(/resolveBusinessId[\s\S]*return\s+authUserId/);
@@ -114,7 +114,7 @@ describe('Multitenant branch appointment scope RED contract', () => {
 
   it('keeps appointments isolated when two branches share rubro=barberia under the same tenant', () => {
     const sources = readExistingSources([
-      'src/app/features/booking/data-access/turno.facade.ts',
+      '../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts',
       '../../packages/booking/src/types.ts',
       '../../packages/booking/src/infrastructure/supabase/real-gateway.ts',
       'src/app/features/booking/models/turno.model.ts'

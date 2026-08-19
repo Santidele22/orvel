@@ -197,6 +197,8 @@ export function createMockBookingScheduling(): Pick<BookingSchedulingService, 'c
   };
 }
 
+export type MockTurnoService = ReturnType<typeof createMockTurnoService>;
+
 export function createMockTurnoService() {
   const items = signal(mockTurnos());
   const loading = signal(false);
