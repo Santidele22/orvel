@@ -2,7 +2,7 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { of, throwError, from } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
-import { TurnoService } from '../../features/booking/data-access/turno.facade';
+import type { BookingCrudService, BookingSchedulingService } from '@orvel/booking/application';
 import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
 import { ClienteService } from '../../services/cliente.service';
 import { ServicioService } from '../../services/servicio.service';
@@ -178,7 +178,26 @@ function mockTurnos(): Turno[] {
   ];
 }
 
-export function createMockTurnoService(): TurnoService {
+export function createMockBookingCrud(): Pick<BookingCrudService, 'getAll' | 'getById' | 'delete' | 'updateEstado' | 'cancelByAdmin'> {
+  const rows = mockTurnos();
+  return {
+    getAll: async () => rows,
+    getById: (items, id) => items.find((item) => item.id === id),
+    delete: (items, id) => items.filter((item) => item.id !== id),
+    updateEstado: async (id, estado) => ({ bookingId: id, status: estado }),
+    cancelByAdmin: async (id) => ({ bookingId: id, status: 'cancelled' })
+  };
+}
+
+export function createMockBookingScheduling(): Pick<BookingSchedulingService, 'create' | 'rescheduleByAdmin' | 'createBlockedTime'> {
+  return {
+    create: async () => ({ bookingId: 'turno-mock', status: 'booked' }),
+    rescheduleByAdmin: async (id) => ({ bookingId: id, status: 'booked' }),
+    createBlockedTime: async () => ({ blockId: 'block-mock' })
+  };
+}
+
+export function createMockTurnoService() {
   const items = signal(mockTurnos());
   const loading = signal(false);
   const loadError = signal<string | null>(null);
@@ -255,7 +274,7 @@ export function createMockTurnoService(): TurnoService {
     recordAdminCancelFailureTelemetry() { return Promise.resolve(); },
     recordAdminRescheduleFailureTelemetry() { return Promise.resolve(); }
   };
-  return fake as unknown as TurnoService;
+  return fake;
 }
 
 export function createMockClienteService(): ClienteService {
