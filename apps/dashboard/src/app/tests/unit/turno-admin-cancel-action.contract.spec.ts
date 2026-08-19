@@ -5,9 +5,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { throwError } from 'rxjs';
-import { BookingCrudService, BookingNotificationsService } from '@orvel/booking/application';
+
+import {
+  BookingAvailabilityService,
+  BookingCrudService,
+  BookingNotificationsService,
+  BookingSchedulingService
+} from '@orvel/booking/application';
 import { TurnoService } from '../../features/booking/data-access/turno.facade';
+import { getBranchContextService } from '../../core/branches/branch-context.service';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
 import { AuthService } from '../../services/auth.service';
@@ -249,19 +255,16 @@ describe('Admin turno cancel action contract', () => {
       createdAt: new Date('2035-01-01T00:00:00.000Z'),
       updatedAt: new Date('2035-01-01T00:00:00.000Z')
     }];
-    const cancelByAdmin = vi.fn(() => throwError(() => new Error('UNAUTHORIZED: raw backend branch policy detail')));
+    const cancelByAdmin = vi.fn(() => Promise.reject(new Error('UNAUTHORIZED: raw backend branch policy detail')));
     const recordAdminCancelFailureTelemetry = vi.fn(() => Promise.resolve());
+    const branchContext = getBranchContextService() as { getActiveBranchId?: () => string | null };
+    branchContext.getActiveBranchId = () => BRANCH_ID;
     const injector = Injector.create({
       providers: [
-        {
-          provide: TurnoService,
-          useValue: {
-            cancelByAdmin,
-            recordAdminCancelFailureTelemetry,
-            getAll: vi.fn(),
-            items: signal(turnos)
-          }
-        },
+        { provide: BookingCrudService, useValue: { cancelByAdmin } },
+        { provide: BookingNotificationsService, useValue: { recordAdminCancelFailureTelemetry } },
+        { provide: BookingSchedulingService, useValue: {} },
+        { provide: BookingAvailabilityService, useValue: {} },
         { provide: ClienteService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ServicioService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ThemeService, useValue: { activeTheme: signal('zen') } },
