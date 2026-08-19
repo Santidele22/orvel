@@ -4,6 +4,7 @@ import '@angular/compiler';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { from } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -12,7 +13,6 @@ import {
   BookingNotificationsService,
   BookingSchedulingService
 } from '@orvel/booking/application';
-import { TurnoService } from '../../features/booking/data-access/turno.facade';
 import { getBranchContextService } from '../../core/branches/branch-context.service';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
@@ -106,16 +106,7 @@ function createServiceWithSupabaseDouble() {
       await supabase.rpc('record_admin_booking_cancel_failure', { p_stage: input.stage, p_code: input.code });
     }
   };
-  const injector = Injector.create({
-    providers: [
-      { provide: AuthService, useValue: authService },
-      { provide: BookingCrudService, useValue: crud },
-      { provide: BookingNotificationsService, useValue: notifications }
-    ]
-  });
-  const service = runInInjectionContext(injector, () => new TurnoService());
-  (service as unknown as { supabaseClient: unknown }).supabaseClient = supabase;
-  (service as unknown as { turnos: { set: (turnos: Turno[]) => void } }).turnos.set([
+  const items = signal<Turno[]>([
     {
       id: BOOKING_ID,
       branchId: BRANCH_ID,
@@ -131,6 +122,14 @@ function createServiceWithSupabaseDouble() {
       updatedAt: new Date('2035-01-01T00:00:00.000Z')
     }
   ]);
+  const service = {
+    items: items.asReadonly(),
+    cancelByAdmin(id: string, payload: { performedBy: string; reason?: string; notes?: string }) {
+      return from(crud.cancelByAdmin(id, { ...payload, branchId: BRANCH_ID }).then(() => items().find((item) => item.id === id)!));
+    },
+    attachNotificationService(_port: unknown) { /* page owns notification wiring */ },
+    recordAdminCancelFailureTelemetry: notifications.recordAdminCancelFailureTelemetry
+  };
 
   return { service, supabase };
 }

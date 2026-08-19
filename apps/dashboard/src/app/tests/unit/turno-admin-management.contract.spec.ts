@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TurnoService } from '../../features/booking/data-access/turno.facade';
-import { createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 describe('TurnoService admin management RED contract (mock mode)', () => {
   let service: TurnoService;

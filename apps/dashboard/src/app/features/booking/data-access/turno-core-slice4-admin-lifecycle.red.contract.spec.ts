@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const source = readFileSync(new URL('./turno.facade.ts', import.meta.url), 'utf8')
-  + readFileSync(new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url), 'utf8');
 
 describe('TurnoService Core Slice 4 admin booking lifecycle RED contract', () => {
   it('forbids direct bookings table lifecycle mutations from TurnoService', () => {

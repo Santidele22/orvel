@@ -121,7 +121,7 @@ describe('DB-FIX-004 RED - Turnos management via Mini Calendly integration path'
   });
 
   it('turno service keeps create/edit/cancel integration through existing booking adapter', () => {
-    const source = readSource('src/app/features/booking/data-access/turno.facade.ts');
+    const source = readSource('../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts');
 
     expect(source).toMatch(/createAdminManualBooking\(/);
     expect(source).toMatch(/updateAdminBooking\(/);

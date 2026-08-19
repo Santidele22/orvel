@@ -7,8 +7,9 @@ import { firstValueFrom, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BranchContextService } from '../../core/branches/branch-context.service';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
-import { TurnoService } from '../../features/booking/data-access/turno.facade';
+import { BookingCrudService } from '@orvel/booking/application';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
+import { createMockTurnoService } from '../helpers/turno-service-testbed';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
@@ -36,14 +37,7 @@ const PRODUCTION_BOOKING_ROW = {
 };
 
 function createTurnoService() {
-  const injector = Injector.create({
-    providers: [{
-      provide: AuthService,
-      useValue: { user: () => ({ id: 'admin-r4-001', activeBranchId: BRANCH_ID }) }
-    }]
-  });
-
-  return runInInjectionContext(injector, () => new TurnoService());
+  return createMockTurnoService();
 }
 
 function productionSupabaseDouble() {
@@ -262,7 +256,7 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
 
   it('uses the shared dashboard Supabase auth client for dashboard branch RPCs', () => {
     const branchContextSource = readFileSync(resolve(process.cwd(), 'src/app/core/branches/branch-context.service.ts'), 'utf8');
-    const turnoServiceSource = readFileSync(resolve(process.cwd(), 'src/app/features/booking/data-access/turno.facade.ts'), 'utf8');
+    const turnoServiceSource = readFileSync(resolve(process.cwd(), '../../packages/booking/src/application/booking-crud.service.ts'), 'utf8');
 
     expect(branchContextSource).toMatch(/createDashboardSupabaseClient\(\{ env \}\)/);
     expect(turnoServiceSource).toMatch(/createDashboardSupabaseClient\(\{ env \}\)/);
@@ -313,7 +307,7 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
     const injector = Injector.create({
       providers: [
         {
-          provide: TurnoService,
+          provide: BookingCrudService,
           useValue: {
             getAll: vi.fn(() => of([turno])),
             items: turnosSignal,
