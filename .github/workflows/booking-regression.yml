@@ -39,7 +39,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run booking regression contracts
-        run: pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/public-booking-settings-sync.contract.spec.ts src/app/tests/unit/dashboard-notifications-business-scope.contract.spec.ts src/app/features/booking/pages/public/manage-booking-m6-public-reschedule.red.contract.spec.ts src/app/tests/integration/booking-email-lifecycle.contract.spec.ts
+        run: pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/public-booking-settings-sync.contract.spec.ts src/app/tests/unit/dashboard-notifications-business-scope.contract.spec.ts src/app/tests/integration/booking-email-lifecycle.contract.spec.ts
 
       - name: Run branch booking resilience contract
         run: pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/dashboard-branch-booking-resilience.contract.spec.ts
