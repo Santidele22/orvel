@@ -1,4 +1,12 @@
 export { BookingCrudService } from './booking-crud.service';
+export { PublicBookingService } from './public-booking.facade';
+export type {
+  AvailabilityResponse,
+  BookingResponse,
+  CreatePublicBookingPayload,
+  ManageBookingDetails,
+  PublicSlot
+} from './public-booking.facade';
 export { BookingSchedulingService } from './booking-scheduling.service';
 export type { CreateBookingInput, SchedulingContext, AdminRescheduleInput } from './booking-scheduling.service';
 export { BookingAvailabilityService } from './booking-availability.service';

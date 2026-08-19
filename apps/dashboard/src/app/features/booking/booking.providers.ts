@@ -3,11 +3,13 @@ import {
   BookingAvailabilityService,
   BookingCrudService,
   BookingNotificationsService,
-  BookingSchedulingService
+  BookingSchedulingService,
+  PublicBookingService
 } from '@orvel/booking/application';
 import {
   ADMIN_BOOKING_REPOSITORY,
   BOOKING_QUERIES,
+  RealSupabaseBookingGateway,
   SUPABASE_CLIENT,
   SupabaseAdminBookingRepository,
   SupabaseBookingQueries
@@ -27,6 +29,7 @@ export function provideBooking() {
     { provide: BookingCrudService, useFactory: () => new BookingCrudService(inject(ADMIN_BOOKING_REPOSITORY)) },
     { provide: BookingSchedulingService, useFactory: () => new BookingSchedulingService(inject(ADMIN_BOOKING_REPOSITORY)) },
     { provide: BookingAvailabilityService, useFactory: () => new BookingAvailabilityService(inject(ADMIN_BOOKING_REPOSITORY)) },
-    { provide: BookingNotificationsService, useFactory: () => new BookingNotificationsService(inject(ADMIN_BOOKING_REPOSITORY)) }
+    { provide: BookingNotificationsService, useFactory: () => new BookingNotificationsService(inject(ADMIN_BOOKING_REPOSITORY)) },
+    { provide: PublicBookingService, useFactory: () => new PublicBookingService(inject(RealSupabaseBookingGateway)) }
   ]);
 }

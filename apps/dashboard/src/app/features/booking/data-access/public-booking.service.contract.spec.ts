@@ -3,7 +3,7 @@
 import '@angular/compiler';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { provideZonelessChangeDetection } from '@angular/core';
+import { inject, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -65,7 +65,7 @@ describe('PublicBookingService canonical booking runtime contract', () => {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
-        PublicBookingService,
+        { provide: PublicBookingService, useFactory: () => new PublicBookingService(inject(RealSupabaseBookingGateway)) },
         { provide: RealSupabaseBookingGateway, useClass: RealSupabaseBookingGateway }
       ]
     });

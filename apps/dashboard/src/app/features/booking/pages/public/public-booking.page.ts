@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BusinessService } from '../../../settings/data-access/business.service';
-import { PublicBookingService } from '../../data-access/public-booking.service';
+import { PublicBookingService } from '@orvel/booking/application';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
 import type { PublicSlot } from '@orvel/booking';
