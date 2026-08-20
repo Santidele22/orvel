@@ -1,0 +1,84 @@
+---
+interface Props {
+  premiumPriceLabel?: string | null;
+}
+
+const { premiumPriceLabel = null } = Astro.props;
+
+const plansAnswer = premiumPriceLabel
+  ? `Gratis: hasta 30 turnos/mes en 1 local. Premium: ${premiumPriceLabel} ARS/mes, turnos ilimitados en 1 local. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.`
+  : 'Gratis: hasta 30 turnos/mes en 1 local. Premium: turnos ilimitados en 1 local. El precio de Premium se confirma al abrir. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.';
+
+const faqs = [
+  {
+    question: '¿Qué es Orvel?',
+    answer: 'Una plataforma para gestionar reservas, clientes y servicios en un solo lugar. Pensada para barberías, uñas, peluquerías, masajes y negocios que viven de turnos.'
+  },
+  {
+    question: '¿En qué se diferencia de tomar turnos por mensaje?',
+    answer: 'El cliente reserva por tu link, ve disponibilidad real y vos tenés todo en una agenda. Menos ida y vuelta, también fuera de horario.'
+  },
+  {
+    question: '¿Mi cliente necesita crear una cuenta?',
+    answer: 'No. Elige el servicio, la fecha y deja nombre, celular y email para confirmar.'
+  },
+  {
+    question: '¿Cuáles son los planes?',
+    answer: plansAnswer
+  },
+  {
+    question: '¿Cuándo sale?',
+    answer: 'Estamos en pre-lanzamiento. Te escribimos cuando abrimos. Los 50 primeros de la lista llevan el beneficio de fundador según la franja en la que entraron.'
+  }
+];
+---
+
+<section class="landing-section bg-bg-primary" id="faq">
+  <div class="landing-container max-w-3xl">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Preguntas</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">Sin vueltas</h2>
+    </div>
+
+    <div class="space-y-3" data-prelaunch-faq>
+      {faqs.map((faq, index) => (
+        <article class:list={['landing-card overflow-hidden reveal', index === 0 && 'is-open']} data-faq-item>
+          <button
+            type="button"
+            class="w-full text-left px-5 py-4 font-headline font-semibold text-text-primary flex items-center justify-between gap-4"
+            aria-expanded={index === 0 ? 'true' : 'false'}
+          >
+            {faq.question}
+            <i class="ri-arrow-down-s-line text-text-secondary" aria-hidden="true"></i>
+          </button>
+          <div class:list={['px-5 pb-4 text-sm text-text-secondary leading-relaxed', index !== 0 && 'hidden']} data-faq-body>
+            <p>{faq.answer}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector('[data-prelaunch-faq]');
+  if (root) {
+    root.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+      button.addEventListener('click', () => {
+        const item = button.closest('[data-faq-item]');
+        if (!item) return;
+        const wasOpen = item.classList.contains('is-open');
+        root.querySelectorAll('[data-faq-item]').forEach((entry) => {
+          entry.classList.remove('is-open');
+          entry.querySelector('button')?.setAttribute('aria-expanded', 'false');
+          entry.querySelector('[data-faq-body]')?.classList.add('hidden');
+        });
+        if (!wasOpen) {
+          item.classList.add('is-open');
+          button.setAttribute('aria-expanded', 'true');
+          item.querySelector('[data-faq-body]')?.classList.remove('hidden');
+        }
+      });
+    });
+  }
+</script>

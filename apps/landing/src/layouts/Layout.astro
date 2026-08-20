@@ -7,10 +7,14 @@ import Preloader from "../components/organisms/Preloader.astro";
 interface Props {
     title: string;
     showPreloader?: boolean;
+    description?: string;
 }
 
-const { title, showPreloader = true } = Astro.props;
-const description = "Gestioná turnos y clientes con Orvel, el software simple para barberías, salones de uñas y masajes.";
+const {
+    title,
+    showPreloader = true,
+    description = "Gestioná turnos y clientes con Orvel, el software simple para barberías, salones de uñas y masajes.",
+} = Astro.props;
 ---
 
 <!DOCTYPE html>
