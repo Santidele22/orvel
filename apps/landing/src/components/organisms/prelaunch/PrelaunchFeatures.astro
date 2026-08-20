@@ -1,0 +1,48 @@
+---
+const features = [
+  {
+    icon: 'ri-link',
+    title: 'Link público de reservas',
+    body: 'Tu cliente reserva solo: elige servicio, fecha y deja nombre, celular y email. Sin crear cuenta.'
+  },
+  {
+    icon: 'ri-calendar-check-line',
+    title: 'Agenda sin solapes',
+    body: 'Servicios, duración, precios, horarios y bloqueos. El sistema no muestra lo que ya está ocupado.'
+  },
+  {
+    icon: 'ri-user-add-line',
+    title: 'Alta manual y walk-in',
+    body: 'Alguien entra sin reserva: lo cargás en la agenda. Cancelar y reprogramar sin desarmar el día.'
+  },
+  {
+    icon: 'ri-mail-send-line',
+    title: 'Recordatorios por email',
+    body: 'Confirmaciones y recordatorios automáticos para reducir ausencias. Un local principal.'
+  }
+];
+---
+
+<section class="landing-section bg-bg-primary" id="producto">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Producto</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">El sistema. No otra libreta.</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Lo que ya está listo para cuando abramos. Sin promesas de más.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {features.map((item) => (
+        <article class="landing-card p-7 reveal">
+          <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+            <i class={`${item.icon} text-xl`} aria-hidden="true"></i>
+          </div>
+          <h3 class="font-headline font-bold text-lg text-text-primary mb-2">{item.title}</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">{item.body}</p>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

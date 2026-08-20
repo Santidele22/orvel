@@ -1,0 +1,56 @@
+---
+const videoSrc = 'https://assets.mixkit.co/videos/4801/4801-720.mp4';
+const posterSrc = 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=80&w=800';
+---
+
+<section class="landing-section bg-bg-primary" id="novedades">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Novedades</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">Lo que se viene</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Sin vaporware: lo que viene, y lo que todavía no.
+      </p>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-2 lg:items-center">
+      <div class="relative rounded-2xl overflow-hidden bg-bg-secondary aspect-[3/4] max-h-[32rem] w-full reveal">
+        <video class="absolute inset-0 h-full w-full object-cover object-[center_20%]" autoplay muted loop playsinline poster={posterSrc} data-novedades-video>
+          <source src={videoSrc} type="video/mp4" />
+        </video>
+        <div class="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-transparent"></div>
+        <div class="absolute left-4 right-4 bottom-4 flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-primary/30 text-primary flex items-center justify-center">
+            <i class="ri-smartphone-line" aria-hidden="true"></i>
+          </div>
+          <span class="text-sm text-text-primary font-medium">Reservar y gestionar turnos desde el celular</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <article class="landing-card p-6 ring-1 ring-primary/40 reveal">
+          <span class="landing-eyebrow border border-primary/20 bg-primary/10 text-primary mb-3">Próximo paso</span>
+          <h3 class="font-headline font-bold text-lg text-text-primary mb-2">Orvel también en el celular</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">
+            Vas a poder operar el negocio desde el teléfono (PWA). Hoy preparamos el lanzamiento web; el mobile es el siguiente paso, no una app de store todavía.
+          </p>
+        </article>
+        <article class="landing-card p-6 reveal">
+          <span class="landing-eyebrow border border-border bg-white/5 text-text-secondary mb-3">Coming soon</span>
+          <h4 class="font-headline font-semibold text-text-primary mb-2">Multi-profesional</h4>
+          <p class="text-text-secondary text-sm leading-relaxed">
+            Equipos y varios profesionales en un mismo local. Todavía no está; es el camino natural después del MVP.
+          </p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-novedades-video]');
+  if (video && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    video.removeAttribute('autoplay');
+    video.pause();
+  }
+</script>

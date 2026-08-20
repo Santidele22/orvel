@@ -1,0 +1,67 @@
+---
+import type { CurrentFranja } from '../../../lib/waitlist';
+import { EARLY_BIRD_OCCUPIED, EARLY_BIRD_TIERS, EARLY_BIRD_TOTAL_SLOTS } from '../../../lib/waitlist';
+
+interface Props {
+  occupied?: number;
+  franja: CurrentFranja;
+}
+
+const { occupied = EARLY_BIRD_OCCUPIED, franja } = Astro.props;
+const remainingTotal = Math.max(0, EARLY_BIRD_TOTAL_SLOTS - occupied);
+const progressPercent = Math.min(100, Math.round((occupied / EARLY_BIRD_TOTAL_SLOTS) * 100));
+
+const tiers = EARLY_BIRD_TIERS.map((tier, index) => {
+  const start = EARLY_BIRD_TIERS.slice(0, index).reduce((sum, item) => sum + item.slots, 0);
+  const takenInTier = Math.max(0, Math.min(occupied, start + tier.slots) - start);
+  const remainingInTier = tier.slots - takenInTier;
+  return { ...tier, remainingInTier, index };
+});
+---
+
+<section class="landing-section bg-bg-primary" id="early-bird">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-primary-soft/25 bg-primary-soft/10 text-primary-soft mb-4">Beneficio fundadores</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">50 lugares. El descuento es real.</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Después del 50 podés anotarte igual: te avisamos al abrir, sin descuento.
+      </p>
+    </div>
+
+    <div class="landing-card p-6 md:p-8 mb-8 reveal">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <strong class="text-text-primary font-headline">
+          Quedan {remainingTotal} de {EARLY_BIRD_TOTAL_SLOTS} lugares con beneficio
+        </strong>
+        <span class="text-text-secondary text-sm">{occupied} ocupados</span>
+      </div>
+      <div
+        class="h-2 rounded-full bg-bg-primary overflow-hidden"
+        role="progressbar"
+        aria-valuenow={occupied}
+        aria-valuemin="0"
+        aria-valuemax={EARLY_BIRD_TOTAL_SLOTS}
+      >
+        <div class="h-full bg-primary rounded-full" style={`width: ${progressPercent}%`}></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {tiers.map((tier) => (
+        <article class:list={['landing-card p-6 reveal', franja.discountPercent === tier.discountPercent && 'ring-1 ring-primary']}>
+          <div class="landing-eyebrow border border-border bg-white/5 text-text-secondary mb-3">Franja {tier.index + 1}</div>
+          <h3 class="font-headline font-bold text-2xl text-text-primary mb-1">{tier.discountPercent}% OFF</h3>
+          <p class="text-text-secondary text-sm mb-4">el primer mes de Premium</p>
+          <p class="text-sm text-text-secondary">
+            <strong class="text-text-primary">{tier.remainingInTier}</strong> de {tier.slots} disponibles
+          </p>
+        </article>
+      ))}
+    </div>
+
+    <p class="text-text-secondary text-sm mt-8 text-center">
+      El descuento aplica solo al primer mes de Premium. El plan Gratis sigue disponible para todos.
+    </p>
+  </div>
+</section>

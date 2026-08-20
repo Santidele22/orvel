@@ -1,0 +1,70 @@
+---
+import type { PlanWithBilling } from '../../../lib/plans';
+
+interface Props {
+  plansWithBilling: PlanWithBilling[];
+}
+
+const { plansWithBilling } = Astro.props;
+const catalogPlans = plansWithBilling.filter((plan) => plan.code === 'FREE' || plan.code === 'PREMIUM');
+
+function formatPrice(plan: PlanWithBilling): string {
+  if (plan.code === 'FREE') return '$0';
+  return `$${plan.price.toLocaleString('es-AR')}`;
+}
+
+const featureCopy: Record<string, { desc: string; items: string[] }> = {
+  FREE: {
+    desc: 'Para empezar con 1 local principal y hasta 30 turnos por mes.',
+    items: ['1 agenda', 'Hasta 30 turnos/mes', 'Link de reservas', 'Servicios y horarios', 'Gestión básica de clientes']
+  },
+  PREMIUM: {
+    desc: 'Turnos ilimitados para 1 local principal. Mismas funciones core del plan Gratis.',
+    items: ['Turnos ilimitados', 'Clientes y servicios', 'Horarios, descansos y bloqueos', 'Reprogramaciones', 'Link de reservas']
+  }
+};
+---
+
+<section class="landing-section-compact bg-bg-secondary" id="precios">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Precios</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">Claros desde el día uno</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Lo que ves es lo que sale. No es checkout: anotate y te avisamos al abrir.
+      </p>
+    </div>
+
+    <div class="grid gap-5 max-w-3xl mx-auto md:grid-cols-2">
+      {catalogPlans.map((plan) => {
+        const copy = featureCopy[plan.code];
+        const price = formatPrice(plan);
+        const featured = plan.code === 'PREMIUM';
+        return (
+          <article class:list={['landing-card p-7 flex flex-col reveal', featured && 'ring-1 ring-primary']}>
+            <h3 class="font-headline font-semibold text-text-primary mb-2">{plan.name}</h3>
+            <p class="font-headline font-black text-3xl text-text-primary mb-2">
+              {price}
+              {plan.code !== 'FREE' && <span class="text-sm font-medium text-text-secondary"> /mes</span>}
+            </p>
+            <p class="text-text-secondary text-sm mb-5">{copy?.desc ?? plan.description}</p>
+            <ul class="space-y-2 mb-6 flex-1">
+              {(copy?.items ?? []).map((item) => (
+                <li class="flex gap-2 text-sm text-text-secondary">
+                  <i class="ri-check-line text-primary mt-0.5" aria-hidden="true"></i>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              class:list={['btn w-full js-open-waitlist', featured ? 'btn-primary' : 'btn-ghost border border-border']}
+            >
+              Quiero mi lugar
+            </button>
+          </article>
+        );
+      })}
+    </div>
+  </div>
+</section>
