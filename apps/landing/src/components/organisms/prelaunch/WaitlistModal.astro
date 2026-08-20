@@ -1,0 +1,212 @@
+---
+import type { CurrentFranja } from '../../../lib/waitlist';
+import { EARLY_BIRD_TOTAL_SLOTS, WAITLIST_RUBROS } from '../../../lib/waitlist';
+
+interface Props {
+  franja: CurrentFranja;
+}
+
+const { franja } = Astro.props;
+const rubroLabels: Record<(typeof WAITLIST_RUBROS)[number], string> = {
+  barberia: 'Barbería',
+  unas: 'Uñas',
+  peluqueria: 'Peluquería',
+  masajes: 'Masajes',
+  otro: 'Otro'
+};
+
+const franjaHint = franja.inBenefit
+  ? `Estás entrando en la franja de ${franja.discountLabel} (${franja.remainingInTier} de ${franja.tierSlots}). Quedan ${franja.remainingTotal} lugares con beneficio.`
+  : 'Los 50 con descuento ya se completaron. Podés anotarte igual: te avisamos al lanzar, sin descuento.';
+---
+
+<div
+  id="waitlist-modal"
+  class="fixed inset-0 z-[60] hidden items-center justify-center bg-bg-primary/70 backdrop-blur-md p-4"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="waitlist-modal-title"
+  hidden
+>
+  <div class="relative w-full max-w-lg bg-bg-secondary border border-border rounded-xl p-6 md:p-8 shadow-2xl">
+    <button type="button" class="absolute top-4 right-4 text-text-secondary hover:text-text-primary" data-waitlist-close aria-label="Cerrar">
+      <i class="ri-close-line text-2xl" aria-hidden="true"></i>
+    </button>
+
+    <div data-waitlist-form-panel>
+      <h2 id="waitlist-modal-title" class="font-headline font-bold text-2xl text-text-primary mb-2">Reservá tu lugar</h2>
+      <p class="text-text-secondary text-sm mb-4">Un formulario. Sin tarjeta. Te escribimos cuando abrimos.</p>
+      <div class="flex items-start gap-2 rounded-lg bg-primary-soft/10 border border-primary-soft/30 p-3 mb-5 text-sm text-primary-soft" role="status">
+        <i class="ri-price-tag-3-line mt-0.5" aria-hidden="true"></i>
+        <span>{franjaHint}</span>
+      </div>
+
+      <form id="waitlist-form" class="grid gap-4" novalidate>
+        <label class="grid gap-1 text-sm font-label text-text-primary">
+          Nombre
+          <input id="waitlist-name" name="name" type="text" autocomplete="name" required class="input" placeholder="Tu nombre" />
+        </label>
+        <label class="grid gap-1 text-sm font-label text-text-primary">
+          Correo
+          <input id="waitlist-email" name="email" type="email" autocomplete="email" required class="input" placeholder="tu@correo.com" />
+        </label>
+        <label class="grid gap-1 text-sm font-label text-text-primary">
+          Celular (Argentina)
+          <input id="waitlist-whatsapp" name="whatsapp" type="tel" autocomplete="tel" required class="input" placeholder="11 2345 6789" />
+        </label>
+        <label class="grid gap-1 text-sm font-label text-text-primary">
+          Rubro
+          <select id="waitlist-rubro" name="rubro" required class="input">
+            <option value="" disabled selected>Elegí tu rubro</option>
+            {WAITLIST_RUBROS.map((rubro) => (
+              <option value={rubro}>{rubroLabels[rubro]}</option>
+            ))}
+          </select>
+        </label>
+        <p class="text-error text-sm hidden" data-waitlist-error role="alert"></p>
+        <button type="submit" class="btn btn-primary w-full" data-waitlist-submit>Quiero mi lugar</button>
+      </form>
+      <p class="text-text-secondary text-xs mt-4">Sin tarjeta. Te escribimos cuando abrimos.</p>
+    </div>
+
+    <div class="hidden text-center py-6" data-waitlist-success>
+      <i class="ri-checkbox-circle-line text-4xl text-success drop-shadow-[0_0_12px_var(--color-success-deep)]" aria-hidden="true"></i>
+      <h3 class="font-headline font-bold text-xl text-text-primary mt-3 mb-2">Listo. Te avisamos al abrir.</h3>
+      <p class="text-text-secondary text-sm" data-waitlist-success-copy>Te avisamos al abrir.</p>
+    </div>
+
+    <div class="hidden text-center py-6" data-waitlist-already>
+      <i class="ri-mail-check-line text-4xl text-primary" aria-hidden="true"></i>
+      <h3 class="font-headline font-bold text-xl text-text-primary mt-3 mb-2">Ya estás en la lista</h3>
+      <p class="text-text-secondary text-sm" data-waitlist-already-copy>Ese email ya está anotado. Te escribimos cuando Orvel abra.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('waitlist-modal');
+  const form = document.getElementById('waitlist-form') as HTMLFormElement | null;
+  const formPanel = document.querySelector('[data-waitlist-form-panel]');
+  const successPanel = document.querySelector('[data-waitlist-success]');
+  const alreadyPanel = document.querySelector('[data-waitlist-already]');
+  const errorEl = document.querySelector('[data-waitlist-error]');
+  const successCopy = document.querySelector('[data-waitlist-success-copy]');
+  const alreadyCopy = document.querySelector('[data-waitlist-already-copy]');
+  const submitBtn = document.querySelector<HTMLButtonElement>('[data-waitlist-submit]');
+
+  function offerMessage(offer: { inBenefit?: boolean; discountLabel?: string | null } | null | undefined): string {
+    if (offer?.inBenefit && offer.discountLabel) {
+      return `Entraste en la franja de ${offer.discountLabel} OFF el primer mes de Premium.`;
+    }
+    if (offer && offer.inBenefit === false) {
+      return 'Estás en la lista. Los 50 con descuento ya se completaron; te avisamos al abrir.';
+    }
+    return 'Te avisamos al abrir.';
+  }
+
+  function showPanel(name: 'form' | 'success' | 'already') {
+    formPanel?.classList.toggle('hidden', name !== 'form');
+    successPanel?.classList.toggle('hidden', name !== 'success');
+    alreadyPanel?.classList.toggle('hidden', name !== 'already');
+  }
+
+  function openModal() {
+    if (!modal) return;
+    showPanel('form');
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.add('hidden');
+    }
+    modal.hidden = false;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+    document.getElementById('waitlist-name')?.focus();
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    modal.hidden = true;
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  document.querySelectorAll('.js-open-waitlist').forEach((el) => {
+    el.addEventListener('click', (event) => {
+      event.preventDefault();
+      openModal();
+    });
+  });
+
+  document.querySelector('[data-waitlist-close]')?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (event) => {
+    if (event.target === modal) closeModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal && !modal.hidden) closeModal();
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form || !submitBtn) return;
+
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.add('hidden');
+    }
+
+    const payload = {
+      name: String(new FormData(form).get('name') ?? ''),
+      email: String(new FormData(form).get('email') ?? ''),
+      whatsapp: String(new FormData(form).get('whatsapp') ?? ''),
+      rubro: String(new FormData(form).get('rubro') ?? '')
+    };
+
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = 'Enviando…';
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json().catch(() => null);
+
+      if (response.ok && (body?.status === 'ok' || body?.status === 'success')) {
+        if (successCopy) successCopy.textContent = offerMessage(body?.offer);
+        showPanel('success');
+        return;
+      }
+      if (response.status === 409 || body?.error === 'already_exists') {
+        if (alreadyCopy) {
+          alreadyCopy.textContent = body?.offer?.inBenefit && body?.offer?.discountLabel
+            ? `Ya estás anotado. Tu lugar es la franja de ${body.offer.discountLabel} OFF el primer mes de Premium.`
+            : 'Ese email ya está anotado. Te escribimos cuando Orvel abra.';
+        }
+        showPanel('already');
+        return;
+      }
+
+      const message =
+        body?.message
+        || (body?.error === 'persistence_unavailable'
+          ? 'Todavía no podemos guardar tu lugar. Intentá de nuevo más tarde.'
+          : 'No pudimos anotar tu lugar. Intentá de nuevo.');
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+      }
+    } catch {
+      if (errorEl) {
+        errorEl.textContent = 'No pudimos anotar tu lugar. Intentá de nuevo.';
+        errorEl.classList.remove('hidden');
+      }
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel || 'Quiero mi lugar';
+    }
+  });
+</script>

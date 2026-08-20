@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 const PUBLIC_PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.meta.url);
-const PUBLIC_INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
+const PUBLIC_INDEX_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
 const SIGNUP_PLAN_CARDS_PATH = new URL('../components/organisms/SignupPlanCards.astro', import.meta.url);
 
 async function source(path: URL): Promise<string> {

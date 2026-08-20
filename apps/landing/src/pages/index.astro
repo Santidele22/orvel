@@ -1,129 +1,50 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getActivePlans, calculateBillingPrices } from '../lib/plans';
+import { EARLY_BIRD_OCCUPIED, getCurrentFranja } from '../lib/waitlist';
+import { fetchWaitlistOccupied } from '../lib/waitlist-sheet';
 
-// Import all organisms
-import Header from '../components/organisms/Header.astro';
-import Hero from '../components/organisms/Hero.astro';
-import Features from '../components/organisms/Features.astro';
-import Problem from '../components/organisms/Problem.astro';
-import Solution from '../components/organisms/Solution.astro';
-import HowItWorks from '../components/organisms/HowItWorks.astro';
-import Differential from '../components/organisms/Differential.astro';
-import Results from '../components/organisms/Results.astro';
-import Audience from '../components/organisms/Audience.astro';
-import Pricing from '../components/organisms/Pricing.astro';
-import FAQ from '../components/organisms/FAQ.astro';
-import CTA from '../components/organisms/CTA.astro';
+import PrelaunchHeader from '../components/organisms/prelaunch/PrelaunchHeader.astro';
+import PrelaunchHero from '../components/organisms/prelaunch/PrelaunchHero.astro';
+import EarlyBird from '../components/organisms/prelaunch/EarlyBird.astro';
+import PrelaunchProblem from '../components/organisms/prelaunch/PrelaunchProblem.astro';
+import PrelaunchFeatures from '../components/organisms/prelaunch/PrelaunchFeatures.astro';
+import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
+import PrelaunchNovedades from '../components/organisms/prelaunch/PrelaunchNovedades.astro';
+import PrelaunchPricing from '../components/organisms/prelaunch/PrelaunchPricing.astro';
+import PrelaunchFaq from '../components/organisms/prelaunch/PrelaunchFaq.astro';
+import PrelaunchCta from '../components/organisms/prelaunch/PrelaunchCta.astro';
+import WaitlistModal from '../components/organisms/prelaunch/WaitlistModal.astro';
+import StickyWaitlistCta from '../components/organisms/prelaunch/StickyWaitlistCta.astro';
 import Footer from '../components/organisms/Footer.astro';
 
-// Fetch plans server-side from Supabase
-let plans = await getActivePlans();
-
-// Calculate billing prices for each plan
-const plansWithBilling = plans.map(p => calculateBillingPrices(p));
+const occupied =
+  (await fetchWaitlistOccupied({
+    webhookUrl: process.env.WAITLIST_SHEETS_WEBHOOK_URL || import.meta.env.WAITLIST_SHEETS_WEBHOOK_URL,
+    secret: process.env.WAITLIST_SHEETS_SECRET || import.meta.env.WAITLIST_SHEETS_SECRET
+  })) ?? EARLY_BIRD_OCCUPIED;
+const franja = getCurrentFranja(occupied);
+const plans = await getActivePlans();
+const plansWithBilling = plans.map((plan) => calculateBillingPrices(plan));
+const premium = plansWithBilling.find((plan) => plan.code === 'PREMIUM');
+const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` : '$25.000';
 ---
 
-<script define:vars={{ plansData: plansWithBilling }}>
-// Store plans data for client-side use
-const PLANS_DATA = plansData;
-
-// MVP billing is monthly-only. Any stale billing toggle input is normalized to monthly.
-let currentBillingPeriod = 'monthly';
-
-function updatePrices() {
-  currentBillingPeriod = 'monthly';
-  
-  document.querySelectorAll('.billing-option').forEach(btn => {
-    const isSelected = btn.dataset.billing === 'monthly';
-    btn.setAttribute('aria-pressed', String(isSelected));
-    if (isSelected) {
-      btn.classList.add('bg-primary', 'text-on-secondary');
-      btn.classList.remove('text-text-primary');
-    } else {
-      btn.classList.remove('bg-primary', 'text-on-secondary');
-      btn.classList.add('text-text-primary');
-    }
-  });
-
-  document.querySelectorAll('.plan-card').forEach(card => {
-    const planCode = card.dataset.planCode;
-    const plan = PLANS_DATA.find(p => p.code === planCode);
-    if (!plan) return;
-
-    // Keep FREE visible across billing periods so visitors always see the gratis entry point.
-    if (planCode === 'FREE') {
-      card.hidden = false;
-      card.classList.remove('hidden');
-      card.setAttribute('aria-hidden', 'false');
-      return;
-    }
-
-    const price = plan.price;
-    const billingLabel = '/mes';
-
-    const priceEl = card.querySelector('.price-value');
-    const labelEl = card.querySelector('.price-label');
-    const savingsEl = card.querySelector('.price-savings');
-
-    if (priceEl) priceEl.textContent = price.toLocaleString('es-AR');
-    if (labelEl) labelEl.textContent = billingLabel;
-    
-    if (savingsEl) {
-      savingsEl.classList.add('hidden');
-    }
-  });
-}
-
-// Handle plan selection for active launch CTAs.
-function handlePlanSelection(planCode) {
-  const allowedPlanCodes = new Set(PLANS_DATA.map(plan => plan.code));
-  if (!allowedPlanCodes.has(planCode)) {
-    console.error('Plan not found:', planCode);
-    return;
-  }
-
-  if (planCode === 'FREE') {
-    window.location.href = '/auth/signup/plan?plan=FREE';
-    return;
-  }
-
-  const billing = currentBillingPeriod || 'monthly';
-  const returnTo = encodeURIComponent(`/billing/subscription?plan=${planCode}&billing=${billing}`);
-  window.location.href = `/auth/signup/credentials?plan=${encodeURIComponent(planCode)}&billing=${encodeURIComponent(billing)}&returnTo=${returnTo}`;
-}
-
-// Initialize billing toggle
-document.addEventListener('DOMContentLoaded', () => {
-  updatePrices('monthly');
-
-  // Billing toggle handlers
-  document.querySelectorAll('.billing-option').forEach(btn => {
-    btn.addEventListener('click', () => updatePrices());
-  });
-
-  // Plan selection handlers use canonical landing auth + subscription/preapproval billing.
-  document.querySelectorAll('[data-plan]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      handlePlanSelection(btn.dataset.plan);
-    });
-  });
-
-});
-</script>
-
-<Layout title="Orvel - Organizá tus turnos sin vueltas">
-  <Header />
-  <Hero />
-  <Features />
-  <Problem />
-  <Solution />
-  <HowItWorks />
-  <Differential />
-  <Results />
-  <Audience />
-  <Pricing plansWithBilling={plansWithBilling} />
-  <FAQ />
-  <CTA />
+<Layout
+  title="Orvel — Pre-lanzamiento · Lista de espera"
+  description="Menos ida y vuelta. Más salón. Anotate a la lista de espera. Primeros 50 con beneficio de fundador."
+>
+  <PrelaunchHeader />
+  <PrelaunchHero />
+  <EarlyBird occupied={occupied} franja={franja} />
+  <PrelaunchProblem />
+  <PrelaunchFeatures />
+  <PrelaunchRubros />
+  <PrelaunchNovedades />
+  <PrelaunchPricing plansWithBilling={plansWithBilling} />
+  <PrelaunchFaq premiumPriceLabel={premiumPriceLabel} />
+  <PrelaunchCta />
   <Footer />
+  <StickyWaitlistCta franja={franja} />
+  <WaitlistModal franja={franja} />
 </Layout>
