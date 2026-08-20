@@ -1,0 +1,41 @@
+---
+const rubros = [
+  { title: 'Peluquería', body: 'Cortes y color sin estrés.', image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800' },
+  { title: 'Uñas', body: 'Organización al minuto.', image: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800' },
+  { title: 'Barbería', body: 'Reservas automáticas.', image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800' },
+  { title: 'Masajes', body: 'Buffers y preparación.', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800' }
+];
+---
+
+<section class="landing-section-compact bg-bg-secondary" id="rubros">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Rubros</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">
+        Hecho para quien vive de los turnos
+      </h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Seleccioná tu rubro. Misma lógica clara: disponibilidad real, menos ida y vuelta.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {rubros.map((rubro) => (
+        <article class="group relative h-72 rounded-2xl overflow-hidden landing-card reveal">
+          <img
+            src={rubro.image}
+            alt={rubro.title}
+            loading="lazy"
+            decoding="async"
+            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-transform duration-700 group-hover:scale-105"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/50 to-transparent"></div>
+          <div class="absolute inset-x-0 bottom-0 p-6">
+            <h3 class="font-headline font-bold text-2xl text-text-primary mb-1">{rubro.title}</h3>
+            <p class="text-text-secondary text-sm">{rubro.body}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

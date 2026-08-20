@@ -1,0 +1,185 @@
+---
+import { PRELAUNCH_HERO_MEDIA } from '../../../lib/prelaunch-hero-media';
+---
+
+<section id="prelaunch-hero" class="relative min-h-[100svh] flex items-center overflow-hidden pt-20 pb-16">
+  <div class="absolute inset-0 z-0" data-hero-carousel>
+    {PRELAUNCH_HERO_MEDIA.map((slide, index) => (
+      <div
+        class="absolute inset-0 opacity-0 transition-opacity duration-[1800ms] ease-in-out data-[active=true]:opacity-100"
+        data-hero-slide
+        data-active={index === 0 ? 'true' : 'false'}
+      >
+        <video
+          class="h-full w-full object-cover scale-[1.12]"
+          muted
+          playsinline
+          preload={index === 0 ? 'metadata' : 'none'}
+          data-hero-video
+        >
+          <source src={slide.src} type="video/mp4" />
+        </video>
+      </div>
+    ))}
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-bg-primary/90 via-bg-primary/40 to-transparent"></div>
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-primary/70 via-transparent to-bg-primary/20"></div>
+  </div>
+
+  <div class="landing-container relative z-10">
+    <div class="max-w-2xl space-y-6">
+      <div class="landing-eyebrow border border-primary-soft/25 bg-primary-soft/10 text-primary-soft shadow-sm">
+        <span class="relative flex h-2 w-2">
+          <span class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+        </span>
+        Pre-lanzamiento · cupos fundadores
+      </div>
+
+      <h1
+        class="font-headline font-black text-text-primary reveal"
+        style="font-size: var(--text-hero-title); line-height: 1.02; letter-spacing: -0.055em;"
+      >
+        Menos ida y vuelta.
+        <br />
+        <span class="text-primary italic font-light">Más salón.</span>
+      </h1>
+
+      <p class="landing-lead text-text-secondary font-body reveal stagger-1">
+        Tu cliente reserva. Vos atendés. El celular deja de mandar.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 pt-2 reveal stagger-2">
+        <button type="button" class="w-full sm:w-auto btn btn-primary js-open-waitlist py-4 px-10 text-xs tracking-widest uppercase">
+          Quiero mi lugar
+        </button>
+        <a href="#producto" class="w-full sm:w-auto btn btn-secondary py-4 px-10 text-xs tracking-widest uppercase">
+          <i class="ri-arrow-down-line mr-2 text-base" aria-hidden="true"></i>
+          Ver qué hace Orvel
+        </a>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-2 text-sm text-text-secondary">
+        <div class="flex items-center gap-2">
+          <i class="ri-check-line text-primary" aria-hidden="true"></i>
+          Primeros 50 con beneficio
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="ri-check-line text-primary" aria-hidden="true"></i>
+          Sin spam · sin tarjeta
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="hidden lg:flex absolute right-8 bottom-24 z-10 landing-card px-4 py-3 items-center gap-3 shadow-xl motion-safe:animate-[prelaunch-float_4.5s_ease-in-out_infinite]">
+    <div class="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+      <i class="ri-calendar-check-line text-lg" aria-hidden="true"></i>
+    </div>
+    <div>
+      <p class="text-text-primary font-headline font-semibold text-sm leading-tight">Turno confirmado</p>
+      <p class="text-text-secondary text-xs">Peluquería "La Corte" — 15:30hs</p>
+    </div>
+  </aside>
+
+  <div class="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2" data-hero-dots>
+    {PRELAUNCH_HERO_MEDIA.map((slide, index) => (
+      <button
+        type="button"
+        class="h-2 w-2 rounded-full bg-white/40 transition-all duration-500 data-[active=true]:w-8 data-[active=true]:bg-primary"
+        data-hero-dot
+        data-active={index === 0 ? 'true' : 'false'}
+        aria-label={slide.label}
+        aria-current={index === 0 ? 'true' : 'false'}
+      ></button>
+    ))}
+  </div>
+</section>
+
+<style>
+  @keyframes prelaunch-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+</style>
+
+<script>
+  const MAX_SLIDE_MS = 12_000;
+  const carousel = document.querySelector<HTMLElement>('[data-hero-carousel]');
+  const slides = Array.from(document.querySelectorAll<HTMLElement>('[data-hero-slide]'));
+  const videos = Array.from(document.querySelectorAll<HTMLVideoElement>('[data-hero-video]'));
+  const dots = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-hero-dot]'));
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let current = 0;
+  let advanceTimer = 0;
+
+  function markActive(next: number): void {
+    slides.forEach((slide, index) => {
+      slide.dataset.active = index === next ? 'true' : 'false';
+    });
+    dots.forEach((dot, index) => {
+      dot.dataset.active = index === next ? 'true' : 'false';
+      dot.setAttribute('aria-current', index === next ? 'true' : 'false');
+    });
+  }
+
+  function stopSlide(index: number): void {
+    const video = videos[index];
+    if (!video) return;
+    video.pause();
+    try {
+      video.currentTime = 0;
+    } catch {
+      /* currentTime can throw before metadata */
+    }
+  }
+
+  function playSlide(index: number): void {
+    const video = videos[index];
+    if (!video || reducedMotion) return;
+    void video.play().catch(() => undefined);
+  }
+
+  function clearAdvance(): void {
+    window.clearTimeout(advanceTimer);
+    advanceTimer = 0;
+  }
+
+  function armAdvance(): void {
+    clearAdvance();
+    if (reducedMotion || slides.length < 2) return;
+    advanceTimer = window.setTimeout(() => {
+      goTo((current + 1) % slides.length);
+    }, MAX_SLIDE_MS);
+  }
+
+  function goTo(next: number): void {
+    if (!slides.length) return;
+    const previous = current;
+    current = next;
+    if (previous !== next) {
+      markActive(next);
+      stopSlide(previous);
+    }
+    playSlide(next);
+    armAdvance();
+  }
+
+  if (carousel && slides.length) {
+    videos.forEach((video, index) => {
+      video.addEventListener('ended', () => {
+        if (reducedMotion || index !== current) return;
+        goTo((current + 1) % slides.length);
+      });
+    });
+
+    dots.forEach((dot, index) => {
+      dot.addEventListener('click', () => goTo(index));
+    });
+
+    if (!reducedMotion) {
+      playSlide(0);
+      armAdvance();
+    }
+  }
+</script>

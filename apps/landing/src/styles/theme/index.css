@@ -11,10 +11,10 @@
   }
   
   .btn-primary {
-    @apply bg-primary text-white shadow-lg shadow-primary/20 border border-primary/20;
+    @apply bg-primary text-white shadow-lg shadow-primary-glow/35 border border-primary-soft/25;
   }
   .btn-primary:hover:not(:disabled) {
-    @apply bg-primary-hover shadow-xl shadow-primary/30 transform scale-[1.02];
+    @apply bg-primary-hover shadow-xl shadow-primary-glow/45 transform scale-[1.02];
   }
   .btn-primary:active:not(:disabled) {
     @apply transform scale-95;
@@ -60,7 +60,7 @@
   .badge {
     @apply inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-all;
   }
-  .badge-primary { @apply bg-primary/10 text-primary border border-primary/20; }
+  .badge-primary { @apply bg-primary-soft/15 text-primary-soft border border-primary-soft/25; }
   .badge-success { @apply bg-success/10 text-success border border-success/20; }
   .badge-error { @apply bg-error/10 text-error border border-error/20; }
 
