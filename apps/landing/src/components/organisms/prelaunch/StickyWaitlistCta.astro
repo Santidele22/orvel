@@ -1,0 +1,58 @@
+---
+import type { CurrentFranja } from '../../../lib/waitlist';
+import { EARLY_BIRD_TOTAL_SLOTS } from '../../../lib/waitlist';
+
+interface Props {
+  franja: CurrentFranja;
+}
+
+const { franja } = Astro.props;
+const slotsCopy = franja.inBenefit
+  ? `Quedan ${franja.remainingTotal} de ${EARLY_BIRD_TOTAL_SLOTS}`
+  : 'Lista abierta · sin descuento';
+---
+
+<div
+  id="sticky-waitlist-cta"
+  class="fixed inset-x-0 bottom-0 z-40 hidden md:hidden px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-bg-primary/90 backdrop-blur-xl border-t border-border translate-y-full opacity-0 pointer-events-none transition-all duration-300 data-[visible=true]:translate-y-0 data-[visible=true]:opacity-100 data-[visible=true]:pointer-events-auto"
+  data-visible="false"
+>
+  <div class="max-w-md mx-auto flex items-center gap-3">
+    <div class="min-w-0 flex-1">
+      <strong class="block text-sm font-headline text-text-primary">Quiero mi lugar</strong>
+      <span class="block text-xs text-text-secondary">{slotsCopy}</span>
+    </div>
+    <button type="button" class="btn btn-primary js-open-waitlist shrink-0 px-4 py-2 text-xs">
+      Quiero mi lugar
+    </button>
+  </div>
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    #sticky-waitlist-cta {
+      display: block;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #sticky-waitlist-cta {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  const sticky = document.getElementById('sticky-waitlist-cta');
+  const hero = document.getElementById('prelaunch-hero');
+  if (sticky && hero && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const heroVisible = entries.some((entry) => entry.isIntersecting);
+        sticky.dataset.visible = heroVisible ? 'false' : 'true';
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(hero);
+  }
+</script>

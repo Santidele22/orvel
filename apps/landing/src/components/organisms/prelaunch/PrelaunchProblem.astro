@@ -1,0 +1,48 @@
+---
+const problems = [
+  {
+    icon: 'ri-chat-3-line',
+    title: 'Mensajes a toda hora',
+    body: 'Confirmás, reprogramás y contestás “¿tenés lugar el jueves?” mientras estás con un cliente. El celular no apaga.'
+  },
+  {
+    icon: 'ri-calendar-close-line',
+    title: 'Horarios que se pisan',
+    body: 'Una libreta, tres chats y un hueco que alguien ya tomó. Los solapes se pagan con tiempo y malestar.'
+  },
+  {
+    icon: 'ri-time-line',
+    title: 'Tiempo que no vuelve',
+    body: 'Organizar turnos no es el trabajo que elegiste. Es el costo oculto de crecer sin sistema.'
+  },
+  {
+    icon: 'ri-user-unfollow-line',
+    title: 'Ausencias sin aviso',
+    body: 'Sin recordatorio claro, el hueco aparece a último momento. La agenda se desordena otra vez.'
+  }
+];
+---
+
+<section class="landing-section-compact bg-bg-secondary" id="el-problema">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-error-ring/30 bg-error-soft/10 text-error-soft mb-4">El problema</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">Cuando el salón crece, la agenda se rompe</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Más pedidos. Más ida y vuelta. Menos tiempo para cortar, pintar o atender. No tiene que ser así.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {problems.map((item) => (
+        <article class="landing-card p-7 reveal ring-1 ring-error-ring/20">
+          <h3 class="font-headline font-bold text-lg text-text-primary mb-2 flex items-center gap-2">
+            <i class={`${item.icon} text-error-soft`} aria-hidden="true"></i>
+            {item.title}
+          </h3>
+          <p class="text-text-secondary text-sm leading-relaxed">{item.body}</p>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

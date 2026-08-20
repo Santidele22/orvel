@@ -9,9 +9,14 @@
   --color-primary: #7C3AED;
   --color-primary-hover: #6D28D9;
   --color-primary-light: #A78BFA;
+  --color-primary-soft: #C4B5FD;
+  --color-primary-glow: #8B5CF6;
 
-  --color-success: #10B981;
+  --color-success: #34D399;
+  --color-success-deep: #10B981;
   --color-error: #EF4444;
+  --color-error-soft: #F87171;
+  --color-error-ring: #F87171;
   --color-warning: #F59E0B;
 
   --color-border: #334155;
