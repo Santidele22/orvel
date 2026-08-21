@@ -29,7 +29,7 @@ describe('Contract: landing download-app section installs the dashboard PWA', ()
 
     expect(downloadApp).toMatch(/id=["']descargar["']/);
     expect(downloadApp).toMatch(/<(h1|h2)[^>]*>[\s\S]*(descarg|instal)[\s\S]*<\/(h1|h2)>/i);
-    expectVisibleAnchorTo(downloadApp, /Instalar app|Descargar app/, '/dashboard/');
+    expectVisibleAnchorTo(downloadApp, /Instalar app|Descargar app/, '/dashboard/installar');
     expect(downloadApp).not.toMatch(/play\.google\.com|apps\.apple\.com|store badge/i);
   });
 });
