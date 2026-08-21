@@ -11,9 +11,10 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideServiceWorker('ngsw-worker.js', {
+    provideServiceWorker('/dashboard/ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:3000'
+      scope: '/dashboard/',
+      registrationStrategy: 'registerImmediately'
     }),
     { provide: SUPABASE_CLIENT, useFactory: createSupabaseClient },
     {

@@ -73,4 +73,25 @@ describe('Contract: public PWA install-only page', () => {
     expect(manifest).toMatch(/"start_url":\s*"\/dashboard\/turnos"/);
     expect(manifest).toMatch(/"scope":\s*"\/dashboard\/"/);
   });
+
+  it('registers the Angular service worker at the combined-deploy dashboard path immediately', () => {
+    const config = source('src/app/app.config.ts');
+
+    expect(config).toContain("provideServiceWorker('/dashboard/ngsw-worker.js'");
+    expect(config).toContain('registerImmediately');
+    expect(config).not.toContain("provideServiceWorker('ngsw-worker.js'");
+  });
+
+  it('detects iOS and does not claim a native install dialog on that path', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const iosDetect = page.match(/iPhone\|iPad\|iPod/)?.[0] ?? '';
+    const iosBranch =
+      page.match(
+        /(?:isIos\(|iPhone\|iPad\|iPod)[\s\S]{0,500}?installFeedback\.set\((?:`[^`]*`|'[^']*'|"[^"]*")\)/,
+      )?.[0] ?? '';
+
+    expect(iosDetect).toMatch(/iPhone\|iPad\|iPod/);
+    expect(iosBranch.length).toBeGreaterThan(0);
+    expect(iosBranch).not.toContain('no ofrece el diálogo');
+  });
 });
