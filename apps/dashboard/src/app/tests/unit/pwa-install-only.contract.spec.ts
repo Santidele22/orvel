@@ -40,6 +40,31 @@ describe('Contract: public PWA install-only page', () => {
     expect(page).not.toMatch(/\/dashboard\/inicio/);
     expect(page).toContain('beforeinstallprompt');
     expect(page).toContain('prompt(');
+    expect(page).toContain('__ORVEL_DEFERRED_INSTALL_PROMPT');
+  });
+
+  it('captures beforeinstallprompt in index.html before app-root', () => {
+    const html = source('src/index.html');
+    const appRootIndex = html.indexOf('<app-root>');
+    const beforeAppRoot = html.slice(0, appRootIndex);
+
+    expect(appRootIndex).toBeGreaterThan(-1);
+    expect(beforeAppRoot).toContain('beforeinstallprompt');
+    expect(beforeAppRoot).toContain('preventDefault');
+    expect(beforeAppRoot).toContain('__ORVEL_DEFERRED_INSTALL_PROMPT');
+  });
+
+  it('shows iOS and Android manual install steps without requiring a click', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const withoutGatedHint = template.replace(
+      /@if\s*\(\s*showManualInstructions\(\)\s*\)\s*\{[\s\S]*?\}/g,
+      '',
+    );
+
+    expect(withoutGatedHint).toMatch(/Compartir/);
+    expect(withoutGatedHint).toMatch(/pantalla de inicio/i);
+    expect(withoutGatedHint).toMatch(/Android/i);
   });
 
   it('keeps the PWA manifest start_url and scope unchanged', () => {

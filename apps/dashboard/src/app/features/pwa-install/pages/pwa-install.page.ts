@@ -1,8 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, signal } from '@angular/core';
+import { Component, HostListener, OnInit, signal } from '@angular/core';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
+};
+
+type OrvelWindow = Window & {
+  __ORVEL_DEFERRED_INSTALL_PROMPT?: BeforeInstallPromptEvent;
 };
 
 @Component({
@@ -15,11 +19,12 @@ type BeforeInstallPromptEvent = Event & {
       <p>
         Instalá Orvel en tu teléfono desde el navegador. Cuando abras el ícono, ahí sí iniciás sesión.
       </p>
+      <p>
+        En Android, tocá Instalar app y confirmá el diálogo del navegador. En iOS: Compartir → Agregar a pantalla de inicio.
+      </p>
       <button type="button" (click)="installApp()">Instalar app</button>
-      @if (showManualInstructions()) {
-        <p class="pwa-install__hint">
-          En Android, el navegador te ofrece instalar. En iOS: Compartir → Agregar a pantalla de inicio.
-        </p>
+      @if (installFeedback()) {
+        <p class="pwa-install__hint">{{ installFeedback() }}</p>
       }
     </main>
   `,
@@ -66,9 +71,16 @@ type BeforeInstallPromptEvent = Event & {
     }
   `,
 })
-export class PwaInstallPage {
+export class PwaInstallPage implements OnInit {
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
-  protected readonly showManualInstructions = signal(false);
+  protected readonly installFeedback = signal('');
+
+  ngOnInit(): void {
+    const stashed = (window as OrvelWindow).__ORVEL_DEFERRED_INSTALL_PROMPT;
+    if (stashed) {
+      this.deferredPrompt = stashed;
+    }
+  }
 
   @HostListener('window:beforeinstallprompt', ['$event'])
   protected onBeforeInstallPrompt(event: Event): void {
@@ -78,11 +90,15 @@ export class PwaInstallPage {
 
   protected async installApp(): Promise<void> {
     if (!this.deferredPrompt) {
-      this.showManualInstructions.set(true);
+      this.installFeedback.set(
+        'Este navegador no ofrece el diálogo de instalación. Seguí los pasos de arriba.',
+      );
       return;
     }
 
     await this.deferredPrompt.prompt();
     this.deferredPrompt = null;
+    (window as OrvelWindow).__ORVEL_DEFERRED_INSTALL_PROMPT = undefined;
+    this.installFeedback.set('');
   }
 }
