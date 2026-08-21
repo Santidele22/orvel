@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const TEST_DIR = path.dirname(new URL(import.meta.url).pathname);
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_ROOT = path.resolve(TEST_DIR, '../../../..');
 const REPO_ROOT = path.resolve(DASHBOARD_ROOT, '../..');
 
@@ -39,13 +40,23 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(gateway).toMatch(/create_dashboard_notification_for_appointment_rescheduled/);
   });
 
-  it('renders distinct booking-user and business-client lifecycle templates through the Mailtrap outbox processor', () => {
+  it('renders distinct booking-user and business-client lifecycle templates through the Resend outbox processor', () => {
     // Arrange
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
     const sharedTemplates = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     // Act / Assert
-    expect(processor).toMatch(/MAILTRAP_API_URL/);
+    expect(processor).toMatch(/send\.api\.mailtrap\.io/);
+    expect(processor).toMatch(/api\.resend\.com\/emails/);
+    expect(processor).toMatch(/MAILTRAP_API_TOKEN/);
+    expect(processor).toMatch(/RESEND_API_KEY/);
+    const mailtrapTokenIndex = processor.search(/MAILTRAP_API_TOKEN/);
+    const resendKeyIndex = processor.search(/RESEND_API_KEY/);
+    expect(mailtrapTokenIndex).toBeGreaterThan(-1);
+    expect(resendKeyIndex).toBeGreaterThan(mailtrapTokenIndex);
+    expect(processor).toMatch(/email_provider_config_missing/);
+    expect(processor).toMatch(/mailtrap_error/);
+    expect(processor).toMatch(/resend_error/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
     // Post-1.0.1 PR #2 + 1.0.2 PR #3 (email-templates-shared): the processor no longer
