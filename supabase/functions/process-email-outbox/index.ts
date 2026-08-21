@@ -4,7 +4,7 @@ import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
 import { appointmentTimeLabel, normalizeAppointmentTemplateData, scrubTokenBearingOutboxPayload } from "../_shared/process-email-outbox-helpers.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
-const MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send";
+const RESEND_API_URL = "https://api.resend.com/emails";
 
 type AppointmentLinks = {
   view?: string | null;
@@ -230,7 +230,7 @@ async function clearOutboxClaimAfterProviderError(
   supabase: SupabaseServiceClient | null,
   record: OutboxRecord,
   claimId: string | null,
-  processingError = "mailtrap_error",
+  processingError = "resend_error",
 ): Promise<void> {
   if (!supabase || !record.id || !claimId) return;
 
@@ -302,9 +302,9 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log("Processing notification", safeLogContext(payload.record));
 
-    const apiKey = Deno.env.get("MAILTRAP_API_TOKEN") || Deno.env.get("MAILTRAP_TOKEN") || Deno.env.get("MAILTRAP_API_KEY");
-    const fromEmail = Deno.env.get("MAILTRAP_FROM_EMAIL") || "no-reply@orvel.test";
-    const fromName = Deno.env.get("MAILTRAP_FROM_NAME") || "Orvel";
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    const from = Deno.env.get("RESEND_FROM_EMAIL") || "Orvel <onboarding@resend.dev>";
+    const fromEmail = /<([^>]+)>/.exec(from)?.[1] ?? from;
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const dashboardUrl = buildDashboardUrl();
@@ -312,8 +312,8 @@ Deno.serve(async (req) => {
     const isPrivilegedEmailInvocationAuthorized = hasPrivilegedEmailInvocationAuthorization(authorizationHeader, serviceKey);
 
     if (!apiKey) {
-      console.error("MAILTRAP_API_TOKEN is missing");
-      return new Response(JSON.stringify({ error: "mailtrap_config_missing" }), { status: 500 });
+      console.error("RESEND_API_KEY is missing");
+      return new Response(JSON.stringify({ error: "resend_config_missing" }), { status: 500 });
     }
 
     const record = payload.record as OutboxRecord | undefined;
@@ -489,20 +489,20 @@ Deno.serve(async (req) => {
       }
 
       const providerSubject = sanitizeEmailSubject(subject);
-      const mailtrapPayload = {
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: to_email }],
+      const resendPayload = {
+        from,
+        to: [to_email],
         subject: providerSubject,
-        html: html,
+        html,
       };
 
-      const res = await fetch(MAILTRAP_API_URL, {
+      const res = await fetch(RESEND_API_URL, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(mailtrapPayload)
+        body: JSON.stringify(resendPayload)
       });
 
       if (!res.ok) {
@@ -512,7 +512,7 @@ Deno.serve(async (req) => {
           ...safeLogContext(record),
           provider_status: res.status,
         });
-        return new Response(JSON.stringify({ error: "mailtrap_error" }), { status: 502 });
+        return new Response(JSON.stringify({ error: "resend_error" }), { status: 502 });
       }
 
       const finalized = await markOutboxRecordSent(supabase, record, claim.claimId);
