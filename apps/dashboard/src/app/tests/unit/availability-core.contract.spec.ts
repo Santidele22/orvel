@@ -89,7 +89,9 @@ describe('Availability Core RED contract (pure logic)', () => {
   it('applies minimum booking notice relative to frozen now', async () => {
     const { computeAvailableSlots } = await loadAvailabilityCore();
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-20T09:07:00'));
+    // Canonical UTC policy (REQ-DOMAIN-1): anchor `now` at an explicit UTC
+    // instant so the min-notice filter is deterministic in every timezone.
+    vi.setSystemTime(new Date('2026-04-20T09:07:00Z'));
 
     const slots = computeAvailableSlots({
       date: '2026-04-20',

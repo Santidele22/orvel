@@ -2,6 +2,7 @@ packages:
   - apps/landing
   - apps/dashboard
   - apps/shared/*
+  - packages/*
 
 overrides:
   brace-expansion: 5.0.6

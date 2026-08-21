@@ -5,7 +5,7 @@ import {
   type CanonicalPlanCode,
   type PlanCode
 } from '../../../core/plans/plan-entitlements';
-import { type DashboardReferenceCatalog } from '../../../core/catalog/reference-catalog';
+import type { DashboardReferenceCatalog } from '@orvel/domain';
 import {
   createDashboardReferenceCatalogRepository,
   type DashboardReferenceCatalogRepository
@@ -33,7 +33,7 @@ export type LandingPlanViewModel = {
   maxMonthlyBookings: number | null;
   includedLocalesLabel: string;
   multiBranchAddOnLabel: string;
-  subscriptionProvider: 'mercado_pago';
+  subscriptionProvider: 'manual';
 };
 
 type PlanEntitlementRow = {
@@ -104,7 +104,7 @@ function fromEntitlementsMap(): LandingPlanViewModel[] {
     maxMonthlyBookings: PLAN_ENTITLEMENTS[code].maxMonthlyBookings,
     includedLocalesLabel: '1 local incluido',
     multiBranchAddOnLabel: '',
-    subscriptionProvider: 'mercado_pago'
+    subscriptionProvider: 'manual'
   }));
 }
 
@@ -135,7 +135,7 @@ function fromPlanEntitlementsRows(rows: PlanEntitlementRow[]): LandingPlanViewMo
       maxMonthlyBookings: row.max_monthly_bookings !== undefined ? row.max_monthly_bookings : staticEntitlements.maxMonthlyBookings,
       includedLocalesLabel: '1 local incluido',
       multiBranchAddOnLabel: '',
-      subscriptionProvider: 'mercado_pago'
+      subscriptionProvider: 'manual'
     });
   }
 
@@ -172,7 +172,7 @@ function fromReferenceCatalog(catalog: DashboardReferenceCatalog): LandingPlanVi
       maxMonthlyBookings: catalogPlan.maxMonthlyBookings,
       includedLocalesLabel: '1 local incluido',
       multiBranchAddOnLabel: '',
-      subscriptionProvider: 'mercado_pago'
+      subscriptionProvider: 'manual'
     };
   }).filter((plan): plan is LandingPlanViewModel => Boolean(plan));
 }

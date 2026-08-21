@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ALLOWED_SELECTED_BUSINESS_TYPES } from '../../core/auth/mock-login-business-types';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY, validateSessionSchema } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
+import { validateSessionSchema } from '../../core/auth/validate-session-schema';
 import {
   buildLandingLoginRedirect,
   canAccessDashboard,

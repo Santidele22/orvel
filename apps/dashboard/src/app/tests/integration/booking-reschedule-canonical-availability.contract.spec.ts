@@ -30,8 +30,9 @@ const BRANCH_GUARD_SEMANTICS_MIGRATION_PATH = path.join(
 );
 const TURNO_SERVICE_PATH = path.join(
   REPO_ROOT,
-  'apps/dashboard/src/app/features/booking/data-access/turno.service.ts'
+  'packages/booking/src/application/booking-scheduling.service.ts'
 );
+
 const TURNOS_LIST_PAGE_PATH = path.join(
   REPO_ROOT,
   'apps/dashboard/src/app/features/booking/pages/turnos-list.page.ts'
@@ -179,7 +180,7 @@ describe('Booking lifecycle reschedule canonical availability contract', () => {
     expect(branchScope).toMatch(/GRANT EXECUTE ON FUNCTION public\.reschedule_admin_booking\(uuid, text, uuid, uuid, text, text\) TO authenticated, service_role/i);
     expect(branchScope).toMatch(/REVOKE ALL ON FUNCTION public\.reschedule_admin_booking\(uuid, text, uuid, text, text\) FROM anon, authenticated/i);
     expect(branchScope).toMatch(/GRANT EXECUTE ON FUNCTION public\.reschedule_admin_booking\(uuid, text, uuid, text, text\) TO service_role/i);
-    expect(service).toMatch(/rpc\('reschedule_admin_booking',[\s\S]{0,180}branch_id: branchScope\.branchId/i);
+    expect(service).toMatch(/invoke\('reschedule_admin_booking',[\s\S]{0,180}branch_id: branchScope\.branchId/i);
     expect(smoke).toMatch(/INSERT INTO auth\.users/i);
     expect(smoke).toMatch(/INSERT INTO public\.business_members/i);
     expect(smoke).toMatch(/Expected ACTIVE_BRANCH_REQUIRED for business-authorized branchless admin reschedule/i);

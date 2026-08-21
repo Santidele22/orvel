@@ -62,7 +62,7 @@
     <!-- Timeline: list of MobileAppointmentCard components -->
     <section data-testid="mobile-agenda-timeline" class="flex flex-col gap-2 px-4 py-4">
       @for (turno of turnos; track turno.id) {
-        <app-mobile-appointment-card [turno]="turno" />
+        <app-mobile-appointment-card [turno]="turno" (cardTapped)="onCardTapped($event)" />
       }
     </section>
   }

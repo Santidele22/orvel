@@ -17,7 +17,7 @@ vi.mock('../../runtime/dashboard-env', () => ({
   })
 }));
 
-import { realSupabaseGateway } from './real-gateway';
+import { RealSupabaseBookingGateway } from '@orvel/booking/infrastructure';
 
 function findRepoRoot(startDir: string): string {
   let current = startDir;
@@ -36,12 +36,16 @@ function findRepoRoot(startDir: string): string {
 }
 
 const REPO_ROOT = findRepoRoot(process.cwd());
-const BOOKING_CORE_API_DIR = path.join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'api');
-const REAL_GATEWAY_SOURCE = path.join(BOOKING_CORE_API_DIR, 'supabase-booking', 'real-gateway.ts');
-const MAPPERS_SOURCE = path.join(BOOKING_CORE_API_DIR, 'supabase-booking', 'mappers.ts');
+const INFRA_DIR = path.join(REPO_ROOT, 'packages', 'booking', 'src', 'infrastructure', 'supabase');
+const REAL_GATEWAY_SOURCE = path.join(INFRA_DIR, 'real-gateway.ts');
+const MAPPERS_SOURCE = path.join(INFRA_DIR, 'mappers.ts');
 
 function source(relativePath: string): string {
-  return fs.readFileSync(path.join(BOOKING_CORE_API_DIR, relativePath), 'utf8');
+  return fs.readFileSync(path.join(INFRA_DIR, relativePath), 'utf8');
+}
+
+function makeGateway(): RealSupabaseBookingGateway {
+  return new RealSupabaseBookingGateway(createClientMock() as never);
 }
 
 function methodBody(sourceText: string, methodName: string): string {
@@ -73,7 +77,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     });
     createClientMock.mockReturnValue({ rpc });
 
-    const result = await realSupabaseGateway.queryPublicSlotAvailability({
+    const result = await makeGateway().queryPublicSlotAvailability({
       businessSlug: 'demo-salon',
       serviceId: 'service-1',
       dateIso: '2026-06-01'
@@ -111,7 +115,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     ['rescheduleAdminBooking', 'reschedule_admin_booking'],
     ['updateBookingStatus', 'update_booking_status']
   ] as const)('routes %s through the canonical backend RPC without direct bookings mutations', (methodName, rpcName) => {
-    const body = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), methodName);
+    const body = methodBody(source('real-gateway.ts'), methodName);
 
     expect(body, `real-gateway.${methodName} must call ${rpcName}`).toMatch(
       new RegExp(`\\.rpc\\(\\s*['"]${rpcName}['"]`, 'i')
@@ -160,7 +164,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     createClientMock.mockReturnValue({ rpc, from });
 
     await expect(
-      realSupabaseGateway.createPublicBooking({
+      makeGateway().createPublicBooking({
         businessSlug: 'demo-salon',
         serviceId: 'service-1',
         startsAtIso: '2026-06-01T10:00:00.000Z',
@@ -179,7 +183,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     expect(rpc).toHaveBeenNthCalledWith(1, 'create_public_booking', expect.any(Object));
     expect(rpc).toHaveBeenCalledTimes(1);
 
-    const createPublicBookingBody = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), 'createPublicBooking');
+    const createPublicBookingBody = methodBody(source('real-gateway.ts'), 'createPublicBooking');
     expect(createPublicBookingBody, 'post-create visibility must not be verified with direct bookings SELECT').not.toMatch(
       /\.from\(\s*['"](?:public\.)?bookings['"]\s*\)[\s\S]{0,500}\.select\s*\(/i
     );
@@ -199,7 +203,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     createClientMock.mockReturnValue({ rpc });
 
     await expect(
-      realSupabaseGateway.createPublicBooking({
+      makeGateway().createPublicBooking({
         businessSlug: 'demo-salon',
         serviceId: 'service-1',
         startsAtIso: '2026-06-01T10:00:00.000Z',
@@ -233,7 +237,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     createClientMock.mockReturnValue({ rpc });
 
     await expect(
-      realSupabaseGateway.createPublicBooking({
+      makeGateway().createPublicBooking({
         businessSlug: 'demo-salon',
         serviceId: 'service-1',
         startsAtIso: '2026-06-01T10:00:00.000Z',
@@ -275,7 +279,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     createClientMock.mockReturnValue({ rpc, from });
 
     await expect(
-      realSupabaseGateway.createPublicBooking({
+      makeGateway().createPublicBooking({
         businessSlug: 'demo-salon',
         serviceId: 'service-1',
         startsAtIso: '2026-06-01T10:00:00.000Z',
@@ -294,7 +298,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     expect(from).not.toHaveBeenCalledWith('notification_email_outbox');
     expect(rpc).not.toHaveBeenCalledWith('create_dashboard_notification_for_appointment_created', expect.any(Object));
 
-    const createPublicBookingBody = methodBody(source(path.join('supabase-booking', 'real-gateway.ts')), 'createPublicBooking');
+    const createPublicBookingBody = methodBody(source('real-gateway.ts'), 'createPublicBooking');
     expect(createPublicBookingBody, 'public create side effects must be owned by the database transaction').not.toMatch(
       /notification_email_outbox|create_dashboard_notification_for_appointment_created|get_booking_notification_context/i
     );
@@ -323,7 +327,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
       ...(methodName === 'rescheduleBookingByToken' ? { startsAtIso: '2026-06-01T11:00:00.000Z' } : {})
     };
 
-    await expect((realSupabaseGateway[methodName] as (input: typeof args) => Promise<unknown>)(args)).resolves.toEqual(expected);
+    await expect((makeGateway()[methodName] as (input: typeof args) => Promise<unknown>)(args)).resolves.toEqual(expected);
   });
 
   it('preserves backend remaining_capacity when mapping real availability rows', async () => {
@@ -340,7 +344,7 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     createClientMock.mockReturnValue({ rpc });
 
     await expect(
-      realSupabaseGateway.queryPublicSlotAvailability({
+      makeGateway().queryPublicSlotAvailability({
         businessSlug: 'demo-salon',
         serviceId: 'service-1',
         dateIso: '2026-06-01'

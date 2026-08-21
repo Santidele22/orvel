@@ -11,6 +11,13 @@ function readDashboardSource(relativePath: string): string {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+// chore-extract-domain-package: reference-catalog.ts moved to packages/domain.
+function readDomainSource(relativePath: string): string {
+  const filePath = path.join(monorepoRoot, 'packages', 'domain', 'src', relativePath);
+  expect(fs.existsSync(filePath), `Missing expected domain package source file: packages/domain/src/${relativePath}`).toBe(true);
+  return fs.readFileSync(filePath, 'utf8');
+}
+
 function readSupabaseSqlCorpus(): string {
   const migrationsDir = path.join(monorepoRoot, 'supabase', 'migrations');
   expect(fs.existsSync(migrationsDir), 'Missing checked-in Supabase migrations for backend contract checks').toBe(true);
@@ -34,7 +41,7 @@ function extractFunction(sql: string, functionName: string): string {
 
 describe('RED contract: dashboard core catalog is backend-first', () => {
   it('has a productive catalog gateway/service that fetches get_dashboard_reference_catalog RPC', () => {
-    const catalogSource = readDashboardSource('src/app/core/catalog/reference-catalog.ts');
+    const catalogSource = readDomainSource('reference-catalog.ts');
     const catalogGatewayCandidates = [
       'src/app/core/catalog/reference-catalog.gateway.ts',
       'src/app/core/catalog/reference-catalog.service.ts',
@@ -60,7 +67,7 @@ describe('RED contract: dashboard core catalog is backend-first', () => {
   });
 
   it('does not export a hardcoded bootstrap catalog as the productive default source of truth', () => {
-    const catalogSource = readDashboardSource('src/app/core/catalog/reference-catalog.ts');
+    const catalogSource = readDomainSource('reference-catalog.ts');
 
     expect(
       catalogSource,

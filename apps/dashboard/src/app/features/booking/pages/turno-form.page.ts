@@ -5,7 +5,11 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output, computed,
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TurnoService } from '../data-access/turno.service';
+import {
+  BookingAvailabilityService,
+  BookingCrudService,
+  BookingSchedulingService
+} from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';
@@ -22,7 +26,9 @@ import { getBranchContextService } from '../../../core/branches/branch-context.s
   styleUrl: './turno-form.page.scss'
 })
 export class TurnoFormPage implements OnInit {
-  private turnoService = inject(TurnoService);
+  private crud = inject(BookingCrudService);
+  private scheduling = inject(BookingSchedulingService);
+  private availability = inject(BookingAvailabilityService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
   private authService = inject(AuthService);
@@ -130,14 +136,15 @@ export class TurnoFormPage implements OnInit {
 
   private async loadTurno(id: string) {
     try {
-      const turno = await this.turnoService.getById(id).toPromise();
+      const items = await this.crud.getAll(this.resolveScope().branchId);
+      const turno = this.crud.getById(items, id);
       if (turno) {
-        this.clienteId.set(turno.clienteId);
-        this.servicioId.set(turno.servicioId);
+        this.clienteId.set(turno.clienteId ?? '');
+        this.servicioId.set(turno.servicioId ?? '');
         this.fecha.set(turno.fecha.toISOString().split('T')[0]);
         this.hora.set(turno.hora);
         this.duracionMinutos.set(turno.duracionMinutos);
-        this.precio.set(turno.precio);
+        this.precio.set(turno.precio ?? 0);
         this.notas.set(turno.notas || '');
         this.estado.set(turno.estado);
         
@@ -184,7 +191,7 @@ export class TurnoFormPage implements OnInit {
 
     try {
       const branchId = await this.ensureDefaultBranchScopeReady('turno');
-      const horarios = await this.turnoService.loadAvailabilityAdminSlotTimes({
+      const horarios = await this.availability.loadAvailabilityAdminSlotTimes({
         fecha: fechaDate,
         durationMinutes: this.duracionMinutos(),
         serviceId: this.servicioId() || null,
@@ -245,7 +252,6 @@ export class TurnoFormPage implements OnInit {
 
   protected resetAvailability(staleMessage?: string) {
     this.latestAvailabilityVersion += 1;
-    this.turnoService.invalidateAdminAvailability();
     this.disponibles.set([]);
     this.hora.set('');
     this.availabilityLoading.set(false);
@@ -283,12 +289,12 @@ export class TurnoFormPage implements OnInit {
           return;
         }
         // Admin-managed reschedule/edit flow
-        await this.turnoService.rescheduleByAdmin(this.turnoId()!, {
+        await this.scheduling.rescheduleByAdmin(this.turnoId()!, {
           fecha: new Date(this.fecha()),
           hora: this.hora(),
           performedBy,
           reason: this.notas() || 'Reprogramación desde formulario administrativo'
-        }).toPromise();
+        }, this.resolveScope());
       } else {
         // Create new
         const branchId = await this.ensureDefaultBranchScopeReady('turno');
@@ -304,7 +310,7 @@ export class TurnoFormPage implements OnInit {
           notas: this.notas(),
           estado: this.estado()
         };
-        await this.turnoService.create(dto).toPromise();
+        await this.scheduling.create(dto, this.resolveScope());
       }
 
       this.resetAvailability();
@@ -368,7 +374,7 @@ export class TurnoFormPage implements OnInit {
 
   private async ensureDefaultBranchScopeReady(context: 'turno' | 'disponibilidad'): Promise<string> {
     try {
-      const branchId = await this.turnoService.ensureDefaultBranchId();
+      const branchId = this.resolveScope().branchId;
       this.defaultBranchScopeReady.set(true);
       this.defaultBranchSetupError.set(null);
       return branchId;
@@ -384,6 +390,15 @@ export class TurnoFormPage implements OnInit {
 
   private currentAdminActor(): string | null {
     return this.authService.user()?.id?.trim() || null;
+  }
+
+  private resolveScope() {
+    const user = this.authService.user() as { id?: string; activeBranchId?: string } | null;
+    const userId = String(user?.id ?? '').trim();
+    const branchId = this.branchContext.getActiveBranchId() ?? user?.activeBranchId ?? '';
+    if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
+    if (!branchId) throw new Error('ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa');
+    return { userId, branchId, businessId: '', performedBy: userId };
   }
 
   protected getHorarioLabel(hora: string): string {

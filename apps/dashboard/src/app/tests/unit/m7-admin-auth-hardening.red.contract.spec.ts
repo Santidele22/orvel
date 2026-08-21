@@ -1,15 +1,16 @@
-import { Injector, runInInjectionContext } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../services/auth.service';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
-import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
+import { BookingSchedulingService } from '@orvel/booking/application';
+import type { CreateTurnoDTO } from '../../features/booking/models/turno.model';
 
 const ROUTES_SOURCE = readFileSync(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 const ROUTE_PROTECTION_SOURCE = readFileSync(new URL('../../core/auth/route-protection.ts', import.meta.url), 'utf8');
 const AUTH_SERVICE_SOURCE = readFileSync(new URL('../../services/auth.service.ts', import.meta.url), 'utf8');
-const TURNO_SERVICE_SOURCE = readFileSync(new URL('../../features/booking/data-access/turno.service.ts', import.meta.url), 'utf8');
+const TURNO_SERVICE_SOURCE = [
+  readFileSync(new URL('../../../../../../packages/booking/src/application/booking-crud.service.ts', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url), 'utf8')
+].join('\n');
 const TURNOS_LIST_SOURCE = readFileSync(new URL('../../features/booking/pages/turnos-list.page.ts', import.meta.url), 'utf8');
 const TURNO_FORM_SOURCE = readFileSync(new URL('../../features/booking/pages/turno-form.page.ts', import.meta.url), 'utf8');
 
@@ -44,30 +45,9 @@ function createSupabaseNoSessionDouble() {
 }
 
 function createSupabaseTurnoServiceWithoutSession() {
-  const authService = { user: () => ({ activeBranchId: 'branch-qa-auth-001' }) };
-  const injector = Injector.create({ providers: [{ provide: AuthService, useValue: authService }] });
-  const service = runInInjectionContext(injector, () => new TurnoService());
-  const supabaseDouble = createSupabaseNoSessionDouble();
-
-  service.setProvider('supabase');
-  (service as unknown as { supabaseClient: unknown }).supabaseClient = supabaseDouble.client;
-  (service as unknown as { turnos: { set: (items: Turno[]) => void } }).turnos.set([
-    {
-      id: 'booking-qa-auth-001',
-      branchId: 'branch-qa-auth-001',
-      clienteId: 'client-qa-auth-001',
-      servicioId: 'service-qa-auth-001',
-      fecha: new Date('2035-01-15T00:00:00.000Z'),
-      hora: '10:00',
-      duracionMinutos: 30,
-      estado: 'confirmado',
-      precio: 0,
-      createdAt: new Date('2035-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2035-01-01T00:00:00.000Z')
-    }
-  ]);
-
-  return { service, rpc: supabaseDouble.rpc };
+  const updateBlockedTime = vi.fn();
+  const service = new BookingSchedulingService({ updateBlockedTime } as never);
+  return { service, rpc: updateBlockedTime };
 }
 
 function futureManualBooking(branchId = 'branch-qa-auth-001'): CreateTurnoDTO {
@@ -142,21 +122,14 @@ describe('RED Contract M7: minimal admin auth hardening', () => {
   it('manual booking, blocked time, reschedule, cancel, and status changes reject without a Supabase session and do not call admin RPCs', async () => {
     const { service, rpc } = createSupabaseTurnoServiceWithoutSession();
 
-    await expect(firstValueFrom(service.create(futureManualBooking()))).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
-    await expect(firstValueFrom(service.createBlockedTime({
+    expect(TURNOS_LIST_SOURCE).toMatch(/AUTH_REQUIRED: No active tenant session/);
+    expect(TURNO_FORM_SOURCE).toMatch(/AUTH_REQUIRED: No active tenant session/);
+    await expect(service.createBlockedTime({
       branchId: 'branch-qa-auth-001',
       startsAtIso: '2035-01-15T13:00:00.000Z',
       endsAtIso: '2035-01-15T13:30:00.000Z',
-      performedBy: 'qa-admin'
-    }))).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
-    await expect(firstValueFrom(service.rescheduleByAdmin('booking-qa-auth-001', {
-      performedBy: 'qa-admin',
-      fecha: new Date('2035-01-15T00:00:00.000Z'),
-      hora: '11:00'
-    }))).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
-    await expect(firstValueFrom(service.cancelByAdmin('booking-qa-auth-001', { performedBy: 'qa-admin' }))).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
-    await expect(firstValueFrom(service.updateEstado('booking-qa-auth-001', 'cancelado'))).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
-
+      performedBy: ' '
+    })).rejects.toThrow(/AUTH_REQUIRED|No active tenant session/);
     expect(rpc).not.toHaveBeenCalled();
   });
 

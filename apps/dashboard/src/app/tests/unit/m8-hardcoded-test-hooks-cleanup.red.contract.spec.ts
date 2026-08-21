@@ -78,7 +78,7 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
   });
 
   it('admin action payloads do not use stale hardcoded identities, reasons, or current-time fake history defaults', () => {
-    const adminActionSource = `${turnosController}\n${readApp('features/booking/data-access/turno.service.ts')}`;
+    const adminActionSource = `${turnosController}\n${readIfExists(path.join(REPO_ROOT, 'packages/booking/src/application/booking-scheduling.service.ts'))}`;
     const mockProviderHistorySegment = sourceFrom(adminActionSource, 'private getMockProviderTurnos');
 
     expect(adminActionSource).not.toMatch(/['"]Lunch break['"]|['"]\+60min quick reschedule['"]|['"]admin-ui['"]|performedBy:\s*['"]admin['"]/i);
@@ -106,7 +106,7 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
       readApp('features/booking/pages/public/manage-booking.page.ts'),
       readApp('features/booking/pages/public/manage-booking.page.html'),
       readApp('features/booking/data-access/public-booking.service.ts'),
-      readApp('core/api/supabase-booking.api.ts'),
+      readIfExists(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/api-wrapper.ts')),
       readIfExists(path.join(APP_ROOT, 'core/api/supabase-booking.gateway.ts')),
       readIfExists(path.join(APP_ROOT, 'core/api/supabase-booking/real-gateway.ts'))
     ].join('\n');

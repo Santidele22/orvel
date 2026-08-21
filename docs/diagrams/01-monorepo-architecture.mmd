@@ -1,0 +1,68 @@
+flowchart LR
+    classDef persona fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e
+    classDef orvelBoundary fill:#faf5ff,stroke:#7c3aed,stroke-width:3px,color:#7c3aed
+    classDef landing fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0F172A
+    classDef dashboard fill:#1e293b,stroke:#7c3aed,stroke-width:2px,color:#f1f5f9
+    classDef supabaseBoundary fill:#f0fdf4,stroke:#10b981,stroke-width:3px,color:#047857
+    classDef supabaseChip fill:#d1fae5,stroke:#10b981,stroke-width:2px,color:#064e3b
+    classDef supabaseEdge fill:#a7f3d0,stroke:#10b981,stroke-width:2px,color:#064e3b
+    classDef supabaseStub fill:#fee2e2,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 3,color:#7f1d1d
+    classDef cicd fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#0F172A
+    classDef reserved fill:#fef9c3,stroke:#94a3b8,stroke-width:2px,stroke-dasharray:6 4,color:#854d0e
+    classDef external fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#0F172A
+    classDef externalLimited fill:#fef2f2,stroke:#dc2626,stroke-width:2px,stroke-dasharray:4 3,color:#7f1d1d
+
+    Visitante(("<b>Visitante</b><br/>landing visitor<br/>signup via Astro")):::persona
+    Cliente(("<b>Cliente</b><br/>end customer<br/>mobile browser<br/>/booking/:slug")):::persona
+    Operador(("<b>Operador</b><br/>business admin<br/>dashboard PWA<br/>walk-in + turnos")):::persona
+
+    SMTP["<b>SMTP</b> (external)<br/>LIMITED — signup email confirm only<br/>(PR-c3 confirm-email.ts)<br/>no transactional · no outbox"]:::externalLimited
+    Vercel["<b>Vercel</b> (external, 3 tracks)<br/>Production · QA · Preview<br/>root vercel.json build:vercel"]:::external
+
+    subgraph ORVEL["ORVEL — target post-release-2.0"]
+        direction LR
+        Landing["<b>Landing</b> (apps/landing)<br/>Astro 6.4.7 SSR + Svelte islands<br/>output: 'server' · @astrojs/vercel 10<br/>Tailwind v4<br/>Marketing + plan select + signup intent"]:::landing
+        Dashboard["<b>Dashboard</b> (apps/dashboard)<br/>Angular 21.2.x PWA<br/>@angular/service-worker 21.2.18<br/>Tailwind v3 · Vitest 4<br/>SQLite local fallback (Phase 4)<br/>start_url /dashboard/turnos<br/>scope /dashboard/<br/>display standalone · maskable 512<br/>PWA Fase 1+2 shipped (c1127a0)<br/>PWA Fase 3+4 included:<br/>· IDB walk-in queue + flush<br/>· Collision policy · queue UI pill<br/>· Playwright iPhone/Pixel · Lighthouse CI ≥ 0.90"]:::dashboard
+
+        subgraph SUPABASE["Supabase target — single-tenant MVP"]
+            direction LR
+            Auth["<b>Auth</b><br/>JWT issuer<br/>email/password + magic link<br/>RLS: (select auth.uid()) = created_by<br/>TO authenticated"]:::supabaseChip
+            Postgres["<b>Postgres</b> (5 tablas target)<br/>business_types · services<br/>professionals · professional_services<br/>business_settings (singleton id=1)<br/>+ bookings/appointments deferred to sdd-apply<br/>+ walkin_intents ledger (PWA Fase 3)"]:::supabaseChip
+            Storage["<b>Storage + Realtime</b><br/>buckets + channels"]:::supabaseChip
+            EdgeFn["<b>Edge Functions (Deno) · 12 fns target</b><br/><b>Real (3):</b><br/>create-session-handoff<br/>redeem-session-handoff<br/>appointment-reminders-24h<br/><b>Coming (PR-c3, not merged):</b><br/>confirm-email<br/><b>501 OUT_OF_MVP stubs (8):</b><br/>PR #208 stubbed MP/billing surface<br/>(full enumeration in verify report)<br/>NO billing · NO MP · NO outbox"]:::supabaseEdge
+        end
+
+        subgraph MULTIPROF["Multi-profesional modeling (NUEVO)"]
+            direction LR
+            MultiProf["<b>professionals</b> + <b>professional_services</b><br/>N:M con composite PK<br/>business_settings.auto_assign_professional<br/>FK a bookings (cuando sdd-apply lo defina)"]:::supabaseEdge
+        end
+
+        CICD["<b>CI/CD (GitHub Actions) · 3-env target</b><br/>5 workflows + promotion workflow<br/>booking-regression.yml · ci.yml<br/>deploy-promotion.yml · account-closure.yml<br/>+ mobile-regressions (Fase 4)<br/>Required checks:<br/>· dashboard-booking-regressions<br/>· dashboard-mobile-regressions (Fase 4)"]:::cicd
+        PackagesShared["<b>packages/shared</b><br/>reserved, not yet populated<br/>(only .gitkeep)"]:::reserved
+    end
+
+    Visitante -->|"HTTPS"| Landing
+    Cliente -->|"HTTPS /booking/:slug"| Dashboard
+    Operador -->|"HTTPS admin"| Dashboard
+
+    Landing -->|"Supabase JS + JWT"| Auth
+    Dashboard -->|"Supabase JS + JWT"| Auth
+    Landing -->|"read business_types / services"| Postgres
+    Dashboard -->|"RPCs: create_public_booking<br/>create_admin_manual_booking<br/>(11-arg overload w/ p_intent_id)"| Postgres
+
+    Dashboard -->|"session handoff"| EdgeFn
+
+    Landing -->|"signup confirm<br/>(PR-c3 confirm-email.ts)"| SMTP
+    EdgeFn -.->|"LIMITED<br/>signup email only"| SMTP
+
+    CICD -->|"runs tests"| Dashboard
+    CICD -->|"runs tests"| Landing
+    CICD -->|"promote dev → qa<br/>(Edge Functions + Vercel QA)"| Vercel
+    CICD -->|"promote qa → main<br/>(Edge Functions + Vercel prod)"| Vercel
+    CICD -->|"migrate orvel-qa-dev"| Postgres
+    CICD -->|"migrate orvel-main"| Postgres
+
+    Vercel -->|"hosts"| Landing
+    Vercel -->|"hosts"| Dashboard
+
+    Dashboard -.->|"read professionals<br/>+ services<br/>+ auto_assign"| MultiProf

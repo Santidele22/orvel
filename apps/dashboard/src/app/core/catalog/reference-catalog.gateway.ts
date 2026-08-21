@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
+import { createSupabaseClient } from '../runtime/supabase-client';
 import {
   DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE,
   type DashboardReferenceCatalog,

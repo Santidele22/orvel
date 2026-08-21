@@ -58,7 +58,7 @@ describe('TDD gate: zen-only MVP cleanup', () => {
     expect(onboardingBusinessStep).not.toMatch(/'industrial'|'chic'|'ink'/);
 
     const { createMockSessionFromLogin } = await import('../../core/auth/mock-login-business-types');
-    const { validateSessionSchema } = await import('../../core/auth/session-contract');
+    const { validateSessionSchema } = await import('../../core/auth/validate-session-schema');
 
     const session = createMockSessionFromLogin({
       email: 'demo@turnea.app',

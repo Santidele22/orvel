@@ -107,6 +107,12 @@ function readDashboardSource(relativePath: string): string {
   return existsSync(absolutePath) ? readFileSync(absolutePath, 'utf-8') : '';
 }
 
+// chore-extract-domain-package: reference-catalog.ts moved to packages/domain.
+function readDomainSource(relativePath: string): string {
+  const absolutePath = resolve(process.cwd(), '..', '..', 'packages', 'domain', 'src', relativePath);
+  return existsSync(absolutePath) ? readFileSync(absolutePath, 'utf-8') : '';
+}
+
 function readClientFormSources(): string {
   return [
     'src/app/features/clientes/pages/clientes.page.ts',
@@ -137,10 +143,10 @@ describe('Dashboard second bugfix slice RED contracts', () => {
 
   it('exposes every user-approved service label in the dashboard service catalog contract', () => {
     const serviceSources = [
-      'src/app/models/servicio.model.ts',
-      'src/app/features/servicios/data-access/servicio.service.ts',
-      'src/app/core/catalog/reference-catalog.ts'
-    ].map(readDashboardSource).join('\n');
+      readDashboardSource('src/app/models/servicio.model.ts'),
+      readDashboardSource('src/app/features/servicios/data-access/servicio.service.ts'),
+      readDomainSource('reference-catalog.ts')
+    ].join('\n');
 
     for (const [category, services] of Object.entries(EXACT_BUSINESS_SERVICE_CATALOG)) {
       expect(serviceSources, `Missing category ${category}`).toContain(category);
