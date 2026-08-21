@@ -7,7 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 describe('Contract: landing pricing and signup navigation hotfix', () => {
   it('renders FREE in home pricing instead of filtering it out', () => {
     const pricing = source('src/components/organisms/Pricing.astro');
-    const index = source('src/pages/lanzamiento.astro');
+    const index = source('src/pages/index.astro');
     const planCard = source('src/components/molecules/PlanCard.astro');
 
     expect(pricing).toContain('plansWithBilling.map');
