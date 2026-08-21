@@ -5,7 +5,7 @@ export function createPaymentConfirmedBusinessSync(deps: {
   subscriptions: {
     upsertFromPayment: (input: {
       businessId: string;
-      provider: 'mercado_pago';
+      provider: 'manual';
       providerPaymentId: string;
       externalReference: string;
       planCode: PlanCode;
@@ -26,7 +26,7 @@ export function createPaymentConfirmedBusinessSync(deps: {
   return {
     apply: async (input: {
       businessId: string;
-      provider: 'mercado_pago';
+      provider: 'manual';
       providerPaymentId: string;
       externalReference: string;
       reconciledStatus: ReconciledPaymentStatus;

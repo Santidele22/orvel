@@ -67,10 +67,11 @@ function isDueForClosure(subscription: CurrentSubscription, nowDate: Date): bool
   return Number.isFinite(paidThroughMs) && paidThroughMs <= nowDate.getTime();
 }
 
-function requiresProviderClosureEvidence(subscription: CurrentSubscription): boolean {
-  const provider = String(subscription.provider || "mercado_pago").toLowerCase();
-  const planCode = String(subscription.plan_code || "").toLowerCase();
-  return provider === "mercado_pago" && !["free", "gratis", "none"].includes(planCode);
+function requiresProviderClosureEvidence(_subscription: CurrentSubscription): boolean {
+  // All closures are treated as manual/local: provider-cancelled evidence is
+  // never recorded anymore (MP preapproval gutted), so requiring it would
+  // deadlock every paid-account closure.
+  return false;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -468,7 +469,7 @@ export async function processDueAccountClosures(input: {
     }
 
     const providerEvidenceRequired = requiresProviderClosureEvidence(subscription);
-    if (!evidence.scheduled || (providerEvidenceRequired && !evidence.providerCancelled)) {
+    if (!evidence.scheduled) {
       await recordAccountClosureEvent({
         supabaseAdmin: input.supabaseAdmin,
         subscription,
@@ -476,7 +477,7 @@ export async function processDueAccountClosures(input: {
         eventType: "account.cancellation_closure_failed",
         occurredAt,
         payload: {
-          failure_reason: !evidence.scheduled ? "scheduled_evidence_missing" : "provider_cancelled_evidence_missing",
+          failure_reason: "scheduled_evidence_missing",
         },
         transitionAction: "ACCOUNT_CLOSURE_FAILED",
       });
@@ -484,7 +485,7 @@ export async function processDueAccountClosures(input: {
         subscriptionId,
         businessId,
         status: "failed",
-        reason: !evidence.scheduled ? "scheduled_evidence_missing" : "provider_cancelled_evidence_missing",
+        reason: "scheduled_evidence_missing",
       });
       continue;
     }

@@ -84,12 +84,12 @@ type SupabaseBookingApiModule = {
 };
 
 async function loadSupabaseBookingApi(): Promise<SupabaseBookingApiModule> {
-  const mod = await import('../../core/api/supabase-booking.api');
+  const mod = await import('@orvel/booking/infrastructure');
   return mod as SupabaseBookingApiModule;
 }
 
 function readBookingApiSource(): string {
-  const sourcePath = resolve(process.cwd(), 'src/app/core/api/supabase-booking.api.ts');
+  const sourcePath = resolve(process.cwd(), '../../packages/booking/src/infrastructure/supabase/api-wrapper.ts');
   return existsSync(sourcePath) ? readFileSync(sourcePath, 'utf-8') : '';
 }
 
@@ -301,7 +301,7 @@ describe('KB-011.1 - Public business lookup by slug', () => {
 
 describe('KB-011.2 - Public slot availability query', () => {
   it('KB-011.2.1 @RED - exports a public slot availability query function', async () => {
-    const apiModule = await import('../../core/api/supabase-booking.api');
+    const apiModule = await import('@orvel/booking/infrastructure');
     const maybeApi = apiModule as Record<string, unknown>;
 
     expect(typeof maybeApi.queryPublicSlotAvailability).toBe('function');
@@ -316,7 +316,7 @@ describe('KB-011.2 - Public slot availability query', () => {
   });
 
   it('KB-011.2.3 @RED - availability response contract includes deterministic slot list shape', async () => {
-    const apiModule = (await import('../../core/api/supabase-booking.api')) as Record<string, unknown>;
+    const apiModule = (await import('@orvel/booking/infrastructure')) as Record<string, unknown>;
     const fn = apiModule.queryPublicSlotAvailability as
       | ((input: unknown) => Promise<{ status: number; data?: { slots: Array<{ startsAtIso: string; endsAtIso: string }> } }>)
       | undefined;
@@ -452,7 +452,7 @@ describe('KB-011.4 - Booking manage by token (read/cancel/reschedule policy)', (
   });
 
   it('KB-011.4.3 @RED - exposes cancelBookingByToken and rescheduleBookingByToken contracts', async () => {
-    const apiModule = await import('../../core/api/supabase-booking.api');
+    const apiModule = await import('@orvel/booking/infrastructure');
     const maybeApi = apiModule as Record<string, unknown>;
 
     expect(typeof maybeApi.cancelBookingByToken).toBe('function');

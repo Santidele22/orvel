@@ -42,7 +42,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
       })
     }));
 
-    const { realSupabaseGateway } = await import('../../core/api/supabase-booking/real-gateway');
+    const { RealSupabaseBookingGateway } = await import('@orvel/booking/infrastructure');
+    const realSupabaseGateway = new RealSupabaseBookingGateway({ rpc: rpcSpy } as never);
 
     await realSupabaseGateway.createPublicBooking({
       businessSlug: 'studio-roma',
@@ -99,7 +100,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
 
   it('fix-forward migration keeps public bookings listable under default branch context and backfills bell notifications', () => {
     const migrationSql = readSource('supabase/migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql');
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const turnoServiceSource = readSource('../../packages/booking/src/application/booking-crud.service.ts');
 
     expect(migrationSql).toMatch(/create\s+or\s+replace\s+function\s+public\.list_admin_bookings/i);
     expect(migrationSql).toMatch(/coalesce\(br\.is_active,\s*true\)\s+is\s+true/i);
@@ -137,7 +138,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
       })
     }));
 
-    const { realSupabaseGateway } = await import('../../core/api/supabase-booking/real-gateway');
+    const { RealSupabaseBookingGateway } = await import('@orvel/booking/infrastructure');
+    const realSupabaseGateway = new RealSupabaseBookingGateway({ rpc: rpcSpy } as never);
 
     await expect(
       realSupabaseGateway.createPublicBooking({
@@ -159,8 +161,8 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('browser public create does not queue success email or bell notification outside the booking RPC', () => {
-    const gatewaySource = readSource('src/app/core/api/supabase-booking/real-gateway.ts');
-    const createPublicBookingBody = gatewaySource.match(/async createPublicBooking\(payload\) \{([\s\S]*?)\n    \} catch \(err\) \{/m)?.[1] ?? '';
+    const gatewaySource = readSource('packages/booking/src/infrastructure/supabase/real-gateway.ts');
+    const createPublicBookingBody = gatewaySource.match(/async createPublicBooking\(payload[\s\S]*?\) \{([\s\S]*?)\n    \} catch \(err\) \{/m)?.[1] ?? '';
 
     expect(createPublicBookingBody).toMatch(/rpc\('create_public_booking'/);
     expect(createPublicBookingBody).not.toMatch(/notification_email_outbox/i);
@@ -169,7 +171,7 @@ describe('KB-003 RED - public booking contract, persistence chain, and dashboard
   });
 
   it('appointments/home pipelines must resolve tenant business_id and avoid direct auth uid filtering', () => {
-    const turnoServiceSource = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const turnoServiceSource = readSource('../../packages/booking/src/application/booking-crud.service.ts');
     const clienteServiceSource = readSource('src/app/features/clientes/data-access/cliente.service.ts');
 
     expect(turnoServiceSource).toMatch(/(resolve|load|get)\w*business\w*id/i);

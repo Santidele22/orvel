@@ -1,6 +1,6 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, inject, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { useDayStripController } from '../../../../shared/hooks/use-day-strip-controller/use-day-strip-controller';
 import { MobileAppointmentCardComponent } from '../mobile-appointment-card/mobile-appointment-card.component';
 import type { TurnoWithRelations } from '../../models/turno.model';
@@ -25,6 +25,9 @@ export class MobileAgendaDayViewComponent {
 
   /** Hardcoded loading flag. */
   @Input() loading = false;
+
+  /** Router for programmatic navigation to detail page. */
+  private readonly router = inject(Router);
 
   /** Emit when the user selects a different day from the strip. */
   @Output() selectedDateChange = new EventEmitter<Date>();
@@ -76,5 +79,10 @@ export class MobileAgendaDayViewComponent {
   /** True when the filtered list is empty (show empty state). */
   protected get isEmpty(): boolean {
     return this.turnos.length === 0;
+  }
+
+  /** Navigate to the turno detail page, passing the full payload via router state. */
+  protected onCardTapped(turno: TurnoWithRelations): void {
+    this.router.navigate(['/dashboard/turnos', turno.id], { state: { turno } });
   }
 }

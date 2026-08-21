@@ -11,7 +11,11 @@ import { ActivatedRoute } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { TurnoFormPage } from './turno-form.page';
-import { TurnoService } from '../data-access/turno.service';
+import {
+  BookingAvailabilityService,
+  BookingCrudService,
+  BookingSchedulingService
+} from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';
@@ -57,8 +61,9 @@ describe('TurnoFormPage walk-in behavior', () => {
     const branchContext = getBranchContextService() as any;
     branchContext.ensureLoaded = vi.fn().mockResolvedValue(undefined);
     branchContext.requiresExplicitSelection = vi.fn(() => false);
+    branchContext.getActiveBranchId = vi.fn(() => 'branch-1');
     branchContext.branches = signal([]).asReadonly();
-    branchContext.activeBranchId = signal(null).asReadonly();
+    branchContext.activeBranchId = signal('branch-1').asReadonly();
     branchContext.setActiveBranch = vi.fn(() => true);
 
     const clients = signal(mockClients);
@@ -90,12 +95,23 @@ describe('TurnoFormPage walk-in behavior', () => {
           }
         },
         {
-          provide: TurnoService,
+          provide: BookingCrudService,
           useValue: {
-            ensureDefaultBranchId: vi.fn().mockResolvedValue('branch-1'),
-            loadAvailabilityAdminSlotTimes: vi.fn().mockResolvedValue(['10:00', '10:30']),
-            invalidateAdminAvailability: vi.fn(),
-            create: vi.fn(() => of({}))
+            getAll: vi.fn().mockResolvedValue([]),
+            getById: vi.fn()
+          }
+        },
+        {
+          provide: BookingSchedulingService,
+          useValue: {
+            create: vi.fn().mockResolvedValue({ bookingId: 'b-1', status: 'booked' }),
+            rescheduleByAdmin: vi.fn().mockResolvedValue({ bookingId: 'b-1', status: 'booked' })
+          }
+        },
+        {
+          provide: BookingAvailabilityService,
+          useValue: {
+            loadAvailabilityAdminSlotTimes: vi.fn().mockResolvedValue(['10:00', '10:30'])
           }
         },
         {

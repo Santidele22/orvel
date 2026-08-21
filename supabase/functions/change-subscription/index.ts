@@ -5,9 +5,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getBillingCorsHeaders, rejectDisallowedBrowserOrigin, requireServerSecret } from "../_shared/billing-security.ts";
 import { normalizeCanonicalPlanCode } from "../_shared/canonical-plan-codes.ts";
-import { normalizeCadence, normalizeTier, resolvePlanCatalogRow } from "../_shared/mp-plan-catalog.ts";
-import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
-import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -37,25 +34,10 @@ function isRateLimited(req: Request): boolean {
   return false;
 }
 
-// Mercado Pago API URLs
-const MP_API_BASE = "https://api.mercadopago.com";
-const MP_PREAPPROVAL_ENDPOINT = "/preapproval";
-
 interface ChangeSubscriptionRequest {
   business_id: string;
   new_plan_code: string;
   cadence?: string;
-}
-
-async function sha256Text(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function createOpaqueSubscriptionSessionToken(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 Deno.serve(async (req) => {
@@ -221,10 +203,9 @@ Deno.serve(async (req) => {
       updated_at: now.toISOString(),
     };
 
-    let initPoint: string | null = null;
     let message = "Plan cambiado exitosamente";
 
-    // Case 1: Downgrading to free or cheaper plan
+    // Case 1: Downgrading to free or cheaper plan (local scheduled change)
     if ((isDowngrade || isFreePlan) && currentSubscription.mp_preapproval_id) {
       updateData = {
         ...updateData,
@@ -232,175 +213,17 @@ Deno.serve(async (req) => {
         cancel_at_period_end: true,
       };
 
-      const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-      if (mpAccessToken) {
-        const cancelResponse = await fetch(`${MP_API_BASE}${MP_PREAPPROVAL_ENDPOINT}/${currentSubscription.mp_preapproval_id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${mpAccessToken}`,
-          },
-          body: JSON.stringify({ status: "cancelled" }),
-        });
-
-        if (!cancelResponse.ok) {
-          console.error("Mercado Pago cancel/pause alignment failed:", cancelResponse.status);
-          return new Response(
-            JSON.stringify({ error: "MP_CANCEL_FAILED", message: "No se pudo programar la cancelación en Mercado Pago" }),
-            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
-
       message = "Plan downgrade programado. Se cancelará al final del período actual.";
     }
-    // Case 2: Upgrading to a higher tier
+    // Case 2: Upgrading to a higher tier requires manual coordination
     else if (isUpgrade && !isFreePlan) {
-      const mpAccessToken = Deno.env.get("MP_ACCESS_TOKEN");
-      if (!mpAccessToken) {
-        return new Response(
-          JSON.stringify({ error: "MP_CONFIG_ERROR", message: "Mercado Pago no configurado" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Calculate billing dates
-      const nextBillingDate = new Date(now.getTime() + newPlan.duration_days * 24 * 60 * 60 * 1000);
-
-      const normalizedTier = normalizeTier(newPlan.code);
-      const normalizedCadence = normalizeCadence(cadence || "monthly") || "monthly";
-      if (!normalizedTier) {
-        return new Response(
-          JSON.stringify({ error: "INVALID_PLAN_TIER", message: "No se pudo mapear el tier del plan de destino" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const { data: catalogRows, error: catalogError } = await supabaseAdmin
-        .from("mp_plan_catalog")
-        .select("id, tier, cadence, tier_code, preapproval_plan_id")
-        .eq("tier", normalizedTier)
-        .eq("cadence", normalizedCadence)
-        .limit(1);
-
-      if (catalogError) {
-        return new Response(
-          JSON.stringify({ error: "PLAN_CATALOG_READ_FAILED", message: "No se pudo leer mp_plan_catalog" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const resolvedCatalogRow = resolvePlanCatalogRow(catalogRows ?? [], normalizedTier, normalizedCadence);
-      const resolvedPreapprovalPlanId = resolvedCatalogRow?.preapproval_plan_id;
-      if (!resolvedPreapprovalPlanId) {
-        return new Response(
-          JSON.stringify({ error: "PREAPPROVAL_PLAN_NOT_SYNCED", message: "Plan no sincronizado con Mercado Pago" }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
-      const externalReference = createSubscriptionSessionReference(subscriptionSessionToken);
-      const subscriptionSessionExpiresAt = new Date(now.getTime() + 30 * 60 * 1000);
-
-      const { data: subscriptionSession, error: subscriptionSessionError } = await supabaseAdmin
-        .from("billing_checkout_sessions")
-        .insert({
-          tenant_id: business.owner_id,
-          business_id: business.id,
-          plan_code: newPlan.code,
-          expected_amount: newPlan.price,
-          expected_currency: newPlan.currency,
-          provider: "mercado_pago",
-          external_reference: externalReference,
-          token_hash: await sha256Text(subscriptionSessionToken),
-          expires_at: subscriptionSessionExpiresAt.toISOString(),
-          created_by: user.id,
-        })
-        .select("id, external_reference")
-        .single();
-
-      if (subscriptionSessionError || !subscriptionSession) {
-        console.error("Subscription session insert error:", subscriptionSessionError?.message);
-        return new Response(
-          JSON.stringify({ error: "SUBSCRIPTION_SESSION_FAILED", message: "Error al crear sesión segura de suscripción" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Build MP preapproval request
-      const mpPreapprovalRequest = {
-        payer_email: user.email,
-        back_url: buildDashboardUrl("billing/success"),
-        reason: `${newPlan.name} - Salon De Belleza (Upgrade)`,
-        external_reference: externalReference,
-        site_id: "MLA",
-        preapproval_plan_id: resolvedPreapprovalPlanId,
-        status: "pending",
-      };
-
-      // Create preapproval in Mercado Pago
-      const mpResponse = await fetch(`${MP_API_BASE}${MP_PREAPPROVAL_ENDPOINT}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${mpAccessToken}`,
-        },
-        body: JSON.stringify(mpPreapprovalRequest),
-      });
-
-      if (!mpResponse.ok) {
-        const errorText = await mpResponse.text();
-        console.error("Mercado Pago API Error:", errorText);
-        return new Response(
-          JSON.stringify({ error: "MP_API_ERROR", message: "Error al crear pre-aprobación en Mercado Pago" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const mpData = await mpResponse.json();
-
-      if (!mpData.id || !mpData.init_point) {
-        return new Response(
-          JSON.stringify({ error: "MP_INVALID_RESPONSE", message: "Respuesta inválida de Mercado Pago" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      await supabaseAdmin
-        .from("billing_checkout_sessions")
-        .update({
-          provider_preference_id: mpData.id,
-          provider_resource_id: mpData.id,
-          provider_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || null,
-          status: "provider_created",
-        })
-        .eq("id", subscriptionSession.id);
-
-      // Update subscription with new preapproval
-      updateData = {
-        ...updateData,
-        status: "pending",
-        mp_preapproval_id: mpData.id,
-        mp_preapproval_status: mpData.status || "pending",
-        provider: "mercado_pago",
-        provider_subscription_id: mpData.id,
-        provider_plan_id: mpData.preapproval_plan_id || mpData.preapproval_plan?.id || null,
-        tenant_id: business.owner_id,
-        current_period_start: now.toISOString(),
-        next_billing_date: nextBillingDate.toISOString(),
-      };
-
-      // Detect if using test token to return appropriate init_point
-      // Mercado Pago returns BOTH init_point (production) AND sandbox_init_point (test)
-      // Test tokens start with "TEST-" prefix
-      const isTestMode = mpAccessToken.startsWith("TEST-");
-      const effectiveInitPoint = isTestMode && mpData.sandbox_init_point
-        ? mpData.sandbox_init_point
-        : mpData.init_point;
-
-      initPoint = effectiveInitPoint;
-      message = "_redirect_to_mercadopago";
+      return new Response(
+        JSON.stringify({
+          error: "PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED",
+          message: "Contactá a soporte para coordinar el cambio de plan.",
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     // Case 3: Same plan without existing MP
     else if (isFreePlan) {
@@ -444,20 +267,12 @@ Deno.serve(async (req) => {
     // =============================================================================
     // 9. RETURN RESPONSE
     // =============================================================================
-    // Add sandbox_init_point field when in test mode for clarity
     const responsePayload: Record<string, unknown> = {
       success: true,
       subscription: updatedSubscription,
-      init_point: initPoint,
       message: message,
       change_type: isUpgrade ? "upgrade" : (isDowngrade || isFreePlan) ? "downgrade" : "same_tier",
     };
-
-    // Include sandbox_init_point when in test mode
-    const mpAccessTokenForResponse = Deno.env.get("MP_ACCESS_TOKEN") || "";
-    if (mpAccessTokenForResponse.startsWith("TEST-") && initPoint) {
-      responsePayload.sandbox_init_point = initPoint;
-    }
 
     return new Response(
       JSON.stringify(responsePayload),

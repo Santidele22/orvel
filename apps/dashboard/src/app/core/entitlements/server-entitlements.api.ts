@@ -177,7 +177,7 @@ export async function getBusinessEntitlementsSnapshot(input: {
 }
 
 export async function createDefaultServerEntitlementsRepository(): Promise<ServerEntitlementsRepository> {
-  const { createSupabaseClient } = await import('../api/supabase-booking/real-gateway');
+  const { createSupabaseClient } = await import('../runtime/supabase-client');
   return createServerEntitlementsRepository(createSupabaseClient());
 }
 

@@ -13,7 +13,7 @@ import {
   getPlanEntitlements,
   normalizePlanCode
 } from '../../core/plans/plan-entitlements';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 
 const supabaseAuthClientMock = {
   getSession: vi.fn(),

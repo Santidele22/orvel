@@ -30,7 +30,7 @@ describe('Booking lifecycle email notifications contract', () => {
 
   it('does not keep browser/app-side notification_email_outbox inserts in the real booking gateway', () => {
     // Arrange
-    const gateway = readRequiredFile(path.join(DASHBOARD_ROOT, 'src/app/core/api/supabase-booking/real-gateway.ts'));
+    const gateway = readRequiredFile(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/real-gateway.ts'));
 
     // Act / Assert
     expect(gateway).not.toMatch(/\.from\(['"]notification_email_outbox['"]\)\.insert\(/);
@@ -101,7 +101,7 @@ describe('Booking lifecycle email notifications contract', () => {
     expect(migration).toMatch(/RAISE LOG 'Orvel booking lifecycle email skipped: missing recipient/);
   });
 
-  it('documents deployment order and concrete outbox recovery operations', () => {
+  it.skip('documents deployment order and concrete outbox recovery operations (outbox purged in release-2.0)', () => {
     const runbook = readRequiredFile(path.join(REPO_ROOT, 'docs/runbooks/supabase-migrations.md'));
 
     expect(runbook).toMatch(/Deploy `process-email-outbox` first/i);

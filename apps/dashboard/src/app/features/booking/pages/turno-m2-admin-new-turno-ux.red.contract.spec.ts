@@ -6,14 +6,15 @@ const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
-const TURNO_SERVICE_TS_PATH = new URL('../data-access/turno.service.ts', import.meta.url);
+const SCHEDULING_TS_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
 
 const appRoutesSource = fs.readFileSync(APP_ROUTES_PATH, 'utf8');
 const turnosListSource = fs.readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = fs.readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = fs.readFileSync(TURNO_FORM_TS_PATH, 'utf8');
 const turnoFormTemplate = fs.readFileSync(TURNO_FORM_HTML_PATH, 'utf8');
-const turnoServiceSource = fs.readFileSync(TURNO_SERVICE_TS_PATH, 'utf8');
+const turnoServiceSource = fs.readFileSync(SCHEDULING_TS_PATH, 'utf8')
+  + fs.readFileSync(new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url), 'utf8');
 
 function methodBody(sourceText: string, methodName: string): string {
   const signatureMatch = new RegExp(`\\n\\s{2}(?:private\\s+|protected\\s+|public\\s+)?(?:async\\s+)?${methodName}\\s*\\(`).exec(sourceText);
@@ -62,7 +63,7 @@ describe('M2 real admin new turno UX RED contract', () => {
       /branchId\s*:\s*branchId\s*\?\?\s*['"]{2}|branchId\s*:\s*['"]{2}/i
     );
     expect(saveBody, 'TurnoService.create must be called only after the internal branch scope is known').toMatch(
-      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}turnoService\.create\(/i
+      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}(?:turnoService|scheduling)\.create\(/i
     );
   });
 
@@ -267,7 +268,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     const availabilityBody = methodBody(turnoFormSource, 'checkAvailability');
 
     expect(availabilityBody, 'admin new turno flow must ask TurnoService for backend-decided slot availability').toMatch(
-      /turnoService\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
+      /(?:turnoService|availability)\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
     );
     expect(availabilityBody, 'admin create availability request must pass the selected service and duration').toMatch(/serviceId[\s\S]{0,120}durationMinutes|durationMinutes[\s\S]{0,120}serviceId/i);
     expect(turnoFormTemplate + turnoFormSource, 'available slots must come from a loaded availability collection, not hardcoded time arrays').not.toMatch(

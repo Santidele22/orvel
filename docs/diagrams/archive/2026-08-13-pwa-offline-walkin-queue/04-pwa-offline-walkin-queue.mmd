@@ -1,0 +1,124 @@
+%% 04 — PWA offline walk-in queue — sequence diagram
+%% Primary: flowchart LR (converts to Excalidraw via @excalidraw/mermaid-to-excalidraw)
+%% Source of truth: openspec/changes/release-1-0-3-pwa/specs/pwa-offline-walkin-queue/spec.md
+%% REQ IDs quoted verbatim: REQ-OWQ-1, REQ-OWQ-2, REQ-OWQ-3, REQ-OWQ-4, REQ-OWQ-5, REQ-OWQ-6, REQ-OWQ-7, REQ-OWQ-8, REQ-OWQ-9, REQ-OWQ-10
+%%
+%% Alternative sequenceDiagram view (kept for documentation, NOT parsed as primary):
+%%
+%% sequenceDiagram
+%%     autonumber
+%%     participant Op as Operador
+%%     participant TF as TurnoFormPage
+%%     participant QS as WalkinQueueService
+%%     participant DID as WalkinDeviceIdService
+%%     participant IDB as IDB store
+%%     participant FS as WalkinQueueFlushService
+%%     participant RPC as create_admin_manual_booking
+%%     participant LED as walkin_intents ledger
+%%     participant UI as Toast UI
+%%     Note over Op,UI: REQ-OWQ-9 — page context only. Service Worker does NOT host flush.
+%%     Op->>TF: submit() [OFFLINE]
+%%     TF->>QS: enqueue(intent)
+%%     QS->>DID: getDeviceId() [localStorage]
+%%     DID-->>QS: deviceId UUID [NEVER sent REQ-OWQ-10]
+%%     QS->>IDB: put({...status:'pending', attempts:0})
+%%     IDB-->>QS: persisted
+%%     QS->>UI: toast "Guardado en cola"
+%%     Note over FS: trigger: navigator.onLine=true OR manual 'Enviar ahora' (REQ-OWQ-4)
+%%     FS->>IDB: index('status=pending').openCursor() by createdAt
+%%     IDB-->>FS: pending intents in order
+%%     loop each pending intent
+%%         FS->>IDB: update({status:'syncing', attempts++})
+%%         FS->>RPC: POST create_admin_manual_booking(...args, p_intent_id) [REQ-OWQ-3 + REQ-OWQ-5]
+%%         alt 2xx OK (HAPPY PATH)
+%%             RPC->>LED: INSERT walkin_intents ON CONFLICT DO NOTHING
+%%             LED-->>RPC: persisted
+%%             RPC-->>FS: appointment_id
+%%             FS->>IDB: update({status:'synced', appointment_id})
+%%             FS->>UI: toast "Turno #N creado"
+%%         else 4xx slot conflict (REQ-OWQ-6)
+%%             RPC-->>FS: 4xx SLOT_CONFLICT
+%%             FS->>IDB: update({status:'failed', lastError:'SLOT_CONFLICT'})
+%%             FS->>UI: toast "Ese horario ya fue reservado..."
+%%             Note over FS: MUST NOT retry, draft, or modal
+%%         else 5xx / timeout (REQ-OWQ-7)
+%%             RPC-->>FS: 5xx / timeout
+%%             alt attempts < 3
+%%                 FS->>IDB: update({status:'pending'})
+%%                 Note over FS: backoff 1s/4s/16s — retry on next flush
+%%             else attempts = 3
+%%                 FS->>IDB: update({status:'failed', lastError:'EXHAUSTED'})
+%%             end
+%%         end
+%%     end
+
+flowchart LR
+    classDef op fill:#fef3c7,stroke:#f59e0b,stroke-width:2px,color:#92400e
+    classDef svc fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0F172A
+    classDef idb fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px,color:#0F172A
+    classDef rpc fill:#d1fae5,stroke:#10b981,stroke-width:2px,color:#064e3b
+    classDef ledger fill:#a7f3d0,stroke:#10b981,stroke-width:2px,color:#064e3b
+    classDef toast fill:#fef9c3,stroke:#94a3b8,stroke-width:2px,color:#854d0e
+    classDef swEmpty fill:#fee2e2,stroke:#dc2626,stroke-width:2px,stroke-dasharray:6 4,color:#7f1d1d
+    classDef boundary fill:transparent,stroke:#475569,stroke-width:2px,stroke-dasharray:4 4,color:#475569
+
+    OP(("Operador<br/>operator<br/>device")):::op
+
+    subgraph DASHBOARD["Dashboard — Angular PWA — page context"]
+        TF["<b>TurnoFormPage</b><br/>submit()"]:::svc
+        QS["<b>WalkinQueueService</b><br/>enqueue(intent)"]:::svc
+        FS["<b>WalkinQueueFlushService</b><br/>flushPending() / flushNow()"]:::svc
+        DID["<b>WalkinDeviceIdService</b><br/>getDeviceId() — localStorage"]:::svc
+    end
+
+    IDB[("<b>IDB: orvel-walkin-queue v1</b><br/>store: intents — keyPath: intentId (UUID v4)<br/>indexes: status · createdAt · attempts<br/>REQ-OWQ-1")]:::idb
+
+    subgraph BACKEND["Supabase — outside page context"]
+        RPC["<b>create_admin_manual_booking</b><br/>RPC — 11-arg overload<br/>p_intent_id uuid DEFAULT NULL<br/>REQ-OWQ-3"]:::rpc
+        LED["<b>walkin_intents</b> ledger<br/>intent_id PK · appointment_id<br/>ON CONFLICT (intent_id) DO NOTHING<br/>RLS disabled"]:::ledger
+    end
+
+    TOAST["<b>Toast UI</b><br/>page-context feedback<br/>REQ-OWQ-6"]:::toast
+
+    SW["<b>Service Worker area</b><br/>INTENTIONALLY EMPTY<br/>REQ-OWQ-9 page-context only<br/>iOS has no Background Sync"]:::swEmpty
+
+    BOUNDARY["─ ─ ─ page context boundary ─ ─ ─<br/>flush runs from page only<br/>REQ-OWQ-9"]:::boundary
+
+    %% ===== Step 1: OFFLINE submit path (REQ-OWQ-2) =====
+    OP -->|"1. submit<br/>(offline)"| TF
+    TF -->|"2. enqueue(intent)"| QS
+    QS -->|"3. getDeviceId()"| DID
+    DID -.->|"deviceId UUID<br/>NEVER sent REQ-OWQ-10"| QS
+    QS -->|"4. put({status:'pending',<br/>attempts:0, deviceId})"| IDB
+    IDB -.->|"persisted"| QS
+    QS -->|"5. toast<br/>Guardado en cola"| TOAST
+
+    %% ===== Step 2: ONLINE flush trigger (REQ-OWQ-3 / REQ-OWQ-4) =====
+    OP -.->|"6. navigator.onLine=true<br/>OR manual 'Enviar ahora'"| FS
+    FS -->|"7. index('status=pending')<br/>openCursor() by createdAt"| IDB
+    IDB -.->|"pending intents (ordered)"| FS
+
+    %% ===== Step 3: per-intent flush loop =====
+    FS -->|"8. update({status:'syncing',<br/>attempts:++})"| IDB
+    FS ==>|"9. POST create_admin_manual_booking<br/>(11 args + p_intent_id)<br/>REQ-OWQ-5"| RPC
+
+    %% ===== HAPPY PATH (2xx) =====
+    RPC ==>|"10. INSERT walkin_intents<br/>ON CONFLICT DO NOTHING"| LED
+    LED -.->|"persisted"| RPC
+    RPC -.->|"11. appointment_id"| FS
+    FS -->|"12. update({status:'synced',<br/>appointment_id})"| IDB
+    FS -->|"13. toast<br/>Turno #N creado"| TOAST
+
+    %% ===== COLLISION PATH (4xx, REQ-OWQ-6) =====
+    RPC -.->|"14. 4xx SLOT_CONFLICT"| FS
+    FS -->|"15. update({status:'failed',<br/>lastError:'SLOT_CONFLICT'})"| IDB
+    FS -->|"16. toast<br/>Ese horario ya fue reservado.<br/>Cargalo de nuevo... "| TOAST
+    FS -.->|"MUST NOT retry<br/>draft or modal REQ-OWQ-6"| FS
+
+    %% ===== RETRY PATH (5xx / timeout, REQ-OWQ-7) =====
+    RPC -.->|"17. 5xx / timeout"| FS
+    FS -->|"18. attempts<3<br/>update back to status:'pending'<br/>backoff 1s/4s/16s"| IDB
+    FS -->|"19. attempts=3<br/>update {status:'failed',<br/>lastError:'EXHAUSTED'}"| IDB
+
+    %% ===== Page-context boundary (REQ-OWQ-9) =====
+    BOUNDARY -.- SW

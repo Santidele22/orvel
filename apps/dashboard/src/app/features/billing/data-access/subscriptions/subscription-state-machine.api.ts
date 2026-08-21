@@ -1,3 +1,4 @@
+import type { PaymentProvider } from '../../../../core/payments/manual/payment-provider';
 import { resolvePlanCodeFromCatalog } from '../../../../core/catalog/reference-catalog';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../../core/catalog/reference-catalog.gateway';
 import type { CanonicalPlanCode } from '../../../../core/plans/plan-entitlements';
@@ -19,7 +20,7 @@ export type SubscriptionSnapshot = {
   subscriptionId: string;
   planCode: PlanCode;
   status: SubscriptionStatus;
-  provider: 'mercado_pago';
+  provider: PaymentProvider;
   providerSubscriptionId: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
@@ -28,7 +29,7 @@ export type SubscriptionSnapshot = {
 };
 
 export type SubscriptionEvent = {
-  provider: 'mercado_pago';
+  provider: PaymentProvider;
   providerEventId: string;
   providerSubscriptionId: string;
   eventType:

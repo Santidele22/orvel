@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
 import {

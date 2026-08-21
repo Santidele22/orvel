@@ -5,11 +5,10 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
 import type { ClienteService } from '../../services/cliente.service';
 import type { ServicioService } from '../../services/servicio.service';
 import { CreateTurnoDTO, TurnoEstado } from '../../features/booking/models/turno.model';
-import { createMockClienteService, createMockServicioService, createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 /**
  * Integration Tests - Turnos View (US-002)

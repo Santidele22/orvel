@@ -64,7 +64,7 @@ describe('RED contract: /api/subscriptions/start pending signup payload validati
   it('forwards complete protected pending_signup_intent mode with encrypted email fields and without plaintext PII or password', async () => {
     stubSubscriptionEnv();
     const fetchSpy = vi.fn(async () => new Response(
-      JSON.stringify({ init_point: 'https://mercadopago.example.test/preapproval' }),
+      JSON.stringify({ init_point: 'https://payments.example.test/preapproval' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ));
     vi.stubGlobal('fetch', fetchSpy);
@@ -139,7 +139,7 @@ describe('RED contract: /api/subscriptions/start plan aliases use Edge-compatibl
   ])('maps %s to %s before calling create-subscription', async (inputPlan, expectedEdgePlan) => {
     stubSubscriptionEnv();
     const fetchSpy = vi.fn(async () => new Response(
-      JSON.stringify({ init_point: 'https://mercadopago.example.test/preapproval' }),
+      JSON.stringify({ init_point: 'https://payments.example.test/preapproval' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ));
     vi.stubGlobal('fetch', fetchSpy);
@@ -156,7 +156,7 @@ describe('RED contract: /api/subscriptions/start plan aliases use Edge-compatibl
   it.each(['quarterly', 'annual'])('normalizes unsupported %s billing to monthly before Edge', async (billing) => {
     stubSubscriptionEnv();
     const fetchSpy = vi.fn(async () => new Response(
-      JSON.stringify({ init_point: 'https://mercadopago.example.test/preapproval' }),
+      JSON.stringify({ init_point: 'https://payments.example.test/preapproval' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ));
     vi.stubGlobal('fetch', fetchSpy);

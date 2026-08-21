@@ -1,0 +1,46 @@
+%% 04 — PWA offline walk-in queue — state machine
+%% Primary: flowchart LR (converts to Excalidraw via @excalidraw/mermaid-to-excalidraw)
+%% Source of truth: openspec/changes/release-1-0-3-pwa/specs/pwa-offline-walkin-queue/spec.md
+%% REQ IDs quoted verbatim: REQ-OWQ-1, REQ-OWQ-2, REQ-OWQ-3, REQ-OWQ-4, REQ-OWQ-5, REQ-OWQ-6, REQ-OWQ-7, REQ-OWQ-8, REQ-OWQ-9, REQ-OWQ-10
+%%
+%% Alternative stateDiagram-v2 view (kept for documentation, NOT parsed as primary):
+%%
+%% stateDiagram-v2
+%%     [*] --> pending : enqueue(intent)
+%%     pending --> syncing : flush triggered<br/>navigator.onLine=true<br/>OR manual 'Enviar ahora'<br/>attempts++
+%%     syncing --> synced : 2xx OK<br/>appointment_id returned<br/>walkin_intents upsert
+%%     syncing --> failed : 4xx slot conflict<br/>REQ-OWQ-6<br/>NO retry · drop
+%%     syncing --> pending : 5xx / timeout<br/>attempts < 3<br/>backoff 1s/4s/16s
+%%     syncing --> failed : 5xx / timeout<br/>attempts = 3<br/>exhaustion
+%%     failed --> pending : manual retry<br/>(transient only, REQ-OWQ-8)
+%%     synced --> [*]
+%%     failed --> [*]
+
+flowchart LR
+    classDef pending fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0F172A
+    classDef syncing fill:#a78bfa,stroke:#7c3aed,stroke-width:2px,color:#1e293b
+    classDef synced fill:#d1fae5,stroke:#10b981,stroke-width:2px,color:#064e3b
+    classDef failed fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef legend fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#0F172A
+
+    P(["<b>pending</b><br/>just enqueued<br/>{ intentId, status: 'pending',<br/>attempts: 0, createdAt,<br/>deviceId, ...payload }<br/>REQ-OWQ-1"]):::pending
+
+    S(["<b>syncing</b><br/>flush triggered, POST in flight<br/>{ ..., status: 'syncing',<br/>attempts: n+1 }"]):::syncing
+
+    OK(["<b>synced</b><br/>terminal happy<br/>{ ..., status: 'synced',<br/>appointment_id }<br/>REQ-OWQ-3"]):::synced
+
+    F(["<b>failed</b><br/>terminal — 4xx or exhausted<br/>{ ..., status: 'failed',<br/>lastError }<br/>REQ-OWQ-6 / REQ-OWQ-7"]):::failed
+
+    P -->|"flush triggered<br/>navigator.onLine=true<br/>OR manual 'Enviar ahora'<br/>attempts++<br/>REQ-OWQ-3 · REQ-OWQ-4"| S
+
+    S -->|"2xx OK<br/>appointment_id returned<br/>walkin_intents upsert"| OK
+
+    S -->|"4xx slot conflict<br/>REQ-OWQ-6<br/>MUST NOT retry · drop"| F
+
+    S -->|"5xx / timeout · attempts<3<br/>backoff 1s / 4s / 16s<br/>REQ-OWQ-7"| P
+
+    S -->|"5xx / timeout · attempts=3<br/>exhaustion → failed<br/>REQ-OWQ-7"| F
+
+    F -.->|"manual retry (UI)<br/>transient only<br/>REQ-OWQ-8"| P
+
+    LEGEND["<b>Legend</b><br/>attempts: 0..3 cap (REQ-OWQ-7)<br/>lastError: SLOT_CONFLICT | EXHAUSTED | NETWORK<br/>deviceId: localStorage UUID (REQ-OWQ-10)<br/>walkin_intents: server ledger (ON CONFLICT DO NOTHING)<br/>retry policy: 1s / 4s / 16s backoff, cap 3 attempts<br/>4xx → failed (no retry); 5xx / timeout → retry until cap"]:::legend

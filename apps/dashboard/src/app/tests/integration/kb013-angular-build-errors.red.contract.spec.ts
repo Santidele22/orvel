@@ -4,7 +4,7 @@ import { join } from 'path';
 
 const REAL_GATEWAY_PATH = join(
   process.cwd(),
-  'src/app/core/api/supabase-booking/real-gateway.ts'
+  '../../packages/booking/src/infrastructure/supabase/real-gateway.ts'
 );
 const CALENDAR_TEMPLATE_PATH = join(
   process.cwd(),

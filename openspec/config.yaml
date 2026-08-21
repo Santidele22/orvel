@@ -1,0 +1,67 @@
+schema: spec-driven
+
+context: |
+  Orvel: turnos-first SaaS monorepo for beauty businesses.
+  pnpm workspaces (pnpm@11) — apps/dashboard (Angular 21 + @angular/pwa),
+  apps/landing (Astro 6 + Svelte), supabase/functions (Deno edge functions),
+  supabase/migrations (SQL), packages/shared (empty target).
+  PWA mobile-first pivot (27/07): release 1.0.3, Fase 1+2 merged via PR #180,
+  Fase 3 (offline IndexedDB queue) and Fase 4 (Playwright mobile + Lighthouse CI) pending.
+  Contract-driven: .contract.spec.ts in apps, .contract.test.mjs + deno tests in supabase.
+  Funemon Lab workflow: spec/design first, red tests before implementation.
+
+strict_tdd: true
+
+testing:
+  runners:
+    - name: vitest
+      app: apps/dashboard
+      command: pnpm --dir apps/dashboard run test
+      coverage: pnpm --dir apps/dashboard run test:coverage
+    - name: vitest
+      app: apps/landing
+      command: pnpm --dir apps/landing run test
+    - name: playwright
+      scope: e2e
+      command: pnpm run test:e2e
+    - name: deno test
+      scope: supabase/functions
+      command: deno test --config supabase/functions/deno.json
+    - name: node --test
+      scope: supabase/checks
+      command: node --test supabase/checks/*.contract.test.mjs
+  layers:
+    unit: vitest
+    integration: vitest + @testing-library/dom + jsdom
+    e2e: playwright (chromium, baseURL http://127.0.0.1:4200/dashboard)
+    contract: .contract.spec.ts (apps), .contract.test.mjs (supabase/checks)
+  coverage:
+    dashboard: vitest --coverage (v8) thresholds 70/70/60/70
+    landing: none configured
+  quality:
+    typecheck_dashboard: tsc -p apps/dashboard/tsconfig.app.json --noEmit
+    typecheck_functions: deno check
+    formatter: prettier (dashboard)
+
+rules:
+  proposal:
+    - Align release changes with the public roadmap (openspec/changes/release-1-0-1/roadmap.md)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Keep PWA scope to daily operations; desktop-only scope stays out of mobile
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns (contract test files, red-green-refactor)
+    tdd: true
+    test_command: pnpm --dir apps/dashboard run test
+  verify:
+    test_command: pnpm run check
+    build_command: pnpm run build
+    coverage_threshold: 70
+  archive:
+    - Warn before merging destructive deltas

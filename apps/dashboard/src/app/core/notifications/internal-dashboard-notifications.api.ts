@@ -33,7 +33,7 @@ export interface ListAdminNotificationsInput {
   cursorId?: string;
 }
 
-import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
+import { createSupabaseClient } from '../runtime/supabase-client';
 
 export async function listAdminNotifications(
   input: ListAdminNotificationsInput,

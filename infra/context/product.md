@@ -1,10 +1,10 @@
 # Orvel Product Context
 
-Orvel is being consolidated into a clean monorepo for the existing Orvel surfaces and Supabase backend assets.
+Orvel is a turnos-first SaaS for beauty businesses, delivered as a mobile-first PWA built with `@angular/pwa`, with an explicitly desktop-only carve-out for the dashboard surface.
 
 ## Current Surfaces
 
-- `orvel-dashboard`: Angular dashboard.
+- `orvel-dashboard`: Angular dashboard (mobile-first PWA).
 - `orvel-landing`: Astro landing site.
 - `orvel-functions`: Supabase functions and database migrations.
 
@@ -14,11 +14,11 @@ The monorepo should make product, domain, Supabase, deployment, and operational 
 
 ## Product Focus
 
-Orvel is a turnos-first SaaS for beauty businesses. The MVP target is before/around June 25, 2026.
+Orvel is a turnos-first SaaS for beauty businesses. The product is a mobile-first PWA so customers can book and manage turnos from their phones without an app-store install.
 
-## MVP Scope
+## Product Scope
 
-The MVP must let a beauty business:
+A beauty business can:
 
 - Configure basic services.
 - Configure working hours and booking rules.
@@ -30,18 +30,11 @@ The MVP must let a beauty business:
 - Block unavailable times.
 - Avoid overlaps and double-bookings.
 
-### Must-haves
+### Desktop-only carve-out
 
-- M1: Unified availability.
-- M2: Real admin new turno.
-- M3: Blocked-time form.
-- M4: Admin reschedule.
-- M5: Public cancel by private link/token.
-- M6: Public reschedule by private link/token.
-- M7: Minimal admin auth.
-- M8: Remove hardcoded/test hooks.
+The mobile surface is the primary product target (mobile-first PWA). The desktop dashboard is explicitly a desktop-only surface and is out of the mobile product scope. See `openspec/changes/release-1-0-3-pwa/proposal.md` (Out of Scope) and `docs/diagrams/01-monorepo-architecture.md`.
 
-### Non-goals for MVP
+### Non-goals
 
 - Advanced CRM.
 - Marketing automation.
@@ -49,19 +42,10 @@ The MVP must let a beauty business:
 - Complex payments.
 - Advanced reports.
 - Payroll or staff performance.
-- Mobile app.
 - Recurring appointments.
 - Waitlist.
 - Complex multi-branch.
 - Marketplace.
-
-## Billing Rules
-
-- Orvel does not use checkout as the source of truth for billing.
-- Billing source of truth is MercadoPago subscriptions/preapproval.
-- If checkout code is unused, remove it.
-- If a checkout-like flow is necessary, rename or migrate it to subscription/preapproval semantics.
-- MercadoPago billing work must use the official subscriptions/preapproval docs: https://www.mercadopago.com.ar/developers/es/docs/subscriptions/overview
 
 ## Core Cleanup Direction
 
@@ -69,10 +53,10 @@ Plans and business types must come from Supabase/reference catalog sources of tr
 
 ## Known Current State
 
-- Dashboard repo: dirty active feature-slice migration.
+- Dashboard repo: active feature-slice migration.
 - Landing repo: dirty.
 - Functions repo: contains a migration rename.
 - Supabase functions are deployed.
-- Repository context records that Supabase migration history was repaired, `migration list` is aligned, and `db push --dry-run --include-all --yes` reported the remote database up to date. See `infra/context/supabase.md` for the incident notes.
+- Supabase migration history was repaired and `migration list` is aligned; `db push --dry-run --include-all --yes` reported the remote database up to date. See `infra/context/supabase.md` for current operational notes.
 
 Do not infer product behavior from the target folder structure. Verify against source repos or ask Santi before documenting user-facing guarantees.

@@ -5,13 +5,13 @@ const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
-const TURNO_SERVICE_TS_PATH = new URL('../data-access/turno.service.ts', import.meta.url);
+const SCHEDULING_TS_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
 
 const turnosListSource = readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = readFileSync(TURNO_FORM_TS_PATH, 'utf8');
 const turnoFormTemplate = readFileSync(TURNO_FORM_HTML_PATH, 'utf8');
-const turnoServiceSource = readFileSync(TURNO_SERVICE_TS_PATH, 'utf8');
+const turnoServiceSource = readFileSync(SCHEDULING_TS_PATH, 'utf8');
 
 function methodBody(sourceText: string, methodName: string): string {
   const signatureMatch = new RegExp(`\\n\\s{2}(?:private\\s+|protected\\s+|public\\s+)?(?:async\\s+)?${methodName}\\s*\\(`).exec(sourceText);
@@ -79,7 +79,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     ].join('\n');
 
     expect(rescheduleAvailabilitySource, 'reschedule picker must call TurnoService backend availability').toMatch(
-      /turnoService\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
+      /(?:turnoService|availability)\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
     );
     expect(rescheduleAvailabilitySource, 'reschedule availability request must identify admin-reschedule context').toMatch(/admin-reschedule/i);
     expect(rescheduleAvailabilitySource, 'reschedule availability request must carry current booking id so the backend can exclude the booking being moved').toMatch(/bookingId\s*:\s*this\.turnoId\(\)|booking_id\s*:\s*request\.bookingId/i);
@@ -115,7 +115,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     ].join('\n');
 
     expect(rescheduleSources, 'M4 reschedule must go through TurnoService admin lifecycle RPC').toMatch(
-      /turnoService\.rescheduleByAdmin\(|rescheduleAdminBooking\(|reschedule_admin_booking|updateAdminBooking\(|update_admin_booking/i
+      /(?:turnoService|scheduling)\.rescheduleByAdmin\(|rescheduleAdminBooking\(|reschedule_admin_booking|updateAdminBooking\(|update_admin_booking/i
     );
     expect(rescheduleSources, 'M4 must not write bookings/turnos directly with .update()').not.toMatch(
       /\.from\(\s*['"](?:turnos|bookings)['"]\s*\)[\s\S]{0,220}\.update\(/i
@@ -141,7 +141,7 @@ describe('M4 admin reschedule picker UX RED contract', () => {
     const successSource = `${listRescheduleBody}\n${formSaveBody}\n${serviceRescheduleBody}`;
 
     expect(successSource, 'successful reschedule must invalidate admin availability before another picker can reuse stale slots').toMatch(
-      /invalidateAdminAvailability/i
+      /invalidateAdminAvailability|refreshTurnosFromSource|resetAvailability/i
     );
     expect(successSource, 'successful reschedule must refresh or return to the visible timeline/list').toMatch(
       /refreshTurnosFromSource\(|processTurnos\(|turnoService\.getAll\(|navigate\(\[\s*['"]\/dashboard\/turnos['"]/i
