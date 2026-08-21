@@ -99,6 +99,17 @@ describe('PWA: index.html meta tags for iOS', () => {
     expect(html).toContain('theme-color');
   });
 
+  it('has a web app manifest link for Chrome Android installability', async () => {
+    const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
+    const manifestLink = html.match(/<link\b[^>]*>/gi)?.find(
+      (tag) =>
+        /\brel=["']manifest["']/i.test(tag) &&
+        /\bhref=["']manifest\.webmanifest["']/i.test(tag),
+    );
+
+    expect(manifestLink).toBeDefined();
+  });
+
   it('no longer loads Tailwind from CDN', async () => {
     const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
     expect(html).not.toContain('cdn.tailwindcss.com');
