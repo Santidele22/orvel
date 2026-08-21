@@ -89,6 +89,15 @@ export class PwaInstallPage implements OnInit {
   }
 
   protected async installApp(): Promise<void> {
+    const isIos =
+      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+
+    if (isIos) {
+      this.installFeedback.set('En iOS: Compartir → Agregar a pantalla de inicio.');
+      return;
+    }
+
     if (!this.deferredPrompt) {
       this.installFeedback.set(
         'Este navegador no ofrece el diálogo de instalación. Seguí los pasos de arriba.',
