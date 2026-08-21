@@ -46,10 +46,17 @@ describe('Booking lifecycle email notifications contract', () => {
     const sharedTemplates = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     // Act / Assert
+    expect(processor).toMatch(/send\.api\.mailtrap\.io/);
     expect(processor).toMatch(/api\.resend\.com\/emails/);
+    expect(processor).toMatch(/MAILTRAP_API_TOKEN/);
     expect(processor).toMatch(/RESEND_API_KEY/);
-    expect(processor).not.toMatch(/MAILTRAP_API_URL/);
-    expect(processor).not.toMatch(/send\.api\.mailtrap\.io/);
+    const mailtrapTokenIndex = processor.search(/MAILTRAP_API_TOKEN/);
+    const resendKeyIndex = processor.search(/RESEND_API_KEY/);
+    expect(mailtrapTokenIndex).toBeGreaterThan(-1);
+    expect(resendKeyIndex).toBeGreaterThan(mailtrapTokenIndex);
+    expect(processor).toMatch(/email_provider_config_missing/);
+    expect(processor).toMatch(/mailtrap_error/);
+    expect(processor).toMatch(/resend_error/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
     // Post-1.0.1 PR #2 + 1.0.2 PR #3 (email-templates-shared): the processor no longer
