@@ -91,6 +91,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/billing/pages/billing-subscription.component').then(m => m.BillingSubscriptionComponent)
   },
   {
+    path: 'dashboard/installar',
+    loadComponent: () =>
+      import('./features/pwa-install/pages/pwa-install.page').then(m => m.PwaInstallPage)
+  },
+  {
     path: 'dashboard',
     component: DashboardShellComponent,
     canActivate: [dashboardAuthGuard],
