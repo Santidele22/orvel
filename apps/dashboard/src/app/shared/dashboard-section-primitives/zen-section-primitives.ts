@@ -2,8 +2,8 @@ export type OrvelBadgeTone = 'primary' | 'accent' | 'neutral' | 'success' | 'err
 export type ZenBadgeTone = OrvelBadgeTone;
 
 export const ORVEL_SECTION_PRIMITIVES = {
-  pageRoot: 'min-h-full flex flex-col bg-bg-primary text-text-primary bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.05),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.03),transparent_40%)]',
-  pageViewport: 'flex-1 overflow-y-auto h-full no-scrollbar p-6 lg:p-10',
+  pageRoot: 'min-h-full min-w-0 overflow-x-hidden flex flex-col bg-bg-primary text-text-primary bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.05),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.03),transparent_40%)]',
+  pageViewport: 'flex-1 min-w-0 overflow-y-auto overflow-x-hidden h-full no-scrollbar p-4 lg:p-10',
   denseGrid: 'grid grid-cols-1 lg:grid-cols-12 gap-8',
   mainColumn: 'col-span-12 lg:col-span-8 space-y-8',
   sideColumn: 'col-span-12 lg:col-span-4 space-y-8',

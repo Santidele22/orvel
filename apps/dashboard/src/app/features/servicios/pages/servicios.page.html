@@ -90,14 +90,14 @@
                 <!-- Group Items -->
                 <div class="grid grid-cols-1 gap-3">
                   @for (s of group.items; track s.id) {
-                    <article [class]="ui.cardGlass + ' cursor-pointer flex items-center justify-between gap-4 group hover:shadow-primary/5 transition-all'" (click)="openEditServicio(s.id)">
+                    <article [class]="ui.cardGlass + ' min-w-0 overflow-hidden cursor-pointer flex items-center justify-between gap-4 group hover:shadow-primary/5 transition-all'" (click)="openEditServicio(s.id)">
                       <!-- Info -->
                       <div class="flex items-center gap-4 min-w-0 flex-1">
                         <div class="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary text-lg font-bold group-hover:opacity-80 transition-all uppercase shrink-0">
                           {{ s['nombre'].charAt(0) }}
                         </div>
                         <div class="space-y-0.5 min-w-0">
-                          <div class="flex items-center gap-2">
+                          <div class="flex flex-wrap items-center gap-2">
                           <h3 class="text-base font-semibold text-text-primary tracking-tight truncate">{{ s['nombre'] }}</h3>
                           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm"
                                  [ngClass]="{
