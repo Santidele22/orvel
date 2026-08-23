@@ -6,7 +6,7 @@ Adopt hexagonal architecture for the Orvel dashboard. Booking is the pilot bound
 
 ## Context
 
-Dashboard booking mixed Angular DI, Supabase RPC, signals, and domain rules in `turno.service.ts` (~1,934 lines). Source-locking specs pinned dashboard file paths instead of package ports. `@orvel/booking` already holds extracted contracts plus domain, application, and infrastructure. Dashboard still has leftover shims (`types.ts`) and mixed source-locks.
+Dashboard booking mixed Angular DI, Supabase RPC, signals, and domain rules in `turno.service.ts` (~1,934 lines). Source-locking specs pinned dashboard file paths instead of package ports. `@orvel/booking` already holds extracted contracts plus domain, application, and infrastructure. Dashboard still has mixed source-locks.
 
 ## Decision
 
@@ -42,7 +42,7 @@ Signals are reactive state, not transport. Angular DI wires `SupabaseClient` at 
 
 - Domain and application are testable without Angular or the network.
 - Other dashboard surfaces can consume booking through ports.
-- Shim window is not closed: `types.ts` remains; WU6 leftover mixed source-locks remain.
+- The leftover `types.ts` shim is deleted; WU6 leftover mixed source-locks remain.
 - Bundle delta was not measured because no production bundle bytes changed beyond the import specifier. A later runtime move would compare `apps/dashboard` production build output sizes.
 
 ## Alternatives Considered
@@ -65,7 +65,7 @@ Phased WU1–WU7. Chained PRs. Authored add+del budget 400 per slice.
 4. WU4 — split `turno.service.ts`.
 5. WU5 — `BookingQueries` + dashboard consumers.
 6. WU6 — delete source-locking specs + write replacements. Leftovers remain.
-7. WU7 — this ADR. Delete dashboard shims `gateway-interface.ts` and `public-booking-slug.ts`. Keep `types.ts` until remaining consumers migrate. Keep `models/turno.model.ts`.
+7. WU7 — this ADR. Delete dashboard shims `gateway-interface.ts` and `public-booking-slug.ts`. WU7 follow-up deleted `types.ts` shim; keep `models/turno.model.ts`.
 
 Bundle size: not measured here (docs + import specifier + shim delete). Method for a later runtime slice: compare `apps/dashboard` production build output sizes.
 

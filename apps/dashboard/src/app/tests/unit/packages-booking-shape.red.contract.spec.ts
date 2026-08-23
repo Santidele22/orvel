@@ -11,8 +11,8 @@
  * - The runtime namespace is exactly the 2 slug functions: no real gateway, no
  *   api wrapper, no dashboard-internal runtime leaks into the package.
  * - The dashboard tsconfig resolves @orvel/booking to packages/booking/ and the
- *   types.ts old path is still a re-export shim (migration window).
- *   gateway-interface.ts and public-booking-slug.ts dashboard shims are deleted (WU7).
+ *   types.ts, gateway-interface.ts, and public-booking-slug.ts dashboard
+ *   shims are deleted.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -138,16 +138,8 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     }
   });
 
-  it('dashboard types.ts shim re-exports all 18 type names from @orvel/booking', () => {
-    const shim = readSource(DASHBOARD_TYPES_SHIM);
-
-    expect(shim).toContain("from '@orvel/booking'");
-    expect(shim).toContain('export type {');
-    for (const name of BOOKING_TYPE_NAMES) {
-      expect(shim).toContain(name);
-    }
-    // No runtime body re-published through the shim
-    expect(shim).not.toContain('function ');
+  it('dashboard types.ts shim is deleted', () => {
+    expect(existsSync(DASHBOARD_TYPES_SHIM)).toBe(false);
   });
 
   it('dashboard gateway-interface.ts shim is deleted', () => {

@@ -17,8 +17,8 @@ Auth split `validateSessionSchema` because its runtime body depends on app-inter
 
 ## Decisions
 
-1. **Explicit shim, not `export *`** — WU7 deleted the dashboard `gateway-interface.ts` and `public-booking-slug.ts` shims. The `types.ts` shim remains until remaining consumers migrate. Shims use explicit per-name re-exports (`export type { ... } from '@orvel/booking'`).
-2. **`mappers.ts` is intentionally NOT migrated** — it stays in the dashboard, deferred to the future `packages/domain`/`packages/types` extraction. Its `import { ApiErrorCode, ApiError, BusinessPublicView } from './types'` resolves through the types shim. It also exports `KNOWN_BUSINESS`, a dev/mock placeholder constant in production source (like auth's `ALLOWED_SELECTED_BUSINESS_TYPES`) — flagged for that future extraction.
+1. **Explicit shim, not `export *`** — WU7 deleted the dashboard `gateway-interface.ts` and `public-booking-slug.ts` shims. A follow-up deleted the leftover `types.ts` shim. Historical shims used explicit per-name re-exports (`export type { ... } from '@orvel/booking'`).
+2. **`mappers.ts` is intentionally NOT migrated** — it stays in the dashboard, deferred to the future `packages/domain`/`packages/types` extraction. Consumers import booking types from `@orvel/booking`, not a dashboard types shim. It also exports `KNOWN_BUSINESS`, a dev/mock placeholder constant in production source (like auth's `ALLOWED_SELECTED_BUSINESS_TYPES`) — flagged for that future extraction.
 3. **Runtime stays in the dashboard** — `real-gateway.ts` (Supabase + `dashboard-env`), `api-wrapper.ts`, `turno.service.ts` and all `features/booking/**` are NOT in this package; they depend on app-internal config/env/models that must move with `packages/domain`/`packages/types` first.
 
 ## 7-step recipe
@@ -29,7 +29,7 @@ The extraction recipe is documented in [`packages/auth/README.md`](../auth/READM
 
 - `packages/booking/package.json` — name `@orvel/booking`, private, type module, single `exports."."` mapping to `./src/index.ts`, `scripts.test: vitest run`, `devDependencies.vitest ^4.1.4`. No `tsconfig.json` (the dashboard's `module: preserve` type-checks the package via `exports.types`).
 - `packages/booking/src/` — `types.ts`, `gateway-interface.ts`, `public-booking-slug.ts`, `index.ts` barrel.
-- 1 dashboard shim remains: `apps/dashboard/src/app/core/api/supabase-booking/types.ts`. WU7 deleted `gateway-interface.ts` and `public-booking-slug.ts`.
+- No dashboard shims remain. WU7 deleted `gateway-interface.ts` and `public-booking-slug.ts`; a follow-up deleted `types.ts`.
 - `apps/dashboard/package.json` declares `"@orvel/booking": "workspace:*"`; `pnpm-workspace.yaml` untouched (auth PR #221 wired `packages/*`; root `package.json#workspaces` is a legacy field).
 - Spec fix-forward — `multitenant-branch-appointment-scope.contract.spec.ts` re-pointed to `packages/booking/src/types.ts`; `packages-booking-shape.red.contract.spec.ts` drift-guard added (18 types + interface + 2 functions, no runtime leak, shims, `workspace:*`).
 
