@@ -32,12 +32,12 @@
         <!-- Client List -->
         <div class="grid grid-cols-1 gap-3">
           @for (cliente of filteredClients(); track cliente.id) {
-            <article [class]="ui.cardGlass + ' flex items-center justify-between group transition-all ' + (cliente.active ? 'cursor-pointer hover:shadow-primary/5' : 'opacity-80')" (click)="startEdit(cliente)">
+            <article [class]="ui.cardGlass + ' min-w-0 overflow-hidden flex items-center justify-between group transition-all ' + (cliente.active ? 'cursor-pointer hover:shadow-primary/5' : 'opacity-80')" (click)="startEdit(cliente)">
               <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary text-lg font-bold group-hover:opacity-80 transition-all uppercase">
                   {{ cliente.fullName.charAt(0) }}
                 </div>
-                <div class="space-y-0.5">
+                <div class="min-w-0 space-y-0.5">
                   <div class="flex items-center gap-2">
                     <h2 class="text-base font-semibold text-text-primary tracking-tight">{{ cliente.fullName | titlecase }}</h2>
                     <span class="px-2 py-0.5 rounded-full bg-primary-soft text-primary text-[10px] font-bold uppercase tracking-wider shadow-sm">Premium</span>
@@ -45,12 +45,12 @@
                       <span class="px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-bold uppercase tracking-wider shadow-sm">Baja</span>
                     }
                   </div>
-                  <div class="flex items-center gap-4">
+                  <div class="flex flex-wrap items-center gap-4 min-w-0">
                     <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70">
                       <i class="ri-phone-line text-text-tertiary"></i> {{ cliente.telefono }}
                     </p>
                     @if (cliente.email) {
-                      <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70">
+                      <p class="text-xs font-normal text-text-secondary flex items-center gap-1.5 opacity-70 truncate">
                         <i class="ri-mail-line text-text-tertiary"></i> {{ cliente.email }}
                       </p>
                     }
