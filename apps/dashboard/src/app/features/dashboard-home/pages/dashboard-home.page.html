@@ -1,4 +1,5 @@
 <section data-testid="dashboard-home-responsive-root" class="min-h-full min-w-0 overflow-x-hidden overflow-y-auto no-scrollbar bg-bg-primary text-white px-4 pb-10 pt-6 sm:px-6 lg:px-10">
+  @if (!isMobile()) {
   <!-- Header -->
   <header class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
     <div class="min-w-0 space-y-2">
@@ -217,4 +218,44 @@
       </div>
     </div>
   </div>
+  } @else {
+  <div data-testid="dashboard-home-mobile-summary" class="space-y-5">
+    <header class="space-y-1">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        {{ greeting() }} {{ user()?.nombre }}
+      </h1>
+      <p class="text-sm font-medium leading-6 text-slate-400">Tu resumen de hoy.</p>
+    </header>
+
+    <button (click)="copyBookingUrl()"
+      [attr.disabled]="hasBookingUrl() ? null : true"
+      [attr.aria-disabled]="hasBookingUrl() ? null : true"
+      [class]="'flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#7C3AED] px-5 text-sm font-semibold text-white shadow-sm shadow-purple-950/25 transition-colors active:bg-[#5B21B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 ' + (hasBookingUrl() ? 'hover:bg-[#6D28D9]' : 'opacity-50 cursor-not-allowed')">
+      <i class="ri-share-line"></i>
+      {{ copied() ? 'Link copiado' : 'Compartir link' }}
+    </button>
+
+    @if (copyFailed()) {
+      <p class="text-[10px] text-amber-400" role="status">No pudimos copiar el link de reservas.</p>
+    }
+
+    <div class="grid min-w-0 grid-cols-2 gap-3">
+      <div class="or-card min-w-0 space-y-1">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hoy</p>
+        <p class="text-2xl font-semibold tracking-tight text-white">{{ agendaStatus().totalAppointments }}</p>
+        <p class="text-sm font-medium text-slate-400">Turnos</p>
+      </div>
+      <div class="or-card min-w-0 space-y-1">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Libres</p>
+        <p class="text-2xl font-semibold tracking-tight text-white">{{ agendaStatus().freeSlots }}</p>
+        <p class="text-sm font-medium text-slate-400">Horarios</p>
+      </div>
+    </div>
+
+    <a routerLink="/dashboard/turnos/new"
+      class="flex h-11 w-full items-center justify-center rounded-xl border border-purple-400/15 bg-purple-500/10 text-sm font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
+      Crear turno
+    </a>
+  </div>
+  }
 </section>
