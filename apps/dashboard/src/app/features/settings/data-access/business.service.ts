@@ -3,7 +3,7 @@ import { Observable, from, throwError, map, tap } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
-import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../core/api/supabase-booking/public-booking-slug';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
