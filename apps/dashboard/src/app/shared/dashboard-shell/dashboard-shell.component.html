@@ -1,11 +1,14 @@
 <div
   [class]="structure.shellRoot + ' ' + activeTemplate().surfaceBgClass + ' ' + activeThemeClass()"
   data-testid="dashboard-shell-responsive-root">
-  <!-- Sidebar (flex child, no gap) -->
-  <app-dashboard-sidebar data-testid="sidebar" [theme]="activeTheme()" [businessName]="activeTemplate().displayName"
-    [dashboards]="dashboards()" (themeChange)="onThemeChange($event)" [collapsed]="isSidebarCollapsed()" (collapseToggle)="toggleSidebarCollapsed()" (logoutConfirm)="handleLogout()"
+  <!-- Sidebar: wrap so host `block` cannot override Tailwind `hidden` below lg -->
+  <div
     class="hidden lg:block shrink-0 h-full z-50 transition-[width] duration-500 ease-in-out"
-    [style.width.px]="sidebarWidth()" />
+    [style.width.px]="sidebarWidth()">
+    <app-dashboard-sidebar data-testid="sidebar" [theme]="activeTheme()" [businessName]="activeTemplate().displayName"
+      [dashboards]="dashboards()" (themeChange)="onThemeChange($event)" [collapsed]="isSidebarCollapsed()" (collapseToggle)="toggleSidebarCollapsed()" (logoutConfirm)="handleLogout()"
+      class="h-full" />
+  </div>
 
   <!-- Main Viewport (flush against sidebar) -->
   <div [class]="structure.shellViewport">

@@ -12,7 +12,7 @@ import { ThemeService } from '../../core/theming/theme.service';
     NgComponentOutlet
   ],
   host: {
-    class: 'block h-full'
+    class: 'h-full'
   },
   templateUrl: './dashboard-sidebar.component.html',
   styleUrls: ['./dashboard-sidebar.component.scss']

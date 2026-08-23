@@ -36,6 +36,15 @@ describe('Mobile shell: bottom nav integration', () => {
     const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
     expect(html).toContain('lg:pb-0');
   });
+
+  it('hides the desktop sidebar below lg so host display:block cannot keep the rail visible', async () => {
+    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
+    const sidebarIndex = html.indexOf('data-testid="sidebar"');
+    const wrapperIndex = html.indexOf('hidden lg:block');
+
+    expect(wrapperIndex).toBeGreaterThanOrEqual(0);
+    expect(sidebarIndex).toBeGreaterThan(wrapperIndex);
+  });
 });
 
 describe('Mobile shell: FAB activation', () => {
