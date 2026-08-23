@@ -31,7 +31,7 @@ The extraction recipe is documented in [`packages/auth/README.md`](../auth/READM
 - `packages/booking/src/` — `types.ts`, `gateway-interface.ts`, `public-booking-slug.ts`, `index.ts` barrel.
 - No dashboard shims remain. WU7 deleted `gateway-interface.ts` and `public-booking-slug.ts`; a follow-up deleted `types.ts`.
 - `apps/dashboard/package.json` declares `"@orvel/booking": "workspace:*"`; `pnpm-workspace.yaml` untouched (auth PR #221 wired `packages/*`; root `package.json#workspaces` is a legacy field).
-- Spec fix-forward — `multitenant-branch-appointment-scope.contract.spec.ts` re-pointed to `packages/booking/src/types.ts`; `packages-booking-shape.red.contract.spec.ts` drift-guard added (18 types + interface + 2 functions, no runtime leak, shims, `workspace:*`).
+- Spec fix-forward — `packages-booking-shape.red.contract.spec.ts` drift-guard added (18 types + interface + 2 functions, no runtime leak, `workspace:*`).
 
 ## Pattern provenance
 
