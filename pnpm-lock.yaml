@@ -56,6 +56,9 @@ importers:
       '@orvel/booking':
         specifier: workspace:*
         version: link:../../packages/booking
+      '@orvel/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@orvel/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -209,6 +212,12 @@ importers:
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+    devDependencies:
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@25.6.0)(jsdom@29.0.2)(vite@7.3.5(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3))
+
+  packages/config:
     devDependencies:
       vitest:
         specifier: ^4.1.4
