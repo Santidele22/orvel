@@ -114,6 +114,21 @@ describe('Mobile shell: hide desktop topbar below lg', () => {
     expect(hostMatch?.[0]).not.toMatch(/\bhidden\b|\*ngIf/);
   });
 
+  it('wraps sidebar with hidden lg:block without hiding the host tag', async () => {
+    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
+    const sidebarHookIndex = html.indexOf('data-testid="sidebar"');
+    const hostIndex = html.indexOf('<app-dashboard-sidebar');
+    const hostMatch = html.match(/<app-dashboard-sidebar\b[^>]*>/);
+    const preceding = html.slice(Math.max(0, sidebarHookIndex - 280), sidebarHookIndex);
+
+    expect(sidebarHookIndex).toBeGreaterThan(-1);
+    expect(hostIndex).toBeGreaterThan(-1);
+    expect(hostIndex).toBeLessThan(sidebarHookIndex);
+    expect(preceding).toMatch(/<div[^>]*class=["'][^"']*\bhidden lg:block\b/);
+    expect(preceding.indexOf('hidden lg:block')).toBeGreaterThan(-1);
+    expect(hostMatch?.[0]).not.toMatch(/\bhidden\b|\*ngIf/);
+  });
+
   it('gates topbar wrappers and Zen header at hidden lg:block', async () => {
     const [topbarHtml, zenTopbar] = await Promise.all([
       readFile(fromRoot(TOPBAR_HTML), 'utf-8'),
