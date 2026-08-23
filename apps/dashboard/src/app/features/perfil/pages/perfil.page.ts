@@ -1,14 +1,34 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { logoutAndRedirect } from '../../../core/auth/route-protection';
+import { AuthService } from '../../../services/auth.service';
+import { navigateAfterLogout } from '../../../shared/dashboard-shell/logout-navigation';
 
 @Component({
   selector: 'app-perfil',
   standalone: true,
+  imports: [RouterLink],
   template: `
-    <div class="flex flex-col items-center justify-center h-full p-6 text-center">
-      <i class="ri-user-line text-5xl text-text-secondary mb-4" aria-hidden="true"></i>
-      <h2 class="text-xl font-semibold text-text-primary mb-2">Perfil</h2>
-      <p class="text-text-secondary text-sm">Tu perfil aparecerá aquí.</p>
-    </div>
-  `
+    <section data-testid="perfil-page" class="flex min-w-0 flex-col gap-4 overflow-x-hidden p-4">
+      <div>
+        <p class="text-lg font-semibold text-text-primary">{{ auth.user()?.nombre }}</p>
+        <p class="text-sm text-text-secondary">{{ auth.user()?.email }}</p>
+      </div>
+      <a data-testid="perfil-settings-link" routerLink="/dashboard/configuracion" class="text-sm font-medium text-primary">
+        Configuración
+      </a>
+      <button type="button" data-testid="perfil-logout" class="rounded-xl bg-bg-secondary px-4 py-3 text-sm font-medium text-text-primary" (click)="logout()">
+        Cerrar sesión
+      </button>
+    </section>
+  `,
 })
-export class PerfilPage {}
+export class PerfilPage {
+  readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  async logout(): Promise<void> {
+    const redirectTo = await logoutAndRedirect();
+    await navigateAfterLogout(redirectTo, this.router);
+  }
+}

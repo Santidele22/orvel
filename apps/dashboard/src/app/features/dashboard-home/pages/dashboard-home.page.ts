@@ -1,16 +1,18 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../../core/theming/theme.service';
 import { AuthService } from '../../../services/auth.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
+import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
 
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-home.page.html',
   styles: [':host { display: block; }']
 })
@@ -19,6 +21,7 @@ export class DashboardHomeComponent {
   protected readonly themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly businessFacade = inject(BusinessService);
+  protected readonly isMobile = createIsMobileSignal().isMobile;
 
   protected readonly user = this.authService.user;
   protected readonly agendaStatus = this.dashboardService.agendaStatus;
