@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../core/api/supabase-booking/public-booking-slug';
+import { join } from 'node:path';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 
-const PUBLIC_BOOKING_SLUG_MIGRATION = resolve(
-  process.cwd(),
+const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..');
+const PUBLIC_BOOKING_SLUG_MIGRATION = join(
+  REPO_ROOT,
   'supabase/migrations/20260529001000_public_booking_slug_resolver.sql'
 );
 
