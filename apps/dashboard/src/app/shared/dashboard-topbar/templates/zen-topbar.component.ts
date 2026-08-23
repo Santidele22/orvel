@@ -9,7 +9,7 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
   standalone: true,
   imports: [CommonModule],
   template: `
-    <header data-testid="dashboard-topbar-responsive" class="w-full bg-bg-secondary/80 backdrop-blur-xl px-8 h-20 flex items-center justify-end shrink-0 animate-in fade-in duration-500 relative z-100 transition-all shadow-xl shadow-black/10">
+    <header data-testid="dashboard-topbar-responsive" class="hidden lg:flex w-full bg-bg-secondary/80 backdrop-blur-xl px-8 h-20 items-center justify-end shrink-0 animate-in fade-in duration-500 relative z-100 transition-all shadow-xl shadow-black/10">
       <div class="flex items-center gap-5">
         <div class="flex items-center gap-2 relative">
           <button
