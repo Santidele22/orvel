@@ -154,19 +154,40 @@ export function buildLandingPlanSelectionRedirect(returnTo: string): string {
   return `${resolveLandingOrigin()}${PLAN_SELECTION_ROUTE}?${params.toString()}`;
 }
 
-function resolveLandingOrigin(): string {
-  const env = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  const raw = env.process?.env?.['PUBLIC_LANDING_URL']?.trim();
-  if (!raw) return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+function originFromUrl(raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
 
   try {
-    const url = new URL(raw);
+    const url = new URL(value);
     url.search = '';
     url.hash = '';
     return url.origin;
   } catch {
-    return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+    return null;
   }
+}
+
+function resolveLandingOrigin(): string {
+  const env = globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+    window?: {
+      __ORVEL_DASHBOARD_ENV__?: { PUBLIC_LANDING_URL?: string };
+      location?: { hostname?: string; protocol?: string };
+    };
+  };
+
+  const fromProcess = originFromUrl(env.process?.env?.['PUBLIC_LANDING_URL']);
+  if (fromProcess) return fromProcess;
+
+  const fromWindow = originFromUrl(env.window?.__ORVEL_DASHBOARD_ENV__?.PUBLIC_LANDING_URL);
+  if (fromWindow) return fromWindow;
+
+  if (env.window?.location?.hostname === 'qa.orvel.pro') {
+    return 'https://qa.orvel.pro';
+  }
+
+  return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
 }
 
 function resolveLocalLandingOrigin(): string | null {
