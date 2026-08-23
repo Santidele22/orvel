@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
 const SHELL_TS = 'src/app/shared/dashboard-shell/dashboard-shell.component.ts';
 const ROUTES_TS = 'src/app/app.routes.ts';
+const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.html';
+const ZEN_TOPBAR_TS = 'src/app/shared/dashboard-topbar/templates/zen-topbar.component.ts';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);
@@ -92,5 +94,34 @@ describe('Mobile shell: notificaciones and perfil routes', () => {
   it('adds perfil route', async () => {
     const routes = await readFile(fromRoot(ROUTES_TS), 'utf-8');
     expect(routes).toContain('perfil');
+  });
+});
+
+describe('Mobile shell: hide desktop topbar below lg', () => {
+  it('wraps topbar with hidden lg:block without hiding the host tag', async () => {
+    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
+    const hostIndex = html.indexOf('<app-dashboard-topbar');
+    const topbarIndex = html.indexOf('data-testid="topbar"');
+    const hostMatch = html.match(/<app-dashboard-topbar\b[^>]*>/);
+    const preceding = html.slice(Math.max(0, hostIndex - 240), hostIndex);
+
+    expect(hostIndex).toBeGreaterThan(-1);
+    expect(topbarIndex).toBeGreaterThan(hostIndex);
+    expect(preceding).toMatch(/<div[^>]*class=["'][^"']*\bhidden lg:block\b/);
+    expect(preceding.indexOf('hidden lg:block')).toBeGreaterThan(-1);
+    expect(preceding.indexOf('hidden lg:block')).toBeLessThan(preceding.length);
+    expect(hostMatch?.[0]).toContain('class="z-40 shrink-0"');
+    expect(hostMatch?.[0]).not.toMatch(/\bhidden\b|\*ngIf/);
+  });
+
+  it('gates topbar wrappers and Zen header at hidden lg:block', async () => {
+    const [topbarHtml, zenTopbar] = await Promise.all([
+      readFile(fromRoot(TOPBAR_HTML), 'utf-8'),
+      readFile(fromRoot(ZEN_TOPBAR_TS), 'utf-8')
+    ]);
+
+    expect(topbarHtml).toMatch(/class=["'][^"']*\bhidden lg:block\b/);
+    expect(topbarHtml).toMatch(/dashboard-topbar-contract[^"']*\bhidden lg:block\b|\bhidden lg:block\b[^"']*dashboard-topbar-contract/);
+    expect(zenTopbar).toMatch(/<header[^>]*\bhidden lg:flex\b/);
   });
 });

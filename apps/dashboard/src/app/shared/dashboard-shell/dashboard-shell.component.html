@@ -9,8 +9,10 @@
 
   <!-- Main Viewport (flush against sidebar) -->
   <div [class]="structure.shellViewport">
-    <app-dashboard-topbar data-testid="topbar" [theme]="activeTheme()" [dashboards]="dashboards()" [onLogout]="handleLogout"
-      (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
+    <div class="hidden lg:block z-40 shrink-0">
+      <app-dashboard-topbar data-testid="topbar" [theme]="activeTheme()" [dashboards]="dashboards()" [onLogout]="handleLogout"
+        (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
+    </div>
 
     <main class="flex-1 overflow-y-auto no-scrollbar relative pb-16 lg:pb-0" data-testid="content">
       <router-outlet />
