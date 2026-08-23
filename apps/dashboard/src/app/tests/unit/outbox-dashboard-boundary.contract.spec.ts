@@ -25,8 +25,8 @@ describe('Dashboard notification outbox boundary', () => {
       .map((filePath) => fs.readFileSync(filePath, 'utf8'))
       .join('\n');
 
-    expect(packageJson).not.toMatch(/@sendgrid\/mail|mailtrap/i);
-    expect(sourceCorpus).not.toMatch(/from\s+['"]@sendgrid\/mail['"]|require\(['"]@sendgrid\/mail['"]\)|from\s+['"]mailtrap['"]|require\(['"]mailtrap['"]\)/i);
+    expect(packageJson).not.toMatch(/@sendgrid\/mail|mailtrap|resend/i);
+    expect(sourceCorpus).not.toMatch(/from\s+['"]@sendgrid\/mail['"]|require\(['"]@sendgrid\/mail['"]\)|from\s+['"]mailtrap['"]|require\(['"]mailtrap['"]\)|from\s+['"]resend['"]|require\(['"]resend['"]\)/i);
   });
 
   it('does not keep provider environment loaders in dashboard/browser notification helpers', () => {
@@ -37,7 +37,7 @@ describe('Dashboard notification outbox boundary', () => {
 
     expect(notificationFiles.map((filePath) => path.basename(filePath))).not.toContain('sendgrid-env.ts');
     expect(notificationFiles.map((filePath) => path.basename(filePath))).not.toContain('mailtrap-env.ts');
-    expect(notificationCorpus).not.toMatch(/SENDGRID_API_KEY|MAILTRAP_TOKEN|MAILTRAP_API_KEY|apiKey\s*:/);
+    expect(notificationCorpus).not.toMatch(/SENDGRID_API_KEY|MAILTRAP_TOKEN|MAILTRAP_API_KEY|RESEND_API_KEY|apiKey\s*:/);
   });
 
   it('queueHtmlEmail queues through the outbox adapter and never calls provider-direct dashboard code', async () => {

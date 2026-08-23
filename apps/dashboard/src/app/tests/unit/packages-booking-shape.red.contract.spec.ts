@@ -11,10 +11,11 @@
  * - The runtime namespace is exactly the 2 slug functions: no real gateway, no
  *   api wrapper, no dashboard-internal runtime leaks into the package.
  * - The dashboard tsconfig resolves @orvel/booking to packages/booking/ and the
- *   3 old paths are re-export shims (migration window).
+ *   types.ts, gateway-interface.ts, and public-booking-slug.ts dashboard
+ *   shims are deleted.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -66,7 +67,7 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     expect(packageJson.exports['.'].types).toBe('./src/index.ts');
     expect(packageJson.exports['.'].default).toBe('./src/index.ts');
     // Subpath exports per hexagonal pilot REQ-CONSUMER-2 (./domain added in WU1, ./infrastructure added in WU2).
-    expect(Object.keys(packageJson.exports)).toEqual(['.', './domain', './infrastructure']);
+    expect(Object.keys(packageJson.exports)).toEqual(['.', './domain', './application', './infrastructure']);
   });
 
   it('src/index.ts re-exports the full public surface (18 types + interface + 2 functions)', () => {
@@ -137,30 +138,16 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     }
   });
 
-  it('dashboard types.ts shim re-exports all 18 type names from @orvel/booking', () => {
-    const shim = readSource(DASHBOARD_TYPES_SHIM);
-
-    expect(shim).toContain("from '@orvel/booking'");
-    expect(shim).toContain('export type {');
-    for (const name of BOOKING_TYPE_NAMES) {
-      expect(shim).toContain(name);
-    }
-    // No runtime body re-published through the shim
-    expect(shim).not.toContain('function ');
+  it('dashboard types.ts shim is deleted', () => {
+    expect(existsSync(DASHBOARD_TYPES_SHIM)).toBe(false);
   });
 
-  it('dashboard gateway-interface.ts shim re-exports SupabaseBookingGateway as a type', () => {
-    const shim = readSource(DASHBOARD_GATEWAY_SHIM);
-
-    expect(shim).toContain("from '@orvel/booking'");
-    expect(shim).toContain('export type { SupabaseBookingGateway }');
+  it('dashboard gateway-interface.ts shim is deleted', () => {
+    expect(existsSync(DASHBOARD_GATEWAY_SHIM)).toBe(false);
   });
 
-  it('dashboard public-booking-slug.ts shim re-exports the 2 functions as values', () => {
-    const shim = readSource(DASHBOARD_SLUG_SHIM);
-
-    expect(shim).toContain("from '@orvel/booking'");
-    expect(shim).toContain('export { normalizePublicBookingSlug, isValidPublicBookingSlug }');
+  it('dashboard public-booking-slug.ts shim is deleted', () => {
+    expect(existsSync(DASHBOARD_SLUG_SHIM)).toBe(false);
   });
 
   it('apps/dashboard/package.json declares @orvel/booking as a workspace dependency', () => {
@@ -178,12 +165,15 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     expect(Object.keys(booking).sort()).toEqual([
       'buildPublicBookingUrl',
       'canClientCancelOrReschedule',
+      'cancelAppointment',
       'computeAvailableSlots',
       'computePublicAvailability',
       'createAppointment',
       'getPublicBookingOrigin',
       'isValidPublicBookingSlug',
       'normalizePublicBookingSlug',
+      'rescheduleAppointment',
+      'utcDayRange',
       'validateSelfServiceToken'
     ]);
     expect(typeof booking.normalizePublicBookingSlug).toBe('function');

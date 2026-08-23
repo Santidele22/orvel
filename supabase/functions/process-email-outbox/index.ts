@@ -5,6 +5,57 @@ import { appointmentTimeLabel, normalizeAppointmentTemplateData, scrubTokenBeari
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
 
 const MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send";
+const RESEND_API_URL = "https://api.resend.com/emails";
+
+type EmailProviderError = "mailtrap_error" | "resend_error";
+
+type ResolvedEmailProvider = {
+  apiUrl: string;
+  apiKey: string;
+  fromEmail: string;
+  errorCode: EmailProviderError;
+  payload: (toEmail: string, subject: string, html: string) => Record<string, unknown>;
+};
+
+function resolveEmailProvider(): ResolvedEmailProvider | null {
+  const mailtrapToken = Deno.env.get("MAILTRAP_API_TOKEN") || Deno.env.get("MAILTRAP_TOKEN") || Deno.env.get("MAILTRAP_API_KEY");
+  if (mailtrapToken) {
+    const fromEmail = Deno.env.get("MAILTRAP_FROM_EMAIL") || "no-reply@orvel.test";
+    const fromName = Deno.env.get("MAILTRAP_FROM_NAME") || "Orvel";
+    return {
+      apiUrl: MAILTRAP_API_URL,
+      apiKey: mailtrapToken,
+      fromEmail,
+      errorCode: "mailtrap_error",
+      payload: (toEmail, subject, html) => ({
+        from: { email: fromEmail, name: fromName },
+        to: [{ email: toEmail }],
+        subject,
+        html,
+      }),
+    };
+  }
+
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  if (resendKey) {
+    const from = Deno.env.get("RESEND_FROM_EMAIL") || "Orvel <onboarding@resend.dev>";
+    const fromEmail = /<([^>]+)>/.exec(from)?.[1] ?? from;
+    return {
+      apiUrl: RESEND_API_URL,
+      apiKey: resendKey,
+      fromEmail,
+      errorCode: "resend_error",
+      payload: (toEmail, subject, html) => ({
+        from,
+        to: [toEmail],
+        subject,
+        html,
+      }),
+    };
+  }
+
+  return null;
+}
 
 type AppointmentLinks = {
   view?: string | null;
@@ -230,7 +281,7 @@ async function clearOutboxClaimAfterProviderError(
   supabase: SupabaseServiceClient | null,
   record: OutboxRecord,
   claimId: string | null,
-  processingError = "mailtrap_error",
+  processingError = "email_provider_error",
 ): Promise<void> {
   if (!supabase || !record.id || !claimId) return;
 
@@ -302,18 +353,17 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log("Processing notification", safeLogContext(payload.record));
 
-    const apiKey = Deno.env.get("MAILTRAP_API_TOKEN") || Deno.env.get("MAILTRAP_TOKEN") || Deno.env.get("MAILTRAP_API_KEY");
-    const fromEmail = Deno.env.get("MAILTRAP_FROM_EMAIL") || "no-reply@orvel.test";
-    const fromName = Deno.env.get("MAILTRAP_FROM_NAME") || "Orvel";
+    const provider = resolveEmailProvider();
+    const fromEmail = provider?.fromEmail ?? "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const dashboardUrl = buildDashboardUrl();
     const isPublicEmailRoleRejected = isRejectedPublicEmailRole(authorizationHeader);
     const isPrivilegedEmailInvocationAuthorized = hasPrivilegedEmailInvocationAuthorization(authorizationHeader, serviceKey);
 
-    if (!apiKey) {
-      console.error("MAILTRAP_API_TOKEN is missing");
-      return new Response(JSON.stringify({ error: "mailtrap_config_missing" }), { status: 500 });
+    if (!provider) {
+      console.error("email_provider_config_missing");
+      return new Response(JSON.stringify({ error: "email_provider_config_missing" }), { status: 500 });
     }
 
     const record = payload.record as OutboxRecord | undefined;
@@ -489,30 +539,23 @@ Deno.serve(async (req) => {
       }
 
       const providerSubject = sanitizeEmailSubject(subject);
-      const mailtrapPayload = {
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: to_email }],
-        subject: providerSubject,
-        html: html,
-      };
-
-      const res = await fetch(MAILTRAP_API_URL, {
+      const res = await fetch(provider.apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
+          "Authorization": `Bearer ${provider.apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(mailtrapPayload)
+        body: JSON.stringify(provider.payload(to_email, providerSubject, html))
       });
 
       if (!res.ok) {
         await res.body?.cancel();
-        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId);
+        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId, provider.errorCode);
         console.error("Failed to send email", {
           ...safeLogContext(record),
           provider_status: res.status,
         });
-        return new Response(JSON.stringify({ error: "mailtrap_error" }), { status: 502 });
+        return new Response(JSON.stringify({ error: provider.errorCode }), { status: 502 });
       }
 
       const finalized = await markOutboxRecordSent(supabase, record, claim.claimId);
