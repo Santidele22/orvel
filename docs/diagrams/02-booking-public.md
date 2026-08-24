@@ -125,7 +125,7 @@ The public booking URL is **owned by `apps/dashboard`**, not `apps/landing`. Bot
 | `/booking/manage` | `ManageBookingPage` | `apps/dashboard/src/app/features/booking/pages/public/manage-booking.page.ts` registered at `apps/dashboard/src/app/app.routes.ts:60-63` |
 | `/booking/:slug?mode=reschedule&token=...` | `PublicBookingPage` (reschedule preload) | same page, query-param driven (`applyReschedulePreload()` at `public-booking.page.ts:539-611`) |
 
-The canonical production origin is hardcoded to `https://orvel.pro` in `apps/dashboard/src/app/core/booking/public-booking-url.ts:1`. `getPublicBookingOrigin()` bypasses the canonical constant when the runtime origin is `localhost`, `127.0.0.1`, or `0.0.0.0` (local dev / QA on a tunnel). The full URL builder is `buildPublicBookingUrl(slug)` (same file, line 26).
+The canonical production origin is hardcoded to `https://orvel.pro` in `packages/booking/src/domain/public-booking-url.ts`. `getPublicBookingOrigin()` keeps the current origin for `localhost`, `127.0.0.1`, `0.0.0.0`, and `qa.orvel.pro`; hosted production hosts (`dashboard.orvel.pro`, `www.orvel.pro`, `orvel.pro`) still rewrite to `https://orvel.pro`. The full URL builder is `buildPublicBookingUrl(slug)` (dashboard shim at `apps/dashboard/src/app/core/booking/public-booking-url.ts`).
 
 ## Components / files
 
