@@ -44,7 +44,7 @@ async function writeDashboardRuntimeEnv(browserDir) {
 
   const indexPath = join(browserDir, 'index.html');
   const html = await readFile(indexPath, 'utf8');
-  if (html.includes('src="runtime-env.js"')) {
+  if (html.includes('src="/dashboard/runtime-env.js"')) {
     return;
   }
 
@@ -54,7 +54,7 @@ async function writeDashboardRuntimeEnv(browserDir) {
 
   await writeFile(
     indexPath,
-    html.replace(/<head([^>]*)>/i, '<head$1><script src="runtime-env.js"></script>')
+    html.replace(/<head([^>]*)>/i, '<head$1><script src="/dashboard/runtime-env.js"></script>')
   );
 }
 
