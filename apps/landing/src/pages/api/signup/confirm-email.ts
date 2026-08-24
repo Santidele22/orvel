@@ -1,8 +1,6 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
 
-import { unprotectPendingSignupPii } from "../../../lib/server/pending-signup-pii-protection";
-
 function cleanToken(value: string | null): string | null {
   const token = value?.trim();
   return token && /^sec_[A-Za-z0-9_-]{32,}$/.test(token) ? token : null;
@@ -68,35 +66,6 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function cleanMetadataText(metadata: Record<string, unknown>, key: string, maxLength: number): string | null {
-  const value = metadata[key];
-  if (typeof value !== "string") return null;
-  const normalized = value.replace(/[\r\n\t]+/g, " ").trim();
-  return normalized ? normalized.slice(0, maxLength) : null;
-}
-
-const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
-
-function normalizeBusinessType(value: unknown): string | null {
-  const cleaned = typeof value === "string" ? value.trim().toLowerCase() : "";
-  const normalized = cleaned === "uñas" ? "unas" : cleaned === "pestañas" ? "pestanas" : cleaned;
-  return normalized && ALLOWED_BUSINESS_TYPES.has(normalized) ? normalized : null;
-}
-
-function readSelectedBusinessTypes(metadata: Record<string, unknown>, fallbackPrimary: string): string[] {
-  const candidate = metadata.selected_business_types ?? metadata.selectedBusinessTypes ?? metadata.additionalRubros;
-  const rawValues = Array.isArray(candidate) ? candidate : [];
-  const normalized = rawValues
-    .map((item) => normalizeBusinessType(item))
-    .filter((item): item is string => Boolean(item));
-  return [...new Set([fallbackPrimary, ...normalized.filter((item) => item !== fallbackPrimary)])];
-}
-
-function slugifyBusinessName(name: string): string {
-  const base = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
-  return `${base || "mi-negocio"}-${crypto.randomUUID().slice(0, 8)}`;
-}
-
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -159,40 +128,6 @@ function trustedUserIdFromMetadata(confirmation: Record<string, unknown>): strin
   return typeof metadata.created_user_id === "string" && metadata.created_user_id.trim() ? metadata.created_user_id : null;
 }
 
-async function confirmTrustedAuthUserEmail(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<void> {
-  const { data: authConfirmData, error: authConfirmError } = await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
-  const authConfirmedUser = authConfirmData?.user;
-  if (authConfirmError || !authConfirmedUser || authConfirmedUser.id !== userId) {
-    throw authConfirmError || new Error("signup_auth_email_confirmation_failed");
-  }
-}
-
-async function markTrustedAuthUserOnboardingComplete(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  input: { userId: string; businessId: string; businessName: string; businessSlug: string; businessType: string; selectedBusinessTypes: string[] },
-): Promise<void> {
-  const { data: authMetadataData, error: authMetadataError } = await supabaseAdmin.auth.admin.updateUserById(input.userId, {
-    user_metadata: {
-      onboardingCompleted: true,
-      onboarding_completed: true,
-      onboarding_required: false,
-      business_type: input.businessType,
-      tipoNegocio: input.businessType,
-      business_id: input.businessId,
-      business_name: input.businessName,
-      business_slug: input.businessSlug,
-      negocioNombre: input.businessName,
-      selectedBusinessTypes: input.selectedBusinessTypes,
-      selected_business_types: input.selectedBusinessTypes,
-      additionalRubros: input.selectedBusinessTypes.slice(1),
-    },
-  });
-  const authMetadataUser = authMetadataData?.user;
-  if (authMetadataError || !authMetadataUser || authMetadataUser.id !== input.userId) {
-    throw authMetadataError || new Error("signup_auth_metadata_update_failed");
-  }
-}
-
 export const GET: APIRoute = async ({ request }) => {
   const token = cleanToken(new URL(request.url).searchParams.get("token"));
   if (!token) return htmlResponse({ status: "failed", title: "Confirmación inválida", message: "El enlace no es válido o está incompleto. Pedí un nuevo correo de confirmación desde Orvel." }, 400);
@@ -219,7 +154,14 @@ export const GET: APIRoute = async ({ request }) => {
         return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no está vinculada a una cuenta creada por Orvel. Pedí un nuevo enlace.", detail: "signup_materialize_failed" }, 502);
       }
       try {
-        await confirmTrustedAuthUserEmail(supabaseAdmin, trustedUserId);
+        const { data: existingBusiness } = await supabaseAdmin.from("businesses").select("id").eq("owner_id", trustedUserId).limit(1).maybeSingle();
+        if (existingBusiness?.id) {
+          const confirmedAt = new Date().toISOString();
+          await supabaseAdmin
+            .from("business_onboarding_state")
+            .update({ email_confirmed_at: confirmedAt, updated_at: confirmedAt })
+            .eq("business_id", existingBusiness.id);
+        }
       } catch {
         return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu acceso. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
       }
@@ -245,76 +187,34 @@ export const GET: APIRoute = async ({ request }) => {
     });
   }
 
-  const metadata = (confirmation.protected_metadata && typeof confirmation.protected_metadata === "object" ? confirmation.protected_metadata : {}) as Record<string, unknown>;
-  let pii: Awaited<ReturnType<typeof unprotectPendingSignupPii>>;
-  try {
-    pii = await unprotectPendingSignupPii(confirmation as Record<string, unknown>);
-  } catch {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no tiene todos los datos necesarios. Pedí un nuevo enlace desde Orvel.", detail: "confirmation_metadata_invalid" }, 422);
-  }
-  const email = cleanMetadataText(pii, "email", 320)?.toLowerCase();
-  const firstName = cleanMetadataText(pii, "first_name", 80);
-  const lastName = cleanMetadataText(pii, "last_name", 80);
-  const businessName = cleanMetadataText(pii, "business_name", 120);
-  const businessType = normalizeBusinessType(cleanMetadataText(metadata, "business_type", 64));
-  const phone = cleanMetadataText(pii, "phone", 40);
-  if (!email || !firstName || !lastName || !businessName || !businessType) {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no tiene todos los datos necesarios. Pedí un nuevo enlace desde Orvel.", detail: "confirmation_metadata_invalid" }, 422);
-  }
-  const selectedBusinessTypes = readSelectedBusinessTypes(metadata, businessType);
-
-  const trustedUserId = typeof metadata.created_user_id === "string" ? metadata.created_user_id : null;
-  const userId = trustedUserId;
-  if (!userId) {
+  const trustedUserId = trustedUserIdFromMetadata(confirmation as Record<string, unknown>);
+  if (!trustedUserId) {
     await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
     return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "La confirmación no está vinculada a una cuenta creada por Orvel. Pedí un nuevo enlace.", detail: "signup_materialize_failed" }, 502);
   }
 
-  try {
-    await confirmTrustedAuthUserEmail(supabaseAdmin, userId);
-  } catch {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu acceso. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
+  const { data: existingBusiness } = await supabaseAdmin.from("businesses").select("id").eq("owner_id", trustedUserId).limit(1).maybeSingle();
+  if (existingBusiness?.id) {
+    const confirmedAt = new Date().toISOString();
+    const { error: confirmFlagError } = await supabaseAdmin
+      .from("business_onboarding_state")
+      .update({ email_confirmed_at: confirmedAt, updated_at: confirmedAt })
+      .eq("business_id", existingBusiness.id);
+    if (confirmFlagError) {
+      await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
+      return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu email. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
+    }
   }
 
-  const { data: existingBusiness } = await supabaseAdmin.from("businesses").select("id, slug").eq("owner_id", userId).limit(1).maybeSingle();
-  const businessId = existingBusiness?.id || crypto.randomUUID();
-  const slug = slugifyBusinessName(businessName);
-  const businessSlug = existingBusiness?.slug || slug;
-  await supabaseAdmin.from("profiles").upsert({ id: userId, first_name: firstName, last_name: lastName, phone });
-  const { error: businessError } = existingBusiness ? { error: null } : await supabaseAdmin.from("businesses").insert({ id: businessId, slug, name: businessName, owner_id: userId, timezone: "America/Argentina/Buenos_Aires" });
-  if (businessError) {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos preparar tu negocio. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
-  }
-
-  const dashboardReadyAt = new Date().toISOString();
-  const { data: settings, error: settingsError } = await supabaseAdmin.from("business_settings").upsert({ business_id: businessId, business_type: businessType, selected_business_types: selectedBusinessTypes, plan: "free", support_phone: phone, updated_at: dashboardReadyAt }).select("business_id").single();
-  const { data: onboarding, error: onboardingError } = await supabaseAdmin.from("business_onboarding_state").upsert({ business_id: businessId, current_step: "dashboard_ready", dashboard_ready_at: dashboardReadyAt, selected_plan_code: "FREE", account_user_id: userId, business_type: businessType, updated_at: dashboardReadyAt }).select("business_id").single();
-  const { data: subscription, error: subscriptionError } = await supabaseAdmin.from("business_subscriptions").upsert({ business_id: businessId, tenant_id: userId, plan_code: "FREE", subscription_status: "active", status: "active", updated_at: new Date().toISOString() }).select("business_id").single();
-  const { data: defaultServicesProvisioned, error: defaultServicesError } = await supabaseAdmin.rpc("provision_default_services_for_business", { p_business_id: businessId, p_business_types: selectedBusinessTypes });
-  const welcomeResult = { data: true };
-  const welcomeError = null;
-
-  if (settingsError || onboardingError || subscriptionError || defaultServicesError || welcomeError || !settings || !onboarding || !subscription || typeof defaultServicesProvisioned !== "number" || !welcomeResult.data) {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos dejar lista tu cuenta. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
-  }
-
-  try {
-    await markTrustedAuthUserOnboardingComplete(supabaseAdmin, { userId, businessId, businessName, businessSlug, businessType, selectedBusinessTypes });
-  } catch {
-    await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
-    return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos dejar lista tu cuenta. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
-  }
-
-  const { data: materialized, error: completeError } = await supabaseAdmin.rpc("complete_signup_email_materialization", { p_confirmation_id: confirmation.confirmation_id || effectiveConfirmationId, p_status: "materialized", p_business_id: businessId });
+  const { data: materialized, error: completeError } = await supabaseAdmin.rpc("complete_signup_email_materialization", {
+    p_confirmation_id: confirmation.confirmation_id || effectiveConfirmationId,
+    p_status: "materialized",
+    p_business_id: existingBusiness?.id,
+  });
   const updated = materialized === true || (Array.isArray(materialized) && materialized[0] === true);
   if (completeError || !updated) {
     return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "Tu email fue confirmado, pero no pudimos cerrar el alta. Reintentá con el mismo enlace.", detail: "signup_materialize_failed" }, 502);
   }
 
-  return htmlResponse({ status: "materialized", title: "Confirmación lista", message: "Tu cuenta de Orvel ya está creada. Iniciá sesión con la contraseña que elegiste al registrarte." });
+  return htmlResponse({ status: "materialized", title: "Confirmación lista", message: "Tu email quedó confirmado. Tu cuenta de Orvel ya está lista." });
 };

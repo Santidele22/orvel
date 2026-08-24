@@ -1,6 +1,16 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const loginWithProviderMock = vi.fn();
+
+vi.mock('../lib/auth-provider', async () => {
+  const actual = await vi.importActual<typeof import('../lib/auth-provider')>('../lib/auth-provider');
+  return {
+    ...actual,
+    loginWithProvider: (...args: unknown[]) => loginWithProviderMock(...args),
+  };
+});
+
 async function loadController() {
   return import('../lib/signup-account-page-controller');
 }
@@ -60,6 +70,7 @@ describe('RED contract: FREE signup credentials controller submission', () => {
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.resetModules();
+    loginWithProviderMock.mockReset();
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     window.history.pushState({}, '', '/auth/signup/account?plan=FREE&billing=monthly');
@@ -75,14 +86,22 @@ describe('RED contract: FREE signup credentials controller submission', () => {
     vi.unstubAllGlobals();
   });
 
-  it('posts a valid FREE payload to account/business creation and shows the welcome login modal before navigation', async () => {
+  it('posts a valid FREE payload, logs in on signup_ready, and opens the dashboard without the wait-for-email modal', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
       ok: true,
-      user_id: 'user-1',
-      business_id: 'business-1',
-      plan: 'FREE',
-      subscription_status: 'active'
+      status: 'signup_ready',
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    loginWithProviderMock.mockResolvedValueOnce({
+      ok: true,
+      redirectTo: 'http://localhost:4200/dashboard/inicio',
+    });
+    const assignMock = vi.fn();
+    vi.stubGlobal('location', Object.create(window.location, {
+      assign: { configurable: true, value: assignMock },
+      origin: { configurable: true, value: 'http://localhost:4321' },
+      search: { configurable: true, value: '?plan=FREE&billing=monthly' },
+      href: { configurable: true, value: 'http://localhost:4321/auth/signup/account?plan=FREE&billing=monthly' },
+    }));
 
     const { initSignupAccountPage } = await loadController();
     initSignupAccountPage({
@@ -110,13 +129,20 @@ describe('RED contract: FREE signup credentials controller submission', () => {
         plan: 'FREE'
     }));
 
-    const modal = document.getElementById('accountCreatedModal');
-    const continueLink = document.getElementById('accountCreatedContinue') as HTMLAnchorElement | null;
+    await vi.waitFor(() => expect(loginWithProviderMock).toHaveBeenCalledTimes(1));
+    expect(loginWithProviderMock).toHaveBeenCalledWith(expect.objectContaining({
+      attempt: expect.objectContaining({
+        email: 'ana@example.com',
+        password: 'password-segura-123',
+      }),
+    }));
     await vi.waitFor(() => {
-      expect(modal?.classList.contains('hidden')).toBe(false);
-      expect(modal?.getAttribute('aria-hidden')).toBe('false');
-      expect(continueLink?.getAttribute('href')).toBe('/auth/login');
+      expect(assignMock).toHaveBeenCalledWith('http://localhost:4200/dashboard/inicio');
     });
+
+    const modal = document.getElementById('accountCreatedModal');
+    expect(modal?.classList.contains('hidden')).toBe(true);
+    expect(modal?.getAttribute('aria-hidden')).toBe('true');
 
     const signupError = document.getElementById('signupError');
     expect(signupError?.classList.contains('hidden')).toBe(true);
