@@ -240,6 +240,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
     });
   });
 
+  protected readonly hasTurnosOnSelectedDate = computed(() => this.mobileAppointments().length > 0);
+  protected readonly hasAnyTurnos = computed(() => this.turnos().length > 0);
+
   protected hasMoreTurnos = computed(() => {
     const status = this.filterStatus();
     const total = status === 'todos' 

@@ -23,7 +23,7 @@
     </div>
   </div>
   } @else {
-  <div class="sr-only" data-testid="turnos-empty-state" role="status">No appointments available.</div>
+  <div class="sr-only" data-testid="turnos-empty-state" role="status">Todavía no hay turnos este día.</div>
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
 
   @if (!isMobile()) {
@@ -80,13 +80,22 @@
             {{ adminCancelFeedback() }}
           </p>
           }
-          @if (turnosLoadError()) {
+          @if (turnosLoadError() && hasAnyTurnos()) {
           <p role="alert" data-testid="turnos-load-error"
             class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
             {{ turnosLoadError() }}
           </p>
           }
           <div class="flex-1 overflow-y-auto p-zen-xl space-y-px relative custom-scrollbar">
+            @if (!hasTurnosOnSelectedDate()) {
+            <div data-testid="turnos-desktop-empty-state" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <i class="ri-calendar-todo-line text-3xl text-border" aria-hidden="true"></i>
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-text-primary">Todavía no hay turnos este día</p>
+                <p class="text-xs font-medium text-text-tertiary">Cuando alguien reserve o agregues uno, va a aparecer acá.</p>
+              </div>
+            </div>
+            } @else {
             @for (hour of timelineHours(); track hour) {
             <div class="relative py-zen-xl flex gap-zen-xl group transition-all duration-300">
               <div
@@ -142,6 +151,7 @@
                 }
               </div>
             </div>
+            }
             }
             <!-- Current Time Indicator -->
             <div class="absolute left-0 right-0 h-0.5 bg-accent z-10 shadow-[0_0_10px_rgba(245,158,11,0.5)]" style="top: 45%;">

@@ -62,9 +62,15 @@
               </button>
             </article>
           } @empty {
-            <article [class]="ui.cardGlass + ' text-center py-12'">
-              <i class="ri-user-search-line text-3xl text-border block mb-2"></i>
-              <p class="text-sm font-medium text-text-tertiary">No se encontraron clientes que coincidan con la búsqueda.</p>
+            <article data-testid="clientes-empty-state" [class]="ui.cardGlass + ' text-center py-12'">
+              <i class="ri-user-heart-line text-3xl text-border block mb-2" aria-hidden="true"></i>
+              @if (searchQuery().trim()) {
+                <p class="text-sm font-semibold text-text-primary">Ningún cliente coincide con esa búsqueda</p>
+                <p class="mt-1 text-xs font-medium text-text-tertiary">Probá con otro nombre, teléfono o email.</p>
+              } @else {
+                <p class="text-sm font-semibold text-text-primary">Todavía no tenés clientes cargados</p>
+                <p class="mt-1 text-xs font-medium text-text-tertiary">Cuando agregues el primero, lo vas a ver acá.</p>
+              }
             </article>
           }
         </div>
