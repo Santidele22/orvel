@@ -14,6 +14,7 @@ export type DashboardBranch = {
 export class BranchContextService {
   private supabaseClient?: SupabaseClient;
   private initialized = false;
+  private lastResolvedBusinessId: string | null = null;
   private branchesState = signal<DashboardBranch[]>([]);
   private activeBranchIdState = signal<string | null>(null);
   private errorState = signal<string | null>(null);
@@ -25,9 +26,21 @@ export class BranchContextService {
   readonly loading = this.loadingState.asReadonly();
 
   async ensureLoaded(): Promise<void> {
-    if (this.initialized) return;
+    const currentBusinessId = await this.resolveActiveBusinessId(this.getSupabaseClient());
+    if (this.initialized && currentBusinessId === this.lastResolvedBusinessId) return;
     this.initialized = true;
+    this.lastResolvedBusinessId = currentBusinessId;
     await this.refresh();
+  }
+
+  resetSession(): void {
+    this.initialized = false;
+    this.lastResolvedBusinessId = null;
+    this.branchesState.set([]);
+    this.activeBranchIdState.set(null);
+    this.errorState.set(null);
+    this.clearActiveBranch();
+    this.storage()?.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
   }
 
   async refresh(): Promise<void> {
@@ -146,17 +159,27 @@ export class BranchContextService {
 
   private async resolveActiveBusinessId(supabase: SupabaseClient): Promise<string | null> {
     try {
-      const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim();
-      if (storedBusinessId) return storedBusinessId;
-
+      const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
       const { data, error } = await supabase.auth.getSession();
-      if (error) return null;
+      if (error) return storedBusinessId;
 
       const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
-      const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-      return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
+      const sessionBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+      const resolvedSessionId = typeof sessionBusinessId === 'string' && sessionBusinessId.trim()
+        ? sessionBusinessId.trim()
+        : null;
+
+      if (resolvedSessionId) {
+        if (storedBusinessId && storedBusinessId !== resolvedSessionId) {
+          this.clearActiveBranch();
+        }
+        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolvedSessionId);
+        return resolvedSessionId;
+      }
+
+      return storedBusinessId;
     } catch {
-      return null;
+      return this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
     }
   }
 
@@ -170,4 +193,9 @@ let branchContextSingleton: BranchContextService | null = null;
 export function getBranchContextService(): BranchContextService {
   branchContextSingleton ??= new BranchContextService();
   return branchContextSingleton;
+}
+
+export function resetBranchContextSession(): void {
+  branchContextSingleton?.resetSession();
+  branchContextSingleton = null;
 }
