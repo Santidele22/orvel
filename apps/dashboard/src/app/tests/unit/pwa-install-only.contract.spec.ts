@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -123,6 +123,25 @@ describe('Contract: public PWA install-only page', () => {
     expect(template).toMatch(/@if\s*\(\s*alreadyInstalled\(\)\s*\)/);
     expect(template).toMatch(
       /@if\s*\(\s*(?:canPromptNativeInstall|showInstallCta)\(\)\s*\)\s*\{[\s\S]*Instalar/,
+    );
+  });
+
+  it('shows the Orvel logo and ships real PWA icons instead of placeholders', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const icon192 = resolve(process.cwd(), 'src/icons/icon-192x192.png');
+    const icon512 = resolve(process.cwd(), 'src/icons/icon-512x512.png');
+
+    expect(template).toContain('class="pwa-install__logo"');
+    expect(template).toContain('src="/dashboard/icons/icon-192x192.png"');
+    expect(template).toMatch(/alt=["']Orvel["']/);
+    expect(statSync(icon192).size).toBeGreaterThan(10_000);
+    expect(statSync(icon512).size).toBeGreaterThan(10_000);
+    expect(readFileSync(icon192).subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    expect(readFileSync(icon512).subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     );
   });
 

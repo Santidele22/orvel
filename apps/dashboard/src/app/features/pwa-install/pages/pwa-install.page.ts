@@ -16,6 +16,13 @@ type OrvelWindow = Window & {
   imports: [CommonModule],
   template: `
     <main class="pwa-install">
+      <img
+        class="pwa-install__logo"
+        src="/dashboard/icons/icon-192x192.png"
+        width="96"
+        height="96"
+        alt="Orvel"
+      />
       @if (alreadyInstalled()) {
         <h1>Listo</h1>
         <p>Orvel ya está instalada. Abrí el ícono en tu teléfono para usarla.</p>
@@ -58,6 +65,13 @@ type OrvelWindow = Window & {
       background: var(--or-bg-primary);
       color: var(--or-text-primary);
       font-family: var(--or-font-family);
+    }
+    .pwa-install__logo {
+      display: block;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 24px;
+      border-radius: 24px;
     }
     h1 { margin: 0 0 16px; font-size: var(--or-font-h2); }
     p { max-width: 28rem; margin: 0 auto 24px; color: var(--or-text-secondary); }
