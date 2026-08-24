@@ -210,6 +210,19 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
     expect((supabase.rpc as ReturnType<typeof vi.fn>).mock.calls).not.toContainEqual(['get_dashboard_branches']);
   });
 
+  it('prefers the session business over a stale stored business id', async () => {
+    window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, OTHER_BUSINESS_ID);
+    const branchContext = new BranchContextService();
+    const supabase = supabaseDouble({ businessId: BUSINESS_ID });
+    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = supabase;
+
+    await branchContext.refresh();
+
+    expect(supabase.rpc).toHaveBeenCalledWith('get_dashboard_branches', { p_business_id: BUSINESS_ID });
+    expect(branchContext.activeBranchId()).toBe(BRANCH_ID);
+    expect(window.localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY)).toBe(BUSINESS_ID);
+  });
+
   it('loads branch context from the stored active business when metadata is missing', async () => {
     window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, OTHER_BUSINESS_ID);
     const branchContext = new BranchContextService();
