@@ -172,6 +172,7 @@ describe('legacy create-account-business boundary', () => {
       protected_metadata: expect.objectContaining({ password: expect.anything() }),
     }));
     expect(supabase.confirmationOutboxInsert).toHaveBeenCalledWith({
+      business_id: expect.any(String),
       to_email: 'ada@example.test',
       template_key: 'signup_email_confirmation',
       payload: {
