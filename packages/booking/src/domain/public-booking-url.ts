@@ -13,10 +13,18 @@ function isLocalOrigin(origin: string): boolean {
   }
 }
 
+function isQaOrigin(origin: string): boolean {
+  try {
+    return new URL(origin).hostname === 'qa.orvel.pro';
+  } catch {
+    return false;
+  }
+}
+
 export function getPublicBookingOrigin(currentOrigin = globalThis.location?.origin ?? ''): string {
   const normalizedCurrentOrigin = normalizeOrigin(currentOrigin.trim());
 
-  if (normalizedCurrentOrigin && isLocalOrigin(normalizedCurrentOrigin)) {
+  if (normalizedCurrentOrigin && (isLocalOrigin(normalizedCurrentOrigin) || isQaOrigin(normalizedCurrentOrigin))) {
     return normalizedCurrentOrigin;
   }
 
