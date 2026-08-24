@@ -71,9 +71,7 @@ describe('TDD contract: Remix Icons adoption in dashboard', () => {
     ).toBe(true);
     expect(notificationButtons.every((button) => hasRemixClass(button))).toBe(true);
 
-    const fab = shell.querySelector('[data-testid="dashboard-shell-global-action"]');
-    expect(fab).toBeTruthy();
-    expect((fab?.getAttribute('aria-label') ?? '').trim().length).toBeGreaterThan(0);
+    expect(shell.querySelector('[data-testid="dashboard-shell-global-action"]')).toBeNull();
   });
 
   it('keeps turnos admin actions as labeled controls (not glyph-only buttons)', async () => {
