@@ -102,6 +102,7 @@ describe('RED signup email confirmation flow contract', () => {
     const freeSlice = freeSignupIndex >= 0 ? source.slice(freeSignupIndex) : source;
 
     expect(freeSlice, 'confirm must set the product-level email_confirmed_at flag').toMatch(/email_confirmed_at/i);
+    expect(freeSlice, 'late confirm must re-enable the public turnero').toMatch(/public_turnero_disabled_at\s*:\s*null/i);
     expect(freeSlice, 'free_signup confirm must not insert businesses').not.toMatch(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(/i);
     expect(freeSlice).not.toMatch(/password\s*:|generateLink|recovery|reset|change-password/i);
   });

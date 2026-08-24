@@ -39,7 +39,8 @@ export function getPublicBookingSubmitErrorMessage(error?: ApiError): string {
     searchable.includes('BRANCH_TENANT_MISMATCH') ||
     searchable.includes('INVALID_SERVICE') ||
     searchable.includes('SERVICE_NOT_FOUND') ||
-    searchable.includes('DATABASE_CONTRACT_UNAVAILABLE')
+    searchable.includes('DATABASE_CONTRACT_UNAVAILABLE') ||
+    searchable.includes('PUBLIC_TURNERO_DISABLED')
   ) {
     return BUSINESS_OR_SERVICE_UNAVAILABLE_MESSAGE;
   }

@@ -161,6 +161,10 @@ export const GET: APIRoute = async ({ request }) => {
             .from("business_onboarding_state")
             .update({ email_confirmed_at: confirmedAt, updated_at: confirmedAt })
             .eq("business_id", existingBusiness.id);
+          await supabaseAdmin
+            .from("businesses")
+            .update({ public_turnero_disabled_at: null })
+            .eq("id", existingBusiness.id);
         }
       } catch {
         return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu acceso. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
@@ -201,6 +205,14 @@ export const GET: APIRoute = async ({ request }) => {
       .update({ email_confirmed_at: confirmedAt, updated_at: confirmedAt })
       .eq("business_id", existingBusiness.id);
     if (confirmFlagError) {
+      await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
+      return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu email. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
+    }
+    const { error: reenableError } = await supabaseAdmin
+      .from("businesses")
+      .update({ public_turnero_disabled_at: null })
+      .eq("id", existingBusiness.id);
+    if (reenableError) {
       await markMaterialization(supabaseAdmin, effectiveConfirmationId, "failed_materialization");
       return htmlResponse({ status: "failed", title: "No pudimos completar el alta", message: "No pudimos confirmar tu email. Reintentá con el mismo enlace en unos minutos.", detail: "signup_materialize_failed" }, 502);
     }
