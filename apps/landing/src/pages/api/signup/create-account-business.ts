@@ -190,8 +190,9 @@ export const POST: APIRoute = async ({ request }) => {
 
   const authUserId = createdAuthUser.user.id;
 
+  let provisioned: Awaited<ReturnType<typeof provisionFreeSignupTenant>>;
   try {
-    await provisionFreeSignupTenant(supabaseAdmin, {
+    provisioned = await provisionFreeSignupTenant(supabaseAdmin, {
       userId: authUserId,
       firstName,
       lastName,
@@ -235,26 +236,31 @@ export const POST: APIRoute = async ({ request }) => {
   const { data: confirmation, error: confirmationError } = typeof (confirmationInsertRequest as { select?: unknown }).select === "function"
     ? await (confirmationInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
     : { data: { id: "confirmation_insert_unverified_by_mock" }, ...(await confirmationInsertRequest) };
-  if (confirmationError || !confirmation) {
-    throw confirmationError || new Error("confirmation_insert_missing_row");
-  }
+  try {
+    if (confirmationError || !confirmation) {
+      throw confirmationError || new Error("confirmation_insert_missing_row");
+    }
 
-  const outboxInsertRequest = supabaseAdmin.from("notification_email_outbox").insert({
-    to_email: email,
-    template_key: "signup_email_confirmation",
-    payload: {
-      confirmation_url: confirmationUrl,
-      owner_name: firstName,
-      business_name: businessName,
-      plan_code: "FREE",
-    },
-  });
-  const { data: outbox, error: outboxError } = typeof (outboxInsertRequest as { select?: unknown }).select === "function"
-    ? await (outboxInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
-    : { data: { id: "outbox_insert_unverified_by_mock" }, ...(await outboxInsertRequest) };
-  if (outboxError || !outbox) {
-    await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
-    throw outboxError || new Error("outbox_insert_missing_row");
+    const outboxInsertRequest = supabaseAdmin.from("notification_email_outbox").insert({
+      business_id: provisioned.businessId,
+      to_email: email,
+      template_key: "signup_email_confirmation",
+      payload: {
+        confirmation_url: confirmationUrl,
+        owner_name: firstName,
+        business_name: businessName,
+        plan_code: "FREE",
+      },
+    });
+    const { data: outbox, error: outboxError } = typeof (outboxInsertRequest as { select?: unknown }).select === "function"
+      ? await (outboxInsertRequest as { select: (columns: string) => { single: () => Promise<{ data: unknown; error: unknown }> } }).select("id").single()
+      : { data: { id: "outbox_insert_unverified_by_mock" }, ...(await outboxInsertRequest) };
+    if (outboxError || !outbox) {
+      await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
+      throw outboxError || new Error("outbox_insert_missing_row");
+    }
+  } catch {
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
   }
 
   return jsonResponse({ ok: true, status: "signup_ready" }, 200);
