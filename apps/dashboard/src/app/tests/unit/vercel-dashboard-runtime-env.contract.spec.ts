@@ -9,5 +9,7 @@ describe('Contract: combined Vercel build injects dashboard runtime env', () => 
 
     expect(source).toContain('runtime-env.js');
     expect(source).toContain('__ORVEL_DASHBOARD_ENV__');
+    expect(source).toContain('src="/dashboard/runtime-env.js"');
+    expect(source).not.toContain('src="runtime-env.js"');
   });
 });
