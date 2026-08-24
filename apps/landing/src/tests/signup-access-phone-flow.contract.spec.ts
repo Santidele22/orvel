@@ -78,7 +78,7 @@ describe('contract: landing signup access phone + same-runtime continuation flow
     const finalizer = sliceBetween(controllerSource, 'if (!isPaidPlan)', '\n    }\n\n    try {');
 
     expect(finalizer).toMatch(/createAccountAndBusiness\(accountBusinessPayload\)/);
-    expect(finalizer).toMatch(/showAccountCreatedModal\(\)/);
+    expect(finalizer).toMatch(/loginWithProvider|loginAfterFreeSignup/);
     expect(finalizer).toMatch(/catch\s*(?:\(|\{)/);
     expect(finalizer).toMatch(/button\.disabled\s*=\s*false/);
     expect(finalizer).toMatch(/signupError|errorEl|showExistingAccountModal/);
