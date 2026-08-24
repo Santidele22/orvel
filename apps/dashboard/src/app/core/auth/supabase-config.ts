@@ -4,11 +4,12 @@
  * These values are read from environment variables.
  */
 
+import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '@orvel/config';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
 
-const runtimeEnv = loadDashboardRuntimeEnv();
+export { ORVEL_SUPABASE_AUTH_STORAGE_KEY };
 
-export const ORVEL_SUPABASE_AUTH_STORAGE_KEY = 'orvel.supabase.auth';
+const runtimeEnv = loadDashboardRuntimeEnv();
 
 export const SUPABASE_CONFIG = {
   /** Supabase project URL */
