@@ -1,18 +1,7 @@
-<<<<<<<< HEAD:packages/booking/src/infrastructure/supabase/mappers.ts
-import { ApiErrorCode, ApiError, BusinessPublicView } from '../../types';
-
-type RpcErrorLike = {
-  message?: string;
-  code?: string;
-  details?: unknown;
-  hint?: unknown;
-  name?: string;
-========
 export type PublicTurneroDisabledMapping = {
   status: 422;
   code: 'PUBLIC_TURNERO_DISABLED';
   message: 'Public booking is temporarily unavailable.';
->>>>>>>> origin/dev:apps/dashboard/src/app/core/api/supabase-booking/mappers.ts
 };
 
 export function mapPublicTurneroDisabledError(error: {

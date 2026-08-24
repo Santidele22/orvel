@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-<<<<<<<< HEAD:packages/booking/src/infrastructure/supabase/__tests__/mappers.contract.spec.ts
-import { mapBusinessToPublicView, mapRpcErrorToApiError } from '../mappers';
-========
 import { mapPublicTurneroDisabledError } from './mappers';
->>>>>>>> origin/dev:apps/dashboard/src/app/core/api/supabase-booking/mappers.contract.spec.ts
 
 describe('public turnero disabled mapper', () => {
   it('maps PUBLIC_TURNERO_DISABLED to a non-500 unavailable API error', () => {

@@ -57,13 +57,28 @@ export function renderSignupEmailConfirmation(data: SignupEmailConfirmationData)
   const owner = data.ownerName || "";
   const title = `Confirmá tu email${owner ? `, ${escapeHtml(owner)}` : ""}`;
   return {
-    subject: "Confirmá tu email para activar Orvel",
+    subject: "Confirmá tu email de Orvel",
     html: renderShell(title, `
-      <p style="color:${palette.muted};font-size:16px;line-height:1.6;">Antes de crear tu cuenta${data.businessName ? ` para ${escapeHtml(data.businessName)}` : ""}, necesitamos confirmar que este email es tuyo.</p>
+      <p style="color:${palette.muted};font-size:16px;line-height:1.6;">Tu cuenta ya está activa${data.businessName ? ` para ${escapeHtml(data.businessName)}` : ""}. Confirmá este email para mantener tu turnero público.</p>
       <p style="margin:28px 0;">
         <a href="${escapeAttribute(data.confirmationUrl)}" style="display:inline-block;background:${palette.violet};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">Confirmar email</a>
       </p>
-      <p style="color:${palette.muted};font-size:14px;line-height:1.5;">El enlace vence pronto y se puede usar una sola vez. Si no pediste esta alta, ignorá este mensaje.</p>
+      <p style="color:${palette.muted};font-size:14px;line-height:1.5;">El enlace vence en 14 días y se puede usar una sola vez. Si no pediste esta alta, ignorá este mensaje.</p>
+    `),
+  };
+}
+
+export function renderSignupEmailConfirmationReminder(data: SignupEmailConfirmationData): { subject: string; html: string } {
+  const owner = data.ownerName || "";
+  const title = `Todavía falta confirmar tu email${owner ? `, ${escapeHtml(owner)}` : ""}`;
+  return {
+    subject: "Todavía falta confirmar tu email de Orvel",
+    html: renderShell(title, `
+      <p style="color:${palette.muted};font-size:16px;line-height:1.6;">Tu cuenta ya está activa${data.businessName ? ` para ${escapeHtml(data.businessName)}` : ""}. Confirmá tu email para que el turnero público siga disponible.</p>
+      <p style="margin:28px 0;">
+        <a href="${escapeAttribute(data.confirmationUrl)}" style="display:inline-block;background:${palette.violet};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">Confirmar email</a>
+      </p>
+      <p style="color:${palette.muted};font-size:14px;line-height:1.5;">Si no confirmás, el turnero público se desactiva a los 7 días. La agenda interna sigue funcionando.</p>
     `),
   };
 }

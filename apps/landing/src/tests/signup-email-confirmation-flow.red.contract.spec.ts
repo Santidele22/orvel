@@ -102,6 +102,7 @@ describe('RED signup email confirmation flow contract', () => {
     const freeSlice = freeSignupIndex >= 0 ? source.slice(freeSignupIndex) : source;
 
     expect(freeSlice, 'confirm must set the product-level email_confirmed_at flag').toMatch(/email_confirmed_at/i);
+    expect(freeSlice, 'late confirm must re-enable the public turnero').toMatch(/public_turnero_disabled_at\s*:\s*null/i);
     expect(freeSlice, 'free_signup confirm must not insert businesses').not.toMatch(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(/i);
     expect(freeSlice).not.toMatch(/password\s*:|generateLink|recovery|reset|change-password/i);
   });
@@ -252,6 +253,25 @@ describe('RED signup email confirmation flow contract', () => {
 
     expect(combined).toMatch(/signup_confirmation_requested|confirmation_requested|accepted|ok\s*:\s*true/i);
     expect(combined).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS|PENDING_SIGNUP_REFERENCE_INVALID|Este email ya tiene una cuenta|Ya existe un alta paga pendiente/i);
+  });
+
+  it('FREE confirmation token TTL is 14 days', async () => {
+    const source = await readSource(CREATE_ACCOUNT_BUSINESS_API);
+    const ttlConstant = source.match(/FREE_CONFIRMATION_TTL_MS\s*=\s*([^;]+);/)?.[1] ?? '';
+    const expiresAtLine = source.match(/const\s+expiresAt\s*=\s*new Date\(([\s\S]*?)\)\.toISOString\(\)/)?.[1] ?? '';
+
+    expect(ttlConstant, 'FREE signup confirmation tokens must last 14 days so day-7 confirm still works').toMatch(/14\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+    expect(expiresAtLine, 'FREE signup must use the 14-day confirmation TTL').toMatch(/FREE_CONFIRMATION_TTL_MS/);
+    expect(expiresAtLine, 'FREE signup confirmation tokens must not keep the 30-minute TTL').not.toMatch(/30\s*\*\s*60\s*\*\s*1000/);
+  });
+
+  it('PAID confirmation tokens stay at the existing 30-minute handoff TTL', async () => {
+    const paidSource = await readSource(new URL('../lib/server/pending-signup-handoff.ts', import.meta.url));
+    const paidConfirmationInsert = paidSource.match(/from\(['"]signup_email_confirmations['"]\)\.insert\(\{[\s\S]*?\}\)/)?.[0] ?? '';
+
+    expect(paidSource).toMatch(/HANDOFF_MAX_AGE_SECONDS\s*=\s*30\s*\*\s*60/);
+    expect(paidConfirmationInsert, 'paid signup confirmation expires_at must keep HANDOFF_MAX_AGE_SECONDS').toMatch(/expires_at:\s*new Date\([\s\S]*HANDOFF_MAX_AGE_SECONDS/);
+    expect(paidConfirmationInsert).not.toMatch(/14\s*\*\s*24/);
   });
 
   it('PAID protect endpoint uses the same accepted public body for fresh and duplicate/pending cases, without redirect or cookie before email proof', async () => {

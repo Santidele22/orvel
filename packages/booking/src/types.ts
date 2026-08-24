@@ -16,7 +16,8 @@ export type ApiErrorCode =
   | 'BRANCH_TENANT_MISMATCH'
   | 'INVALID_SERVICE'
   | 'SERVICE_NOT_FOUND'
-  | 'DATABASE_CONTRACT_UNAVAILABLE';
+  | 'DATABASE_CONTRACT_UNAVAILABLE'
+  | 'PUBLIC_TURNERO_DISABLED';
 
 export type ApiError = {
   code: ApiErrorCode;

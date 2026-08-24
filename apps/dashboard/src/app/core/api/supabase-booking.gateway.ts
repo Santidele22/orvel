@@ -1,3 +1,5 @@
+import { mapPublicTurneroDisabledError } from './supabase-booking/mappers'
+
 type ApiErrorCode =
   | 'BUSINESS_NOT_FOUND'
   | 'VALIDATION_ERROR'
@@ -10,6 +12,7 @@ type ApiErrorCode =
   | 'SLOT_CONFLICT'
   | 'BLOCKED_TIME_COLLISION'
   | 'AUTH_REQUIRED'
+  | 'PUBLIC_TURNERO_DISABLED'
 
 type ApiError = {
   code: ApiErrorCode
@@ -324,6 +327,17 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       })
 
       if (result.error) {
+        const turneroDisabled = mapPublicTurneroDisabledError(result.error)
+        if (turneroDisabled) {
+          return {
+            status: turneroDisabled.status,
+            error: {
+              code: turneroDisabled.code,
+              message: turneroDisabled.message
+            }
+          }
+        }
+
         const knownMappings: Record<string, RpcErrorMapping> = {
           BOOKING_VALIDATION_ERROR: {
             status: 422,
@@ -378,6 +392,17 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       })
 
       if (result.error) {
+        const turneroDisabled = mapPublicTurneroDisabledError(result.error)
+        if (turneroDisabled) {
+          return {
+            status: turneroDisabled.status,
+            error: {
+              code: turneroDisabled.code,
+              message: turneroDisabled.message
+            }
+          }
+        }
+
         const mapped = mapRpcError(result.error, {
           BOOKING_VALIDATION_ERROR: {
             status: 422,

@@ -217,7 +217,11 @@ export class PublicBookingPage implements OnInit {
         this.availabilitySlots.set([]);
         this.updateDayAvailability(date, false);
         this.selectedSlot = '';
-        this.availabilityErrorMessage.set('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
+        this.availabilityErrorMessage.set(
+          response.error?.code === 'PUBLIC_TURNERO_DISABLED'
+            ? getPublicBookingSubmitErrorMessage(response.error)
+            : 'No pudimos consultar los horarios disponibles. Intentá nuevamente.'
+        );
         return;
       }
 
