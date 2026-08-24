@@ -16,6 +16,12 @@ describe('turno form mobile create', () => {
     expect(pageTs).not.toMatch(/fecha = signal<string>\(new Date\(\)\.toISOString\(\)/);
   });
 
+  it('matches the servicios modal field chrome', () => {
+    expect(pageHtml).toContain('Formulario');
+    expect(pageHtml).toContain('rounded-xl bg-[#1a2236] border border-white/10');
+    expect(pageHtml).toContain('h-11 px-10 rounded-full bg-primary');
+  });
+
   it('uses a full-viewport mobile modal sheet instead of a centered desktop card', () => {
     expect(pageHtml).toMatch(
       /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,220}items-end/

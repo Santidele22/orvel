@@ -41,51 +41,20 @@ describe('Mobile shell: bottom nav integration', () => {
 });
 
 describe('Mobile shell: FAB activation', () => {
-  it('FAB does NOT have opacity-0 pointer-events-none', async () => {
+  it('does not render a floating + action over the bottom nav', async () => {
     const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).not.toContain('opacity-0');
-    expect(html).not.toContain('pointer-events-none');
-  });
-
-  it('FAB is hidden on lg breakpoint', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('lg:hidden');
-  });
-
-  it('FAB has click handler for navigation', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('(click)');
-  });
-
-  it('FAB navigates to /dashboard/turnos/new', async () => {
-    const source = await readFile(fromRoot(SHELL_TS), 'utf-8');
-    expect(source).toContain('/dashboard/turnos/new');
-  });
-
-  it('FAB has circular shape and primary color', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('rounded-full');
-    expect(html).toContain('bg-primary');
-    expect(html).toContain('text-white');
-  });
-
-  it('FAB is positioned above bottom nav with bottom-20', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('bottom-20');
-  });
-
-  it('keeps data-testid="dashboard-shell-global-action"', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('data-testid="dashboard-shell-global-action"');
-  });
-
-  it('has navigateToNewTurno method in shell component', async () => {
-    const source = await readFile(fromRoot(SHELL_TS), 'utf-8');
-    expect(source).toContain('navigateToNewTurno');
+    expect(html).not.toContain('data-testid="dashboard-shell-global-action"');
+    expect(html).not.toContain('ri-add-line');
   });
 });
 
 describe('Mobile shell: notificaciones and perfil routes', () => {
+  it('shows an empty-state icon on the notifications page', async () => {
+    const source = await readFile(fromRoot('src/app/features/notificaciones/pages/notificaciones.page.ts'), 'utf-8');
+    expect(source).toContain('data-testid="notificaciones-empty-state"');
+    expect(source).toContain('ri-notification-off-line');
+  });
+
   it('adds notificaciones route', async () => {
     const routes = await readFile(fromRoot(ROUTES_TS), 'utf-8');
     expect(routes).toContain('notificaciones');
