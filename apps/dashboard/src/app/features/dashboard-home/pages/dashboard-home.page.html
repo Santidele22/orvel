@@ -16,9 +16,17 @@
       <i class="ri-share-line"></i>
       Compartir link
     </button>
-  </header>
+    </header>
 
-  <!-- Top Stats Row -->
+    @if (!isPwaStandalone()) {
+      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
+        class="mb-8 flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
+        Instalá Orvel en tu teléfono
+        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
+      </a>
+    }
+
+    <!-- Top Stats Row -->
   <div class="mb-8 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
     <!-- Card: Total Turnos -->
     <div class="or-card or-card-hover group min-w-0">
@@ -226,6 +234,14 @@
       </h1>
       <p class="text-sm font-medium leading-6 text-slate-400">Tu resumen de hoy.</p>
     </header>
+
+    @if (!isPwaStandalone()) {
+      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
+        class="flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
+        Instalá Orvel en tu teléfono
+        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
+      </a>
+    }
 
     <button (click)="copyBookingUrl()"
       [attr.disabled]="hasBookingUrl() ? null : true"

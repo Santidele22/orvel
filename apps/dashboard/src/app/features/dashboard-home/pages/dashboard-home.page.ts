@@ -8,6 +8,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import { isStandaloneDisplay } from '../../pwa-install/pwa-display';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -22,6 +23,10 @@ export class DashboardHomeComponent {
   private readonly authService = inject(AuthService);
   private readonly businessFacade = inject(BusinessService);
   protected readonly isMobile = createIsMobileSignal().isMobile;
+
+  protected isPwaStandalone(): boolean {
+    return isStandaloneDisplay();
+  }
 
   protected readonly user = this.authService.user;
   protected readonly agendaStatus = this.dashboardService.agendaStatus;

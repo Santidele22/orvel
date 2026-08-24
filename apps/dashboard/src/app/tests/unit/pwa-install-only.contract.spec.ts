@@ -54,7 +54,7 @@ describe('Contract: public PWA install-only page', () => {
     expect(beforeAppRoot).toContain('__ORVEL_DEFERRED_INSTALL_PROMPT');
   });
 
-  it('shows iOS and Android manual install steps without requiring a click', () => {
+  it('shows numbered iOS steps and an honest Android next step without requiring a click', () => {
     const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
     const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
     const withoutGatedHint = template.replace(
@@ -62,9 +62,13 @@ describe('Contract: public PWA install-only page', () => {
       '',
     );
 
+    expect(withoutGatedHint).toMatch(/ri-share-line/);
     expect(withoutGatedHint).toMatch(/Compartir/);
     expect(withoutGatedHint).toMatch(/pantalla de inicio/i);
+    expect(withoutGatedHint).toMatch(/<ol[\s\S]*<li[\s\S]*<li/i);
     expect(withoutGatedHint).toMatch(/Android/i);
+    expect(withoutGatedHint).toMatch(/Chrome del celular/i);
+    expect(page).not.toContain('Este navegador no ofrece el diálogo de instalación.');
   });
 
   it('keeps the PWA manifest start_url and scope unchanged', () => {
@@ -82,16 +86,56 @@ describe('Contract: public PWA install-only page', () => {
     expect(config).not.toContain("provideServiceWorker('ngsw-worker.js'");
   });
 
-  it('detects iOS and does not claim a native install dialog on that path', () => {
+  it('detects iOS via the shared helper and never calls prompt() on that path', () => {
+    const helper = source('src/app/features/pwa-install/pwa-display.ts');
     const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
-    const iosDetect = page.match(/iPhone\|iPad\|iPod/)?.[0] ?? '';
-    const iosBranch =
-      page.match(
-        /(?:isIos\(|iPhone\|iPad\|iPod)[\s\S]{0,500}?installFeedback\.set\((?:`[^`]*`|'[^']*'|"[^"]*")\)/,
-      )?.[0] ?? '';
+    const promptAfterIos = page.match(/isIos[\s\S]{0,240}?prompt\(/)?.[0] ?? '';
 
-    expect(iosDetect).toMatch(/iPhone\|iPad\|iPod/);
-    expect(iosBranch.length).toBeGreaterThan(0);
-    expect(iosBranch).not.toContain('no ofrece el diálogo');
+    expect(helper).toContain('export function isIosDevice');
+    expect(helper).toMatch(/iPhone\|iPad\|iPod/);
+    expect(page).toContain('isIosDevice');
+    expect(page).toMatch(/if\s*\(\s*(?:this\.)?isIos/);
+    expect(promptAfterIos).toBe('');
+    expect(page).not.toContain('no ofrece el diálogo');
+  });
+
+  it('classifies standalone display and iOS devices from the shared helper', async () => {
+    const { isStandaloneDisplay, isIosDevice } = await import(
+      '../../features/pwa-install/pwa-display'
+    );
+
+    expect(isStandaloneDisplay(true, false)).toBe(true);
+    expect(isStandaloneDisplay(false, true)).toBe(true);
+    expect(isStandaloneDisplay(false, false)).toBe(false);
+    expect(isIosDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)')).toBe(true);
+    expect(isIosDevice('Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)')).toBe(true);
+    expect(isIosDevice('Mozilla/5.0 (Linux; Android 14; Pixel 8)')).toBe(false);
+    expect(isIosDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', true)).toBe(true);
+    expect(isIosDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', false)).toBe(false);
+  });
+
+  it('shows an already-installed state without an Instalar CTA', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+
+    expect(page).toContain('isStandaloneDisplay');
+    expect(template).toMatch(/ya está instalada/i);
+    expect(template).toMatch(/@if\s*\(\s*alreadyInstalled\(\)\s*\)/);
+    expect(template).toMatch(
+      /@if\s*\(\s*(?:canPromptNativeInstall|showInstallCta)\(\)\s*\)\s*\{[\s\S]*Instalar/,
+    );
+  });
+
+  it('places a home install coach on mobile and desktop, hidden when standalone', () => {
+    const helper = source('src/app/features/pwa-install/pwa-display.ts');
+    const homeTs = source('src/app/features/dashboard-home/pages/dashboard-home.page.ts');
+    const homeHtml = source('src/app/features/dashboard-home/pages/dashboard-home.page.html');
+    const coachHits = homeHtml.split('data-testid="pwa-install-coach"').length - 1;
+
+    expect(helper).toContain('export function isStandaloneDisplay');
+    expect(homeTs).toContain('isStandaloneDisplay');
+    expect(homeHtml).toContain('routerLink="/dashboard/installar"');
+    expect(coachHits).toBeGreaterThanOrEqual(2);
+    expect(homeHtml).toMatch(/@if\s*\(\s*!isPwaStandalone\(\)\s*\)/);
   });
 });
