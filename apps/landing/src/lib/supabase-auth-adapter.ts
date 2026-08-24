@@ -165,6 +165,21 @@ function normalizeBusinessType(tipoNegocio: unknown): (typeof ALLOWED_ONBOARDING
   return null;
 }
 
+export async function loginAfterFreeSignup(
+  login: (attempt: LoginAttempt) => Promise<SupabaseAdapterResult>,
+  attempt: LoginAttempt,
+): Promise<SupabaseAdapterResult> {
+  const result = await login(attempt);
+  if (!result.ok && result.code === 'email_confirmation_required') {
+    return {
+      ok: false,
+      code: 'unknown',
+      error: result.error,
+    };
+  }
+  return result;
+}
+
 export function createSupabaseLoginAdapter(
   env: SupabaseAuthEnv,
   dependencies: SupabaseAuthDependencies = {

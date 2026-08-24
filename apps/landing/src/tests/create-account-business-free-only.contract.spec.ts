@@ -37,11 +37,33 @@ async function postCreateAccountBusiness(body: unknown): Promise<Response> {
   return POST({ request: requestWithBody(body) } as Parameters<typeof POST>[0]);
 }
 
+function createChain(result: { data: unknown; error: unknown } = { data: { id: 'row-1', business_id: 'biz-1' }, error: null }) {
+  const chain: Record<string, unknown> = {};
+  const self = () => chain;
+  chain.insert = vi.fn(self);
+  chain.upsert = vi.fn(self);
+  chain.update = vi.fn(self);
+  chain.select = vi.fn(self);
+  chain.eq = vi.fn(self);
+  chain.is = vi.fn(self);
+  chain.gt = vi.fn(self);
+  chain.limit = vi.fn(self);
+  chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+  chain.single = vi.fn().mockResolvedValue(result);
+  return chain;
+}
+
 function createFreeSignupSupabaseMock() {
   const authCreateUser = vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user-123' } }, error: null });
+  const updateUserById = vi.fn().mockResolvedValue({ data: { user: { id: 'auth-user-123' } }, error: null });
   const confirmationInsert = vi.fn().mockResolvedValue({ error: null });
   const confirmationOutboxInsert = vi.fn().mockResolvedValue({ error: null });
-  const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
+  const rpc = vi.fn(async (name: string) => {
+    if (name === 'provision_default_services_for_business') {
+      return { data: 1, error: null };
+    }
+    return { data: false, error: null };
+  });
   const tableCalls: string[] = [];
   const emptyMaybeSingleChain = () => {
     const chain = {
@@ -65,20 +87,21 @@ function createFreeSignupSupabaseMock() {
     if (table === 'notification_email_outbox') {
       return { insert: confirmationOutboxInsert };
     }
-    return { insert: vi.fn().mockResolvedValue({ error: null }) };
+    return createChain();
   });
 
   const client = {
     auth: {
       admin: {
         createUser: authCreateUser,
+        updateUserById,
       },
     },
     from,
     rpc,
   };
 
-  return { client, from, tableCalls, authCreateUser, confirmationInsert, confirmationOutboxInsert };
+  return { client, from, tableCalls, authCreateUser, updateUserById, confirmationInsert, confirmationOutboxInsert, rpc };
 }
 
 describe('legacy create-account-business boundary', () => {
@@ -91,7 +114,7 @@ describe('legacy create-account-business boundary', () => {
   });
 
   it.each(['STARTER', 'GROWTH', 'PRO', 'BASIC', 'MEDIUM', 'STARTED'])(
-    'returns a generic confirmation-first response for paid plan %s without legacy provisioning',
+    'completes the FREE path for paid picker plan %s without checkout',
     async (plan) => {
       const supabase = createFreeSignupSupabaseMock();
       createClientMock.mockReturnValue(supabase.client);
@@ -99,41 +122,50 @@ describe('legacy create-account-business boundary', () => {
       const response = await postCreateAccountBusiness(validPayload(plan));
       const body = await response.json();
 
-      expect(response.status).toBe(202);
-      expect(body).toEqual({ ok: true, status: 'signup_confirmation_requested' });
-      expect(createClientMock).not.toHaveBeenCalled();
-      expect(supabase.from).not.toHaveBeenCalled();
-      expect(supabase.tableCalls).not.toEqual(expect.arrayContaining(['businesses', 'business_subscriptions', 'account_first_intents']));
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ ok: true, status: 'signup_ready' });
+      expect(supabase.authCreateUser).toHaveBeenCalledWith(expect.objectContaining({
+        email: 'ada@example.test',
+        email_confirm: true,
+      }));
+      expect(supabase.tableCalls).toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions']));
+      expect(JSON.stringify(body)).not.toMatch(/checkout|mercadopago|preapproval/i);
     },
   );
 
-  it('FREE signup creates the Supabase Auth user with password, then confirmation intent and outbox without domain provisioning', async () => {
+  it('FREE signup creates a confirmed Auth user, provisions the tenant, enqueues confirmation mail, and returns signup_ready', async () => {
     const supabase = createFreeSignupSupabaseMock();
     createClientMock.mockReturnValue(supabase.client);
 
     const response = await postCreateAccountBusiness(validPayload('FREE'));
     const body = await response.json();
 
-    expect(response.status).toBe(202);
-    expect(body).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, status: 'signup_ready' });
     expect(supabase.authCreateUser).toHaveBeenCalledWith(expect.objectContaining({
       email: 'ada@example.test',
       password: 'correct-horse-battery-staple',
-      email_confirm: false,
+      email_confirm: true,
     }));
-    expect(supabase.tableCalls).toEqual(expect.arrayContaining(['signup_email_confirmations', 'notification_email_outbox']));
-    expect(supabase.tableCalls).not.toEqual(expect.arrayContaining(['profiles', 'businesses', 'business_settings', 'business_onboarding_state', 'business_subscriptions', 'account_first_intents']));
+    expect(supabase.tableCalls).toEqual(expect.arrayContaining([
+      'profiles',
+      'businesses',
+      'business_settings',
+      'business_onboarding_state',
+      'business_subscriptions',
+      'signup_email_confirmations',
+      'notification_email_outbox',
+    ]));
+    expect(supabase.rpc).toHaveBeenCalledWith('provision_default_services_for_business', expect.objectContaining({
+      p_business_id: expect.any(String),
+      p_business_types: expect.arrayContaining(['peluqueria']),
+    }));
     expect(supabase.confirmationInsert).toHaveBeenCalledWith(expect.objectContaining({
       purpose: 'free_signup',
       plan_code: 'FREE',
       token_hash: expect.any(String),
       email_hmac: expect.any(String),
       protected_metadata: expect.objectContaining({ business_type: 'peluqueria', created_user_id: 'auth-user-123' }),
-      email_encrypted: expect.any(String),
-      business_name_encrypted: expect.any(String),
-    }));
-    expect(supabase.confirmationInsert).not.toHaveBeenCalledWith(expect.objectContaining({
-      auth_user_id: expect.anything(),
     }));
     expect(supabase.confirmationInsert).not.toHaveBeenCalledWith(expect.objectContaining({
       password: expect.anything(),
@@ -149,6 +181,24 @@ describe('legacy create-account-business boundary', () => {
         plan_code: 'FREE',
       },
     });
+  });
+
+  it('rejects invalid required fields without creating an auth user or provisioning a tenant', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    createClientMock.mockReturnValue(supabase.client);
+
+    const response = await postCreateAccountBusiness({
+      ...validPayload('FREE'),
+      email: '',
+      negocioNombre: '',
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual(expect.objectContaining({ error: 'signup_required_fields' }));
+    expect(createClientMock).not.toHaveBeenCalled();
+    expect(supabase.authCreateUser).not.toHaveBeenCalled();
+    expect(supabase.tableCalls).toEqual([]);
   });
 
   it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {
