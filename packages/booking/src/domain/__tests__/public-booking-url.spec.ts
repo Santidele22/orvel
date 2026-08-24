@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-<<<<<<<< HEAD:packages/booking/src/domain/__tests__/public-booking-url.spec.ts
 import { buildPublicBookingUrl, getPublicBookingOrigin } from '../public-booking-url';
 
 describe('public booking URL helpers', () => {
@@ -33,14 +32,6 @@ describe('public booking URL helpers', () => {
   it('encodes unsafe slug segments instead of creating nested paths', () => {
     expect(buildPublicBookingUrl('salon centro/mañana libre', 'https://orvel.pro')).toBe(
       'https://orvel.pro/booking/salon%20centro%2Fma%C3%B1ana%20libre'
-========
-import { buildPublicBookingUrl } from './public-booking-url';
-
-describe('public booking URL helper (dashboard shim)', () => {
-  it('keeps QA hosted booking links on the current QA origin', () => {
-    expect(buildPublicBookingUrl('mi-salon', 'https://qa.orvel.pro')).toBe(
-      'https://qa.orvel.pro/booking/mi-salon'
->>>>>>>> origin/dev:apps/dashboard/src/app/core/booking/public-booking-url.spec.ts
     );
   });
 });
