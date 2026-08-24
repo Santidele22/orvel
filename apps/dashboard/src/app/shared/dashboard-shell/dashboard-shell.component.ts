@@ -80,10 +80,6 @@ export class DashboardShellComponent implements AfterViewInit {
     this.isSidebarCollapsed.update(collapsed => !collapsed);
   }
 
-  protected navigateToNewTurno(): void {
-    void this.router.navigate(['/dashboard/turnos/new']);
-  }
-
   protected async handleLogout(): Promise<void> {
     const redirectTo = await logoutAndRedirect();
     await navigateAfterLogout(redirectTo, this.router);

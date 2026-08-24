@@ -10,7 +10,15 @@ import { AuthService } from '../../../services/auth.service';
       @if (showRefreshFailed()) {
         <p class="text-sm font-semibold text-text-primary">No pudimos cargar las notificaciones</p>
       } @else if (notifications.notifications().length === 0) {
-        <p class="text-sm text-text-secondary">No hay notificaciones</p>
+        <div data-testid="notificaciones-empty-state" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-bg-secondary shadow-inner">
+            <i class="ri-notification-off-line text-3xl text-text-secondary/40" aria-hidden="true"></i>
+          </div>
+          <div class="space-y-1">
+            <p class="text-sm font-semibold text-text-primary">No hay notificaciones</p>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-text-secondary">Te avisaremos por aquí</p>
+          </div>
+        </div>
       } @else {
         <ul class="flex flex-col gap-2">
           @for (notif of notifications.notifications(); track notif.id) {
