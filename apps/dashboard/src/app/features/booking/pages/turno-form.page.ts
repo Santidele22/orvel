@@ -66,7 +66,8 @@ export class TurnoFormPage implements OnInit {
   protected walkInName = signal<string>('');
   protected walkInMode = signal<boolean>(false);
   protected servicioId = signal<string>('');
-  protected fecha = signal<string>(new Date().toISOString().split('T')[0]);
+  protected fecha = signal<string>(toLocalDateIso());
+  private resolvedBusinessId = signal<string>('');
   protected hora = signal<string>('');
   protected duracionMinutos = signal<number>(30);
   protected precio = signal<number>(0);
@@ -136,7 +137,7 @@ export class TurnoFormPage implements OnInit {
 
   private async loadTurno(id: string) {
     try {
-      const items = await this.crud.getAll(this.resolveScope().branchId);
+      const items = await this.crud.getAll((await this.resolveScope()).branchId);
       const turno = this.crud.getById(items, id);
       if (turno) {
         this.clienteId.set(turno.clienteId ?? '');
@@ -173,29 +174,37 @@ export class TurnoFormPage implements OnInit {
 
   protected async checkAvailability() {
     const availabilityVersion = ++this.latestAvailabilityVersion;
-    const fechaDate = new Date(this.fecha());
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const fechaDate = parseLocalDate(this.fecha());
+    const today = parseLocalDate(toLocalDateIso());
     const requestKey = `${this.fecha()}|${this.duracionMinutos()}|${this.servicioId()}|${this.turnoId() ?? ''}|${availabilityVersion}`;
     this.availabilityRequestKey.set(requestKey);
-    this.availabilityLoading.set(true);
-    this.availabilityError.set(null);
-    this.availabilityEmpty.set(false);
-    this.availabilityStale.set(true);
-    this.hasLoadedAvailability.set(false);
     this.disponibles.set([]);
     this.hora.set('');
-
-    // Check if past date
+    this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
+    this.hasLoadedAvailability.set(false);
+    this.availabilityStale.set(true);
     this.isPastDate.set(fechaDate < today);
 
+    if (!this.servicioId()) {
+      this.availabilityLoading.set(false);
+      this.conflictError.set('Elegí un servicio para ver horarios.');
+      return;
+    }
+
+    this.availabilityLoading.set(true);
+    this.conflictError.set(null);
+
     try {
-      const branchId = await this.ensureDefaultBranchScopeReady('turno');
+      const scope = await this.resolveScope();
+      this.defaultBranchScopeReady.set(true);
       const horarios = await this.availability.loadAvailabilityAdminSlotTimes({
         fecha: fechaDate,
+        dateIso: this.fecha(),
         durationMinutes: this.duracionMinutos(),
-        serviceId: this.servicioId() || null,
-        branchId,
+        serviceId: this.servicioId(),
+        branchId: scope.branchId,
+        businessId: scope.businessId,
         context: this.isEdit() ? 'admin-reschedule' : 'admin-create',
         bookingId: this.turnoId()
       });
@@ -290,27 +299,28 @@ export class TurnoFormPage implements OnInit {
         }
         // Admin-managed reschedule/edit flow
         await this.scheduling.rescheduleByAdmin(this.turnoId()!, {
-          fecha: new Date(this.fecha()),
+          fecha: parseLocalDate(this.fecha()),
           hora: this.hora(),
           performedBy,
           reason: this.notas() || 'Reprogramación desde formulario administrativo'
-        }, this.resolveScope());
+        }, await this.resolveScope());
       } else {
         // Create new
-        const branchId = await this.ensureDefaultBranchScopeReady('turno');
+        const scope = await this.resolveScope();
+        this.defaultBranchScopeReady.set(true);
         const dto: CreateTurnoDTO = {
-          branchId: branchId,
+          branchId: scope.branchId,
           clienteId: this.clienteId(),
           walkInName: this.clienteId() ? undefined : walkInName,
           servicioId: this.servicioId(),
-          fecha: new Date(this.fecha()),
+          fecha: parseLocalDate(this.fecha()),
           hora: this.hora(),
           duracionMinutos: this.duracionMinutos(),
           precio: this.precio(),
           notas: this.notas(),
           estado: this.estado()
         };
-        await this.scheduling.create(dto, this.resolveScope());
+        await this.scheduling.create(dto, scope);
       }
 
       this.resetAvailability();
@@ -374,10 +384,10 @@ export class TurnoFormPage implements OnInit {
 
   private async ensureDefaultBranchScopeReady(context: 'turno' | 'disponibilidad'): Promise<string> {
     try {
-      const branchId = this.resolveScope().branchId;
+      const scope = await this.resolveScope();
       this.defaultBranchScopeReady.set(true);
       this.defaultBranchSetupError.set(null);
-      return branchId;
+      return scope.branchId;
     } catch (error) {
       this.defaultBranchScopeReady.set(false);
       const copy = context === 'turno'
@@ -392,13 +402,19 @@ export class TurnoFormPage implements OnInit {
     return this.authService.user()?.id?.trim() || null;
   }
 
-  private resolveScope() {
+  private async resolveScope() {
     const user = this.authService.user() as { id?: string; activeBranchId?: string } | null;
     const userId = String(user?.id ?? '').trim();
     const branchId = this.branchContext.getActiveBranchId() ?? user?.activeBranchId ?? '';
     if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
     if (!branchId) throw new Error('ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa');
-    return { userId, branchId, businessId: '', performedBy: userId };
+    let businessId = this.resolvedBusinessId();
+    if (!businessId) {
+      businessId = (await this.branchContext.getActiveBusinessId())?.trim() || '';
+      this.resolvedBusinessId.set(businessId);
+    }
+    if (!businessId) throw new Error('ACCOUNT_SETUP_REQUIRED: No active business');
+    return { userId, branchId, businessId, performedBy: userId };
   }
 
   protected getHorarioLabel(hora: string): string {
@@ -414,4 +430,16 @@ export class TurnoFormPage implements OnInit {
       currency: 'ARS'
     }).format(precio);
   };
+}
+
+function toLocalDateIso(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(iso: string): Date {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
 }
