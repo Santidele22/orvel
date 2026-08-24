@@ -20,7 +20,7 @@ describe('Dashboard bugfix product decisions contract', () => {
     expect(settings).toMatch(/supportEmail|Email de Soporte/i);
   });
 
-  it('keeps public portal links on the canonical root domain outside localhost', () => {
+  it('keeps public portal links on the canonical root domain except localhost and QA', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
     const settingsTemplate = readDashboardFile('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
     const dashboardHome = readDashboardFile('src/app/features/dashboard-home/pages/dashboard-home.page.html');
@@ -29,6 +29,7 @@ describe('Dashboard bugfix product decisions contract', () => {
     expect(`${settingsPage}\n${publicBookingUrlHelper}`).toMatch(/buildPublicBookingUrl/);
     expect(publicBookingUrlHelper).toMatch(/https:\/\/orvel\.pro/);
     expect(publicBookingUrlHelper).toMatch(/localhost|127\.0\.0\.1|0\.0\.0\.0/);
+    expect(publicBookingUrlHelper).toMatch(/qa\.orvel\.pro/);
     expect(`${settingsPage}\n${settingsTemplate}\n${dashboardHome}`).not.toMatch(/dashboard\.orvel\.pro\/booking|\/auth\/signup\/plan[\s\S]{0,160}(booking|reservas)/i);
     expect(settingsTemplate).not.toMatch(/localhost|href=["'][^"']*\/auth\/signup\/plan/i);
   });

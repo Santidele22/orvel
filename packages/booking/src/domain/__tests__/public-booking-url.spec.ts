@@ -16,10 +16,17 @@ describe('public booking URL helpers', () => {
   it('keeps the canonical public origin stable when the current origin is already orvel.pro', () => {
     expect(getPublicBookingOrigin('https://orvel.pro')).toBe('https://orvel.pro');
     expect(buildPublicBookingUrl('mi-salon', 'https://orvel.pro')).toBe('https://orvel.pro/booking/mi-salon');
+    expect(buildPublicBookingUrl('mi-salon', 'https://www.orvel.pro')).toBe('https://orvel.pro/booking/mi-salon');
   });
 
   it('keeps 0.0.0.0 booking links local for device testing', () => {
     expect(getPublicBookingOrigin('http://0.0.0.0:4200')).toBe('http://0.0.0.0:4200');
+  });
+
+  it('keeps QA hosted booking links on the current QA origin', () => {
+    expect(buildPublicBookingUrl('mi-salon', 'https://qa.orvel.pro')).toBe(
+      'https://qa.orvel.pro/booking/mi-salon'
+    );
   });
 
   it('encodes unsafe slug segments instead of creating nested paths', () => {
