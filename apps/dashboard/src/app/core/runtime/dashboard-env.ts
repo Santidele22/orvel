@@ -18,15 +18,6 @@ function readWindowDashboardEnv(): EnvSource | undefined {
   return maybeWindow.window?.__ORVEL_DASHBOARD_ENV__;
 }
 
-type DashboardWindow = {
-  __ORVEL_DASHBOARD_ENV__?: EnvSource;
-};
-
-function readWindowDashboardEnv(): EnvSource | undefined {
-  const maybeWindow = globalThis as { window?: DashboardWindow };
-  return maybeWindow.window?.__ORVEL_DASHBOARD_ENV__;
-}
-
 function defaultEnvSource(): EnvSource {
   const maybeProcess = globalThis as {
     process?: {
