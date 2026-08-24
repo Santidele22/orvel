@@ -224,7 +224,7 @@ export class TurnoFormPage implements OnInit {
       this.disponibles.set([]);
       this.hora.set('');
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.availabilityError.set(/ACCOUNT_SETUP_REQUIRED|ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN/i.test(errorMessage)
+      this.availabilityError.set(/ACCOUNT_SETUP_REQUIRED|ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN|UNAUTHORIZED|SERVICE_NOT_FOUND|BUSINESS_NOT_FOUND/i.test(errorMessage)
         ? 'No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.'
         : 'No pudimos consultar disponibilidad. Reintentá antes de guardar.');
       this.availabilityStale.set(true);
