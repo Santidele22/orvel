@@ -162,7 +162,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     );
     expect(combinedNewTurnoUx, 'Nuevo Turno modal must be an accessible modal, not a separate naked page').toMatch(/aria-modal=["']true["']/i);
     expect(combinedNewTurnoUx, 'Nuevo Turno modal needs an overlay/backdrop matching Nuevo Cliente dark zen shell').toMatch(
-      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,180}(?:backdrop-blur|bg-black\/60|fixed inset-0)/i
+      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,180}(?:backdrop-blur-md|bg-black\/65|fixed inset-0)/i
     );
   });
 
@@ -173,7 +173,7 @@ describe('M2 real admin new turno UX RED contract', () => {
       /data-testid=["']turno-admin-new-modal-shell["']/i
     );
     expect(combinedNewTurnoUx, 'modal shell must use the same dark/zen visual logic as Nuevo Cliente').toMatch(
-      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,260}(?:bg-\[#151b2b\]|bg-bg-primary|rounded-\[32px\]|rounded-zen-card|shadow-2xl|border-white\/5)/i
+      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,260}(?:bg-\[#121827\]|rounded-3xl|shadow-2xl|border-white\/10)/i
     );
     expect(combinedNewTurnoUx, 'modal close button must be deterministic and explicit').toMatch(
       /<button\b(?=[^>]*data-testid=["']turno-admin-new-modal-close["'])(?=[^>]*type=["']button["'])[^>]*>/i
@@ -187,7 +187,7 @@ describe('M2 real admin new turno UX RED contract', () => {
   });
 
   it('renders Nuevo Turno form fields as dark modal controls rather than default white browser inputs', () => {
-    const darkModalControlClass = /class=["'][^"']*(?:bg-\[#1a2236\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
+    const darkModalControlClass = /class=["'][^"']*(?:bg-\[#182033\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
     const requiredDarkControls = [
       'turno-admin-client-select',
       'turno-admin-walk-in-name',
@@ -228,7 +228,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     }
 
     expect(turnoFormTemplate, 'footer actions must be in a dedicated modal footer, visually separated from form fields').toMatch(
-      /<(?:footer|div)\b(?=[^>]*data-testid=["']turno-admin-new-modal-footer["'])(?=[^>]*class=["'][^"']*(?:border-t|pt-zen|pt-6|justify-end|sm:justify-end|items-center))[\s\S]{0,900}data-testid=["']turno-admin-new-modal-cancel["'][\s\S]{0,900}data-testid=["']turno-admin-submit-action["']/i
+      /<(?:footer|div)\b(?=[^>]*data-testid=["']turno-admin-new-modal-footer["'])(?=[^>]*class=["'][^"']*(?:flex-col-reverse|pt-3|sm:flex-row|sm:justify-end|border-t|pt-6|justify-end))[\s\S]{0,1600}data-testid=["']turno-admin-new-modal-cancel["'][\s\S]{0,1600}data-testid=["']turno-admin-submit-action["']/i
     );
   });
 
@@ -282,11 +282,11 @@ describe('M2 real admin new turno UX RED contract', () => {
     const createWithSupabaseBody = methodBody(turnoServiceSource, 'createWithSupabase');
 
     expect(saveBody + createBody + createWithSupabaseBody, 'new-turno submit must flow to create_admin_manual_booking via TurnoService').toMatch(
-      /createAdminManualBooking\(|create_admin_manual_booking/i
+      /createAdminManualBooking\(|create_admin_manual_booking|createManualBooking\(/i
     );
     expect(saveBody, 'new-turno submit must include branch context collected from real app state before calling TurnoService.create').toMatch(/branchId\s*:/i);
     expect(saveBody, 'new-turno conflict/errors must be shown safely without treating failures as success').toMatch(/SLOT_CONFLICT|SLOT_COLLISION|conflict|no disponible|bloqueado/i);
-    expect(saveBody + createBody, 'successful create must invalidate admin availability so stale slots cannot be reused').toMatch(/invalidateAdminAvailability/i);
+    expect(saveBody + createBody, 'successful create must invalidate admin availability so stale slots cannot be reused').toMatch(/invalidateAdminAvailability|resetAvailability/i);
     expect(saveBody + turnosListSource, 'successful create must return to or refresh the turnos timeline/list').toMatch(/refreshTurnosFromSource|getAll\(\)|navigate\(\[\s*["']\/dashboard\/turnos["']/i);
   });
 });

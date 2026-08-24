@@ -16,19 +16,20 @@ describe('turno form mobile create', () => {
     expect(pageTs).not.toMatch(/fecha = signal<string>\(new Date\(\)\.toISOString\(\)/);
   });
 
-  it('matches the servicios modal field chrome', () => {
+  it('matches the Nuevo Cliente modal field chrome', () => {
     expect(pageHtml).toContain('Formulario');
-    expect(pageHtml).toContain('rounded-xl bg-[#1a2236] border border-white/10');
-    expect(pageHtml).toContain('h-11 px-10 rounded-full bg-primary');
+    expect(pageHtml).toContain('rounded-xl border border-white/10 bg-[#182033]');
+    expect(pageHtml).toContain('h-11 rounded-xl bg-primary');
   });
 
-  it('uses a full-viewport mobile modal sheet instead of a centered desktop card', () => {
+  it('uses a centered cliente-style modal sheet instead of a full-viewport sheet', () => {
     expect(pageHtml).toMatch(
-      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,220}items-end/
+      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,220}items-center justify-center/
     );
     expect(pageHtml).toMatch(
-      /data-testid=["']turno-admin-new-modal["'][\s\S]{0,280}(?:h-\[100dvh\]|max-h-\[100dvh\])/
+      /data-testid=["']turno-admin-new-modal["'][\s\S]{0,280}(?:max-w-lg|rounded-3xl|bg-\[#121827\])/
     );
+    expect(pageHtml).not.toContain('h-[100dvh]');
   });
 
   it('exposes tappable slot chips for phone while keeping the select contract', () => {

@@ -30,7 +30,7 @@
 .form-group { @apply flex flex-col gap-2; }
 
 .form-group label {
-  @apply text-xs font-bold uppercase tracking-zen-wide text-text-secondary;
+  @apply ml-1 block text-[11px] font-semibold uppercase tracking-wider text-text-secondary;
 }
 
 .form-row {
@@ -61,7 +61,7 @@
 .error-text { @apply text-error; }
 
 .walk-in-link {
-  @apply mt-1 flex w-full items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-left transition-all hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151b2b];
+  @apply mt-1 flex w-full items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-left transition-all hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827];
 }
 
 textarea.form-control {
@@ -90,7 +90,7 @@ textarea.form-control {
 }
 
 .btn-primary {
-  @apply bg-primary text-white border-none cursor-pointer shadow-sm shadow-primary/25 hover:bg-primary-hover focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151b2b];
+  @apply bg-primary text-white border-none cursor-pointer shadow-sm shadow-primary/25 hover:bg-primary-hover focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827];
 }
 
 .btn-primary:disabled { @apply opacity-50 cursor-not-allowed; }
