@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 
@@ -25,6 +26,23 @@ describe('public booking submit error messages', () => {
 
     expect(message).toMatch(/horizonte|cercana/i);
     expect(message).not.toMatch(/BOOKING_TOO_FAR_ADVANCE|create_public_booking/i);
+  });
+
+  it('public booking page honors PUBLIC_TURNERO_DISABLED as unavailable', () => {
+    const pageSource = readFileSync(new URL('./public-booking.page.ts', import.meta.url), 'utf8');
+
+    expect(pageSource).toMatch(/PUBLIC_TURNERO_DISABLED/);
+    expect(pageSource).toMatch(/getPublicBookingSubmitErrorMessage|unavailable|No pudimos/);
+  });
+
+  it('maps PUBLIC_TURNERO_DISABLED to a generic unavailable message without leaking internals', () => {
+    const message = getPublicBookingSubmitErrorMessage({
+      code: 'PUBLIC_TURNERO_DISABLED',
+      message: 'PUBLIC_TURNERO_DISABLED'
+    });
+
+    expect(message).toMatch(/no (est[aá]|disponib)|unavailable|negocio|reserv/i);
+    expect(message).not.toMatch(/PUBLIC_TURNERO_DISABLED|create_public_booking|public_turnero_disabled_at/i);
   });
 
   it('keeps raw backend details in diagnostics logs', () => {

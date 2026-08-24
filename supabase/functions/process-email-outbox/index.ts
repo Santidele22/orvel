@@ -510,6 +510,15 @@ Deno.serve(async (req) => {
             });
             subject = result.subject;
             html = result.html;
+          } else if (template_key === "signup_email_confirmation_reminder") {
+            const result = BusinessTemplates.renderSignupEmailConfirmationReminder({
+              confirmationUrl: fullData.confirmation_url,
+              ownerName: fullData.owner_name,
+              businessName: fullData.business_name,
+              planCode: fullData.plan_code,
+            });
+            subject = result.subject;
+            html = result.html;
           } else if (template_key === "business_welcome") {
             const result = BusinessTemplates.renderBusinessWelcomeEmail({
               business: { 

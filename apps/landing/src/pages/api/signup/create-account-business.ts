@@ -8,6 +8,7 @@ type SignupPlan = "FREE" | "PREMIUM";
 
 const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "PREMIUM"]);
 const RATE_LIMIT_MAX_REQUESTS = 5;
+const FREE_CONFIRMATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -171,7 +172,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const token = createOpaqueToken();
   const token_hash = await sha256Text(token);
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + FREE_CONFIRMATION_TTL_MS).toISOString();
   const confirmationUrl = buildConfirmationUrl(request, token);
 
   const { data: createdAuthUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
