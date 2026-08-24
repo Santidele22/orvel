@@ -15,6 +15,7 @@ export class ConfiguracionZenThemeComponent {
   readonly ui = ORVEL_SECTION_PRIMITIVES;
 
   get loading() { return this.ctx.loading; }
+  get loadError() { return this.ctx.loadError; }
   get settingsForm() { return this.ctx.settingsForm; }
   get formMessage() { return this.ctx.formMessage; }
   get fieldErrors() { return this.ctx.fieldErrors; }
@@ -34,6 +35,7 @@ export class ConfiguracionZenThemeComponent {
   openPublicBookingPortal(event: MouseEvent): void { this.ctx.openPublicBookingPortal(event); }
   planDisplayLabel(): string { return this.ctx.planDisplayLabel(); }
 
+  retryLoadSettings(): void { this.ctx.retryLoadSettings(); }
   onSubmit(): void { this.ctx.onSubmit(); }
   onSelectedBusinessChange(value: string): void { this.ctx.onSelectedBusinessChange(value); }
   openTimePicker(dayKey: any, field: 'start' | 'end'): void { this.ctx.openTimePicker(dayKey, field); }

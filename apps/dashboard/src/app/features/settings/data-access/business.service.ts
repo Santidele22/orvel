@@ -54,6 +54,7 @@ export class BusinessService {
   private businesses = signal<Business[]>([]);
   private activeBusinessId = signal<string | null>(null);
   private currentSettings = signal<BusinessSettings | null>(null);
+  private persistenceError = signal<string | null>(null);
   private authService = inject(AuthService);
 
   readonly items = this.businesses.asReadonly();
@@ -114,7 +115,11 @@ export class BusinessService {
   }
 
   async loadFromSupabase(businessId: string): Promise<void> {
-    if (!this.supabaseClient) return;
+    this.persistenceError.set(null);
+
+    if (!this.supabaseClient) {
+      throw this.failLoad('No se pudo conectar con el servidor.', 'BUSINESS_NOT_FOUND');
+    }
 
     const context = await this.resolveActiveBusinessContext(businessId);
     const resolvedBusinessId = context.businessId;
@@ -125,7 +130,9 @@ export class BusinessService {
       .eq('id', resolvedBusinessId)
       .maybeSingle();
 
-    if (businessError || !businessData) return;
+    if (businessError || !businessData) {
+      throw this.failLoad('No se encontró el negocio activo.', 'BUSINESS_NOT_FOUND');
+    }
 
     const { data: settingsData } = await this.supabaseClient
       .from('business_settings')
@@ -143,10 +150,28 @@ export class BusinessService {
   }
 
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
-    if (!this.supabaseClient) return { source: 'error:no-supabase' };
+    this.persistenceError.set(null);
+
+    if (!this.supabaseClient) {
+      throw this.failLoad('No se pudo conectar con el servidor.', 'SETTINGS_SAVE_FAILED');
+    }
 
     const context = await this.resolveActiveBusinessContext(businessId);
     const resolvedBusinessId = context.businessId;
+
+    const { error: profileError } = await this.supabaseClient
+      .from('profiles')
+      .update({
+        first_name: settings.firstName ?? '',
+        last_name: settings.lastName ?? '',
+        phone: settings.phone ?? ''
+      })
+      .eq('id', context.ownerId);
+
+    if (profileError) {
+      throw this.failLoad('No se pudo guardar el perfil.', 'PROFILE_SAVE_FAILED');
+    }
+
     // Update businesses table
     if (settings.businessName) {
       const { error: businessUpdateError } = await this.supabaseClient
@@ -198,14 +223,12 @@ export class BusinessService {
     return this.currentSettings();
   }
 
-  async getActiveBusinessId(candidateBusinessOrUserId?: string): Promise<string | null> {
-    if (!this.supabaseClient) return candidateBusinessOrUserId ?? null;
+  lastPersistenceError(): string | null {
+    return this.persistenceError();
+  }
 
-    try {
-      return (await this.resolveActiveBusinessContext(candidateBusinessOrUserId)).businessId;
-    } catch {
-      return null;
-    }
+  async getActiveBusinessId(candidateBusinessOrUserId?: string): Promise<string> {
+    return (await this.resolveActiveBusinessContext(candidateBusinessOrUserId)).businessId;
   }
 
   private async resolveActiveBusinessContext(candidateBusinessOrUserId?: string): Promise<ActiveBusinessContext> {
@@ -258,6 +281,15 @@ export class BusinessService {
       };
     });
     return defaultHours as Record<WeekdayKey, WorkingDayHours>;
+  }
+
+  private failLoad(
+    message: string,
+    code: BusinessSettingsPersistenceError['code']
+  ): BusinessSettingsPersistenceError {
+    const error = new BusinessSettingsPersistenceError(message, code);
+    this.persistenceError.set(error.message);
+    return error;
   }
 
   private mapToSettings(business: any, settings: any, profile?: any): BusinessSettings {
