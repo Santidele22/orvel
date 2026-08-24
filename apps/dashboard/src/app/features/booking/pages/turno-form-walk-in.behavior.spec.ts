@@ -62,6 +62,7 @@ describe('TurnoFormPage walk-in behavior', () => {
     branchContext.ensureLoaded = vi.fn().mockResolvedValue(undefined);
     branchContext.requiresExplicitSelection = vi.fn(() => false);
     branchContext.getActiveBranchId = vi.fn(() => 'branch-1');
+    branchContext.getActiveBusinessId = vi.fn().mockResolvedValue('business-1');
     branchContext.branches = signal([]).asReadonly();
     branchContext.activeBranchId = signal('branch-1').asReadonly();
     branchContext.setActiveBranch = vi.fn(() => true);
