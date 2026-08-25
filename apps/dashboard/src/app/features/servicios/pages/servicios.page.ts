@@ -28,6 +28,7 @@ type CategoriaItem = {
 };
 
 const SAVE_SERVICE_ERROR_MESSAGE = 'No se pudo guardar el servicio. Intentá nuevamente en unos minutos.';
+const SAVE_CATEGORY_ERROR_MESSAGE = 'No se pudo guardar la categoría. Intentá nuevamente en unos minutos.';
 const DELETE_SERVICE_ERROR_MESSAGE = 'No se pudo eliminar el servicio. Intentá nuevamente en unos minutos.';
 
 @Component({
@@ -195,11 +196,16 @@ export class ServiciosPage {
     const nombre = this.categoryForm.controls.nombre.value.trim();
 
     try {
-      this.servicioService.createCategoria({ nombre });
+      await this.servicioService.createCategoriaAndPersist({ nombre });
       this.categorias.set(this.servicioService.listCategorias());
       this.closeModal();
-    } catch {
-      this.feedback.set('La categoría ya existe.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      this.feedback.set(
+        /duplicada|existente/i.test(message)
+          ? 'La categoría ya existe.'
+          : SAVE_CATEGORY_ERROR_MESSAGE
+      );
     }
   }
 
