@@ -34,7 +34,8 @@ async function writeDashboardRuntimeEnv(browserDir) {
   const runtimeEnv = {
     PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL ?? '',
     PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? '',
-    PUBLIC_LANDING_URL: process.env.PUBLIC_LANDING_URL ?? process.env.PUBLIC_DASHBOARD_URL ?? ''
+    PUBLIC_LANDING_URL: process.env.PUBLIC_LANDING_URL ?? process.env.PUBLIC_DASHBOARD_URL ?? '',
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? ''
   };
 
   await writeFile(

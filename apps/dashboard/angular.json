@@ -56,7 +56,8 @@
                 "input": "src/icons",
                 "output": "icons"
               },
-              "src/manifest.webmanifest"
+              "src/manifest.webmanifest",
+              "src/orvel-push-sw.js"
             ],
             "styles": [
               "node_modules/remixicon/fonts/remixicon.css",

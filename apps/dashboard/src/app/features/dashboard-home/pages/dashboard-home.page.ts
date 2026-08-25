@@ -8,7 +8,9 @@ import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
-import { isStandaloneDisplay } from '../../pwa-install/pwa-display';
+import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
+import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
+import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -22,10 +24,29 @@ export class DashboardHomeComponent {
   protected readonly themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly businessFacade = inject(BusinessService);
+  private readonly webPush = inject(OperatorWebPushService);
   protected readonly isMobile = createIsMobileSignal().isMobile;
 
   protected isPwaStandalone(): boolean {
     return isStandaloneDisplay();
+  }
+
+  protected showWebPushCoach(): boolean {
+    const notificationSupported = typeof Notification !== 'undefined';
+    return evaluateOperatorWebPush({
+      isIos: isIosDevice(
+        navigator.userAgent,
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
+      ),
+      isStandalone: this.isPwaStandalone(),
+      notificationSupported,
+      permission: notificationSupported ? Notification.permission : 'unsupported',
+      vapidPublicKey: readVapidPublicKey(),
+    }).canRequest;
+  }
+
+  protected enableWebPush(): void {
+    void this.webPush.enableFromUserGesture();
   }
 
   protected readonly user = this.authService.user;
