@@ -361,18 +361,6 @@ export class ServicioService {
       throw new Error('Categoría duplicada o existente');
     }
 
-    // Supabase category CRUD path (service_categories)
-    const supabase = this.provider === 'supabase' ? this.getSupabaseClient() : null;
-    if (supabase) {
-      void supabase
-        .from('service_categories')
-        .insert({
-          name: nombre,
-          slug: this.slugify(nombre),
-          is_active: true
-        });
-    }
-
     const creada: CategoriaCatalogRecord = {
       id: this.buildCategoriaId(),
       nombre,
@@ -388,7 +376,56 @@ export class ServicioService {
     };
   }
 
-  renameCategoria(categoriaId: string, nuevoNombre: string): CategoriaDomainRecord {
+  async createCategoriaAndPersist(input: { nombre: string }): Promise<CategoriaDomainRecord> {
+    const created = this.createCategoria(input);
+
+    if (this.provider !== 'supabase') {
+      return created;
+    }
+
+    const supabase = this.getSupabaseClient();
+    if (!supabase) {
+      return created;
+    }
+
+    try {
+      const businessId = await this.resolveBusinessId(supabase);
+      if (!businessId) {
+        throw new Error('BUSINESS_CONTEXT_MISSING');
+      }
+
+      const { data, error } = await supabase
+        .from('service_categories')
+        .insert({
+          business_id: businessId,
+          name: created.nombre,
+          is_active: true
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        throw new Error(error.message || 'CATEGORIA_CREATE_ERROR');
+      }
+
+      const persistedId = data?.id ? String(data.id) : '';
+      if (persistedId) {
+        this.replaceCategoriaId(created.id, persistedId);
+        return {
+          ...created,
+          id: persistedId,
+          serviciosCount: this.getServiciosActivosCountByCategoria(created.nombre)
+        };
+      }
+
+      return created;
+    } catch (error) {
+      this.categorias.update(categorias => categorias.filter(categoria => categoria.id !== created.id));
+      throw error;
+    }
+  }
+
+  async renameCategoria(categoriaId: string, nuevoNombre: string): Promise<CategoriaDomainRecord> {
     const nombre = this.normalizeNombre(nuevoNombre);
     this.assertNombreCategoriaValido(nombre);
 
@@ -427,6 +464,21 @@ export class ServicioService {
     );
 
     const renombrada = this.getCategoriaByIdOrThrow(categoriaId);
+
+    if (this.provider === 'supabase' && this.isPersistedCategoriaId(categoriaId)) {
+      const supabase = this.getSupabaseClient();
+      if (supabase) {
+        const { error } = await supabase
+          .from('service_categories')
+          .update({ name: nombre })
+          .eq('id', categoriaId)
+          .eq('business_id', await this.requireBusinessId(supabase));
+
+        if (error) {
+          throw new Error(error.message || 'CATEGORIA_RENAME_ERROR');
+        }
+      }
+    }
 
     return {
       ...renombrada,
@@ -529,7 +581,7 @@ export class ServicioService {
     const businessId = await this.resolveBusinessId(supabaseClient);
     if (!businessId) throw new Error('BUSINESS_CONTEXT_MISSING');
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       business_id: businessId,
       name: dto.nombre.trim(),
       description: dto.descripcion?.trim() ?? null,
@@ -538,6 +590,11 @@ export class ServicioService {
       price: dto.precio,
       is_active: dto.activo
     };
+
+    const categoryId = this.findPersistedCategoriaId(dto.categoria);
+    if (categoryId) {
+      payload['category_id'] = categoryId;
+    }
 
     const { data, error } = await supabaseClient
       .from('services')
@@ -560,7 +617,13 @@ export class ServicioService {
 
     if (dto.nombre !== undefined) payload['name'] = dto.nombre.trim();
     if (dto.descripcion !== undefined) payload['description'] = dto.descripcion?.trim() ?? null;
-    if (dto.categoria !== undefined) payload['category'] = dto.categoria.trim();
+    if (dto.categoria !== undefined) {
+      payload['category'] = dto.categoria.trim();
+      const categoryId = this.findPersistedCategoriaId(dto.categoria);
+      if (categoryId) {
+        payload['category_id'] = categoryId;
+      }
+    }
     if (dto.duracionMinutos !== undefined) payload['duration_minutes'] = dto.duracionMinutos;
     if (dto.precio !== undefined) payload['price'] = dto.precio;
     if (dto.activo !== undefined) payload['is_active'] = dto.activo;
@@ -800,6 +863,27 @@ export class ServicioService {
 
   private buildCategoriaId(): string {
     return `categoria-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private isPersistedCategoriaId(categoriaId: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      categoriaId
+    );
+  }
+
+  private findPersistedCategoriaId(categoriaNombre: string): string | null {
+    const match = this.categorias().find(categoria =>
+      this.equalNormalized(categoria.nombre, categoriaNombre)
+    );
+    return match && this.isPersistedCategoriaId(match.id) ? match.id : null;
+  }
+
+  private replaceCategoriaId(tempId: string, persistedId: string): void {
+    this.categorias.update(categorias =>
+      categorias.map(categoria =>
+        categoria.id === tempId ? { ...categoria, id: persistedId } : categoria
+      )
+    );
   }
 
   private buildSupabaseFallbackId(): string {
