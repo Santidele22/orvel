@@ -178,4 +178,44 @@
   </div>
 }
 
+@if (isSettingsSavedModalOpen()) {
+  <div class="fixed inset-zen-xs z-50 flex items-center justify-center p-zen-lg">
+    <button
+      type="button"
+      class="absolute inset-zen-xs bg-text-primary [opacity:var(--zen-overlay-opacity)]"
+      data-testid="settings-saved-modal-overlay"
+      aria-label="Cerrar"
+      (click)="closeSettingsSavedModal()"
+    ></button>
+    <div
+      class="relative w-full max-w-zen-content rounded-zen-card border border-border bg-surface p-zen-xxl shadow-xl"
+      data-testid="settings-saved-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-saved-modal-title"
+    >
+      <div class="mb-zen-lg flex items-center justify-between">
+        <h3 id="settings-saved-modal-title" [class]="ui.titleSection">Configuración guardada</h3>
+        <button type="button" data-testid="settings-saved-modal-close" [class]="ui.iconButton" (click)="closeSettingsSavedModal()">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="py-zen-xl flex flex-col items-center text-center space-y-zen-lg">
+        <div class="flex h-20 w-20 items-center justify-center rounded-full bg-success/10 text-success">
+          <i class="ri-checkbox-circle-line text-4xl" aria-hidden="true"></i>
+        </div>
+        <p [class]="ui.bodySecondary">Tus cambios ya están guardados.</p>
+        <button
+          type="button"
+          data-testid="settings-saved-modal-done"
+          [class]="ui.primaryAction + ' h-zen-control-md w-full'"
+          (click)="closeSettingsSavedModal()"
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 <app-configuracion-time-modal [ctx]="viewModel"></app-configuracion-time-modal>

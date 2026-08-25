@@ -202,6 +202,7 @@ export class ConfiguracionPage {
   readonly selectedMinute = signal<number>(0);
   readonly isAccountSettingsModalOpen = signal(false);
   readonly isAccountCancellationModalOpen = signal(false);
+  readonly isSettingsSavedModalOpen = signal(false);
   readonly isResetSent = signal(false);
   readonly resetError = signal<string | null>(null);
   readonly accountCancellationError = signal<string | null>(null);
@@ -279,6 +280,10 @@ export class ConfiguracionPage {
       this.accountCancellationMessage.set(null);
       this.accountCancellationSubmitted.set(false);
     }, 300);
+  }
+
+  closeSettingsSavedModal(): void {
+    this.isSettingsSavedModalOpen.set(false);
   }
 
   async confirmAccountCancellation(): Promise<void> {
@@ -534,6 +539,7 @@ export class ConfiguracionPage {
       this.savedState.set(this.facade.getSnapshot());
       this.settingsForm.markAsPristine();
       this.formMessage.set('Configuración guardada exitosamente.');
+      this.isSettingsSavedModalOpen.set(true);
     } catch (error) {
       this.formMessage.set('No se pudo guardar la configuración. Revisá tu conexión e intentá nuevamente.');
       console.error('Error saving settings:', error);
