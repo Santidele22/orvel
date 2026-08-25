@@ -25,13 +25,19 @@ const isRenderBlockingGoogleFontStylesheet = (tag: string): boolean => {
 };
 
 describe('Contract: PWA first-open boot splash', () => {
-  it('paints a boot splash inside app-root before Angular bootstrap', () => {
+  it('paints a boot splash inside app-root that is hidden until standalone', () => {
     const html = source('src/index.html');
     const appRoot = html.match(/<app-root>([\s\S]*?)<\/app-root>/)?.[1] ?? '';
+    const splashTag = appRoot.match(/<div\b[^>]*data-testid="pwa-boot-splash"[^>]*>/i)?.[0] ?? '';
 
     expect(appRoot).toContain('data-testid="pwa-boot-splash"');
     expect(appRoot).toContain('/dashboard/icons/icon-192x192.png');
     expect(appRoot).toContain('Cargando');
+    expect(splashTag).not.toContain('is-visible');
+    expect(html).toMatch(/\.pwa-boot-splash\s*\{[^}]*display:\s*none/);
+    expect(html).toMatch(/\.is-visible\s*\{[^}]*display:\s*flex/);
+    expect(appRoot).toMatch(/matchMedia\(['"]\(display-mode: standalone\)['"]\)/);
+    expect(appRoot).toContain('navigator.standalone');
   });
 
   it('does not leave the Inter Google Fonts stylesheet render-blocking', () => {
@@ -64,8 +70,11 @@ describe('Contract: PWA first-open boot splash', () => {
 
     expect(template).toContain('pwa-boot-splash');
     expect(template).toContain('Cargando');
+    expect(template).toMatch(/@if\s*\(\s*bootSplashVisible\(\)\s*\)/);
     expect(template).toMatch(/<router-outlet[\s\S]*\(activate\)=/);
-    expect(appTs).toContain('signal(true)');
+    expect(appTs).toContain("from './features/pwa-install/pwa-display'");
+    expect(appTs).toMatch(/signal\(\s*isStandaloneDisplay\(\)\s*\)/);
+    expect(appTs).not.toContain('signal(true)');
     expect(appTs).toContain('.set(false)');
   });
 
