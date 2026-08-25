@@ -321,6 +321,9 @@
                   class="ri-time-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
                 <input type="number" formControlName="cancelationGracePeriod" [class]="ui.input + ' pl-11'" />
               </div>
+              @if (fieldErrors().cancelationGracePeriod) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-cancelationGracePeriod">{{ fieldErrors().cancelationGracePeriod }}</p>
+              }
             </div>
             <div class="space-y-zen-sm">
               <label [class]="ui.labelMicro + ' text-secondary'">Anticipación Máx. (días)</label>
@@ -329,6 +332,9 @@
                   class="ri-calendar-event-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
                 <input type="number" formControlName="maxAdvanceDays" [class]="ui.input + ' pl-11'" />
               </div>
+              @if (fieldErrors().maxAdvanceDays) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-maxAdvanceDays">{{ fieldErrors().maxAdvanceDays }}</p>
+              }
             </div>
             <div class="space-y-zen-sm">
               <label [class]="ui.labelMicro + ' text-secondary'">Limpieza (minutos)</label>
@@ -337,6 +343,9 @@
                   class="ri-rest-time-line absolute left-zen-md top-1/2 -translate-y-1/2 text-secondary group-focus-within:text-primary transition-colors"></i>
                 <input type="number" formControlName="cleanupTimeMinutes" [class]="ui.input + ' pl-11'" />
               </div>
+              @if (fieldErrors().cleanupTimeMinutes) {
+              <p [class]="ui.fieldError" data-testid="config-field-error-cleanupTimeMinutes">{{ fieldErrors().cleanupTimeMinutes }}</p>
+              }
             </div>
           </div>
 
