@@ -128,6 +128,26 @@ describe('RED signup email confirmation flow contract', () => {
     expect(source).toMatch(/failed_materialization|cancelled|confirmation_invalid_or_expired|signup_materialize_failed|already_materialized/i);
   });
 
+  it('FREE signup provision seeds support_email, working hours, and live booking defaults', async () => {
+    const provisionSource = await readSource(new URL('../lib/server/provision-free-signup.ts', import.meta.url));
+    const inputType = provisionSource.match(/export type ProvisionFreeSignupInput\s*=\s*\{[\s\S]*?\};/)?.[0] ?? '';
+    const settingsUpsert = provisionSource.match(/\.from\(["']business_settings["']\)[\s\S]*?\.select\(/)?.[0] ?? '';
+
+    expect(inputType, 'provision input must accept the alta email').toMatch(/\bemail\s*:/);
+    expect(settingsUpsert, 'business_settings upsert must be inspectable').toMatch(/business_settings/i);
+    expect(settingsUpsert).toMatch(/support_email\s*:\s*input\.email/);
+    expect(settingsUpsert).toMatch(/support_phone\s*:\s*input\.phone/);
+    expect(settingsUpsert).toMatch(/buffer_minutes\s*:\s*15/);
+    expect(settingsUpsert).toMatch(/min_notice_minutes\s*:\s*120/);
+    expect(settingsUpsert).toMatch(/slot_interval_minutes\s*:\s*30/);
+    expect(settingsUpsert).toMatch(/cancellation_window_minutes\s*:\s*60/);
+    expect(settingsUpsert).toMatch(/working_hours\s*:/);
+    expect(settingsUpsert).toMatch(/monday\s*:\s*\{\s*enabled\s*:\s*true\s*,\s*start\s*:\s*["']09:00["']\s*,\s*end\s*:\s*["']18:00["']\s*\}/);
+    expect(settingsUpsert).toMatch(/saturday\s*:\s*\{\s*enabled\s*:\s*true\s*,\s*start\s*:\s*["']10:00["']\s*,\s*end\s*:\s*["']14:00["']\s*\}/);
+    expect(settingsUpsert).toMatch(/sunday\s*:\s*\{\s*enabled\s*:\s*false/);
+    expect(settingsUpsert, 'working hours must be a real weekday object, not the DB empty-object default').not.toMatch(/working_hours\s*:\s*\{\s*\}/);
+  });
+
   it('FREE signup provision marks onboarding dashboard-ready with captured business type and account user', async () => {
     const provisionSource = await readSource(new URL('../lib/server/provision-free-signup.ts', import.meta.url));
     const onboardingUpsert = provisionSource.match(/\.from\(["']business_onboarding_state["']\)[\s\S]{0,260}\.upsert\(\s*\{[\s\S]{0,720}?\}\s*\)/i)?.[0] ?? '';
