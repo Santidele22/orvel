@@ -11,7 +11,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideServiceWorker('/dashboard/ngsw-worker.js', {
+    provideServiceWorker('/dashboard/orvel-push-sw.js', {
       enabled: !isDevMode(),
       scope: '/dashboard/',
       registrationStrategy: 'registerImmediately'
