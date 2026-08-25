@@ -188,7 +188,7 @@ describe('dashboard auth onboarding contract', () => {
     expect(window.location.assign).not.toHaveBeenCalledWith(expect.stringContaining('/auth/onboarding'));
   });
 
-  it('dashboardAuthGuard sends missing sessions to canonical landing login', async () => {
+  it('dashboardAuthGuard sends missing sessions to in-app dashboard sign-in', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
     const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
@@ -196,7 +196,7 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Finicio'
+      '/dashboard/login?returnTo=%2Fdashboard%2Finicio'
     );
   });
 
@@ -209,14 +209,16 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Finicio'
+      '/dashboard/login?returnTo=%2Finicio'
     );
   });
 
   it('keeps /auth/onboarding as a dashboard compatibility redirect, not the real onboarding UI route', async () => {
     const routesSource = await readFile(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 
-    const onboardingRoute = routesSource.match(/path:\s*['"]auth\/onboarding['"][\s\S]*?(?=\n\s*\},\n\s*\{|\n\s*\}\n\];)/)?.[0];
+    const onboardingRoute = routesSource.match(
+      /path:\s*['"]auth\/onboarding['"][\s\S]*?redirectTo[\s\S]*?pathMatch:\s*['"]full['"]/
+    )?.[0];
 
     expect(onboardingRoute).toBeDefined();
     expect(onboardingRoute).toContain('redirectTo');

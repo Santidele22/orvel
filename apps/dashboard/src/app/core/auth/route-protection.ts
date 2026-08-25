@@ -10,8 +10,9 @@ let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
 
 const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
-const LOGIN_ROUTE = '/auth/login';
-const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
+	const LOGIN_ROUTE = '/auth/login';
+	const DASHBOARD_SIGN_IN_ROUTE = '/dashboard/login';
+	const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
 const SIGNUP_ONBOARDING_ROUTE = '/auth/signup/onboarding';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
@@ -71,6 +72,15 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
 export function buildLandingLoginRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
   return `${resolveLandingOrigin()}${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+export function buildDashboardSignInRedirect(returnTo: string): string {
+  const safeReturnTo = sanitizeReturnTo(returnTo);
+  return `${DASHBOARD_SIGN_IN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+export function buildLandingSignupRedirect(): string {
+  return `${resolveLandingOrigin()}${PLAN_SELECTION_ROUTE}`;
 }
 
 type SessionHandoffAuth = {
@@ -280,7 +290,7 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     const { data, error } = await authClient.getSession();
 
     if (error) {
-      return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+      return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
     }
 
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
@@ -305,10 +315,10 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     }
 
     // No Supabase session
-    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+    return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   } catch {
     // On error, fail closed (deny access)
-    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+    return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   }
 }
 
@@ -327,7 +337,7 @@ export function canAccessDashboard(_now = Date.now()): {
   allowed: boolean;
   redirectTo?: string;
 } {
-  return { allowed: false, redirectTo: buildLandingLoginRedirect('/dashboard') };
+  return { allowed: false, redirectTo: buildDashboardSignInRedirect('/dashboard') };
 }
 
 /**
@@ -362,5 +372,5 @@ export async function logoutAndRedirect(): Promise<string> {
   localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   resetBranchContextSession();
 
-  return buildLandingLoginRedirect('/dashboard');
+  return buildDashboardSignInRedirect('/dashboard');
 }

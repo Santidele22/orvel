@@ -33,4 +33,15 @@ describe('dashboard logout navigation', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/login?returnTo=%2Fdashboard');
     expect(location.assign).not.toHaveBeenCalled();
   });
+
+  it('keeps relative in-app dashboard sign-in on Angular router', async () => {
+    const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
+    const location = { assign: vi.fn() };
+    const inAppSignIn = '/dashboard/login?returnTo=%2Fdashboard';
+
+    await navigateAfterLogout(inAppSignIn, router, location);
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith(inAppSignIn);
+    expect(location.assign).not.toHaveBeenCalled();
+  });
 });
