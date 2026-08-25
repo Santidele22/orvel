@@ -78,6 +78,7 @@ export class TurnoFormPage implements OnInit {
   protected conflictError = signal<string | null>(null);
   protected isPastDate = signal<boolean>(false);
   private readonly unavailableSlotMessage = 'Este horario no está disponible. Elegí otro turno.';
+  protected readonly needServiceHoursMessage = 'Elegí un servicio para ver horarios.';
   protected canSave = computed(() => {
     return !this.saving()
       && !this.availabilityLoading()
@@ -188,7 +189,7 @@ export class TurnoFormPage implements OnInit {
 
     if (!this.servicioId()) {
       this.availabilityLoading.set(false);
-      this.conflictError.set('Elegí un servicio para ver horarios.');
+      this.conflictError.set(null);
       return;
     }
 
