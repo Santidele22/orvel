@@ -182,6 +182,7 @@ export class ConfiguracionPage {
   }
 
   readonly loading = signal(true);
+  readonly loadError = signal<string | null>(null);
   readonly formMessage = signal('');
   readonly fieldErrors = signal<Record<string, string>>({});
   readonly savedState = signal<BusinessSettings | null>(null);
@@ -590,31 +591,52 @@ export class ConfiguracionPage {
     this.loading.set(false);
   }
 
+  retryLoadSettings(): void {
+    this.hydratedUserId = null;
+    this.loadError.set(null);
+    const userId = this.authService.user()?.id;
+    if (userId) {
+      void this.hydrateBusinessSettings(userId);
+    }
+  }
+
   private async hydrateBusinessSettings(userId: string): Promise<void> {
-    if (this.hydratedUserId === userId && this.facade.getSnapshot()) {
+    if (this.hydratedUserId === userId && this.facade.getSnapshot() && !this.loadError()) {
       return;
     }
 
     this.hydratedUserId = userId;
+    this.loadError.set(null);
 
     try {
       this.loading.set(true);
       const activeBusinessId = await this.facade.getActiveBusinessId(userId);
-      if (activeBusinessId) {
-        await this.facade.loadFromSupabase(activeBusinessId);
+      await this.facade.loadFromSupabase(activeBusinessId);
+      const persistenceError = this.facade.lastPersistenceError();
+      if (persistenceError) {
+        this.loadError.set(persistenceError);
+        this.savedState.set(null);
+        this.loading.set(false);
+        return;
       }
     } catch (error) {
-      console.error('Error loading settings from Supabase:', error);
+      this.loadError.set(
+        error instanceof Error && error.message
+          ? error.message
+          : 'No pudimos cargar la configuración'
+      );
+      this.savedState.set(null);
+      this.loading.set(false);
+      return;
     }
 
     const saved = this.facade.getSnapshot();
 
     if (saved) {
-      console.log('[Configuracion] Patching form with saved settings:', saved.businessName);
       this.settingsForm.patchValue(saved);
       this.savedState.set(saved);
     } else {
-      this.patchDefaultSettings();
+      this.loadError.set('No pudimos cargar la configuración');
       this.savedState.set(null);
     }
 
