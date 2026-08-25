@@ -21,13 +21,7 @@ export type WebPushOutboxRow = {
 };
 
 export type WebPushServiceClient = {
-  from: (table: string) => {
-    select: (columns: string) => any;
-    update: (values: Record<string, unknown>) => any;
-    delete: () => any;
-    eq: (column: string, value: string) => any;
-    limit: (count: number) => PromiseLike<{ data: unknown[] | null }>;
-  };
+  from: (table: string) => any;
 };
 
 export function shouldSkipWebPush(env: VapidEnv): boolean {

@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
   const expectedCronKey = Deno.env.get("CRON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorized =
-    (Boolean(expectedCronKey) && constantTimeEquals(provided, expectedCronKey)) ||
-    (Boolean(serviceRoleKey) && constantTimeEquals(provided, serviceRoleKey));
+    (Boolean(expectedCronKey) && constantTimeEquals(provided, expectedCronKey ?? '')) ||
+    (Boolean(serviceRoleKey) && constantTimeEquals(provided, serviceRoleKey ?? ''));
   if (!authorized) {
     return new Response(JSON.stringify({ success: false, error: "UNAUTHORIZED" }), { status: 401, headers: jsonHeaders });
   }
