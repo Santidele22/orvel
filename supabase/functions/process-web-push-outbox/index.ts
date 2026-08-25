@@ -21,13 +21,17 @@ function readCronKey(req: Request): string | null {
 }
 
 Deno.serve(async (req) => {
+  const provided = readCronKey(req);
   const expectedCronKey = Deno.env.get("CRON_KEY");
-  if (!expectedCronKey || !constantTimeEquals(readCronKey(req), expectedCronKey)) {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const authorized =
+    (Boolean(expectedCronKey) && constantTimeEquals(provided, expectedCronKey)) ||
+    (Boolean(serviceRoleKey) && constantTimeEquals(provided, serviceRoleKey));
+  if (!authorized) {
     return new Response(JSON.stringify({ success: false, error: "UNAUTHORIZED" }), { status: 401, headers: jsonHeaders });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
     return new Response(JSON.stringify({ success: false, error: "SERVER_CONFIGURATION_ERROR" }), { status: 500, headers: jsonHeaders });
   }
