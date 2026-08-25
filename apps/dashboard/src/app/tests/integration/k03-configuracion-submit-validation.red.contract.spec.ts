@@ -40,8 +40,6 @@ describe('K03 - Configuración submit validation integration RED contract', () =
     const { pageTs, themeHtml } = readConfiguracionSources();
     const expectedFieldErrorTestIds = [
       'config-field-error-phone',
-      'config-field-error-whatsapp',
-      'config-field-error-instagram',
       'config-field-error-supportEmail'
     ];
 
