@@ -29,7 +29,7 @@ type OrvelWindow = Window & {
         <p>Orvel ya está instalada. Abrí el ícono en tu teléfono para usarla.</p>
       } @else {
         <h1>Instalá la app</h1>
-        <p>Instalá Orvel en tu teléfono. Cuando abras el ícono, ahí sí iniciás sesión.</p>
+        <p>Tocá Instalar y queda en tu pantalla de inicio. Sin tienda. Cuando abras el ícono, ahí iniciás sesión.</p>
         @if (isIos()) {
           <ol class="pwa-install__steps">
             <li>
@@ -46,7 +46,7 @@ type OrvelWindow = Window & {
             <button type="button" class="pwa-install__cta" (click)="installApp()">Instalar</button>
           } @else {
             <p>
-              Abrí esta página en Chrome del celular. En Android, tocá el menú y después Instalar app.
+              Abrí esta página en Chrome del celular. En Android, tocá Instalar.
             </p>
           }
         }
