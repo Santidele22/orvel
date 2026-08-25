@@ -9,6 +9,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import { mapNullableSettingsToFormDefaults } from './map-nullable-settings-to-form-defaults';
 
 export type ApiError = {
   code: string;
@@ -294,13 +295,14 @@ export class BusinessService {
 
   private mapToSettings(business: any, settings: any, profile?: any): BusinessSettings {
     const defaultHours = this.getDefaultWorkingHours();
+    const formDefaults = mapNullableSettingsToFormDefaults(settings, defaultHours);
     return {
       businessName: business.name || '',
       slug: business.slug || '',
       bufferMinutes: settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
       minNoticeMinutes: settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
       slotIntervalMinutes: settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
-      workingHours: settings?.working_hours ?? defaultHours,
+      workingHours: formDefaults.workingHours,
       logoUrl: settings?.logo_url,
       coverUrl: settings?.cover_url,
       brandColor: settings?.brand_color,
@@ -309,12 +311,12 @@ export class BusinessService {
       supportEmail: settings?.support_email,
       businessType: settings?.business_type ?? business?.business_type ?? business?.tipo_negocio ?? '',
       plan: this.resolveDisplayPlan(),
-      cancelationGracePeriod: settings?.cancellation_window_minutes,
+      cancelationGracePeriod: formDefaults.cancelationGracePeriod,
       autoConfirm: settings?.auto_confirm,
-      maxAdvanceDays: settings?.max_advance_days,
+      maxAdvanceDays: formDefaults.maxAdvanceDays,
       allowMultipleServices: settings?.allow_multiple_services,
-      cleanupTimeMinutes: settings?.cleanup_time_minutes,
-      capacity: settings?.capacity ?? 1,
+      cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
+      capacity: formDefaults.capacity,
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',
