@@ -13,6 +13,21 @@ function extractOnSubmit(pageTs: string): string {
   return start >= 0 ? pageTs.slice(start, end >= 0 ? end : undefined) : '';
 }
 
+function extractSettingsSavedModal(pageHtml: string): string {
+  const start = pageHtml.indexOf('@if (isSettingsSavedModalOpen())');
+  if (start < 0) {
+    return '';
+  }
+
+  const nextIf = pageHtml.indexOf('@if (', start + 1);
+  const timeModal = pageHtml.indexOf('<app-configuracion-time-modal', start);
+  const end = Math.min(
+    nextIf >= 0 ? nextIf : pageHtml.length,
+    timeModal >= 0 ? timeModal : pageHtml.length
+  );
+  return pageHtml.slice(start, end);
+}
+
 describe('Contract: settings saved modal after Configuraciones persist', () => {
   it('opens a saved-settings dialog on successful persist without reloading', () => {
     const pageTs = readSource('src/app/features/settings/pages/configuracion.page.ts');
@@ -55,5 +70,24 @@ describe('Contract: settings saved modal after Configuraciones persist', () => {
     expect(pageHtml).toMatch(/\(click\)=["']closeSettingsSavedModal\(\)["']/);
     expect(pageTs).toMatch(/closeSettingsSavedModal\s*\(\s*\)\s*:\s*void\s*\{[\s\S]*isSettingsSavedModalOpen\.set\(false\)/);
     expect(pageTs).not.toMatch(/closeSettingsSavedModal\s*\(\s*\)\s*:\s*void\s*\{[\s\S]{0,200}settingsForm\.reset\(/);
+  });
+
+  it('uses compact dashboard dialog chrome instead of leftover zen placeholder tokens', () => {
+    const pageHtml = readSource('src/app/features/settings/pages/configuracion.page.html');
+    const modal = extractSettingsSavedModal(pageHtml);
+
+    expect(modal).toContain('bg-black/65');
+    expect(modal).toContain('backdrop-blur-md');
+    expect(modal).toContain('max-w-lg');
+    expect(modal).toContain('rounded-3xl');
+    expect(modal).toContain('border-white/10');
+    expect(modal).toContain('bg-[#121827]');
+    expect(modal).toContain('h-9 w-9');
+    expect(modal).toContain('h-11 w-11');
+    expect(modal).toMatch(/h-11 rounded-xl bg-primary/);
+    expect(modal).not.toContain('max-w-zen-content');
+    expect(modal).not.toContain('p-zen-xxl');
+    expect(modal).not.toContain('h-20 w-20');
+    expect(modal).not.toContain('text-4xl');
   });
 });
