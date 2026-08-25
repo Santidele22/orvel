@@ -10,6 +10,7 @@ import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-cl
 import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { inject } from '@angular/core';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 
 type ServicioMutationScope = {
@@ -550,25 +551,6 @@ export class ServicioService {
     return this.mapSupabaseRowToServicio(data as Record<string, unknown>);
   }
 
-  private getBusinessIdFromSettings(): string | null {
-    // Fuente 1: Usuario autenticado (Prioridad máxima)
-    const user = this.authService?.user();
-    if (user?.id) return user.id;
-
-    // Fuente 2: Configuración del dashboard
-    try {
-      const data = localStorage.getItem('atelier_business_settings');
-      if (data) {
-        const settings = JSON.parse(data);
-        return settings.businessId || settings.id || null;
-      }
-    } catch {
-      // Ignorar error de parseo
-    }
-    
-    return null;
-  }
-
   private async updateServicioInSupabase(
     supabaseClient: SupabaseClient,
     id: string,
@@ -612,37 +594,10 @@ export class ServicioService {
     return businessId;
   }
 
-  private async resolveBusinessId(supabaseClient: SupabaseClient): Promise<string | null> {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const authUserId = session?.user?.id;
-
-    if (!authUserId) {
-      return null;
-    }
-
-    const metadata = session.user.user_metadata as Record<string, unknown> | undefined;
-    const metadataBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-    if (typeof metadataBusinessId === 'string' && metadataBusinessId.trim()) {
-      return metadataBusinessId.trim();
-    }
-
-    const { data: businessByOwner } = await supabaseClient
-      .from('businesses')
-      .select('id')
-      .eq('owner_id', authUserId)
-      .maybeSingle();
-
-    if (businessByOwner?.id) {
-      return String(businessByOwner.id);
-    }
-
-    const { data: businessById } = await supabaseClient
-      .from('businesses')
-      .select('id')
-      .eq('id', authUserId)
-      .maybeSingle();
-
-    return businessById?.id ? String(businessById.id) : null;
+  private async resolveBusinessId(_supabaseClient: SupabaseClient): Promise<string | null> {
+    const branchContext = getBranchContextService();
+    await branchContext.ensureLoaded();
+    return branchContext.getActiveBusinessId();
   }
 
   private mapSupabaseRowToServicio(row: Record<string, unknown>): Servicio {
