@@ -116,3 +116,88 @@ describe('Issue #348 - settings load/persist visibility', () => {
     expect(pageHtml).toMatch(/data-testid=["']settings-error-state["']/);
   });
 });
+
+describe('Issue #361 - settings null form defaults', () => {
+  const defaultHours = {
+    monday: { enabled: true, start: '09:00', end: '18:00' },
+    tuesday: { enabled: true, start: '09:00', end: '18:00' },
+    wednesday: { enabled: true, start: '09:00', end: '18:00' },
+    thursday: { enabled: true, start: '09:00', end: '18:00' },
+    friday: { enabled: true, start: '09:00', end: '18:00' },
+    saturday: { enabled: true, start: '09:00', end: '18:00' },
+    sunday: { enabled: false, start: '09:00', end: '18:00' }
+  };
+
+  it('does not copy nullable booking knobs from raw columns without numeric fallbacks', () => {
+    const mapToSettings = extractMethod(serviceTs, 'mapToSettings');
+
+    expect(mapToSettings, 'mapToSettings must exist').not.toEqual('');
+    expect(mapToSettings).not.toMatch(
+      /cancelationGracePeriod:\s*settings\?\.cancellation_window_minutes\s*[,}]/
+    );
+    expect(mapToSettings).not.toMatch(/maxAdvanceDays:\s*settings\?\.max_advance_days\s*[,}]/);
+    expect(mapToSettings).not.toMatch(/cleanupTimeMinutes:\s*settings\?\.cleanup_time_minutes\s*[,}]/);
+    expect(mapToSettings).not.toMatch(/workingHours:\s*settings\?\.working_hours\s*\?\?\s*defaultHours/);
+    expect(mapToSettings).toMatch(/mapNullableSettingsToFormDefaults\(/);
+  });
+
+  it('maps nullable settings rows to numbers and default working hours the form accepts', async () => {
+    const { mapNullableSettingsToFormDefaults } = await import(
+      '../../features/settings/data-access/map-nullable-settings-to-form-defaults'
+    );
+
+    const mapped = mapNullableSettingsToFormDefaults(
+      {
+        cancellation_window_minutes: null,
+        max_advance_days: null,
+        cleanup_time_minutes: null,
+        capacity: 0,
+        working_hours: {}
+      },
+      defaultHours
+    );
+
+    expect(mapped.cancelationGracePeriod).toBe(60);
+    expect(mapped.maxAdvanceDays).toBe(90);
+    expect(mapped.cleanupTimeMinutes).toBe(0);
+    expect(mapped.capacity).toBe(1);
+    expect(mapped.workingHours).toEqual(defaultHours);
+  });
+
+  it('keeps finite stored knobs and falls back when working hours miss days', async () => {
+    const { mapNullableSettingsToFormDefaults } = await import(
+      '../../features/settings/data-access/map-nullable-settings-to-form-defaults'
+    );
+
+    const storedHours = {
+      ...defaultHours,
+      saturday: { enabled: true, start: '10:00', end: '14:00' }
+    };
+
+    const mapped = mapNullableSettingsToFormDefaults(
+      {
+        cancellation_window_minutes: 45,
+        max_advance_days: 14,
+        cleanup_time_minutes: 10,
+        capacity: 3,
+        working_hours: storedHours
+      },
+      defaultHours
+    );
+
+    expect(mapped.cancelationGracePeriod).toBe(45);
+    expect(mapped.maxAdvanceDays).toBe(14);
+    expect(mapped.cleanupTimeMinutes).toBe(10);
+    expect(mapped.capacity).toBe(3);
+    expect(mapped.workingHours).toEqual(storedHours);
+
+    const missingDays = mapNullableSettingsToFormDefaults(
+      {
+        working_hours: { monday: { enabled: true, start: '09:00', end: '18:00' } }
+      },
+      defaultHours
+    );
+    expect(missingDays.workingHours).toEqual(defaultHours);
+    expect(mapNullableSettingsToFormDefaults({ max_advance_days: 0 }, defaultHours).maxAdvanceDays).toBe(90);
+  });
+});
