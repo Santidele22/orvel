@@ -29,10 +29,10 @@
     }
 
     .pwa-boot-splash {
+      display: none;
       position: fixed;
       inset: 0;
       z-index: 2147483647;
-      display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -40,6 +40,10 @@
       background: #0F172A;
       color: #ffffff;
       font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .pwa-boot-splash.is-visible {
+      display: flex;
     }
 
     .pwa-boot-splash img {
@@ -110,6 +114,19 @@
       <img src="/dashboard/icons/icon-192x192.png" alt="Orvel" width="96" height="96">
       <p>Cargando</p>
     </div>
+    <script>
+      (function () {
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+          || navigator.standalone === true;
+        if (!standalone) {
+          return;
+        }
+        var splash = document.querySelector('[data-testid="pwa-boot-splash"]');
+        if (splash) {
+          splash.classList.add('is-visible');
+        }
+      })();
+    </script>
   </app-root>
 </body>
 
