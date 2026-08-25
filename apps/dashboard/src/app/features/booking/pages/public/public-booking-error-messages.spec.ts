@@ -45,6 +45,22 @@ describe('public booking submit error messages', () => {
     expect(message).not.toMatch(/PUBLIC_TURNERO_DISABLED|create_public_booking|public_turnero_disabled_at/i);
   });
 
+  it.each(['BUSINESS_EMAIL_RECIPIENT_REQUIRED', 'BOOKING_BRANCH_CONFIGURATION_REQUIRED'] as const)(
+    'maps %s to a non-form unavailable message before VALIDATION_ERROR',
+    (code) => {
+      const message = getPublicBookingSubmitErrorMessage({
+        code: 'VALIDATION_ERROR',
+        message: `${code} in public.create_public_booking`
+      });
+
+      expect(message).toBe(
+        'No pudimos completar la reserva para este negocio o servicio. Contactá al negocio para coordinar tu turno.'
+      );
+      expect(message).not.toMatch(/datos obligatorios/i);
+      expect(message).not.toMatch(new RegExp(code, 'i'));
+    }
+  );
+
   it('keeps raw backend details in diagnostics logs', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 

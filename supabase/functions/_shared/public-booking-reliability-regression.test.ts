@@ -245,6 +245,40 @@ Deno.test("late email confirmation clears public_turnero_disabled_at without pro
   assertEquals(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(/i.test(freeSlice), false);
 });
 
+const publicBookingSkipsMissingBusinessEmailUrl = new URL(
+  "../../migrations/20260825160000_public_booking_skips_missing_business_email.sql",
+  import.meta.url,
+);
+
+Deno.test("latest create_public_booking inserts booking and dashboard notification without requiring a business email", async () => {
+  const migration = await Deno.readTextFile(publicBookingSkipsMissingBusinessEmailUrl);
+  const body = latestCreatePublicBookingBody(migration);
+  const bookingInsertIndex = body.search(/INSERT\s+INTO\s+public\.bookings/i);
+  const dashboardInsertIndex = body.search(/INSERT\s+INTO\s+public\.dashboard_notifications/i);
+  const raiseBusinessEmail = /PERFORM\s+public\._raise_rpc\(\s*'BUSINESS_EMAIL_RECIPIENT_REQUIRED'\s*\)/i.test(body);
+  const hardcodedBusinessEmailEnqueued = /'business_email_outbox_enqueued'\s*,\s*true/i.test(body);
+  const businessEmailInsert = /INSERT\s+INTO\s+public\.notification_email_outbox[\s\S]*'appointment_created_business'/i.test(body);
+
+  assert(bookingInsertIndex > -1, "create_public_booking must still insert bookings");
+  assert(dashboardInsertIndex > -1, "create_public_booking must still insert dashboard_notifications");
+  assert(bookingInsertIndex < dashboardInsertIndex, "dashboard notification must follow the booking insert");
+  assertEquals(raiseBusinessEmail, false, "missing business email must not abort public booking");
+  assertStringIncludes(body, "_resolve_booking_business_email");
+  assertStringIncludes(body, "IF v_customer_email IS NOT NULL THEN");
+  assertStringIncludes(body, "business_email_outbox_enqueued");
+  assertEquals(
+    hardcodedBusinessEmailEnqueued && !businessEmailInsert,
+    false,
+    "business_email_outbox_enqueued must be true only when a business email is actually enqueued",
+  );
+  assertStringIncludes(migration, "GRANT EXECUTE ON FUNCTION public.create_public_booking(text, text, text, jsonb, text, text, text) TO anon, authenticated");
+  assertStringIncludes(migration, "GRANT EXECUTE ON FUNCTION public.create_public_booking(text, text, text, jsonb, text, text) TO anon, authenticated");
+  assertStringIncludes(
+    migration,
+    "SELECT public.create_public_booking(business_slug, service_id, starts_at_iso, client, notes, professional_id, NULL::text)",
+  );
+});
+
 Deno.test("public booking reliability documents why CI uses deterministic static contracts instead of local DB behavior", async () => {
   const repoRoot = new URL("../../../", import.meta.url);
   const rootPackageJson = await Deno.readTextFile(new URL("package.json", repoRoot));
