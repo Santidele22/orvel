@@ -163,24 +163,61 @@ export class BranchContextService {
       const { data, error } = await supabase.auth.getSession();
       if (error) return storedBusinessId;
 
+      const userId = data.session?.user?.id?.trim() || null;
       const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
       const sessionBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
       const resolvedSessionId = typeof sessionBusinessId === 'string' && sessionBusinessId.trim()
         ? sessionBusinessId.trim()
         : null;
 
-      if (resolvedSessionId) {
-        if (storedBusinessId && storedBusinessId !== resolvedSessionId) {
-          this.clearActiveBranch();
+      let ownedBusinessIds: string[] | null = null;
+      if (userId) {
+        try {
+          ownedBusinessIds = await this.listOwnedBusinessIds(supabase, userId);
+        } catch {
+          ownedBusinessIds = null;
         }
-        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolvedSessionId);
-        return resolvedSessionId;
       }
 
-      return storedBusinessId;
+      const owned = (candidate: string | null): string | null =>
+        candidate && ownedBusinessIds?.includes(candidate) ? candidate : null;
+
+      const resolved = ownedBusinessIds
+        ? owned(resolvedSessionId)
+          ?? owned(storedBusinessId)
+          ?? ownedBusinessIds[0]
+          ?? resolvedSessionId
+          ?? storedBusinessId
+        : resolvedSessionId ?? storedBusinessId;
+
+      if (resolved) {
+        if (storedBusinessId && storedBusinessId !== resolved) {
+          this.clearActiveBranch();
+        }
+        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved);
+        return resolved;
+      }
+
+      return null;
     } catch {
       return this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
     }
+  }
+
+  private async listOwnedBusinessIds(supabase: SupabaseClient, ownerId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as Array<{ id?: unknown }>)
+      .map((row) => typeof row.id === 'string' ? row.id.trim() : '')
+      .filter((id) => id.length > 0);
   }
 
   private storage(): Storage | null {
