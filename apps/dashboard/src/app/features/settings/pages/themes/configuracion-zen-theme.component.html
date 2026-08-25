@@ -93,37 +93,6 @@
             <i class="ri-customer-service-2-line text-tertiary"></i>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">WhatsApp / Teléfono</label>
-              <div class="relative group">
-                <i
-                  class="ri-whatsapp-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
-                <input type="text" formControlName="whatsapp" [class]="ui.input + ' pl-11'"
-                  placeholder="+54 9 11 ..."
-                  [attr.aria-invalid]="fieldErrors().whatsapp ? 'true' : null"
-                  [attr.aria-describedby]="fieldErrors().whatsapp ? 'config-field-error-whatsapp' : null" />
-              </div>
-              @if (fieldErrors().whatsapp) {
-              <p id="config-field-error-whatsapp" [class]="ui.fieldError" data-testid="config-field-error-whatsapp" role="alert">{{ fieldErrors().whatsapp }}</p>
-              }
-            </div>
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Instagram</label>
-              <div class="relative group">
-                <i
-                  class="ri-instagram-line absolute left-zen-md top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors"></i>
-                <input type="text" formControlName="instagram" [class]="ui.input + ' pl-11'"
-                  placeholder="@tu_negocio"
-                  [attr.aria-invalid]="fieldErrors().instagram ? 'true' : null"
-                  [attr.aria-describedby]="fieldErrors().instagram ? 'config-field-error-instagram' : null" />
-              </div>
-              @if (fieldErrors().instagram) {
-              <p id="config-field-error-instagram" [class]="ui.fieldError" data-testid="config-field-error-instagram" role="alert">{{ fieldErrors().instagram }}</p>
-              }
-            </div>
-          </div>
-
           <div class="space-y-zen-sm">
             <label [class]="ui.labelMicro + ' text-secondary'">Correo electrónico de soporte</label>
             <div class="relative group">
@@ -297,20 +266,6 @@
                 <input type="checkbox" formControlName="autoConfirm" class="h-5 w-5 accent-primary cursor-pointer" />
               </div>
             </div>
-
-            <div class="space-y-zen-md">
-              <p [class]="ui.labelMicro + ' text-secondary'">Servicios</p>
-              <div
-                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
-                <div class="space-y-1">
-                  <p class="text-sm font-semibold text-primary">Reservas Múltiples</p>
-                  <p class="text-[10px] text-tertiary leading-tight">Permitir varios servicios en un solo turno.
-                  </p>
-                </div>
-                <input type="checkbox" formControlName="allowMultipleServices"
-                  class="h-5 w-5 accent-primary cursor-pointer" />
-              </div>
-            </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
@@ -334,17 +289,6 @@
               </div>
               @if (fieldErrors().maxAdvanceDays) {
               <p [class]="ui.fieldError" data-testid="config-field-error-maxAdvanceDays">{{ fieldErrors().maxAdvanceDays }}</p>
-              }
-            </div>
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Limpieza (minutos)</label>
-              <div class="relative group">
-                <i
-                  class="ri-rest-time-line absolute left-zen-md top-1/2 -translate-y-1/2 text-secondary group-focus-within:text-primary transition-colors"></i>
-                <input type="number" formControlName="cleanupTimeMinutes" [class]="ui.input + ' pl-11'" />
-              </div>
-              @if (fieldErrors().cleanupTimeMinutes) {
-              <p [class]="ui.fieldError" data-testid="config-field-error-cleanupTimeMinutes">{{ fieldErrors().cleanupTimeMinutes }}</p>
               }
             </div>
           </div>
@@ -371,31 +315,6 @@
               @if (fieldErrors().capacity) {
               <p [class]="ui.fieldError" data-testid="config-field-error-capacity">{{ fieldErrors().capacity }}</p>
               }
-            </div>
-          </div>
-        </article>
-
-        <!-- Regional y Preferencias -->
-        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
-          <div class="flex items-center justify-between pb-zen-md">
-            <h2 [class]="ui.titleSection">Regional y Preferencias</h2>
-            <i class="ri-global-line text-tertiary"></i>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Formato de Hora</label>
-              <select formControlName="timeFormat" [class]="ui.input">
-                <option value="12h">12 horas (AM/PM)</option>
-                <option value="24h">24 horas</option>
-              </select>
-            </div>
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Inicio de Semana</label>
-              <select formControlName="weekStartDay" [class]="ui.input">
-                <option value="monday">Lunes</option>
-                <option value="sunday">Domingo</option>
-              </select>
             </div>
           </div>
         </article>
