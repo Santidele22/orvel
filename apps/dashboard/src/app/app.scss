@@ -2,3 +2,27 @@
   display: block;
   min-height: 100dvh;
 }
+
+.pwa-boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #0F172A;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.pwa-boot-splash img {
+  width: 96px;
+  height: 96px;
+}
+
+.pwa-boot-splash p {
+  margin: 0;
+  font-size: 14px;
+}
