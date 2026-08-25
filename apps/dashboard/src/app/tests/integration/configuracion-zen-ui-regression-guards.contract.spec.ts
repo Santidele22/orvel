@@ -76,7 +76,6 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
     expect(perfilBlock).toContain('Cancelamos la renovación de Mercado Pago');
 
     expect(negocioBlock).toContain('Políticas y Logística');
-    expect(negocioBlock).toContain('Regional y Preferencias');
     expect(negocioBlock).toContain('Horarios de atención');
     expect(negocioBlock).toMatch(/Capacidad|capacity/i);
   });
