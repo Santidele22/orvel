@@ -87,7 +87,9 @@ export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
     'SLOT_CONFLICT',
     'BLOCKED_TIME_COLLISION',
     'BOOKING_TOO_SOON',
-    'BOOKING_TOO_FAR_ADVANCE'
+    'BOOKING_TOO_FAR_ADVANCE',
+    'BUSINESS_EMAIL_RECIPIENT_REQUIRED',
+    'BOOKING_BRANCH_CONFIGURATION_REQUIRED'
   ];
   
   // Supabase plpgsql RPCs raise domain errors as P0001, so inspect the

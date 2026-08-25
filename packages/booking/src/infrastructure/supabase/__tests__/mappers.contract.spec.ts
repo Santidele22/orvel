@@ -58,6 +58,21 @@ describe('mapRpcErrorToApiError booking domain diagnostics', () => {
     }
   );
 
+  it.each(['BUSINESS_EMAIL_RECIPIENT_REQUIRED', 'BOOKING_BRANCH_CONFIGURATION_REQUIRED'] as const)(
+    'preserves %s from a Supabase P0001 message instead of VALIDATION_ERROR',
+    (code) => {
+      expect(
+        mapRpcErrorToApiError({
+          code: 'P0001',
+          message: `Backend raised ${code}`
+        })
+      ).toEqual({
+        code,
+        message: `Backend raised ${code}`
+      });
+    }
+  );
+
   it.each(['BOOKING_VALIDATION_ERROR', 'BRANCH_NOT_FOUND', 'SERVICE_NOT_FOUND'] as const)(
     'preserves %s from a Supabase P0001 message',
     (code) => {

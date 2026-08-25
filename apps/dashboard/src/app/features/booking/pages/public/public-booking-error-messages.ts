@@ -40,7 +40,9 @@ export function getPublicBookingSubmitErrorMessage(error?: ApiError): string {
     searchable.includes('INVALID_SERVICE') ||
     searchable.includes('SERVICE_NOT_FOUND') ||
     searchable.includes('DATABASE_CONTRACT_UNAVAILABLE') ||
-    searchable.includes('PUBLIC_TURNERO_DISABLED')
+    searchable.includes('PUBLIC_TURNERO_DISABLED') ||
+    searchable.includes('BUSINESS_EMAIL_RECIPIENT_REQUIRED') ||
+    searchable.includes('BOOKING_BRANCH_CONFIGURATION_REQUIRED')
   ) {
     return BUSINESS_OR_SERVICE_UNAVAILABLE_MESSAGE;
   }
