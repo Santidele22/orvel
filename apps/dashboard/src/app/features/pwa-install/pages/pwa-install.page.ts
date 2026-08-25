@@ -4,6 +4,7 @@ import { isIosDevice, isStandaloneDisplay } from '../pwa-display';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
 type OrvelWindow = Window & {
@@ -42,7 +43,7 @@ type OrvelWindow = Window & {
           </ol>
         } @else {
           @if (canPromptNativeInstall()) {
-            <button type="button" (click)="installApp()">Instalar</button>
+            <button type="button" class="pwa-install__cta" (click)="installApp()">Instalar</button>
           } @else {
             <p>
               Abrí esta página en Chrome del celular. En Android, tocá el menú y después Instalar app.
@@ -54,6 +55,45 @@ type OrvelWindow = Window & {
         <p class="pwa-install__hint">{{ installFeedback() }}</p>
       }
     </main>
+    @if (isInstallSuccessModalOpen()) {
+      <div class="pwa-install-modal">
+        <button
+          type="button"
+          class="pwa-install-modal__overlay"
+          data-testid="pwa-install-success-modal-overlay"
+          aria-label="Cerrar"
+          (click)="closeInstallSuccessModal()"
+        ></button>
+        <div
+          class="pwa-install-modal__dialog"
+          data-testid="pwa-install-success-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pwa-install-success-modal-title"
+        >
+          <div class="pwa-install-modal__header">
+            <h3 id="pwa-install-success-modal-title">Aplicación instalada</h3>
+            <button
+              type="button"
+              class="pwa-install-modal__close"
+              data-testid="pwa-install-success-modal-close"
+              (click)="closeInstallSuccessModal()"
+            >
+              <i class="ri-close-line" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="pwa-install-modal__body">
+            <div class="pwa-install-modal__icon">
+              <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+            </div>
+            <p>Ya está en tu pantalla de inicio.</p>
+            <button type="button" class="pwa-install-modal__done" (click)="closeInstallSuccessModal()">
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: `
     :host { display: block; height: 100%; overflow: auto; }
@@ -75,7 +115,83 @@ type OrvelWindow = Window & {
     }
     h1 { margin: 0 0 16px; font-size: var(--or-font-h2); }
     p { max-width: 28rem; margin: 0 auto 24px; color: var(--or-text-secondary); }
-    button {
+    .pwa-install__cta {
+      padding: 16px 32px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--or-primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .pwa-install-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--or-space-6);
+    }
+    .pwa-install-modal__overlay {
+      position: absolute;
+      inset: 0;
+      border: 0;
+      background: rgb(var(--or-bg-primary-rgb) / 0.72);
+      cursor: pointer;
+    }
+    .pwa-install-modal__dialog {
+      position: relative;
+      width: 100%;
+      max-width: 28rem;
+      padding: var(--or-space-8);
+      border: 1px solid var(--or-border);
+      border-radius: var(--or-radius-lg);
+      background: var(--or-bg-secondary);
+      box-shadow: var(--or-shadow-lg);
+    }
+    .pwa-install-modal__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--or-space-6);
+    }
+    .pwa-install-modal__header h3 {
+      margin: 0;
+      font-size: var(--or-font-h3);
+      color: var(--or-text-primary);
+    }
+    .pwa-install-modal__close {
+      border: 0;
+      background: transparent;
+      color: var(--or-text-secondary);
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    .pwa-install-modal__body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: var(--or-space-6);
+    }
+    .pwa-install-modal__icon {
+      display: flex;
+      width: 5rem;
+      height: 5rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--or-success) 12%, transparent);
+      color: var(--or-success);
+      font-size: 2.5rem;
+    }
+    .pwa-install-modal__body p {
+      margin: 0;
+      color: var(--or-text-secondary);
+    }
+    .pwa-install-modal__done {
+      width: 100%;
       padding: 16px 32px;
       border: 0;
       border-radius: 999px;
@@ -118,6 +234,7 @@ export class PwaInstallPage implements OnInit {
   protected readonly isIos = signal(false);
   protected readonly hasNativePrompt = signal(false);
   protected readonly installFeedback = signal('');
+  protected readonly isInstallSuccessModalOpen = signal(false);
 
   ngOnInit(): void {
     this.alreadyInstalled.set(isStandaloneDisplay());
@@ -141,6 +258,15 @@ export class PwaInstallPage implements OnInit {
     this.hasNativePrompt.set(true);
   }
 
+  @HostListener('window:appinstalled')
+  protected onAppInstalled(): void {
+    this.isInstallSuccessModalOpen.set(true);
+  }
+
+  protected closeInstallSuccessModal(): void {
+    this.isInstallSuccessModalOpen.set(false);
+  }
+
   protected canPromptNativeInstall(): boolean {
     return this.hasNativePrompt() && !this.isIos() && !this.alreadyInstalled();
   }
@@ -159,9 +285,13 @@ export class PwaInstallPage implements OnInit {
     }
 
     await this.deferredPrompt.prompt();
+    const { outcome } = await this.deferredPrompt.userChoice;
     this.deferredPrompt = null;
     this.hasNativePrompt.set(false);
     (window as OrvelWindow).__ORVEL_DEFERRED_INSTALL_PROMPT = undefined;
     this.installFeedback.set('');
+    if (outcome === 'accepted') {
+      this.isInstallSuccessModalOpen.set(true);
+    }
   }
 }
