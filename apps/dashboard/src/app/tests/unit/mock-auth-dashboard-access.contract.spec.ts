@@ -5,6 +5,7 @@ import { validateSessionSchema } from '../../core/auth/validate-session-schema';
 import {
   buildLandingLoginRedirect,
   canAccessDashboard,
+  canAccessDashboardAsync,
   logoutAndRedirect,
   sanitizeReturnTo
 } from '../../core/auth/route-protection';
@@ -83,11 +84,14 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
   });
 
   describe('dashboard access with/without valid session', () => {
-    it('redirects to canonical landing login path with returnTo when no valid Supabase session exists', () => {
+    it('redirects to in-app dashboard sign-in with returnTo when no valid Supabase session exists', async () => {
       const access = canAccessDashboard();
+      const asyncAccess = await canAccessDashboardAsync(Date.now(), '/dashboard');
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
+      expect(asyncAccess.allowed).toBe(false);
+      expect(asyncAccess.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
 
     it('does not allow dashboard access from a legacy local/mock session', () => {
@@ -107,7 +111,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const access = canAccessDashboard(now);
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
   });
 
@@ -146,7 +150,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const redirectTo = await logoutAndRedirect();
 
       expect(localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY)).toBeNull();
-      expect(redirectTo).toBe('https://orvel.pro/auth/login?returnTo=%2Fdashboard');
+      expect(redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
   });
 });
