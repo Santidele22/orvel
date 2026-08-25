@@ -194,6 +194,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     provisioned = await provisionFreeSignupTenant(supabaseAdmin, {
       userId: authUserId,
+      email,
       firstName,
       lastName,
       businessName,

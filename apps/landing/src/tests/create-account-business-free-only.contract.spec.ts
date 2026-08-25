@@ -184,6 +184,35 @@ describe('legacy create-account-business boundary', () => {
     });
   });
 
+  it('passes signup email into provisionFreeSignupTenant and persists live settings defaults', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+    const provisionCall = source.match(/provisionFreeSignupTenant\s*\([\s\S]*?\}\s*\)/)?.[0] ?? '';
+    const supabase = createFreeSignupSupabaseMock();
+    createClientMock.mockReturnValue(supabase.client);
+
+    const response = await postCreateAccountBusiness(validPayload('FREE'));
+    const settingsUpserts = supabase.from.mock.calls
+      .map((call, index) => ({ table: call[0], result: supabase.from.mock.results[index]?.value }))
+      .filter((entry) => entry.table === 'business_settings')
+      .flatMap((entry) => entry.result?.upsert?.mock?.calls ?? []);
+
+    expect(provisionCall, 'create-account-business must pass alta email into provision').toMatch(/\bemail\s*,/);
+    expect(response.status).toBe(200);
+    expect(settingsUpserts[0]?.[0]).toEqual(expect.objectContaining({
+      support_email: 'ada@example.test',
+      support_phone: '+5491100000000',
+      buffer_minutes: 15,
+      min_notice_minutes: 120,
+      slot_interval_minutes: 30,
+      working_hours: expect.objectContaining({
+        monday: expect.objectContaining({ enabled: true, start: '09:00', end: '18:00' }),
+        friday: expect.objectContaining({ enabled: true, start: '09:00', end: '18:00' }),
+        saturday: expect.objectContaining({ enabled: true, start: '10:00', end: '14:00' }),
+        sunday: expect.objectContaining({ enabled: false }),
+      }),
+    }));
+  });
+
   it('rejects invalid required fields without creating an auth user or provisioning a tenant', async () => {
     const supabase = createFreeSignupSupabaseMock();
     createClientMock.mockReturnValue(supabase.client);
