@@ -48,8 +48,8 @@ export class OperatorWebPushService {
     const businessId = await this.businessService.getActiveBusinessId();
     const payload = subscription.toJSON();
     const endpoint = payload.endpoint;
-    const p256dh = payload.keys?.p256dh;
-    const auth = payload.keys?.auth;
+    const p256dh = payload.keys?.['p256dh'];
+    const auth = payload.keys?.['auth'];
     if (!endpoint || !p256dh || !auth) {
       return;
     }
