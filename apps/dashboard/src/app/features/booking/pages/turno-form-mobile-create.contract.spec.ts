@@ -36,4 +36,20 @@ describe('turno form mobile create', () => {
     expect(pageHtml).toMatch(/data-testid=["']turno-admin-available-slot-select["']/);
     expect(pageHtml).toMatch(/data-testid=["']turno-admin-available-slot-chips["']/);
   });
+
+  it('keeps Hora visible on phone with pick-service, loading, empty, error, and slot states', () => {
+    const hourSelect = pageHtml.match(/<select\b[^>]*id=["']hora["'][^>]*>/)?.[0] ?? '';
+    expect(hourSelect, 'Hora select must stay visible on phone; chips cannot be the only control and then disappear').not.toMatch(/max-lg:sr-only/);
+
+    const chipsOpen = pageHtml.search(/data-testid=["']turno-admin-available-slot-chips["']/);
+    const chipsPrefix = pageHtml.slice(Math.max(0, chipsOpen - 120), chipsOpen);
+    expect(chipsPrefix, 'mobile slot surface must render even when disponibles() is still empty').not.toMatch(
+      /@if\s*\(\s*disponibles\(\)\.length\s*>\s*0\s*\)/
+    );
+
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-need-service["']/);
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-loading["']/);
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-empty["']/);
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-error["']/);
+  });
 });
