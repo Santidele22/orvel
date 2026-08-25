@@ -3,6 +3,7 @@ import "../styles/global.css";
 import "remixicon/fonts/remixicon.css";
 import "@fontsource-variable/onest";
 import Preloader from "../components/organisms/Preloader.astro";
+import Analytics from "@vercel/analytics/astro";
 
 interface Props {
     title: string;
@@ -47,6 +48,7 @@ const {
         <meta name="twitter:image" content="https://orvel.pro/logo.png" />
 
         <title>{title}</title>
+        <Analytics />
     </head>
     <body class="bg-bg-primary text-text-primary antialiased">
         {showPreloader && <Preloader />}
