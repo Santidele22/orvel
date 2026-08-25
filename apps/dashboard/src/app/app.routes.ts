@@ -96,6 +96,11 @@ export const routes: Routes = [
       import('./features/pwa-install/pages/pwa-install.page').then(m => m.PwaInstallPage)
   },
   {
+    path: 'dashboard/login',
+    loadComponent: () =>
+      import('./features/pwa-install/pages/operator-sign-in.page').then(m => m.OperatorSignInPage)
+  },
+  {
     path: 'dashboard',
     component: DashboardShellComponent,
     canActivate: [dashboardAuthGuard],

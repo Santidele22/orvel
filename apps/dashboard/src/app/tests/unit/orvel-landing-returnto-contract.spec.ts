@@ -109,8 +109,8 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     const source = await loadDashboardAuthGuardSource();
 
     expect(source).toContain('const safeReturnTo = sanitizeReturnTo(currentUrl ??');
-    expect(source).toContain('buildLandingLoginRedirect(safeReturnTo)');
-    expect(source).not.toContain('access.redirectTo ?? buildLandingLoginRedirect(safeReturnTo)');
+    expect(source).toContain('buildDashboardSignInRedirect(safeReturnTo)');
+    expect(source).not.toContain('access.redirectTo ?? buildDashboardSignInRedirect(safeReturnTo)');
   });
 
   it('dashboard guard hard-navigates to landing auth instead of returning an internal UrlTree that can blank the shell', async () => {

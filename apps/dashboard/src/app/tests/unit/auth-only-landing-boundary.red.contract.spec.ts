@@ -60,7 +60,14 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
 
   it('does not register or lazy-import dashboard pages/auth routes', async () => {
     const routesSource = await readFile(APP_ROUTES, 'utf8');
+    const loginIndex = routesSource.search(/path:\s*'dashboard\/login'/);
+    const dashboardIndex = routesSource.search(/path:\s*'dashboard'\s*,/);
+    const loginBlock = routesSource.match(/\{\s*path:\s*'dashboard\/login',[\s\S]*?\n\s*\}/)?.[0] ?? '';
 
+    expect(loginIndex).toBeGreaterThan(-1);
+    expect(loginIndex).toBeLessThan(dashboardIndex);
+    expect(loginBlock).toContain('loadComponent');
+    expect(loginBlock).not.toContain('canActivate');
     expect(routesSource).not.toMatch(/path:\s*['"]auth(?:\/login)?['"]/);
     expect(routesSource).not.toMatch(/path:\s*['"]login['"]/);
     expect(routesSource).not.toMatch(/['"]\.\/pages\/auth/);
@@ -73,15 +80,15 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
     expect(files).toEqual([]);
   });
 
-  it('redirects unauthenticated protected dashboard access to canonical external landing login', async () => {
+  it('redirects unauthenticated protected dashboard access to in-app dashboard sign-in', async () => {
     const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
 
     const access = await canAccessDashboardAsync(Date.now(), '/dashboard/inicio');
-    const redirect = new URL(access.redirectTo ?? '');
+    const redirect = new URL(access.redirectTo ?? '', 'https://dashboard.orvel.pro');
 
     expect(access.allowed).toBe(false);
-    expect(redirect.origin).toBe('https://orvel.pro');
-    expect(redirect.pathname).toBe('/auth/login');
+    expect(access.redirectTo).not.toContain('https://orvel.pro/auth/login');
+    expect(redirect.pathname).toBe('/dashboard/login');
     expect(redirect.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 });
