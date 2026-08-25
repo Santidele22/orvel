@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ProvisionFreeSignupInput = {
   userId: string;
+  email: string;
   firstName: string;
   lastName: string;
   businessName: string;
@@ -84,6 +85,20 @@ export async function provisionFreeSignupTenant(
       selected_business_types: input.selectedBusinessTypes,
       plan: "free",
       support_phone: input.phone,
+      support_email: input.email,
+      buffer_minutes: 15,
+      min_notice_minutes: 120,
+      slot_interval_minutes: 30,
+      cancellation_window_minutes: 60,
+      working_hours: {
+        monday: { enabled: true, start: "09:00", end: "18:00" },
+        tuesday: { enabled: true, start: "09:00", end: "18:00" },
+        wednesday: { enabled: true, start: "09:00", end: "18:00" },
+        thursday: { enabled: true, start: "09:00", end: "18:00" },
+        friday: { enabled: true, start: "09:00", end: "18:00" },
+        saturday: { enabled: true, start: "10:00", end: "14:00" },
+        sunday: { enabled: false, start: "00:00", end: "00:00" },
+      },
       updated_at: dashboardReadyAt,
     })
     .select("business_id")
