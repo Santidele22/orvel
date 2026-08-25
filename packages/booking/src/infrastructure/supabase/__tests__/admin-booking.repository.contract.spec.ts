@@ -69,6 +69,29 @@ describe('SupabaseAdminBookingRepository contract', () => {
     ]);
   });
 
+  it('normalizes a single-row availability payload to an array', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { starts_at_iso: '2026-08-17T13:00:00.000Z', ends_at_iso: '2026-08-17T13:30:00.000Z', remaining_capacity: 1 },
+      error: null
+    });
+
+    expect(
+      await repo(rpc).loadAvailabilityWindows({
+        fecha: new Date('2026-08-17T00:00:00.000Z'),
+        durationMinutes: 30,
+        serviceId: 'svc-1',
+        branchId: 'branch-1',
+        context: 'admin-create',
+        bookingId: null,
+        businessId: 'biz-1',
+        dateIso: '2026-08-17'
+      })
+    ).toEqual({
+      status: 200,
+      data: [{ startsAtIso: '2026-08-17T13:00:00.000Z', endsAtIso: '2026-08-17T13:30:00.000Z', remainingCapacity: 1 }]
+    });
+  });
+
   it('maps cancel and reschedule not-found RPC errors to status 400', async () => {
     const cancelResult = await repo(
       vi.fn().mockResolvedValue({ data: null, error: { message: 'TURNO_NOT_FOUND: Turno no encontrado', code: 'P0001' } })

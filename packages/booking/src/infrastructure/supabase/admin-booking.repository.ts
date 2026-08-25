@@ -60,7 +60,7 @@ export class SupabaseAdminBookingRepository implements AdminBookingRepository {
     return this.call('query_admin_slot_availability', {
       business_id: req.businessId, service_id: req.serviceId ?? null, date_iso: req.dateIso, branch_id: req.branchId,
       context: req.context ?? 'admin-create', booking_id: req.bookingId ?? null, duration_minutes: req.durationMinutes ?? null
-    }, 200, (row) => ((Array.isArray(row) ? row : []) as Row[]).map((item) => ({
+    }, 200, (row) => ((Array.isArray(row) ? row : row ? [row] : []) as Row[]).map((item) => ({
       startsAtIso: String(item['starts_at_iso'] ?? ''), endsAtIso: String(item['ends_at_iso'] ?? ''),
       remainingCapacity: Number(item['remaining_capacity'] ?? 0)
     })).filter((slot) => slot.startsAtIso && slot.endsAtIso && slot.remainingCapacity > 0), true);
