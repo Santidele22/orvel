@@ -180,7 +180,7 @@
             <select id="hora" data-testid="turno-admin-available-slot-select" [ngModel]="hora()"
               (ngModelChange)="hora.set($event); validateSelectedHour()" name="hora" required
               class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50"
-              [disabled]="!servicioId() || availabilityLoading() || availabilityError() || availabilityStale() || availabilityEmpty()">
+              [disabled]="!servicioId() || availabilityLoading()">
               <option value="">Seleccionar hora</option>
               @for (horario of disponibles(); track horario) {
               <option data-testid="turno-admin-available-slot-option" [value]="horario">{{ getHorarioLabel(horario) }}</option>
@@ -212,7 +212,7 @@
             }
 
             @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
-            <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios disponibles para esta fecha.</span>
+            <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios para esta fecha. Probá otro día.</span>
             }
 
             @if (conflictError()) {

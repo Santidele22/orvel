@@ -52,4 +52,20 @@ describe('turno form mobile create', () => {
     expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-empty["']/);
     expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-error["']/);
   });
+
+  it('does not disable Hora on empty, stale, or error availability', () => {
+    const hourSelect = pageHtml.match(/<select\b[^>]*id=["']hora["'][^>]*>/)?.[0] ?? '';
+    const disabledBinding = hourSelect.match(/\[disabled\]="([^"]*)"/)?.[1] ?? '';
+
+    expect(disabledBinding, 'Hora must stay tappable when the RPC is empty or fails').not.toBe('');
+    expect(disabledBinding).toMatch(/!servicioId\(\)/);
+    expect(disabledBinding).toMatch(/availabilityLoading\(\)/);
+    expect(disabledBinding).not.toMatch(/availabilityEmpty\(\)/);
+    expect(disabledBinding).not.toMatch(/availabilityStale\(\)/);
+    expect(disabledBinding).not.toMatch(/availabilityError\(\)/);
+  });
+
+  it('tells the operator to try another date when this date has no slots', () => {
+    expect(pageHtml).toContain('No hay horarios para esta fecha. Probá otro día.');
+  });
 });
