@@ -9,6 +9,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
+import { getBranchContextService } from '../../../core/branches/branch-context.service';
 
 const CUSTOMER_BASE_SELECT = `
         id,
@@ -404,38 +405,10 @@ export class ClienteService {
     return this.mapSupabaseRowToCliente(data as Record<string, unknown>);
   }
 
-  private async resolveBusinessId(supabaseClient: SupabaseClient): Promise<string | null> {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const authUserId = session?.user?.id;
-
-    if (!authUserId) {
-      return null;
-    }
-
-    // 1. Buscar por owner_id
-    const { data: businessByOwner } = await supabaseClient
-      .from('businesses')
-      .select('id')
-      .eq('owner_id', authUserId)
-      .maybeSingle();
-
-    if (businessByOwner?.id) {
-      return String(businessByOwner.id);
-    }
-
-    // 2. Buscar por id directo
-    const { data: businessById } = await supabaseClient
-      .from('businesses')
-      .select('id')
-      .eq('id', authUserId)
-      .maybeSingle();
-
-    if (businessById?.id) {
-      return String(businessById.id);
-    }
-
-    // 3. Fallback final
-    return authUserId;
+  private async resolveBusinessId(_supabaseClient: SupabaseClient): Promise<string | null> {
+    const branchContext = getBranchContextService();
+    await branchContext.ensureLoaded();
+    return branchContext.getActiveBusinessId();
   }
 
   private async updateCustomerInSupabase(supabase: SupabaseClient, id: string, dto: Cliente): Promise<void> {
