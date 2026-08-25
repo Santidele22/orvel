@@ -80,10 +80,13 @@ describe('Contract: public PWA install-only page', () => {
 
   it('registers the Angular service worker at the combined-deploy dashboard path immediately', () => {
     const config = source('src/app/app.config.ts');
+    const pushSw = source('src/orvel-push-sw.js');
 
-    expect(config).toContain("provideServiceWorker('/dashboard/ngsw-worker.js'");
+    expect(config).toMatch(/provideServiceWorker\('\/dashboard\/[^']+'/);
     expect(config).toContain('registerImmediately');
+    expect(config).toContain("scope: '/dashboard/'");
     expect(config).not.toContain("provideServiceWorker('ngsw-worker.js'");
+    expect(pushSw).toContain("importScripts('./ngsw-worker.js')");
   });
 
   it('detects iOS via the shared helper and never calls prompt() on that path', () => {

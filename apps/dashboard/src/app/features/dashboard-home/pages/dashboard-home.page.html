@@ -25,6 +25,16 @@
         <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
       </a>
     }
+    @if (showWebPushCoach()) {
+      <div data-testid="web-push-enable-coach" class="mb-8 space-y-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm text-purple-200">
+        <p class="font-semibold">Activá avisos de turnos</p>
+        <p>Te avisamos si un turno es creado, cancelado o reprogramado. El inbox de la app sigue igual.</p>
+        <button type="button" data-testid="web-push-enable" (click)="enableWebPush()"
+          class="h-10 rounded-xl bg-[#7C3AED] px-4 font-semibold text-white">
+          Activar avisos
+        </button>
+      </div>
+    }
 
     <!-- Top Stats Row -->
   <div class="mb-8 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -241,6 +251,16 @@
         Instalá Orvel en tu teléfono
         <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
       </a>
+    }
+    @if (showWebPushCoach()) {
+      <div data-testid="web-push-enable-coach" class="space-y-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm text-purple-200">
+        <p class="font-semibold">Activá avisos de turnos</p>
+        <p>Te avisamos si un turno es creado, cancelado o reprogramado. El inbox de la app sigue igual.</p>
+        <button type="button" data-testid="web-push-enable" (click)="enableWebPush()"
+          class="h-10 rounded-xl bg-[#7C3AED] px-4 font-semibold text-white">
+          Activar avisos
+        </button>
+      </div>
     }
 
     <button (click)="copyBookingUrl()"
