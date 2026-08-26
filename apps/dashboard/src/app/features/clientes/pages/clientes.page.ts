@@ -42,7 +42,8 @@ export class ClientesPage {
   readonly showModal = signal(false);
   readonly clients = signal<ClienteListItem[]>([]);
   readonly showDeactivated = signal(false);
-  
+  readonly showBajaConfirm = signal(false);
+
   // DB-FIX-001: Track selected client for deactivate action
   readonly selectedClientId = signal<string | null>(null);
 
@@ -65,6 +66,7 @@ export class ClientesPage {
     this.editingClientId.set(null);
     this.clientForm.reset();
     this.formMessage.set('');
+    this.cancelBajaConfirm();
   }
 
   readonly filteredClients = computed(() => {
@@ -199,18 +201,41 @@ export class ClientesPage {
     });
   }
 
-  // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
-  // Use signal to track selected client for deactivate action
-  deactivateClient(client: ClienteListItem): void {
-    this.selectedClientId.set(client.id);
-    // Open confirmation modal or directly deactivate
-    this.performDeactivate(client.id);
+  openBajaConfirm(): void {
+    const editingId = this.editingClientId();
+    if (!editingId) {
+      return;
+    }
+
+    this.selectedClientId.set(editingId);
+    this.showBajaConfirm.set(true);
   }
 
-// DB-FIX-001: Soft-delete implementation
+  cancelBajaConfirm(): void {
+    this.showBajaConfirm.set(false);
+    this.selectedClientId.set(null);
+  }
+
+  confirmBaja(): void {
+    const clientId = this.selectedClientId();
+    if (!clientId) {
+      return;
+    }
+
+    this.performDeactivate(clientId);
+  }
+
+  // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
+  deactivateClient(client: ClienteListItem): void {
+    this.selectedClientId.set(client.id);
+    this.showBajaConfirm.set(true);
+  }
+
   performDeactivate(clientId: string): void {
     this.clienteService.darDeBajaCliente(clientId).subscribe({
       next: () => {
+        this.cancelBajaConfirm();
+        this.closeModal();
         void this.loadClients();
       },
       error: (error) => {
