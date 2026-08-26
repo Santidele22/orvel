@@ -66,7 +66,24 @@ describe('turno form mobile create', () => {
   });
 
   it('tells the operator to try another date when this date has no slots', () => {
-    expect(pageHtml).toContain('No hay horarios para esta fecha. Probá otro día.');
+    expect(pageHtml).toContain(
+      'No hay horarios para esta fecha. Probá otro día o revisá el horario de atención en Configuraciones.'
+    );
+  });
+
+  it('treats BOOKING_VALIDATION_ERROR as empty availability, not a consultar-disponibilidad crash', () => {
+    const checkAvailability = methodBody(pageTs, 'checkAvailability');
+
+    expect(checkAvailability, 'checkAvailability must exist').not.toBe('');
+    expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR/);
+    expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR[\s\S]{0,240}availabilityEmpty\.set\(true\)/);
+    expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR[\s\S]{0,240}availabilityError\.set\(null\)/);
+    expect(checkAvailability).not.toMatch(
+      /BOOKING_VALIDATION_ERROR[\s\S]{0,240}No pudimos consultar disponibilidad\. Reintentá antes de guardar\./
+    );
+    expect(pageHtml).toContain(
+      'No hay horarios para esta fecha. Probá otro día o revisá el horario de atención en Configuraciones.'
+    );
   });
 
   it('does not map SERVICE_NOT_FOUND availability errors to account-setup copy', () => {
