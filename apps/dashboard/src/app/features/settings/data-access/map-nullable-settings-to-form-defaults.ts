@@ -42,16 +42,20 @@ export function resolveWorkingHours(
   defaultHours: Record<WeekdayKey, WorkingDayHours>
 ): Record<WeekdayKey, WorkingDayHours> {
   if (!workingHours || typeof workingHours !== 'object' || Array.isArray(workingHours)) {
-    return defaultHours;
+    return { ...defaultHours };
   }
 
   const record = workingHours as Record<string, unknown>;
-  const missingDay = WEEKDAYS.some((day) => {
-    const hours = record[day];
-    return !hours || typeof hours !== 'object';
-  });
+  const merged: Record<WeekdayKey, WorkingDayHours> = { ...defaultHours };
 
-  return missingDay ? defaultHours : (workingHours as Record<WeekdayKey, WorkingDayHours>);
+  for (const day of WEEKDAYS) {
+    const hours = record[day];
+    if (hours && typeof hours === 'object' && !Array.isArray(hours)) {
+      merged[day] = hours as WorkingDayHours;
+    }
+  }
+
+  return merged;
 }
 
 export type NullableSettingsRow = {
