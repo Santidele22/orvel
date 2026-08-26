@@ -7,6 +7,7 @@ import { ClienteService } from '../data-access/cliente.service';
 import { ThemeService } from '../../../core/theming/theme.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../core/theming/dashboard-structural.tokens';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 type ClienteListItem = {
   id: string;
@@ -149,7 +150,7 @@ export class ClientesPage {
       this.clients.set(this.facade.getList());
       this.closeModal();
     } catch (error) {
-      this.logClientError(error);
+      this.logClientError(error, editingId ? 'customers.update' : 'customers.insert');
       this.formMessage.set(`No se pudo ${editingId ? 'guardar' : 'crear'} el cliente. ${this.mapClientErrorMessage(error)}`);
     }
   }
@@ -171,8 +172,8 @@ export class ClientesPage {
     return '';
   }
 
-  private logClientError(error: unknown): void {
-    console.error('[Clientes] operación fallida', error);
+  private logClientError(error: unknown, operation: string): void {
+    logMutationFailure({ operation, error });
   }
 
   private async loadClients(): Promise<void> {
@@ -182,7 +183,7 @@ export class ClientesPage {
       await this.facade.load();
       this.clients.set(this.facade.getList());
     } catch (error) {
-      this.logClientError(error);
+      this.logClientError(error, 'customers.load');
       this.formMessage.set('No se pudieron cargar los clientes. Podés reintentar en unos minutos.');
     } finally {
       this.loading.set(false);
@@ -239,7 +240,7 @@ export class ClientesPage {
         void this.loadClients();
       },
       error: (error) => {
-        this.logClientError(error);
+        this.logClientError(error, 'customers.deactivate');
         this.formMessage.set('No se pudo dar de baja el cliente. Intentá nuevamente.');
       }
     });

@@ -11,6 +11,7 @@ import type { PublicSlot } from '@orvel/booking';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
 import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
+import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 
 type ReschedulePreload = {
@@ -214,6 +215,11 @@ export class PublicBookingPage implements OnInit {
 
       if (response.error || response.status < 200 || response.status >= 300) {
         emitPublicBookingFailureEvent({ stage: 'availability', status: response.status, code: response.error?.code });
+        logMutationFailure({
+          operation: 'query_public_slot_availability',
+          response,
+          ids: { businessId: this.resolvedBusinessId() || undefined }
+        });
         this.availabilitySlots.set([]);
         this.updateDayAvailability(date, false);
         this.selectedSlot = '';
@@ -247,6 +253,11 @@ export class PublicBookingPage implements OnInit {
         return;
       }
       emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
+      logMutationFailure({
+        operation: 'query_public_slot_availability',
+        error,
+        ids: { businessId: this.resolvedBusinessId() || undefined }
+      });
       this.availabilitySlots.set([]);
       this.updateDayAvailability(date, false);
       this.selectedSlot = '';
@@ -423,7 +434,7 @@ export class PublicBookingPage implements OnInit {
           return;
         }
         failedAvailabilityChecks = true;
-        emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
+      emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
         days[i] = { ...day, hasAvailability: false };
         if (day.date === this.selectedDate()) {
           this.availabilitySlots.set([]);

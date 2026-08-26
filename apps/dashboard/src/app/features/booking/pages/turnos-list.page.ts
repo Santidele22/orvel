@@ -25,6 +25,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '@orvel/booking';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
@@ -445,8 +446,15 @@ export class TurnosListPage implements OnInit, OnDestroy {
       });
       this.bookings.set(this.bookings().map((item) => item.id === turnoId ? { ...item, estado: 'cancelado' } : item));
       await this.processTurnos();
-    } catch {
-      // Keep runtime details out of logs/UI for admin actions.
+    } catch (error) {
+      logMutationFailure({
+        operation: 'cancel_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turnoId
+        }
+      });
     }
   }
 
@@ -486,9 +494,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
     } catch (error) {
       this.adminRescheduleSubmitting.set(false);
       const failure = buildAdminRescheduleFailurePresentation(error);
-      console.warn('Admin booking reschedule failed', {
-        action: 'admin_booking_reschedule',
-        reason: failure.telemetryCode
+      logMutationFailure({
+        operation: 'reschedule_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
       });
       this.adminRescheduleFeedback.set(failure.feedback);
     }
@@ -513,9 +525,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
       await this.refreshTurnosFromSource();
     } catch (error) {
       const failure = buildAdminCancelFailurePresentation(error);
-      console.warn('Admin booking cancellation failed', {
-        action: 'admin_booking_cancel',
-        reason: failure.telemetryCode
+      logMutationFailure({
+        operation: 'cancel_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
       });
       void this.notifications.recordAdminCancelFailureTelemetry({
         stage: 'rpc',
