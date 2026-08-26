@@ -5,6 +5,7 @@ import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-cl
 import { AuthService } from '../../../services/auth.service';
 import { isAllowedOnboardingBusinessType } from '../../onboarding/data-access/business-type-defaults';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 export type WeekdayKey =
   | 'monday'
@@ -385,7 +386,11 @@ export class BusinessSettingsFacade {
           .maybeSingle();
 
         if (error) {
-          console.error('❌ [Facade] CRITICAL: Error saving to business_settings table:', error);
+          logMutationFailure({
+            operation: 'business_settings.update',
+            error,
+            ids: { businessId }
+          });
           this.persistenceError.set(error.message);
           
           return {

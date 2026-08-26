@@ -3,6 +3,7 @@ import { SUPABASE_CLIENT } from './supabase-client.token';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
 import type { SupabaseBookingGateway } from '../../gateway-interface';
 import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail } from './mappers';
+import { logMutationFailure } from '../../observability/mutation-error-log';
 import type {
   ApiResponse,
   BusinessPublicView,
@@ -182,9 +183,15 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       });
 
       if (error) {
+        const mapped = mapRpcErrorToApiError(error as { message?: string });
+        logMutationFailure({
+          operation: 'query_public_slot_availability',
+          error,
+          response: { status: 400, error: mapped }
+        });
         return {
           status: 400,
-          error: mapRpcErrorToApiError(error as { message?: string })
+          error: mapped
         };
       }
 
@@ -199,10 +206,15 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         data: { slots }
       };
     } catch (err) {
-      console.error('[API] queryPublicSlotAvailability catch error:', err);
+      const mapped = mapRpcErrorToApiError(err as { message?: string });
+      logMutationFailure({
+        operation: 'query_public_slot_availability',
+        error: err,
+        response: { status: 400, error: mapped }
+      });
       return {
         status: 400,
-        error: mapRpcErrorToApiError(err as { message?: string })
+        error: mapped
       };
     }
   }
@@ -269,6 +281,11 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
         const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
           apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' ? 422 : 400;
+        logMutationFailure({
+          operation: 'create_public_booking',
+          error,
+          response: { status: statusCode, error: apiError }
+        });
         return { status: statusCode, error: apiError };
       }
 
@@ -284,6 +301,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       const manageToken = bookingResult.manage_token ?? bookingResult.manageToken;
 
       if (!bookingId || !branchId || bookingResult.db_atomic_visibility_notifications !== true) {
+        logMutationFailure({
+          operation: 'create_public_booking',
+          response: {
+            status: 503,
+            error: { code: 'DATABASE_CONTRACT_UNAVAILABLE' }
+          },
+          ids: { bookingId, branchId }
+        });
         return {
           status: 503,
           error: {
@@ -309,9 +334,15 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       };
     } catch (err) {
       const error = err as { message?: string };
+      const mapped = mapRpcErrorToApiError(error);
+      logMutationFailure({
+        operation: 'create_public_booking',
+        error: err,
+        response: { status: 400, error: mapped }
+      });
       return {
         status: 400,
-        error: mapRpcErrorToApiError(error)
+        error: mapped
       };
     }
   }
