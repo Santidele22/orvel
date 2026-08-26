@@ -231,8 +231,8 @@ export class TurnoFormPage implements OnInit {
         this.hasLoadedAvailability.set(false);
         this.conflictError.set(this.unavailableSlotMessage);
       } else if (/BOOKING_VALIDATION_ERROR/i.test(errorMessage)) {
-        this.availabilityError.set(null);
-        this.availabilityEmpty.set(true);
+        this.availabilityError.set(mapBookingValidationAvailabilityCopy(errorMessage));
+        this.availabilityEmpty.set(false);
         this.hasLoadedAvailability.set(true);
         this.availabilityStale.set(false);
         this.conflictError.set(null);
@@ -456,4 +456,26 @@ function toLocalDateIso(date = new Date()): string {
 function parseLocalDate(iso: string): Date {
   const [year, month, day] = iso.split('-').map(Number);
   return new Date(year, (month || 1) - 1, day || 1);
+}
+
+const bookingValidationBranchInactiveCopy =
+  'Esta sucursal no está activa. Elegí otra sucursal o revisá la configuración de cuenta.';
+const bookingValidationWorkingHoursCopy =
+  'El horario de atención de este día está incompleto o inválido. Revisá inicio y fin en Configuraciones.';
+const bookingValidationDurationCopy =
+  'La duración del servicio no es válida. Revisá el servicio o la duración.';
+const bookingValidationUnknownCopy =
+  'No pudimos armar los horarios con esta configuración. Revisá sucursal, horario de atención y duración.';
+
+function mapBookingValidationAvailabilityCopy(errorMessage: string): string {
+  if (/BRANCH_INACTIVE/i.test(errorMessage)) {
+    return bookingValidationBranchInactiveCopy;
+  }
+  if (/WORKING_HOURS/i.test(errorMessage)) {
+    return bookingValidationWorkingHoursCopy;
+  }
+  if (/DURATION/i.test(errorMessage)) {
+    return bookingValidationDurationCopy;
+  }
+  return bookingValidationUnknownCopy;
 }
