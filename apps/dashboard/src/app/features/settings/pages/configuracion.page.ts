@@ -16,6 +16,7 @@ import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { AuthService } from '../../../services/auth.service';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import {
@@ -501,9 +502,10 @@ export class ConfiguracionPage {
       return;
     }
 
+    let activeBusinessId: string | undefined;
     try {
       this.loading.set(true);
-      const activeBusinessId = await this.facade.getActiveBusinessId(user.id);
+      activeBusinessId = await this.facade.getActiveBusinessId(user.id);
       if (!activeBusinessId) {
         this.formMessage.set('No se pudo identificar el negocio activo. Volvé a intentar en unos segundos.');
         return;
@@ -533,7 +535,11 @@ export class ConfiguracionPage {
       this.isSettingsSavedModalOpen.set(true);
     } catch (error) {
       this.formMessage.set('No se pudo guardar la configuración. Revisá tu conexión e intentá nuevamente.');
-      console.error('Error saving settings:', error);
+      logMutationFailure({
+        operation: 'business_settings.update',
+        error,
+        ids: { businessId: activeBusinessId }
+      });
     } finally {
       this.loading.set(false);
     }

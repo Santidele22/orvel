@@ -171,6 +171,7 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
       'createAppointment',
       'getPublicBookingOrigin',
       'isValidPublicBookingSlug',
+      'logMutationFailure',
       'normalizePublicBookingSlug',
       'rescheduleAppointment',
       'utcDayRange',
