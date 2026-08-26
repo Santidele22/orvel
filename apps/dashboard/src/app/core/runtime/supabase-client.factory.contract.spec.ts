@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createDashboardSupabaseClient } from './supabase-client.factory';
 import type { DashboardRuntimeEnv } from './dashboard-env';
@@ -61,5 +63,15 @@ describe('createDashboardSupabaseClient contract', () => {
         detectSessionInUrl: false
       }
     });
+  });
+
+  it('wires the dashboard SUPABASE_CLIENT factory to the authenticated session, not the anonymous booking client', () => {
+    const clientFactory = readFileSync(
+      resolve(process.cwd(), 'src/app/core/runtime/supabase-client.ts'),
+      'utf8'
+    );
+
+    expect(clientFactory).toMatch(/createDashboardSupabaseClient/);
+    expect(clientFactory).not.toMatch(/@orvel\/booking\/infrastructure/);
   });
 });
