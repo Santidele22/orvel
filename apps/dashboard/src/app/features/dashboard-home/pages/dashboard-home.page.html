@@ -18,13 +18,6 @@
     </button>
     </header>
 
-    @if (!isPwaStandalone()) {
-      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
-        class="mb-8 flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
-        Instalá Orvel en tu teléfono
-        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
-      </a>
-    }
     @if (showWebPushCoach()) {
       <div data-testid="web-push-enable-coach" class="mb-8 space-y-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm text-purple-200">
         <p class="font-semibold">Activá avisos de turnos</p>
@@ -236,6 +229,14 @@
       </div>
     </div>
   </div>
+
+    @if (!isPwaStandalone()) {
+      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
+        class="mt-8 flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
+        Instalá Orvel en tu teléfono
+        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
+      </a>
+    }
   } @else {
   <div data-testid="dashboard-home-mobile-summary" class="space-y-5">
     <header class="space-y-1">
@@ -245,13 +246,6 @@
       <p class="text-sm font-medium leading-6 text-slate-400">Tu resumen de hoy.</p>
     </header>
 
-    @if (!isPwaStandalone()) {
-      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
-        class="flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
-        Instalá Orvel en tu teléfono
-        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
-      </a>
-    }
     @if (showWebPushCoach()) {
       <div data-testid="web-push-enable-coach" class="space-y-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm text-purple-200">
         <p class="font-semibold">Activá avisos de turnos</p>
@@ -292,6 +286,14 @@
       class="flex h-11 w-full items-center justify-center rounded-xl border border-purple-400/15 bg-purple-500/10 text-sm font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
       Crear turno
     </a>
+
+    @if (!isPwaStandalone()) {
+      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
+        class="flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
+        Instalá Orvel en tu teléfono
+        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
+      </a>
+    }
   </div>
   }
 </section>
