@@ -9,7 +9,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { mapNullableSettingsToFormDefaults } from './map-nullable-settings-to-form-defaults';
+import { mapNullableSettingsToFormDefaults, resolveWorkingHours } from './map-nullable-settings-to-form-defaults';
 
 export type ApiError = {
   code: string;
@@ -430,7 +430,10 @@ export class BusinessService {
         bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
         minNoticeMinutes: settings?.minNoticeMinutes ?? settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
         slotIntervalMinutes: settings?.slotIntervalMinutes ?? settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
-        workingHours: settings?.workingHours ?? settings?.working_hours ?? this.getDefaultWorkingHours()
+        workingHours: resolveWorkingHours(
+          settings?.workingHours ?? settings?.working_hours,
+          this.getDefaultWorkingHours()
+        )
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,
