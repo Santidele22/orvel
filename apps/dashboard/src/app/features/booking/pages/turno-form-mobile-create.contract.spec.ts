@@ -71,19 +71,62 @@ describe('turno form mobile create', () => {
     );
   });
 
-  it('treats BOOKING_VALIDATION_ERROR as empty availability, not a consultar-disponibilidad crash', () => {
+  it('does not map BOOKING_VALIDATION_ERROR to empty availability and shows branch copy for BRANCH_INACTIVE', () => {
     const checkAvailability = methodBody(pageTs, 'checkAvailability');
 
     expect(checkAvailability, 'checkAvailability must exist').not.toBe('');
     expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR/);
-    expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR[\s\S]{0,240}availabilityEmpty\.set\(true\)/);
-    expect(checkAvailability).toMatch(/BOOKING_VALIDATION_ERROR[\s\S]{0,240}availabilityError\.set\(null\)/);
     expect(checkAvailability).not.toMatch(
-      /BOOKING_VALIDATION_ERROR[\s\S]{0,240}No pudimos consultar disponibilidad\. Reintentá antes de guardar\./
+      /BOOKING_VALIDATION_ERROR[\s\S]{0,400}availabilityEmpty\.set\(true\)/
     );
+    expect(checkAvailability).not.toMatch(
+      /BOOKING_VALIDATION_ERROR[\s\S]{0,200}availabilityError\.set\(null\)/
+    );
+    expect(checkAvailability).toMatch(/mapBookingValidationAvailabilityCopy\(/);
+    expect(pageTs).toMatch(/BRANCH_INACTIVE/);
+    expect(pageTs).toContain(
+      'Esta sucursal no está activa. Elegí otra sucursal o revisá la configuración de cuenta.'
+    );
+    expect(checkAvailability).toMatch(/hasLoadedAvailability\.set\(true\)/);
+    expect(checkAvailability).toMatch(/availabilityStale\.set\(false\)/);
+  });
+
+  it('maps hours, duration, and unknown validation errors to Spanish warnings instead of empty or crash copy', () => {
+    const checkAvailability = methodBody(pageTs, 'checkAvailability');
+
+    expect(checkAvailability, 'checkAvailability must exist').not.toBe('');
+    expect(pageTs).toMatch(/WORKING_HOURS/);
+    expect(pageTs).toMatch(/DURATION/);
+    expect(pageTs).toContain(
+      'El horario de atención de este día está incompleto o inválido. Revisá inicio y fin en Configuraciones.'
+    );
+    expect(pageTs).toContain(
+      'La duración del servicio no es válida. Revisá el servicio o la duración.'
+    );
+    expect(pageTs).toContain(
+      'No pudimos armar los horarios con esta configuración. Revisá sucursal, horario de atención y duración.'
+    );
+    expect(checkAvailability).not.toMatch(
+      /BOOKING_VALIDATION_ERROR[\s\S]{0,400}No pudimos consultar disponibilidad\. Reintentá antes de guardar\./
+    );
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-error["']/);
+  });
+
+  it('keeps the empty-hours warning only for a zero-slot success', () => {
+    const checkAvailability = methodBody(pageTs, 'checkAvailability');
+
+    expect(checkAvailability, 'checkAvailability must exist').not.toBe('');
+    expect(checkAvailability).toMatch(/availabilityEmpty\.set\(horarios\.length === 0\)/);
     expect(pageHtml).toContain(
       'No hay horarios para esta fecha. Probá otro día o revisá el horario de atención en Configuraciones.'
     );
+    expect(pageHtml).toMatch(
+      /availabilityEmpty\(\)\s*&&\s*!availabilityLoading\(\)\s*&&\s*!availabilityError\(\)/
+    );
+    expect(checkAvailability).not.toMatch(
+      /BOOKING_VALIDATION_ERROR[\s\S]{0,400}No hay horarios para esta fecha/
+    );
+    expect(pageHtml).toMatch(/data-testid=["']turno-admin-availability-empty["']/);
   });
 
   it('does not map SERVICE_NOT_FOUND availability errors to account-setup copy', () => {
