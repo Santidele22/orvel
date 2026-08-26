@@ -17,6 +17,7 @@ import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 @Component({
   selector: 'app-turno-form',
@@ -222,6 +223,16 @@ export class TurnoFormPage implements OnInit {
     } catch (error) {
       if (availabilityVersion !== this.latestAvailabilityVersion) return;
 
+      logMutationFailure({
+        operation: 'query_admin_slot_availability',
+        error,
+        ids: {
+          businessId: this.resolvedBusinessId() || undefined,
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: this.turnoId() ?? undefined
+        }
+      });
+
       this.disponibles.set([]);
       this.hora.set('');
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -346,6 +357,15 @@ export class TurnoFormPage implements OnInit {
 
       this.router.navigate(['/dashboard/turnos']);
     } catch (error) {
+      logMutationFailure({
+        operation: this.isEdit() ? 'reschedule_admin_booking' : 'create_admin_manual_booking',
+        error,
+        ids: {
+          businessId: this.resolvedBusinessId() || undefined,
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: this.turnoId() ?? undefined
+        }
+      });
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (/TURNO_SLOT_COLLISION/i.test(errorMessage) || /(ocupado|no disponible|conflict|bloqueado)/i.test(errorMessage)) {
         this.conflictError.set(this.unavailableSlotMessage);

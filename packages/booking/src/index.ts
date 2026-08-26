@@ -27,6 +27,7 @@ export type { AvailabilityWindow, BookingCounts, BookingQueries } from './applic
 export { utcDayRange } from './application/ports/booking-queries';
 
 export { normalizePublicBookingSlug, isValidPublicBookingSlug } from './public-booking-slug';
+export { logMutationFailure, type MutationErrorLog } from './observability/mutation-error-log';
 
 // Domain layer (WU1 of hexagonal pilot; see packages/booking/README.md).
 export * from './domain';

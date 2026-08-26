@@ -61,7 +61,7 @@ describe('public booking submit error messages', () => {
     }
   );
 
-  it('keeps raw backend details in diagnostics logs', () => {
+  it('logs submit failures through the shared mutation logger without raw backend details', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     logPublicBookingSubmitFailure({
@@ -69,18 +69,25 @@ describe('public booking submit error messages', () => {
         status: 409,
         error: {
           code: 'SLOT_CONFLICT',
-          message: 'SLOT_CONFLICT from RPC',
-          details: { rpc: 'create_public_booking' }
+          message: 'SLOT_CONFLICT from RPC for client@example.com',
+          details: { rpc: 'create_public_booking', email: 'client@example.com' }
         }
       }
     });
 
-    expect(consoleError).toHaveBeenCalledWith('[PublicBooking] Booking submit failed', expect.objectContaining({
-      status: 409,
-      code: 'SLOT_CONFLICT',
-      message: 'SLOT_CONFLICT from RPC',
-      details: { rpc: 'create_public_booking' }
-    }));
+    expect(consoleError).toHaveBeenCalledWith(
+      '[Orvel] mutation failed',
+      expect.objectContaining({
+        operation: 'create_public_booking',
+        status: 409,
+        code: 'SLOT_CONFLICT'
+      })
+    );
+
+    const payload = consoleError.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toMatch(/message|details|raw|client@example.com/i);
+    expect(Object.keys(payload)).not.toEqual(expect.arrayContaining(['message', 'details', 'raw']));
 
     consoleError.mockRestore();
   });
