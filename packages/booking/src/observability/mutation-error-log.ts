@@ -11,6 +11,23 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const JWT_RE = /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const MESSAGE_CODE_RE = /\b[A-Z][A-Z0-9_]{1,62}\b/;
 const SQLSTATE_RE = /\b\d{5}\b/;
+const PROSE_CODE_FRAGMENTS = new Set([
+  'NO',
+  'SI',
+  'YES',
+  'OK',
+  'ERROR',
+  'FAILED',
+  'FAIL',
+  'FAILURE',
+  'SUCCESS',
+  'WARNING',
+  'INVALID',
+  'UNKNOWN',
+  'THE',
+  'AND',
+  'NOT'
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -44,9 +61,17 @@ function readString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function isScrapedDomainCode(token: string): boolean {
+  if (token.length <= 2 || PROSE_CODE_FRAGMENTS.has(token)) return false;
+  return token.includes('_') || token === 'UNAUTHORIZED' || /^P\d{4}$/.test(token);
+}
+
 function extractCodeFromMessage(message: string): string | undefined {
   const upper = message.toUpperCase();
-  return sanitizeCode(upper.match(MESSAGE_CODE_RE)?.[0] ?? upper.match(SQLSTATE_RE)?.[0]);
+  const tokens = [...upper.matchAll(new RegExp(MESSAGE_CODE_RE, 'g'))].map((match) => match[0]);
+  const domainCode = tokens.find(isScrapedDomainCode);
+  if (domainCode) return sanitizeCode(domainCode);
+  return sanitizeCode(upper.match(SQLSTATE_RE)?.[0]);
 }
 
 function extractCode(error: unknown, response?: { error?: { code?: string; message?: string } }): string | undefined {

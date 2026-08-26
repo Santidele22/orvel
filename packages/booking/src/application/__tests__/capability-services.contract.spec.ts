@@ -56,6 +56,36 @@ describe('bounded capability services', () => {
     })).rejects.toThrow(/AUTH_REQUIRED/);
   });
 
+  it('attaches RPC code and HTTP status on create failures instead of Spanish-only Errors', async () => {
+    const svc = new BookingSchedulingService({
+      createManualBooking: vi.fn()
+        .mockResolvedValueOnce({
+          status: 401,
+          error: { code: 'UNAUTHORIZED', message: 'No se pudo crear el turno' }
+        })
+        .mockResolvedValueOnce({
+          status: 400,
+          error: { code: '42804', message: 'datatype mismatch' }
+        })
+        .mockResolvedValueOnce({
+          status: 409,
+          error: { code: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT' }
+        })
+    } as unknown as AdminBookingRepository);
+
+    await expect(
+      svc.create({ clienteId: 'c-1', servicioId: 's-1', fecha: future, hora: '10:00', duracionMinutos: 30 }, ctx)
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED', status: 401 });
+
+    await expect(
+      svc.create({ clienteId: 'c-1', servicioId: 's-1', fecha: future, hora: '10:00', duracionMinutos: 30 }, ctx)
+    ).rejects.toMatchObject({ code: '42804', status: 400 });
+
+    await expect(
+      svc.create({ clienteId: 'c-1', servicioId: 's-1', fecha: future, hora: '10:00', duracionMinutos: 30 }, ctx)
+    ).rejects.toMatchObject({ code: 'SLOT_CONFLICT', status: 409 });
+  });
+
   it('availability drops zero-capacity slots and fails closed on port errors', async () => {
     const req = { fecha: new Date('2026-08-17T00:00:00.000Z'), durationMinutes: 30, dateIso: '2026-08-17' };
     const ok = new BookingAvailabilityService({

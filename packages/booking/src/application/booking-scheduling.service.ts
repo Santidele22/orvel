@@ -22,7 +22,7 @@ export class BookingSchedulingService {
       performedBy: context.performedBy, notes: dto.notas
     };
     const response = await this.adminRepo.createManualBooking(payload);
-    if (response.error) throw this.mapCreateError(response.error.code, response.error.message);
+    if (response.error) throw this.mapCreateError(response.error.code, response.error.message, response.status);
     if (!response.data) throw new Error('Error al crear turno: no se recibió respuesta');
     return response.data;
   }
@@ -65,11 +65,15 @@ export class BookingSchedulingService {
     if (appointmentDate < new Date()) throw new Error('No se puede agendar en fecha pasada');
   }
 
-  private mapCreateError(code: string, message: string): Error {
-    if (code === 'SLOT_CONFLICT') return new Error('SLOT_CONFLICT: El horario solicitado no está disponible');
-    if (code === 'BLOCKED_TIME_COLLISION') return new Error('BLOCKED_TIME_COLLISION: El horario está bloqueado');
-    if (code === 'VALIDATION_ERROR') return new Error(`VALIDATION_ERROR: ${message}`);
-    if (code === 'BUSINESS_NOT_FOUND') return new Error('BUSINESS_NOT_FOUND: Negocio no encontrado');
-    return new Error(message || 'Error al crear turno');
+  private mapCreateError(code: string, message: string, status?: number): Error {
+    let error: Error;
+    if (code === 'SLOT_CONFLICT') error = new Error('SLOT_CONFLICT: El horario solicitado no está disponible');
+    else if (code === 'BLOCKED_TIME_COLLISION') error = new Error('BLOCKED_TIME_COLLISION: El horario está bloqueado');
+    else if (code === 'VALIDATION_ERROR') error = new Error(`VALIDATION_ERROR: ${message}`);
+    else if (code === 'BUSINESS_NOT_FOUND') error = new Error('BUSINESS_NOT_FOUND: Negocio no encontrado');
+    else error = new Error(message || 'Error al crear turno');
+
+    Object.assign(error, { code, ...(typeof status === 'number' ? { status } : {}) });
+    return error;
   }
 }
