@@ -212,7 +212,7 @@
             }
 
             @if (availabilityEmpty() && !availabilityLoading() && !availabilityError()) {
-            <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios para esta fecha. Probá otro día.</span>
+            <span class="warning-text" data-testid="turno-admin-availability-empty" aria-live="polite">No hay horarios para esta fecha. Probá otro día o revisá el horario de atención en Configuraciones.</span>
             }
 
             @if (conflictError()) {

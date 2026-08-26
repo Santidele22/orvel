@@ -227,14 +227,23 @@ export class TurnoFormPage implements OnInit {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (/SERVICE_NOT_FOUND/i.test(errorMessage)) {
         this.availabilityError.set('Ese servicio no pertenece a esta cuenta. Recargá e intentá de nuevo.');
+        this.availabilityStale.set(true);
+        this.hasLoadedAvailability.set(false);
+        this.conflictError.set(this.unavailableSlotMessage);
+      } else if (/BOOKING_VALIDATION_ERROR/i.test(errorMessage)) {
+        this.availabilityError.set(null);
+        this.availabilityEmpty.set(true);
+        this.hasLoadedAvailability.set(true);
+        this.availabilityStale.set(false);
+        this.conflictError.set(null);
       } else {
         this.availabilityError.set(/ACCOUNT_SETUP_REQUIRED|ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN|UNAUTHORIZED|BUSINESS_NOT_FOUND/i.test(errorMessage)
           ? 'No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.'
           : 'No pudimos consultar disponibilidad. Reintentá antes de guardar.');
+        this.availabilityStale.set(true);
+        this.hasLoadedAvailability.set(false);
+        this.conflictError.set(this.unavailableSlotMessage);
       }
-      this.availabilityStale.set(true);
-      this.hasLoadedAvailability.set(false);
-      this.conflictError.set(this.unavailableSlotMessage);
     } finally {
       if (availabilityVersion === this.latestAvailabilityVersion) {
         this.availabilityLoading.set(false);
