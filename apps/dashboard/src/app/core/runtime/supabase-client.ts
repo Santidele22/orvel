@@ -1,13 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClient as createClientFromEnv } from '@orvel/booking/infrastructure';
+import { createDashboardSupabaseClient } from './supabase-client.factory';
 import { loadDashboardRuntimeEnv } from './dashboard-env';
 
-// Dashboard-side client factory: feeds the @orvel/booking infrastructure
-// factory with the dashboard build-time env (process.env or the Angular
-// environments/environment.ts fallback). Non-DI consumers (notifications,
-// entitlements, reference catalog) create a client per call through this
-// helper; DI consumers receive the single shared client via SUPABASE_CLIENT.
+// Dashboard-side client factory. Admin RPCs (Hora, turnos) must share the
+// AuthService session key (`orvel.supabase.auth`). The anonymous booking
+// factory must not be used here: it sends no JWT and query_admin_slot_availability
+// raises UNAUTHORIZED.
 export function createSupabaseClient(): SupabaseClient {
-  const env = loadDashboardRuntimeEnv();
-  return createClientFromEnv({ url: env.PUBLIC_SUPABASE_URL, anonKey: env.PUBLIC_SUPABASE_ANON_KEY });
+  return createDashboardSupabaseClient({ env: loadDashboardRuntimeEnv() });
 }
