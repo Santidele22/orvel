@@ -162,6 +162,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected adminRescheduleSubmitting = signal(false);
   protected adminRescheduleFeedback = signal<string | null>(null);
   protected adminCancelFeedback = signal<string | null>(null);
+  protected pendingCancelTurno = signal<TurnoWithRelations | null>(null);
   protected turnosLoadError = signal<string | null>(null);
   protected availabilityError = signal<string | null>(null);
   protected hasLoadedAvailability = signal(false);
@@ -424,13 +425,11 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected async deleteTurno(turnoId: string) {
-    if (confirm('¿Está seguro de cancelar este turno?')) {
-      try {
-        this.bookings.set(this.crud.delete(this.bookings() as never, turnoId).map((row) => this.toTurno(row)));
-        await this.processTurnos();
-      } catch {
-        // Keep runtime details out of logs/UI for admin actions.
-      }
+    try {
+      this.bookings.set(this.crud.delete(this.bookings() as never, turnoId).map((row) => this.toTurno(row)));
+      await this.processTurnos();
+    } catch {
+      // Keep runtime details out of logs/UI for admin actions.
     }
   }
 
@@ -506,8 +505,19 @@ export class TurnosListPage implements OnInit, OnDestroy {
     }
   }
 
-  protected async cancelTurno(turno: TurnoWithRelations) {
-    if (!confirm(`¿Estás seguro de que deseas cancelar el turno de ${turno.clienteNombre}?`)) return;
+  protected cancelTurno(turno: TurnoWithRelations) {
+    this.adminCancelFeedback.set(null);
+    this.pendingCancelTurno.set(turno);
+  }
+
+  protected dismissCancelTurnoConfirm() {
+    this.pendingCancelTurno.set(null);
+  }
+
+  protected async confirmCancelTurno() {
+    const turno = this.pendingCancelTurno();
+    if (!turno) return;
+    this.pendingCancelTurno.set(null);
     this.adminCancelFeedback.set(null);
     const performedBy = this.currentAdminActorId();
     if (!performedBy) {
