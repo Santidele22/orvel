@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
 import { DashboardService } from './core/dashboard/dashboard.service';
-import { provideBooking } from './features/booking/booking.providers';
+import { provideBookingQueries } from './features/booking/booking-queries.providers';
 
 export const dashboardShellChildren: Routes = [
   {
@@ -15,19 +15,7 @@ export const dashboardShellChildren: Routes = [
   },
   {
     path: 'turnos',
-    loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
-  },
-  {
-    path: 'turnos/new',
-    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-  },
-  {
-    path: 'turnos/edit/:id',
-    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-  },
-  {
-    path: 'turnos/:id',
-    loadComponent: () => import('./features/booking/ui/mobile-turno-detail/mobile-turno-detail.component').then(m => m.MobileTurnoDetailComponent)
+    loadChildren: () => import('./features/booking/turnos.routes').then(m => m.turnosRoutes)
   },
   {
     path: 'servicios',
@@ -58,7 +46,7 @@ export const dashboardShellRoutes: Routes = [
       import('./shared/dashboard-shell/dashboard-shell.component').then(m => m.DashboardShellComponent),
     canActivate: [dashboardAuthGuard],
     canActivateChild: [dashboardAuthChildGuard],
-    providers: [provideBooking(), DashboardService],
+    providers: [provideBookingQueries(), DashboardService],
     children: dashboardShellChildren
   }
 ];

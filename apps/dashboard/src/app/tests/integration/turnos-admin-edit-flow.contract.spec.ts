@@ -10,12 +10,19 @@ function readTurnoFormSource(): string {
 
 function readRoutesSource(): string {
   const appRoutes = readFileSync(resolve(process.cwd(), 'src/app/app.routes.ts'), 'utf-8');
-  const shellRoutesPath = resolve(process.cwd(), 'src/app/dashboard-shell.routes.ts');
+  let shell = '';
+  let turnos = '';
   try {
-    return `${appRoutes}\n${readFileSync(shellRoutesPath, 'utf-8')}`;
+    shell = readFileSync(resolve(process.cwd(), 'src/app/dashboard-shell.routes.ts'), 'utf-8');
   } catch {
-    return appRoutes;
+    shell = '';
   }
+  try {
+    turnos = readFileSync(resolve(process.cwd(), 'src/app/features/booking/turnos.routes.ts'), 'utf-8');
+  } catch {
+    turnos = '';
+  }
+  return `${appRoutes}\n${shell}\n${turnos}`;
 }
 
 describe('Turnos admin edit flow integration RED contract', () => {
@@ -41,7 +48,8 @@ describe('Turnos admin edit flow integration RED contract', () => {
     const routesSource = readRoutesSource();
 
     expect(routesSource).toMatch(/export\s+const\s+dashboardShellChildren\s*:\s*Routes\s*=\s*\[/);
-    expect(routesSource).toMatch(/path:\s*'turnos\/edit\/:id'[\s\S]*TurnoFormPage/);
+    expect(routesSource).toMatch(/path:\s*'turnos'[\s\S]*turnos\.routes/);
+    expect(routesSource).toMatch(/path:\s*'edit\/:id'[\s\S]*TurnoFormPage/);
     expect(routesSource).toMatch(/path:\s*'dashboard'/);
   });
 });

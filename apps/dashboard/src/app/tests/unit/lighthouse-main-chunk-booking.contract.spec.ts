@@ -26,12 +26,24 @@ describe('Contract: lighthouse main chunk does not eager-load booking', () => {
     expect(routes).toMatch(/path:\s*'',\s*\n\s*loadChildren:/);
   });
 
-  it('registers provideBooking and dashboard auth guards in the lazy dashboard routes module', () => {
+  it('registers provideBookingQueries and dashboard auth guards on the shell, not provideBooking', () => {
     const lazy = source('src/app/dashboard-shell.routes.ts');
 
-    expect(lazy).toMatch(/provideBooking\(\)/);
+    expect(lazy).not.toMatch(/\bprovideBooking\b/);
+    expect(lazy).not.toMatch(/booking\.providers/);
+    expect(lazy).toMatch(/booking-queries\.providers/);
+    expect(lazy).toMatch(/provideBookingQueries\(\)/);
     expect(lazy).toMatch(/dashboardAuthGuard/);
     expect(lazy).toMatch(/dashboardAuthChildGuard/);
+  });
+
+  it('lazy-loads turnos routes with provideBooking off the shell chunk', () => {
+    const lazy = source('src/app/dashboard-shell.routes.ts');
+    const turnos = source('src/app/features/booking/turnos.routes.ts');
+
+    expect(lazy).toMatch(/path:\s*'turnos',\s*\n\s*loadChildren:/);
+    expect(lazy).toMatch(/turnos\.routes/);
+    expect(turnos).toMatch(/provideBooking\(\)/);
   });
 
   it('still provides booking on the public booking lazy path', () => {
