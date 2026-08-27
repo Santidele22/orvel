@@ -178,14 +178,15 @@ function mockTurnos(): Turno[] {
   ];
 }
 
-export function createMockBookingCrud(): Pick<BookingCrudService, 'getAll' | 'getById' | 'delete' | 'updateEstado' | 'cancelByAdmin'> {
+export function createMockBookingCrud(): Pick<BookingCrudService, 'getAll' | 'getById' | 'delete' | 'updateEstado' | 'cancelByAdmin' | 'approvePending'> {
   const rows = mockTurnos();
   return {
     getAll: async () => rows,
     getById: (items, id) => items.find((item) => item.id === id),
     delete: (items, id) => items.filter((item) => item.id !== id),
     updateEstado: async (id, estado) => ({ bookingId: id, status: estado }),
-    cancelByAdmin: async (id) => ({ bookingId: id, status: 'cancelled' })
+    cancelByAdmin: async (id) => ({ bookingId: id, status: 'cancelled' }),
+    approvePending: async (id) => ({ bookingId: id, status: 'confirmed' })
   };
 }
 
@@ -217,7 +218,7 @@ export function createMockTurnoService() {
       const hoyStr = new Date().toISOString().split('T')[0];
       return of(items().filter((item) => item.fecha.toISOString().split('T')[0] === hoyStr));
     },
-    getAgendados() { return of(items().filter((item) => item.estado === 'confirmado' || item.estado === 'en-proceso')); },
+    getAgendados() { return of(items().filter((item) => item.estado === 'pendiente' || item.estado === 'confirmado' || item.estado === 'en-proceso')); },
     delete(id: string) { items.set(items().filter((item) => item.id !== id)); return of(true); },
     create(dto: CreateTurnoDTO) {
       const created: Turno = { ...dto, branchId: dto.branchId ?? QA_BRANCH_ID, id: `turno-${Date.now()}`, createdAt: new Date(), updatedAt: new Date() };

@@ -1,18 +1,18 @@
 export const TIMEZONE = 'America/Argentina/Buenos_Aires';
 export const TURNO_NOT_FOUND_MESSAGE = 'TURNO_NOT_FOUND: Turno no encontrado';
 export const ADMIN_INVALID_TRANSITION_CODE = ['TURNO', 'INVALID', 'STATUS', 'TRANSITION'].join('_');
-export type BookingEstado = 'confirmado' | 'en-proceso' | 'completado' | 'cancelado' | 'no-asistio';
+export type BookingEstado = 'pendiente' | 'confirmado' | 'en-proceso' | 'completado' | 'cancelado' | 'no-asistio';
 export type BookingRecord = {
   id: string; branchId?: string; clienteId?: string; servicioId?: string;
   fecha: Date; hora: string; duracionMinutos: number; estado: BookingEstado;
   notas?: string; precio?: number; createdAt: Date; updatedAt: Date;
 };
 export const TO_DB_STATUS: Record<BookingEstado, string> = {
-  confirmado: 'booked', 'en-proceso': 'in_progress', completado: 'completed',
+  pendiente: 'pending', confirmado: 'booked', 'en-proceso': 'in_progress', completado: 'completed',
   cancelado: 'cancelled', 'no-asistio': 'no_show'
 };
 export const FROM_DB_STATUS: Record<string, BookingEstado> = {
-  booked: 'confirmado', confirmed: 'confirmado', pending: 'confirmado', in_progress: 'en-proceso',
+  booked: 'confirmado', confirmed: 'confirmado', pending: 'pendiente', in_progress: 'en-proceso',
   completed: 'completado', cancelled: 'cancelado', no_show: 'no-asistio'
 };
 

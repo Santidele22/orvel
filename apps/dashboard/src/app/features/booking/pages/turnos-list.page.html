@@ -80,6 +80,12 @@
             {{ adminCancelFeedback() }}
           </p>
           }
+          @if (adminApproveFeedback()) {
+          <p role="alert" data-testid="turnos-admin-approve-feedback"
+            class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+            {{ adminApproveFeedback() }}
+          </p>
+          }
           @if (turnosLoadError() && hasAnyTurnos()) {
           <p role="alert" data-testid="turnos-load-error"
             class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
@@ -127,6 +133,13 @@
 
                     <!-- Action Buttons: Orvel Style (Glass + Shadows) -->
                     <div class="flex items-center gap-3">
+                      @if (turno.estado === 'pendiente') {
+                      <button type="button" (click)="approveTurno(turno)" title="Aprobar"
+                        data-testid="turno-admin-approve-action"
+                        class="w-12 h-12 flex items-center justify-center rounded-full bg-bg-primary border border-white/5 backdrop-blur-md text-primary shadow-lg hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all duration-500 group/btn">
+                        <i class="ri-checkbox-circle-line text-xl group-hover/btn:scale-110 transition-transform"></i>
+                      </button>
+                      }
                       <button (click)="openAdminReschedulePicker(turno)" title="Reprogramar"
                         data-testid="turnos-admin-reschedule-action"
                         class="w-12 h-12 flex items-center justify-center rounded-full bg-bg-primary border border-white/5 backdrop-blur-md text-primary shadow-lg hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all duration-500 group/btn">
@@ -323,6 +336,55 @@
         class="h-11 rounded-xl bg-error px-5 text-sm font-semibold text-white shadow-sm shadow-error/25 transition-colors duration-200 hover:bg-error/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
         (click)="confirmCancelTurno()"
       >Cancelar turno</button>
+    </div>
+  </section>
+</div>
+}
+
+@if (pendingApproveTurno()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-approve-confirm-overlay"
+    aria-label="Cerrar confirmación de aprobación"
+    (click)="dismissApproveTurnoConfirm()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-approve-confirm-title"
+    aria-describedby="turnos-approve-confirm-description"
+    data-testid="turnos-approve-confirm-modal"
+  >
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <i class="ri-checkbox-circle-line text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0 space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Confirmación</p>
+        <h2 id="turnos-approve-confirm-title" class="text-xl font-semibold tracking-tight text-white">¿Aprobar este turno?</h2>
+        <p id="turnos-approve-confirm-description" class="text-sm leading-relaxed text-text-secondary">
+          Se confirmará el turno de <strong class="font-semibold text-white">{{ pendingApproveTurno()?.clienteNombre }}</strong>. La aprobación se aplica únicamente al confirmar.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        data-testid="turnos-approve-confirm-cancel"
+        class="h-11 rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+        (click)="dismissApproveTurnoConfirm()"
+      >Cancelar</button>
+      <button
+        type="button"
+        data-testid="turnos-approve-confirm-confirm"
+        class="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white shadow-sm shadow-primary/25 transition-colors duration-200 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
+        (click)="confirmApproveTurno()"
+      >Aprobar turno</button>
     </div>
   </section>
 </div>

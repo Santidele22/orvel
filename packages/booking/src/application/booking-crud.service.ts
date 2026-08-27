@@ -21,7 +21,7 @@ export class BookingCrudService {
   }
   getHoy(items: BookingRecord[], today: Date = new Date()): BookingRecord[] { return this.getByFecha(items, today); }
   getAgendados(items: BookingRecord[]): BookingRecord[] {
-    return items.filter((item) => item.estado === 'confirmado' || item.estado === 'en-proceso');
+    return items.filter((item) => item.estado === 'pendiente' || item.estado === 'confirmado' || item.estado === 'en-proceso');
   }
   delete(items: BookingRecord[], id: string): BookingRecord[] { return items.filter((item) => item.id !== id); }
 
@@ -41,6 +41,14 @@ export class BookingCrudService {
       throw mapAdminMutationError(response.error.message, 'Error al actualizar estado');
     }
     if (!response.data) throw new Error('Error al actualizar estado: no se recibió respuesta');
+    return response.data;
+  }
+
+  async approvePending(id: string, performedBy: string): Promise<AdminBookingMutationResult> {
+    if (!performedBy?.trim()) throw new Error('performedBy es requerido para aprobar');
+    const response = await this.adminRepo.updateStatus({ bookingId: id, status: 'confirmed', performedBy });
+    if (response.error) throw mapAdminMutationError(response.error.message, 'Error al aprobar turno');
+    if (!response.data) throw new Error('Error al aprobar turno: no se recibió respuesta');
     return response.data;
   }
 
