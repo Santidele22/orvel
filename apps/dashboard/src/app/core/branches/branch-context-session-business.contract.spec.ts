@@ -106,4 +106,40 @@ describe('BranchContext session business wins over stale storage', () => {
     expect(branchContext.activeBranchId()).toBe(OWNED_BRANCH_ID);
     expect(window.localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY)).toBe(OWNED_BUSINESS_ID);
   });
+
+  it('overlapping ensureLoaded callers wait until refresh sets the active branch', async () => {
+    const branchContext = new BranchContextService();
+    let resolveRpc!: (value: unknown) => void;
+    const rpcGate = new Promise((resolve) => {
+      resolveRpc = resolve;
+    });
+    const double = supabaseDouble({ sessionBusinessId: SESSION_BUSINESS_ID });
+    double.rpc = vi.fn(() =>
+      rpcGate.then(() => ({
+        data: [{ id: SESSION_BRANCH_ID, name: 'Principal', business_id: SESSION_BUSINESS_ID, is_active: true }],
+        error: null
+      }))
+    );
+    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = double;
+
+    let secondSawBranch: string | null = null;
+    const first = branchContext.ensureLoaded();
+    const second = branchContext.ensureLoaded().then(() => {
+      secondSawBranch = branchContext.getActiveBranchId();
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(branchContext.getActiveBranchId()).toBeNull();
+
+    resolveRpc(undefined);
+    await Promise.all([first, second]);
+
+    expect(secondSawBranch).toBe(SESSION_BRANCH_ID);
+    expect(branchContext.getActiveBranchId()).toBe(SESSION_BRANCH_ID);
+  });
 });
