@@ -116,15 +116,37 @@
     </div>
     <script>
       (function () {
-        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-          || navigator.standalone === true;
-        if (!standalone) {
-          return;
+        var standaloneMq = window.matchMedia && window.matchMedia('(display-mode: standalone)');
+        function isStandalone() {
+          return (standaloneMq && standaloneMq.matches) || navigator.standalone === true;
         }
-        var splash = document.querySelector('[data-testid="pwa-boot-splash"]');
-        if (splash) {
-          splash.classList.add('is-visible');
+        function isMobileFirst() {
+          var coarse = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+          var compact = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+          return Boolean(coarse || compact);
         }
+        function shouldReveal() {
+          return isStandalone() || isMobileFirst();
+        }
+        function reveal() {
+          var splash = document.querySelector('[data-testid="pwa-boot-splash"]');
+          if (splash) {
+            splash.classList.add('is-visible');
+          }
+        }
+        function revealIfNeeded() {
+          if (shouldReveal()) {
+            reveal();
+          }
+        }
+        revealIfNeeded();
+        if (standaloneMq && standaloneMq.addEventListener) {
+          standaloneMq.addEventListener('change', revealIfNeeded);
+        }
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(revealIfNeeded);
+        }
+        window.addEventListener('pageshow', revealIfNeeded);
       })();
     </script>
   </app-root>
