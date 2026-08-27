@@ -163,6 +163,7 @@ export class DashboardHomeComponent {
   }
 
   ngOnInit(): void {
+    this.dashboardService.refreshData();
     const userId = this.authService.user()?.id;
     if (userId) void this.hydrateBusinessSettings(userId);
   }
