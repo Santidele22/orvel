@@ -66,11 +66,24 @@ function setAfternoonNow(service: DashboardService): void {
   service.now.set(afternoon);
 }
 
+const branchContextMock = vi.hoisted(() => {
+  const mock = {
+    activeBranchId: 'br-1' as string | null,
+    ensureLoaded: vi.fn(async () => undefined)
+  };
+  return mock;
+});
+
 vi.mock('../../branches/branch-context.service', () => ({
-  getBranchContextService: () => ({ getActiveBranchId: () => 'br-1' })
+  getBranchContextService: () => ({
+    getActiveBranchId: () => branchContextMock.activeBranchId,
+    ensureLoaded: () => branchContextMock.ensureLoaded()
+  })
 }));
 
 async function flush(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -96,6 +109,9 @@ describe('DashboardService BookingQueries consumer', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
+    branchContextMock.activeBranchId = 'br-1';
+    branchContextMock.ensureLoaded.mockReset();
+    branchContextMock.ensureLoaded.mockImplementation(async () => undefined);
   });
 
   it('loads branch bookings through BookingQueries and keeps featured shape', async () => {
@@ -186,5 +202,98 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(homePageSource).toMatch(
       /ngOnInit\s*\([^)]*\)[\s\S]*?dashboardService\.refreshData\s*\(/
     );
+  });
+
+  it('waits for ensureLoaded before listing and does not settle empty while branch is still loading', async () => {
+    branchContextMock.activeBranchId = null;
+    let releaseEnsure!: () => void;
+    const ensureGate = new Promise<void>((resolve) => {
+      releaseEnsure = resolve;
+    });
+    branchContextMock.ensureLoaded.mockImplementation(async () => {
+      await ensureGate;
+      branchContextMock.activeBranchId = 'br-1';
+    });
+
+    const queries = new InMemoryBookingQueries([todayRecord()]);
+    const service = createService(queries);
+    await flush();
+
+    expect(queries.listBookingsByBranch).not.toHaveBeenCalled();
+    expect(service.featuredAppointments()).toHaveLength(0);
+
+    releaseEnsure();
+    await ensureGate;
+    await flush();
+
+    expect(queries.listBookingsByBranch).toHaveBeenCalledWith(
+      'br-1',
+      expect.objectContaining({ from: expect.any(Date), to: expect.any(Date) })
+    );
+    expect(service.featuredAppointments()).toHaveLength(1);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('does not list bookings when ensureLoaded still has no active branch', async () => {
+    branchContextMock.activeBranchId = null;
+    branchContextMock.ensureLoaded.mockImplementation(async () => undefined);
+
+    const queries = new InMemoryBookingQueries([todayRecord()]);
+    const service = createService(queries);
+    await flush();
+
+    expect(queries.listBookingsByBranch).not.toHaveBeenCalled();
+    expect(service.featuredAppointments()).toHaveLength(0);
+    expect(service.agendaStatus().totalAppointments).toBe(0);
+  });
+
+  it('overlapping refreshData does not let an empty-branch path overwrite loaded rows', async () => {
+    branchContextMock.activeBranchId = null;
+    let releaseEnsure!: () => void;
+    const ensureGate = new Promise<void>((resolve) => {
+      releaseEnsure = resolve;
+    });
+    let inFlight: Promise<void> | null = null;
+    branchContextMock.ensureLoaded.mockImplementation(async () => {
+      if (inFlight) return inFlight;
+      inFlight = (async () => {
+        await ensureGate;
+        branchContextMock.activeBranchId = 'br-1';
+      })();
+      return inFlight;
+    });
+
+    let listCalls = 0;
+    let releaseFirstList!: () => void;
+    const firstListGate = new Promise<void>((resolve) => {
+      releaseFirstList = resolve;
+    });
+    const rows = [todayRecord()];
+    const queries = new InMemoryBookingQueries(rows);
+    queries.listBookingsByBranch = vi.fn(async () => {
+      listCalls += 1;
+      if (listCalls === 1) {
+        await firstListGate;
+        return rows;
+      }
+      return rows;
+    });
+
+    const service = createService(queries);
+    service.refreshData();
+    await flush();
+    expect(queries.listBookingsByBranch).not.toHaveBeenCalled();
+
+    releaseEnsure();
+    await ensureGate;
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalled();
+
+    releaseFirstList();
+    await firstListGate;
+    await flush();
+
+    expect(service.featuredAppointments()).toHaveLength(1);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
   });
 });

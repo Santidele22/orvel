@@ -17,6 +17,7 @@ export class DashboardService {
   private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly bookings = signal<BookingRecord[]>([]);
+  private refreshGeneration = 0;
 
   // Time signal for real-time updates
   readonly now = signal(new Date());
@@ -269,27 +270,43 @@ export class DashboardService {
 
   refreshData(): void {
     this.isLoading.set(true);
-    const branchId = getBranchContextService().getActiveBranchId() ?? '';
+    const generation = ++this.refreshGeneration;
+    void this.loadBookings(generation);
+  }
+
+  private async loadBookings(generation: number): Promise<void> {
+    const branchContext = getBranchContextService();
+    await branchContext.ensureLoaded();
+    if (generation !== this.refreshGeneration) return;
+
+    const branchId = branchContext.getActiveBranchId() ?? '';
+    if (!branchId) {
+      this.bookings.set([]);
+      this.isLoading.set(false);
+      return;
+    }
+
     const from = new Date();
     from.setHours(0, 0, 0, 0);
     const to = new Date(from);
     to.setDate(to.getDate() + 14);
-    const load = branchId
-      ? this.bookingQueries.listBookingsByBranch(branchId, { from, to })
-      : Promise.resolve([] as BookingRecord[]);
-    void load
-      .then((rows) => {
-        this.bookings.set(rows);
-        this.clienteService.getAll().subscribe({
-          next: () => {
-            this.servicioService.getAll().subscribe({
-              next: () => this.isLoading.set(false),
-              error: () => this.isLoading.set(false)
-            });
-          },
-          error: () => this.isLoading.set(false)
-        });
-      })
-      .catch(() => this.isLoading.set(false));
+
+    try {
+      const rows = await this.bookingQueries.listBookingsByBranch(branchId, { from, to });
+      if (generation !== this.refreshGeneration) return;
+      this.bookings.set(rows);
+      this.clienteService.getAll().subscribe({
+        next: () => {
+          this.servicioService.getAll().subscribe({
+            next: () => this.isLoading.set(false),
+            error: () => this.isLoading.set(false)
+          });
+        },
+        error: () => this.isLoading.set(false)
+      });
+    } catch {
+      if (generation !== this.refreshGeneration) return;
+      this.isLoading.set(false);
+    }
   }
 }
