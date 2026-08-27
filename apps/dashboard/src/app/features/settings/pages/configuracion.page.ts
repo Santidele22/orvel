@@ -596,6 +596,7 @@ export class ConfiguracionPage {
 
   retryLoadSettings(): void {
     this.hydratedUserId = null;
+    this.facade.clearHydration();
     this.loadError.set(null);
     const userId = this.authService.user()?.id;
     if (userId) {
@@ -604,7 +605,13 @@ export class ConfiguracionPage {
   }
 
   private async hydrateBusinessSettings(userId: string): Promise<void> {
-    if (this.hydratedUserId === userId && this.facade.getSnapshot() && !this.loadError()) {
+    if (this.facade.hasHydratedSnapshot(userId) && !this.loadError()) {
+      const cached = this.facade.getSnapshot();
+      if (cached) {
+        this.settingsForm.patchValue(cached);
+        this.savedState.set(cached);
+      }
+      this.loading.set(false);
       return;
     }
 

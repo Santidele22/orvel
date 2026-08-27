@@ -36,6 +36,10 @@ export class ClientesUiFacade {
     this.syncFromService();
   }
 
+  hydrateFromCache(): void {
+    this.syncFromService();
+  }
+
   getList(): ClienteListItem[] {
     return [...this.list];
   }

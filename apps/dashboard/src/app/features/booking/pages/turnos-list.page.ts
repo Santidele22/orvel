@@ -24,6 +24,7 @@ import { Servicio } from '../../../models/servicio.model';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import type { AdminBlockedTimePayload } from '@orvel/booking';
+import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { TurnoFormPage } from './turno-form.page';
@@ -105,6 +106,7 @@ interface CalendarioEvento {
   styleUrl: './turnos-list.page.scss'
 })
 export class TurnosListPage implements OnInit, OnDestroy {
+  private dashboardService = inject(DashboardService);
   private crud = inject(BookingCrudService);
   private scheduling = inject(BookingSchedulingService);
   private availability = inject(BookingAvailabilityService);
@@ -282,7 +284,6 @@ export class TurnosListPage implements OnInit, OnDestroy {
   });
 
   async ngOnInit() {
-    this.loading.set(true);
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
     
     try {
@@ -290,6 +291,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
       if (this.branchContext.requiresExplicitSelection()) {
         this.loading.set(false);
         return;
+      }
+
+      const branchId = this.branchContext.getActiveBranchId() ?? '';
+      const warm = !!branchId && this.dashboardService.isAdminBookingsWarm(branchId);
+      if (!warm) {
+        this.loading.set(true);
       }
 
       this.turnosLoadError.set(null);
@@ -326,6 +333,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   private async refreshTurnosFromSource() {
     try {
+      this.dashboardService.invalidate();
       this.turnosLoadError.set(null);
       await this.loadBookings();
       await this.loadSupportingAppointmentData();
@@ -421,6 +429,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected async updateEstado(turnoId: string, nuevoEstado: TurnoEstado) {
     try {
       await this.crud.updateEstado(turnoId, nuevoEstado, this.resolveScope().performedBy);
+      this.dashboardService.invalidate();
       this.bookings.set(this.bookings().map((item) => item.id === turnoId ? { ...item, estado: nuevoEstado } : item));
       await this.processTurnos();
     } catch {
@@ -447,6 +456,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
         reason: 'Cancelado desde listado administrativo',
         branchId: this.resolveScope().branchId
       });
+      this.dashboardService.invalidate();
       this.bookings.set(this.bookings().map((item) => item.id === turnoId ? { ...item, estado: 'cancelado' } : item));
       await this.processTurnos();
     } catch (error) {
@@ -868,7 +878,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private async loadBookings(): Promise<void> {
     this.loadErrorState.set(null);
     try {
-      const rows = await this.crud.getAll(this.resolveScope().branchId);
+      const branchId = this.resolveScope().branchId;
+      if (this.dashboardService.isAdminBookingsWarm(branchId)) {
+        this.bookings.set(this.dashboardService.getAdminBookings().map((row) => this.toTurno(row)));
+        return;
+      }
+      const rows = await this.crud.getAll(branchId);
+      this.dashboardService.rememberAdminBookings(branchId, rows);
       this.bookings.set(rows.map((row) => this.toTurno(row)));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -25,7 +25,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../core/branches/branch-context.service', () => ({
-  getBranchContextService: () => mocks.branchContext
+  getBranchContextService: () => mocks.branchContext,
+  registerSectionCacheInvalidator: () => undefined,
+  invalidateSectionCaches: () => undefined
 }));
 
 vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => ({
