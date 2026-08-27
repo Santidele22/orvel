@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const COMPONENT_PATH = new URL('./mobile-turno-detail.component.ts', import.meta.url);
 const TEMPLATE_PATH = new URL('./mobile-turno-detail.component.html', import.meta.url);
-const ROUTES_PATH = new URL('../../../../app.routes.ts', import.meta.url);
+const ROUTES_PATH = new URL('../../../../dashboard-shell.routes.ts', import.meta.url);
 
 const componentSource = (() => {
   try {
@@ -97,7 +97,7 @@ describe('MobileTurnoDetailComponent contract', () => {
     expect(componentSource).toMatch(/isEmpty/);
   });
 
-  // ── Route ordering (app.routes.ts) ────────────────────────────────────
+  // ── Route ordering (dashboard-shell.routes.ts) ────────────────────────
   it('turnos/:id route is declared AFTER turnos/edit/:id', () => {
     const matches = routesSource.match(/path:\s*'turnos\/(?!new|edit)[^']*'/g);
     const editMatch = routesSource.match(/path:\s*'turnos\/edit\/:id'/);

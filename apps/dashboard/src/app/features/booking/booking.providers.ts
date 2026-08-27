@@ -30,6 +30,10 @@ export function provideBooking() {
     { provide: BookingSchedulingService, useFactory: () => new BookingSchedulingService(inject(ADMIN_BOOKING_REPOSITORY)) },
     { provide: BookingAvailabilityService, useFactory: () => new BookingAvailabilityService(inject(ADMIN_BOOKING_REPOSITORY)) },
     { provide: BookingNotificationsService, useFactory: () => new BookingNotificationsService(inject(ADMIN_BOOKING_REPOSITORY)) },
+    {
+      provide: RealSupabaseBookingGateway,
+      useFactory: () => new RealSupabaseBookingGateway(inject(SUPABASE_CLIENT))
+    },
     { provide: PublicBookingService, useFactory: () => new PublicBookingService(inject(RealSupabaseBookingGateway)) }
   ]);
 }

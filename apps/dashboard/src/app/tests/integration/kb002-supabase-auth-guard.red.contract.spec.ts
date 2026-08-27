@@ -26,11 +26,15 @@ describe('KB-002 Contract: Supabase session guards after auth unification', () =
 
   it('dashboard routes remain guarded while public booking routes stay public', () => {
     const appRoutes = source('src/app/app.routes.ts');
+    const dashboardShell = source('src/app/dashboard-shell.routes.ts');
+    const publicBooking = source('src/app/public-booking.routes.ts');
 
-    expect(appRoutes).toMatch(/path:\s*['"]dashboard['"][\s\S]*canActivate:\s*\[dashboardAuthGuard\]/);
-    expect(appRoutes).toMatch(/path:\s*['"]dashboard['"][\s\S]*canActivateChild:\s*\[dashboardAuthChildGuard\]/);
-    expect(appRoutes).toMatch(/path:\s*['"]booking\/manage['"][\s\S]*ManageBookingPage/);
-    expect(appRoutes).toMatch(/path:\s*['"]booking\/:slug['"][\s\S]*PublicBookingPage/);
+    expect(dashboardShell).toMatch(/canActivate:\s*\[dashboardAuthGuard\]/);
+    expect(dashboardShell).toMatch(/canActivateChild:\s*\[dashboardAuthChildGuard\]/);
+    expect(appRoutes).toMatch(/path:\s*['"]booking\/manage['"][\s\S]*loadChildren/);
+    expect(appRoutes).toMatch(/path:\s*['"]booking\/:slug['"][\s\S]*loadChildren/);
+    expect(publicBooking).toMatch(/ManageBookingPage/);
+    expect(publicBooking).toMatch(/PublicBookingPage/);
   });
 
   it('canonical auth initiation lives on landing, not a dashboard route/page', () => {

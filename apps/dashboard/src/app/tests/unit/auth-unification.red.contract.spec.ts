@@ -11,16 +11,16 @@ const routeBlock = (routesSource: string, path: string) => {
 describe('RED: auth unification contract', () => {
   it('keeps public booking/manage routes public while dashboard routes remain protected', () => {
     const appRoutes = source('src/app/app.routes.ts');
+    const dashboardShell = source('src/app/dashboard-shell.routes.ts');
     const bookingManage = routeBlock(appRoutes, 'booking/manage');
     const publicBooking = routeBlock(appRoutes, 'booking/:slug');
-    const dashboard = routeBlock(appRoutes, 'dashboard');
 
-    expect(bookingManage).toContain('loadComponent');
-    expect(publicBooking).toContain('loadComponent');
+    expect(bookingManage).toContain('loadChildren');
+    expect(publicBooking).toContain('loadChildren');
     expect(bookingManage).not.toContain('canActivate');
     expect(publicBooking).not.toContain('canActivate');
-    expect(dashboard).toContain('canActivate: [dashboardAuthGuard]');
-    expect(dashboard).toContain('canActivateChild: [dashboardAuthChildGuard]');
+    expect(dashboardShell).toContain('canActivate: [dashboardAuthGuard]');
+    expect(dashboardShell).toContain('canActivateChild: [dashboardAuthChildGuard]');
   });
 
   it('mounts public dashboard/login before the guarded dashboard and does not remount landing auth pages', () => {

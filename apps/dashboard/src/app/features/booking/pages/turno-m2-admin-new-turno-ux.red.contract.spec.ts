@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const APP_ROUTES_PATH = new URL('../../../app.routes.ts', import.meta.url);
+const DASHBOARD_SHELL_PATH = new URL('../../../dashboard-shell.routes.ts', import.meta.url);
 const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
 const SCHEDULING_TS_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
 
-const appRoutesSource = fs.readFileSync(APP_ROUTES_PATH, 'utf8');
+const appRoutesSource = `${fs.readFileSync(APP_ROUTES_PATH, 'utf8')}\n${fs.readFileSync(DASHBOARD_SHELL_PATH, 'utf8')}`;
 const turnosListSource = fs.readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = fs.readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = fs.readFileSync(TURNO_FORM_TS_PATH, 'utf8');
