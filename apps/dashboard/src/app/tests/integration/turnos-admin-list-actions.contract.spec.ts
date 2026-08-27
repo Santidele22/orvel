@@ -14,7 +14,16 @@ function readRoutesSource(): string {
     resolve(process.cwd(), 'src/app/dashboard-shell.routes.ts'),
     'utf-8',
   );
-  return `${appRoutes}\n${dashboardShell}`;
+  let turnosRoutes = '';
+  try {
+    turnosRoutes = readFileSync(
+      resolve(process.cwd(), 'src/app/features/booking/turnos.routes.ts'),
+      'utf-8',
+    );
+  } catch {
+    turnosRoutes = '';
+  }
+  return `${appRoutes}\n${dashboardShell}\n${turnosRoutes}`;
 }
 
 function methodBody(sourceText: string, methodName: string): string {
@@ -73,7 +82,7 @@ describe('Turnos list admin actions integration RED contract', () => {
     expect(listSource).toMatch(/data-testid=["']turnos-admin-create-primary-action["']/i);
     expect(listSource).toMatch(/<button\b(?=[^>]*data-testid=["']turnos-admin-create-primary-action["'])(?=[^>]*type=["']button["'])(?=[^>]*\(click\)=["']openAdminNewTurnoModal\(\)["'])[^>]*>/i);
     expect(listSource).toMatch(/@if\s*\(showNewTurnoModal\(\)\)\s*\{[\s\S]{0,260}<app-turno-form\b[\s\S]{0,260}presentation=["']modal["']/i);
-    expect(routesSource).toMatch(/path:\s*['"]turnos\/new['"][\s\S]{0,180}TurnoFormPage/);
+    expect(routesSource).toMatch(/path:\s*['"]new['"][\s\S]{0,180}TurnoFormPage/);
   });
 
   it('closes the Nuevo Turno modal on cancel and refreshes after save', () => {
