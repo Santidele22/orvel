@@ -343,3 +343,52 @@
 @if (showNewTurnoModal()) {
 <app-turno-form presentation="modal" (cancelled)="closeAdminNewTurnoModal()" (saved)="handleAdminNewTurnoSaved()"></app-turno-form>
 }
+
+@if (pendingCancelTurno()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-cancel-confirm-overlay"
+    aria-label="Cerrar confirmación de cancelación"
+    (click)="dismissCancelTurnoConfirm()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-cancel-confirm-title"
+    aria-describedby="turnos-cancel-confirm-description"
+    data-testid="turnos-cancel-confirm-modal"
+  >
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-error/10 text-error">
+        <i class="ri-close-circle-line text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0 space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Confirmación</p>
+        <h2 id="turnos-cancel-confirm-title" class="text-xl font-semibold tracking-tight text-white">¿Cancelar este turno?</h2>
+        <p id="turnos-cancel-confirm-description" class="text-sm leading-relaxed text-text-secondary">
+          Se cancelará el turno de <strong class="font-semibold text-white">{{ pendingCancelTurno()?.clienteNombre }}</strong>. La cancelación se aplica únicamente al confirmar.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        data-testid="turnos-cancel-confirm-cancel"
+        class="h-11 rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+        (click)="dismissCancelTurnoConfirm()"
+      >Cancelar</button>
+      <button
+        type="button"
+        data-testid="turnos-cancel-confirm-confirm"
+        class="h-11 rounded-xl bg-error px-5 text-sm font-semibold text-white shadow-sm shadow-error/25 transition-colors duration-200 hover:bg-error/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
+        (click)="confirmCancelTurno()"
+      >Cancelar turno</button>
+    </div>
+  </section>
+</div>
+}
