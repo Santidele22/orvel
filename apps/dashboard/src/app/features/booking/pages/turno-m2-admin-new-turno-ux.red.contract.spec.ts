@@ -3,13 +3,20 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROUTES_PATH = new URL('../../../app.routes.ts', import.meta.url);
 const DASHBOARD_SHELL_PATH = new URL('../../../dashboard-shell.routes.ts', import.meta.url);
+const TURNOS_ROUTES_PATH = new URL('../turnos.routes.ts', import.meta.url);
 const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
 const SCHEDULING_TS_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
 
-const appRoutesSource = `${fs.readFileSync(APP_ROUTES_PATH, 'utf8')}\n${fs.readFileSync(DASHBOARD_SHELL_PATH, 'utf8')}`;
+const appRoutesSource = `${fs.readFileSync(APP_ROUTES_PATH, 'utf8')}\n${fs.readFileSync(DASHBOARD_SHELL_PATH, 'utf8')}\n${(() => {
+  try {
+    return fs.readFileSync(TURNOS_ROUTES_PATH, 'utf8');
+  } catch {
+    return '';
+  }
+})()}`;
 const turnosListSource = fs.readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = fs.readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = fs.readFileSync(TURNO_FORM_TS_PATH, 'utf8');
@@ -144,7 +151,7 @@ describe('M2 real admin new turno UX RED contract', () => {
   });
 
   it('wires a real /dashboard/turnos/new route or an explicit modal flow from the list', () => {
-    const hasNewRoute = /path:\s*["']turnos\/new["'][\s\S]{0,220}TurnoFormPage/i.test(appRoutesSource);
+    const hasNewRoute = /path:\s*["']new["'][\s\S]{0,220}TurnoFormPage/i.test(appRoutesSource);
     const hasRealModalFlow = /data-testid=["']turno-admin-new-modal["']|openAdminNewTurnoModal|openNewTurnoFlow/i.test(turnosListTemplate + turnosListSource);
 
     expect(hasNewRoute || hasRealModalFlow, 'M2 requires a real new-turno route or modal flow wired from the visible list action').toBe(true);
