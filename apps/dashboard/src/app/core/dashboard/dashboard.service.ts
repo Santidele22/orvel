@@ -145,7 +145,7 @@ export class DashboardService {
     }
 
     return {
-      totalAppointments: turnosFuturos.length,
+      totalAppointments: turnosHoy.length,
       freeSlots: Math.max(0, capacitySlots - occupiedSlotsRemaining),
       freeMinutes: Math.max(0, totalMinutesRemaining - occupiedMinutesRemaining),
       freeGaps: gaps as any[],
@@ -168,9 +168,6 @@ export class DashboardService {
     hoy.setHours(0, 0, 0, 0);
     const hoyMs = hoy.getTime();
 
-    const now = this.now();
-    const nowTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
     const normalizeDate = (fecha: string | Date | undefined): number => {
       if (!fecha) return 0;
       const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
@@ -178,7 +175,7 @@ export class DashboardService {
     };
 
     const hoyTurnos = turnos
-      .filter(t => normalizeDate(t.fecha) === hoyMs && (t.hora || '00:00') >= nowTimeStr)
+      .filter(t => normalizeDate(t.fecha) === hoyMs && !['cancelado', 'no-asistio'].includes(t.estado))
       .sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
 
     const futureTurnos = turnos
@@ -261,7 +258,13 @@ export class DashboardService {
       this.now.set(new Date());
     }, 60000);
 
-    this.destroyRef.onDestroy(() => clearInterval(interval));
+    const onBookingCreated = () => this.refreshData();
+    window.addEventListener('booking.created', onBookingCreated);
+
+    this.destroyRef.onDestroy(() => {
+      clearInterval(interval);
+      window.removeEventListener('booking.created', onBookingCreated);
+    });
   }
 
   refreshData(): void {
