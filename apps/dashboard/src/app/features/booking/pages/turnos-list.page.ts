@@ -183,7 +183,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected visibleLimit = signal<number>(4);
   protected branchSelectorMessage = computed(() => {
-    if (this.branchContext.loading()) return 'Cargando alcance operativo…';
+    if (this.branchContext.loading()) return null;
     if (this.branchContext.requiresExplicitSelection()) return 'No pudimos preparar la configuración de cuenta para administrar turnos.';
     return null;
   });

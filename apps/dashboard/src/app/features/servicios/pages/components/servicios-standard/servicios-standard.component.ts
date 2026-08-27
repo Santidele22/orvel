@@ -32,8 +32,10 @@ import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../../../core/theming/dashboa
             </div>
 
             @if (loading()) {
-              <div class="rounded-zen-card border border-text-primary/10 bg-surface p-zen-lg text-sm font-medium text-text-tertiary animate-pulse italic">
-                Cargando servicios...
+              <div data-testid="servicios-loading-skeleton" role="status" class="animate-pulse space-y-3">
+                <div data-testid="servicios-skeleton-card" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+                <div data-testid="servicios-skeleton-card" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+                <div data-testid="servicios-skeleton-card" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
               </div>
             } @else {
               <div class="flex flex-col gap-zen-md">
