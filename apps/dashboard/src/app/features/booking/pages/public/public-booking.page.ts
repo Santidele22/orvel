@@ -37,6 +37,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly loadingAvailability = signal(false);
   protected readonly businessName = signal('');
   protected readonly bookingConfirmed = signal(false);
+  protected readonly bookingAwaitingApproval = signal(false);
   protected readonly errorMessage = signal('');
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
@@ -83,6 +84,7 @@ export class PublicBookingPage implements OnInit {
     this.availabilityErrorMessage.set('');
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
+    this.bookingAwaitingApproval.set(false);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
@@ -339,11 +341,12 @@ export class PublicBookingPage implements OnInit {
         notes: this.notes
       });
 
-      if (response.data?.status === 'confirmed') {
+      if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
+        this.bookingAwaitingApproval.set(response.data.status === 'pending');
         window.dispatchEvent(new CustomEvent('booking.created', {
           detail: {
-            status: 'confirmed',
+            status: response.data.status,
             startsAtIso: this.selectedSlot
           }
         }));

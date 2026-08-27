@@ -1515,4 +1515,87 @@ describe('public booking settings synchronization', () => {
     expect(successEvent?.detail.bookingId).toBeUndefined();
     expect(JSON.stringify(successEvent?.detail)).not.toContain('internal-booking-id-123');
   });
+
+  it('treats pending public create as success awaiting operator approval, not as an error', async () => {
+    const workingHours = createWorkingHours(['monday']);
+    const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
+      supabaseClient: {
+        rpc: ReturnType<typeof vi.fn>;
+        from: ReturnType<typeof vi.fn>;
+      };
+    };
+    businessService.supabaseClient = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          name: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: { workingHours },
+          booking_policy: {}
+        },
+        error: null
+      }),
+      from: vi.fn()
+    };
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(({ dateIso }: { dateIso: string }) => Promise.resolve({
+        status: 200,
+        data: {
+          slots: [{ startsAtIso: `${dateIso}T13:00:00.000Z`, remainingCapacity: 1 }]
+        }
+      })),
+      createPublicBooking: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: { status: 'pending', bookingId: 'internal-booking-id-pending' }
+      }))
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn(() => of([{ id: 'service-1', nombre: 'Corte', precio: 1000, duration_minutes: 30 }]))
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    const component = fixture.componentInstance as unknown as {
+      firstName: string;
+      lastName: string;
+      whatsapp: string;
+      email: string;
+      bookingConfirmed: () => boolean;
+      submitBooking: () => Promise<void>;
+    };
+    component.firstName = 'Lucía';
+    component.lastName = 'García';
+    component.whatsapp = '1112345678';
+    component.email = 'lucia@example.com';
+
+    await component.submitBooking();
+    fixture.detectChanges();
+
+    expect(component.bookingConfirmed()).toBe(true);
+    expect(fixture.nativeElement.textContent).toMatch(/aprobaci[oó]n/i);
+    expect(fixture.nativeElement.textContent).not.toContain('No pudimos confirmar la reserva');
+    expect(publicBookingFailureEvents()).toEqual([]);
+    const successEvent = vi.mocked(window.dispatchEvent).mock.calls
+      .map(([event]) => event)
+      .find((event): event is CustomEvent<{ status: string }> => event instanceof CustomEvent && event.type === 'booking.created');
+    expect(successEvent?.detail.status).toBe('pending');
+  });
 });
