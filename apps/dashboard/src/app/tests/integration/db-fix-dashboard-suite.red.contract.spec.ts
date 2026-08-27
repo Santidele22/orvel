@@ -85,6 +85,7 @@ describe('DB-FIX-002 RED - Loading skeletons for appointments views', () => {
 
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-loading-skeleton["']/i);
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-skeleton-field["']/i);
+    expect(turnoFormHtml).not.toContain('Cargando...');
   });
 });
 
