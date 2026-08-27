@@ -32,9 +32,36 @@
         <!-- Client List -->
         @if (loading()) {
         <div data-testid="clientes-loading-skeleton" role="status" class="grid grid-cols-1 gap-3">
-          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
-          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
-          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
+          <article data-testid="clientes-skeleton-row" [class]="ui.cardGlass + ' min-w-0 overflow-hidden flex items-center justify-between animate-pulse'">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-surface-muted/50"></div>
+              <div class="min-w-0 space-y-2">
+                <div class="h-4 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-3 w-48 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+            </div>
+            <div class="h-8 w-8 rounded-md bg-surface-muted/50"></div>
+          </article>
+          <article data-testid="clientes-skeleton-row" [class]="ui.cardGlass + ' min-w-0 overflow-hidden flex items-center justify-between animate-pulse'">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-surface-muted/50"></div>
+              <div class="min-w-0 space-y-2">
+                <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-3 w-40 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+            </div>
+            <div class="h-8 w-8 rounded-md bg-surface-muted/50"></div>
+          </article>
+          <article data-testid="clientes-skeleton-row" [class]="ui.cardGlass + ' min-w-0 overflow-hidden flex items-center justify-between animate-pulse'">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-surface-muted/50"></div>
+              <div class="min-w-0 space-y-2">
+                <div class="h-4 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-3 w-44 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+            </div>
+            <div class="h-8 w-8 rounded-md bg-surface-muted/50"></div>
+          </article>
         </div>
         } @else {
         <div class="grid grid-cols-1 gap-3">
@@ -88,9 +115,21 @@
       <aside [class]="ui.sideColumn" data-layout-section="right_panel">
         @if (loading()) {
         <article data-testid="clientes-metrics-loading-skeleton" [class]="ui.cardGlass + ' animate-pulse space-y-4'" role="status">
-          <div class="h-6 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="h-5 w-48 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <div class="h-3 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+            <div class="flex justify-between items-center">
+              <div class="h-3 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+            <div class="flex justify-between items-center">
+              <div class="h-3 w-20 bg-surface-muted/50 rounded-zen-md"></div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+          </div>
         </article>
         } @else {
         <article [class]="ui.cardGlass + ' space-y-4'">
