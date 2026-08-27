@@ -7,6 +7,16 @@ import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
+let allowedDashboardAuthUserId: string | null = null;
+
+export function resetDashboardAuthAccessCache(): void {
+  allowedDashboardAuthUserId = null;
+}
+
+function sessionUserId(session: { user?: { id?: unknown } } | null | undefined): string | null {
+  const userId = session?.user?.id;
+  return typeof userId === 'string' && userId.length > 0 ? userId : null;
+}
 
 const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
@@ -290,11 +300,17 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     const { data, error } = await authClient.getSession();
 
     if (error) {
+      resetDashboardAuthAccessCache();
       return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
     }
 
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
     if (data?.session?.access_token) {
+      const userId = sessionUserId(data.session);
+      if (userId && allowedDashboardAuthUserId === userId) {
+        return { allowed: true };
+      }
+
       const metadata = data.session.user.user_metadata;
       const serverState = await loadDashboardAuthState(authClient);
 
@@ -303,6 +319,7 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
         hasSelectedPlanCode(serverState.selected_plan_code) &&
         isAllowedOnboardingBusinessType(serverState.business_type)
       ) {
+        allowedDashboardAuthUserId = userId;
         return { allowed: true };
       }
 
@@ -315,9 +332,11 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     }
 
     // No Supabase session
+    resetDashboardAuthAccessCache();
     return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   } catch {
     // On error, fail closed (deny access)
+    resetDashboardAuthAccessCache();
     return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   }
 }
@@ -359,6 +378,7 @@ export async function canAccessDashboardAsync(
 }
 
 export async function logoutAndRedirect(): Promise<string> {
+  resetDashboardAuthAccessCache();
   try {
     const authClient = getSupabaseAuthClient();
     await authClient.signOut();
