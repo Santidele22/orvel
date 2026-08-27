@@ -9,7 +9,10 @@ import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { mapNullableSettingsToFormDefaults, resolveWorkingHours } from './map-nullable-settings-to-form-defaults';
+import {
+  mapNullableSettingsToFormDefaults,
+  resolveWorkingHours
+} from './map-nullable-settings-to-form-defaults';
 
 export type ApiError = {
   code: string;
