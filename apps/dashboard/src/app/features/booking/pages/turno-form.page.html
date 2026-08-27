@@ -63,14 +63,13 @@
 
 <ng-template #turnoFormContent>
   @if (loading()) {
-  <div class="loading-state" data-testid="turno-form-loading-skeleton">
+  <div class="loading-state" data-testid="turno-form-loading-skeleton" role="status">
     <div class="animate-pulse space-y-4 w-full">
       <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
       <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
       <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
       <div data-testid="turno-form-skeleton-field" class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
     </div>
-    <p>Cargando...</p>
   </div>
   }
 

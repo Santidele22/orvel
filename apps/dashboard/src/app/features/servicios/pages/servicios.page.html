@@ -37,7 +37,20 @@
         </div>
 
         @if (loading()) {
-          <article [class]="ui.cardGlass + ' text-center py-12'" role="status">Cargando servicios…</article>
+          <div data-testid="servicios-loading-skeleton" role="status" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <article data-testid="servicios-skeleton-card" [class]="ui.cardGlass + ' animate-pulse'">
+              <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+            </article>
+            <article data-testid="servicios-skeleton-card" [class]="ui.cardGlass + ' animate-pulse'">
+              <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+            </article>
+            <article data-testid="servicios-skeleton-card" [class]="ui.cardGlass + ' animate-pulse'">
+              <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+            </article>
+            <article data-testid="servicios-skeleton-card" [class]="ui.cardGlass + ' animate-pulse'">
+              <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+            </article>
+          </div>
         } @else {
           @if (groupedServicios().length === 0 && !shouldShowSuggestions()) {
             <article [class]="ui.cardGlass + ' text-center py-12'" role="status">

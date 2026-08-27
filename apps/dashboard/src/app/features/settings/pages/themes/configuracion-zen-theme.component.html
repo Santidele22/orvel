@@ -23,8 +23,12 @@
       </div>
 
       @if (loading()) {
-      <article [class]="ui.cardGlass" data-testid="settings-loading-state" role="status">
-        Cargando configuración...
+      <article [class]="ui.cardGlass" data-testid="settings-loading-state">
+        <div data-testid="settings-loading-skeleton" role="status" class="animate-pulse space-y-3">
+          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+        </div>
       </article>
       }
 
