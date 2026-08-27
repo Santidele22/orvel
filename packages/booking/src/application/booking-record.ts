@@ -12,7 +12,7 @@ export const TO_DB_STATUS: Record<BookingEstado, string> = {
   cancelado: 'cancelled', 'no-asistio': 'no_show'
 };
 export const FROM_DB_STATUS: Record<string, BookingEstado> = {
-  booked: 'confirmado', confirmed: 'confirmado', in_progress: 'en-proceso',
+  booked: 'confirmado', confirmed: 'confirmado', pending: 'confirmado', in_progress: 'en-proceso',
   completed: 'completado', cancelled: 'cancelado', no_show: 'no-asistio'
 };
 

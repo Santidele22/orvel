@@ -83,7 +83,7 @@ export type PublicSlot = {
 
 export type PublicBookingConfirmation = {
   bookingId: string;
-  status: 'confirmed';
+  status: 'confirmed' | 'pending';
   source: 'client-self-service';
   manageToken?: string;
 };

@@ -176,16 +176,16 @@ describe('Issue #361 - settings null form defaults', () => {
 
     const mapped = mapNullableSettingsToFormDefaults(
       {
-        cancellation_window_minutes: 45,
-        max_advance_days: 14,
-        cleanup_time_minutes: 10,
-        capacity: 3,
-        working_hours: storedHours
-      },
-      defaultHours
-    );
+         cancellation_window_minutes: 45,
+         max_advance_days: 14,
+         cleanup_time_minutes: 10,
+         capacity: 3,
+         working_hours: storedHours
+       },
+       defaultHours
+     );
 
-    expect(mapped.cancelationGracePeriod).toBe(45);
+     expect(mapped.cancelationGracePeriod).toBe(45);
     expect(mapped.maxAdvanceDays).toBe(14);
     expect(mapped.cleanupTimeMinutes).toBe(10);
     expect(mapped.capacity).toBe(3);
@@ -199,5 +199,16 @@ describe('Issue #361 - settings null form defaults', () => {
     );
     expect(missingDays.workingHours).toEqual(defaultHours);
     expect(mapNullableSettingsToFormDefaults({ max_advance_days: 0 }, defaultHours).maxAdvanceDays).toBe(90);
+  });
+
+  it('persists cancellation_window_minutes as cancelationGracePeriod 1:1 minutes', () => {
+    const saveToSupabase = extractMethod(serviceTs, 'saveToSupabase');
+
+    expect(saveToSupabase, 'saveToSupabase must exist').not.toEqual('');
+    expect(saveToSupabase).toMatch(
+      /cancellation_window_minutes:\s*settings\.cancelationGracePeriod\s*[,}]/
+    );
+    expect(saveToSupabase).not.toMatch(/cancellationWindowMinutesFromFormHours/);
+    expect(saveToSupabase).not.toMatch(/settings\.cancelationGracePeriod\s*\*\s*60/);
   });
 });
