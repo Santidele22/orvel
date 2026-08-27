@@ -3,7 +3,7 @@
 import '@angular/compiler';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { DestroyRef, Injector, PLATFORM_ID, runInInjectionContext, signal } from '@angular/core';
 import { from } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -283,12 +283,13 @@ describe('Admin turno cancel action contract', () => {
           }
         },
         { provide: AuthService, useValue: { user: () => ({ id: ADMIN_ID }) } },
-        { provide: Router, useValue: { navigate: vi.fn() } }
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: DestroyRef, useValue: { onDestroy: () => undefined } }
       ]
     });
     const component = runInInjectionContext(injector, () => new TurnosListPage()) as any;
     component.turnos.set(turnos);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const template = readFileSync(
       join(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html'),
@@ -297,6 +298,7 @@ describe('Admin turno cancel action contract', () => {
 
     // Act
     await component.cancelTurno(turnos[0]);
+    await component.confirmCancelTurno();
     const host = document.createElement('div');
     host.innerHTML = `<p role="alert" data-testid="turnos-admin-cancel-feedback">${component.adminCancelFeedback()}</p>`;
     const alert = host.querySelector('[role="alert"][data-testid="turnos-admin-cancel-feedback"]') as HTMLElement | null;
