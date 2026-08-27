@@ -21,11 +21,11 @@
               <i class="ri-checkbox-circle-fill text-4xl"></i>
            </div>
            <div class="space-y-3">
-               <h2 class="text-3xl font-black text-white tracking-tight">{{ rescheduleConfirmed() ? 'Reserva reprogramada' : 'Reserva confirmada' }}</h2>
-               <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : 'ha sido confirmada' }}. Te esperamos para brindarte la mejor atención.</p>
+               <h2 class="text-3xl font-black text-white tracking-tight">{{ rescheduleConfirmed() ? 'Reserva reprogramada' : (bookingAwaitingApproval() ? 'Reserva pendiente de aprobación' : 'Reserva confirmada') }}</h2>
+               <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : (bookingAwaitingApproval() ? 'quedó registrada y está esperando la aprobación del negocio' : 'ha sido confirmada') }}. Te esperamos para brindarte la mejor atención.</p>
            </div>
            <div class="pt-8 border-t border-white/5">
-              <button (click)="bookingConfirmed.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+              <button (click)="bookingConfirmed.set(false); bookingAwaitingApproval.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
                  {{ rescheduleConfirmed() ? 'Volver' : 'Reservar Otro' }}
               </button>
            </div>

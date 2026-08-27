@@ -9,7 +9,11 @@ import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { mapNullableSettingsToFormDefaults, resolveWorkingHours } from './map-nullable-settings-to-form-defaults';
+import {
+  cancellationWindowMinutesFromFormHours,
+  mapNullableSettingsToFormDefaults,
+  resolveWorkingHours
+} from './map-nullable-settings-to-form-defaults';
 
 export type ApiError = {
   code: string;
@@ -199,7 +203,9 @@ export class BusinessService {
         slot_interval_minutes: settings.slotIntervalMinutes,
         working_hours: settings.workingHours,
         business_type: settings.businessType,
-        cancellation_window_minutes: settings.cancelationGracePeriod,
+        cancellation_window_minutes: cancellationWindowMinutesFromFormHours(
+          settings.cancelationGracePeriod
+        ),
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
         capacity: settings.capacity

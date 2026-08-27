@@ -1,4 +1,4 @@
-import { ApiErrorCode, ApiError, BusinessPublicView } from '../../types';
+import { ApiErrorCode, ApiError, BusinessPublicView, type PublicBookingConfirmation } from '../../types';
 
 type RpcErrorLike = {
   message?: string;
@@ -32,6 +32,12 @@ export function isIsoDate(input: string): boolean {
 
 export function isEmail(input: string): boolean {
   return /^\S+@\S+\.\S+$/.test(input);
+}
+
+export function mapPublicBookingCreateStatus(
+  status: unknown
+): PublicBookingConfirmation['status'] {
+  return status === 'pending' ? 'pending' : 'confirmed';
 }
 
 export function id(prefix: string): string {

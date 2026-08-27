@@ -37,6 +37,18 @@ export function finiteAtLeastOr(value: unknown, min: number, fallback: number): 
   return n !== undefined && n >= min ? n : fallback;
 }
 
+export function formHoursFromCancellationWindowMinutes(minutes: unknown): number {
+  const storedMinutes = toFiniteNumber(minutes);
+  if (storedMinutes === undefined) {
+    return SETTINGS_FORM_NUMERIC_DEFAULTS.cancelationGracePeriod;
+  }
+  return storedMinutes / 60;
+}
+
+export function cancellationWindowMinutesFromFormHours(hours: unknown): number {
+  return finiteNumberOr(hours, SETTINGS_FORM_NUMERIC_DEFAULTS.cancelationGracePeriod) * 60;
+}
+
 export function resolveWorkingHours(
   workingHours: unknown,
   defaultHours: Record<WeekdayKey, WorkingDayHours>
@@ -71,9 +83,8 @@ export function mapNullableSettingsToFormDefaults(
   defaultHours: Record<WeekdayKey, WorkingDayHours>
 ) {
   return {
-    cancelationGracePeriod: finiteNumberOr(
-      settings?.cancellation_window_minutes,
-      SETTINGS_FORM_NUMERIC_DEFAULTS.cancelationGracePeriod
+    cancelationGracePeriod: formHoursFromCancellationWindowMinutes(
+      settings?.cancellation_window_minutes
     ),
     maxAdvanceDays: finiteAtLeastOr(
       settings?.max_advance_days,

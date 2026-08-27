@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './supabase-client.token';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
 import type { SupabaseBookingGateway } from '../../gateway-interface';
-import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail } from './mappers';
+import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, mapPublicBookingCreateStatus } from './mappers';
 import { logMutationFailure } from '../../observability/mutation-error-log';
 import type {
   ApiResponse,
@@ -21,7 +21,7 @@ import type {
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
   AdminStatusUpdatePayload
-} from '../../types';;
+} from '../../types';
 
 type BookingNotificationRow = {
   id: string;
@@ -292,6 +292,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       const bookingResult = data as {
         booking_id?: string;
         branch_id?: string;
+        status?: string;
         manage_token?: string;
         manageToken?: string;
         db_atomic_visibility_notifications?: boolean;
@@ -318,9 +319,9 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         };
       }
 
-      const responseData: { bookingId: string; status: 'confirmed'; source: 'client-self-service'; manageToken?: string } = {
+      const responseData: PublicBookingConfirmation = {
         bookingId,
-        status: 'confirmed',
+        status: mapPublicBookingCreateStatus(bookingResult.status),
         source: 'client-self-service'
       };
 

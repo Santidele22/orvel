@@ -310,7 +310,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
     async createPublicBooking(
       payload: PublicBookingPayload
-    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed'; manageToken?: string; source: 'client-self-service' }>> {
+    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' }>> {
       const validationFields = validatePublicBookingPayload(payload)
       if (validationFields.length > 0) {
         return validationError(validationFields)
@@ -366,9 +366,9 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       }
 
       const row = result.data as any;
-      const responseData: { bookingId: string; status: 'confirmed'; manageToken?: string; source: 'client-self-service' } = {
+      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' } = {
         bookingId: row.booking_id,
-        status: 'confirmed',
+        status: row.status === 'pending' ? 'pending' : 'confirmed',
         source: 'client-self-service'
       }
 
