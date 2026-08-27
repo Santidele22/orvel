@@ -18,7 +18,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../core/branches/branch-context.service', () => ({
-  getBranchContextService: () => mocks.branchContext
+  getBranchContextService: () => mocks.branchContext,
+  registerSectionCacheInvalidator: () => undefined,
+  invalidateSectionCaches: () => undefined
 }));
 
 describe('Dashboard service actions behavior', () => {
@@ -160,6 +162,7 @@ describe('Dashboard service actions behavior', () => {
           useValue: {
           getAll: vi.fn(() => of(servicios())),
           items: servicios,
+          isLoaded: () => false,
           listCategorias: vi.fn(() => []),
           update,
           create: vi.fn(),
