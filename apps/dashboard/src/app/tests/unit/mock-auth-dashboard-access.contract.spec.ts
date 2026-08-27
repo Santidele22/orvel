@@ -7,12 +7,14 @@ import {
   canAccessDashboard,
   canAccessDashboardAsync,
   logoutAndRedirect,
+  resetDashboardAuthAccessCache,
   sanitizeReturnTo
 } from '../../core/auth/route-protection';
 
 describe('Legacy mock auth contract - dashboard access fails closed', () => {
   beforeEach(() => {
     localStorage.clear();
+    resetDashboardAuthAccessCache();
   });
 
   describe('session schema validation', () => {
