@@ -44,6 +44,7 @@ type AdminRescheduleFormState = {
 };
 
 const ADMIN_CANCEL_FAILURE_FEEDBACK = 'No pudimos cancelar el turno. Revisá el alcance activo e intentá nuevamente.';
+const ADMIN_APPROVE_FAILURE_FEEDBACK = 'No pudimos aprobar el turno. Revisá el alcance activo e intentá nuevamente.';
 
 export type AdminCancelFailurePresentation = {
   feedback: string;
@@ -163,6 +164,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected adminRescheduleFeedback = signal<string | null>(null);
   protected adminCancelFeedback = signal<string | null>(null);
   protected pendingCancelTurno = signal<TurnoWithRelations | null>(null);
+  protected adminApproveFeedback = signal<string | null>(null);
+  protected pendingApproveTurno = signal<TurnoWithRelations | null>(null);
   protected turnosLoadError = signal<string | null>(null);
   protected availabilityError = signal<string | null>(null);
   protected hasLoadedAvailability = signal(false);
@@ -397,6 +400,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   private getStatusColor(estado: TurnoEstado): string {
     const colors: Record<TurnoEstado, string> = {
+      'pendiente': 'var(--secondary)',
       'confirmado': 'var(--primary)',
       'en-proceso': 'var(--primary)',
       'completado': 'var(--primary)',
@@ -508,6 +512,42 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected cancelTurno(turno: TurnoWithRelations) {
     this.adminCancelFeedback.set(null);
     this.pendingCancelTurno.set(turno);
+  }
+
+  protected approveTurno(turno: TurnoWithRelations) {
+    this.adminApproveFeedback.set(null);
+    this.pendingApproveTurno.set(turno);
+  }
+
+  protected dismissApproveTurnoConfirm() {
+    this.pendingApproveTurno.set(null);
+  }
+
+  protected async confirmApproveTurno() {
+    const turno = this.pendingApproveTurno();
+    if (!turno) return;
+    this.pendingApproveTurno.set(null);
+    this.adminApproveFeedback.set(null);
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) {
+      this.adminApproveFeedback.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+      return;
+    }
+
+    try {
+      await this.crud.approvePending(turno.id, performedBy);
+      await this.refreshTurnosFromSource();
+    } catch (error) {
+      logMutationFailure({
+        operation: 'approve_pending_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
+      });
+      this.adminApproveFeedback.set(ADMIN_APPROVE_FAILURE_FEEDBACK);
+    }
   }
 
   protected dismissCancelTurnoConfirm() {
