@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PwaInAppUpdateBannerComponent } from './features/pwa-in-app-update/pwa-in-app-update-banner.component';
-import { isStandaloneDisplay } from './features/pwa-install/pwa-display';
+import { shouldShowBootSplash } from './features/pwa-install/pwa-display';
 
 @Component({
   selector: 'app-root',
@@ -10,7 +10,7 @@ import { isStandaloneDisplay } from './features/pwa-install/pwa-display';
   styleUrl: './app.scss'
 })
 export class App {
-  readonly bootSplashVisible = signal(isStandaloneDisplay());
+  readonly bootSplashVisible = signal(shouldShowBootSplash());
 
   onRouteActivate(): void {
     this.bootSplashVisible.set(false);
