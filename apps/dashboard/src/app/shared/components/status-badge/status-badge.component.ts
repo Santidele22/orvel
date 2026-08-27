@@ -34,6 +34,7 @@ export interface StatusBadgeConfig {
       letter-spacing: 0.05em;
     }
 
+    .badge[data-status='pendiente'] { background: #FFF8E1; color: #F57F17; }
     .badge[data-status='confirmado'] { background: #E8F5E9; color: #2D6A30; }
     .badge[data-status='en-proceso'] { background: #E3F2FD; color: #1565C0; }
     .badge[data-status='completado'] { background: #E8F5E9; color: #2D6A30; }
@@ -46,12 +47,13 @@ export class StatusBadgeComponent {
 
   private readonly canonicalToLegacyStatus: Record<CanonicalStatus, TurnoEstado> = {
     confirmed: 'confirmado',
-    pending: 'confirmado',
+    pending: 'pendiente',
     in_progress: 'en-proceso',
     completed: 'completado'
   };
 
   private readonly estadoConfig: Record<TurnoEstado, { estado: TurnoEstado; label: string }> = {
+    'pendiente': { estado: 'pendiente', label: 'Pendiente' },
     'confirmado': { estado: 'confirmado', label: 'Confirmado' },
     'en-proceso': { estado: 'en-proceso', label: 'En Proceso' },
     'completado': { estado: 'completado', label: 'Completado' },

@@ -16,7 +16,7 @@ export interface Turno {
   updatedAt: Date;
 }
 
-export type TurnoEstado = 'confirmado' | 'en-proceso' | 'completado' | 'cancelado' | 'no-asistio';
+export type TurnoEstado = 'pendiente' | 'confirmado' | 'en-proceso' | 'completado' | 'cancelado' | 'no-asistio';
 
 export type CreateTurnoDTO = Omit<Turno, 'id' | 'createdAt' | 'updatedAt'> & {
   walkInName?: string;

@@ -426,6 +426,7 @@ describe('Turnos View Integration Tests', () => {
 
 function getStatusColor(estado: TurnoEstado): string {
   const colors: Record<TurnoEstado, string> = {
+    'pendiente': '#F57F17',
     'confirmado': '#4CAF50', // Verde
     'en-proceso': '#2196F3', // Azul
     'completado': '#4CAF50', // Verde
