@@ -9,8 +9,12 @@ function readListSource(): string {
 }
 
 function readRoutesSource(): string {
-  const routesPath = resolve(process.cwd(), 'src/app/app.routes.ts');
-  return readFileSync(routesPath, 'utf-8');
+  const appRoutes = readFileSync(resolve(process.cwd(), 'src/app/app.routes.ts'), 'utf-8');
+  const dashboardShell = readFileSync(
+    resolve(process.cwd(), 'src/app/dashboard-shell.routes.ts'),
+    'utf-8',
+  );
+  return `${appRoutes}\n${dashboardShell}`;
 }
 
 function methodBody(sourceText: string, methodName: string): string {

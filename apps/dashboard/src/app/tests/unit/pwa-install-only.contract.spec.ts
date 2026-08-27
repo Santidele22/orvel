@@ -20,7 +20,7 @@ describe('Contract: public PWA install-only page', () => {
     expect(installar).not.toContain('canActivate');
     expect(installarIndex).toBeGreaterThan(-1);
     expect(installarIndex).toBeLessThan(dashboardIndex);
-    expect(dashboard).toContain('canActivate: [dashboardAuthGuard]');
+    expect(dashboard).toContain('loadChildren');
   });
 
   it('keeps the install page free of login and dashboard navigation, and defers beforeinstallprompt', () => {

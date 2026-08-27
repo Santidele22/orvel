@@ -1,54 +1,5 @@
 import { Routes } from '@angular/router';
-import { DashboardShellComponent } from './shared/dashboard-shell/dashboard-shell.component';
-import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
-
-export const dashboardShellChildren: Routes = [
-  {
-    path: '',
-    redirectTo: 'inicio',
-    pathMatch: 'full'
-  },
-  {
-    path: 'inicio',
-    loadComponent: () => import('./features/dashboard-home/pages/dashboard-home.page').then(m => m.DashboardHomeComponent)
-  },
-  {
-    path: 'turnos',
-    loadComponent: () => import('./features/booking/pages/turnos-list.page').then(m => m.TurnosListPage)
-  },
-  {
-    path: 'turnos/new',
-    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-  },
-  {
-    path: 'turnos/edit/:id',
-    loadComponent: () => import('./features/booking/pages/turno-form.page').then(m => m.TurnoFormPage)
-  },
-  {
-    path: 'turnos/:id',
-    loadComponent: () => import('./features/booking/ui/mobile-turno-detail/mobile-turno-detail.component').then(m => m.MobileTurnoDetailComponent)
-  },
-  {
-    path: 'servicios',
-    loadComponent: () => import('./features/servicios/pages/servicios.page').then(m => m.ServiciosPage)
-  },
-  {
-    path: 'clientes',
-    loadComponent: () => import('./features/clientes/pages/clientes.page').then(m => m.ClientesPage)
-  },
-  {
-    path: 'configuracion',
-    loadComponent: () => import('./features/settings/pages/configuracion.page').then(m => m.ConfiguracionPage)
-  },
-  {
-    path: 'notificaciones',
-    loadComponent: () => import('./features/notificaciones/pages/notificaciones.page').then(m => m.NotificacionesPage)
-  },
-  {
-    path: 'perfil',
-    loadComponent: () => import('./features/perfil/pages/perfil.page').then(m => m.PerfilPage)
-  }
-];
+import { dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
 
 export const routes: Routes = [
   {
@@ -58,13 +9,11 @@ export const routes: Routes = [
   },
   {
     path: 'booking/manage',
-    loadComponent: () =>
-      import('./features/booking/pages/public/manage-booking.page').then(m => m.ManageBookingPage)
+    loadChildren: () => import('./public-booking.routes').then(m => m.manageBookingRoutes)
   },
   {
     path: 'booking/:slug',
-    loadComponent: () =>
-      import('./features/booking/pages/public/public-booking.page').then(m => m.PublicBookingPage)
+    loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
   },
   {
     path: 'payments/return/success',
@@ -102,16 +51,10 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard',
-    component: DashboardShellComponent,
-    canActivate: [dashboardAuthGuard],
-    canActivateChild: [dashboardAuthChildGuard],
-    children: dashboardShellChildren
+    loadChildren: () => import('./dashboard-shell.routes').then(m => m.dashboardShellRoutes)
   },
   {
     path: '',
-    component: DashboardShellComponent,
-    canActivate: [dashboardAuthGuard],
-    canActivateChild: [dashboardAuthChildGuard],
-    children: dashboardShellChildren
+    loadChildren: () => import('./dashboard-shell.routes').then(m => m.dashboardShellRoutes)
   }
 ];
