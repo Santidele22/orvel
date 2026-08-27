@@ -56,6 +56,7 @@ export class ServiciosPage {
   readonly servicios = signal<Servicio[]>([]);
   readonly selectedRubros = signal<BusinessTypeCode[]>([]);
   readonly deleteConfirmServiceId = signal<string | null>(null);
+  readonly isServicioDeletedModalOpen = signal(false);
   
   // DB-FIX-003: Selected service ID to track which service is being edited/deleted
   readonly selectedServiceId = signal<string | null>(null);
@@ -178,6 +179,10 @@ export class ServiciosPage {
     this.deleteConfirmServiceId.set(null);
     this.selectedServiceId.set(null);
     this.feedback.set('');
+  }
+
+  closeServicioDeletedModal(): void {
+    this.isServicioDeletedModalOpen.set(false);
   }
 
   badgeToneClass(tone: OrvelBadgeTone): string {
@@ -309,6 +314,7 @@ export class ServiciosPage {
       this.servicios.set(this.servicioService.items());
       this.deleteConfirmServiceId.set(null);
       this.selectedServiceId.set(null);
+      this.isServicioDeletedModalOpen.set(true);
     } catch (error) {
       throw error;
     }
