@@ -15,6 +15,7 @@ export class BranchContextService {
   private supabaseClient?: SupabaseClient;
   private initialized = false;
   private lastResolvedBusinessId: string | null = null;
+  private inFlight: Promise<void> | null = null;
   private branchesState = signal<DashboardBranch[]>([]);
   private activeBranchIdState = signal<string | null>(null);
   private errorState = signal<string | null>(null);
@@ -26,6 +27,15 @@ export class BranchContextService {
   readonly loading = this.loadingState.asReadonly();
 
   async ensureLoaded(): Promise<void> {
+    if (this.inFlight) return this.inFlight;
+    const load = this.ensureLoadedInternal().finally(() => {
+      if (this.inFlight === load) this.inFlight = null;
+    });
+    this.inFlight = load;
+    return load;
+  }
+
+  private async ensureLoadedInternal(): Promise<void> {
     const currentBusinessId = await this.resolveActiveBusinessId(this.getSupabaseClient());
     if (this.initialized && currentBusinessId === this.lastResolvedBusinessId) return;
     this.initialized = true;
@@ -36,6 +46,7 @@ export class BranchContextService {
   resetSession(): void {
     this.initialized = false;
     this.lastResolvedBusinessId = null;
+    this.inFlight = null;
     this.branchesState.set([]);
     this.activeBranchIdState.set(null);
     this.errorState.set(null);
