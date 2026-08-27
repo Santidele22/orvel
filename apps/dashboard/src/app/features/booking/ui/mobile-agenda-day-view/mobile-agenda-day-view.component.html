@@ -68,9 +68,16 @@
   }
 
   @if (loading) {
-    <div data-testid="mobile-agenda-loading-skeleton" role="status" class="px-4 py-8 space-y-4">
+    <div data-testid="mobile-agenda-loading-skeleton" role="status" class="px-4 py-4 space-y-2">
       @for (_ of [1, 2, 3]; track $index) {
-        <div class="h-20 rounded-xl bg-surface-muted/50 animate-pulse"></div>
+        <div class="flex gap-4 rounded-xl p-4 animate-pulse">
+          <div class="w-14 shrink-0 rounded-lg bg-surface-muted/50 min-h-[44px]"></div>
+          <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="h-3 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="h-5 w-16 rounded-full bg-surface-muted/50"></div>
+          </div>
+        </div>
       }
     </div>
   }

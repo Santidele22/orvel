@@ -1,27 +1,74 @@
 <section class="min-h-full flex flex-col" data-testid="turnos-responsive-container" [attr.aria-busy]="loading()"
   aria-live="polite">
   @if (loading()) {
+  @if (!isMobile()) {
   <!-- DB-FIX-002: Loading skeletons with data-testid selectors -->
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section"
     data-testid="turnos-loading-skeleton" role="status">
     <div class="grid grid-cols-12 gap-zen-xxl">
-      <!-- DB-FIX-002: Skeleton row for appointments list -->
-      <div class="col-span-12 lg:col-span-8 rounded-zen-card bg-surface-muted p-zen-xl shadow-lg">
-        <div data-testid="turnos-skeleton-row" class="animate-pulse space-y-3">
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+      <div class="col-span-12 lg:col-span-8 flex flex-col gap-zen-xl">
+        <div class="bg-surface/60 backdrop-blur-md p-zen-md rounded-zen-card shadow-2xl min-h-[220px] animate-pulse">
+          <div class="min-h-[220px] bg-surface-muted/50 rounded-zen-card"></div>
+        </div>
+        <div class="flex-1 bg-surface/40 backdrop-blur-sm rounded-zen-card shadow-2xl overflow-hidden p-zen-xl space-y-px">
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-40 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-44 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- DB-FIX-002: Skeleton panel for side panel -->
-      <div class="col-span-12 lg:col-span-4 rounded-zen-card bg-surface-muted p-zen-xl shadow-lg">
-        <div data-testid="turnos-skeleton-panel" class="animate-pulse space-y-3">
-          <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+      <div class="col-span-12 lg:col-span-4 flex flex-col gap-zen-xl">
+        <div data-testid="turnos-skeleton-panel" class="or-card !p-zen-xl space-y-6 animate-pulse">
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-text-secondary pb-4">
+            Resumen de Agenda</h4>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between p-zen-md bg-bg rounded-zen-md shadow-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-surface-muted/50"></div>
+                <div class="h-3 w-20 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+            <div class="flex items-center justify-between p-zen-md bg-bg rounded-zen-md shadow-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-surface-muted/50"></div>
+                <div class="h-3 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+          </div>
+          <div class="h-11 w-full bg-surface-muted/50 rounded-xl"></div>
+          <div class="h-11 w-full bg-surface-muted/50 rounded-xl"></div>
         </div>
       </div>
     </div>
   </div>
+  } @else {
+      <app-mobile-agenda-day-view [turnos]="mobileAppointments()" [selectedDate]="selectedDate()" (selectedDateChange)="selectedDate.set($event)" [loading]="true"></app-mobile-agenda-day-view>
+  }
   } @else {
   <div class="sr-only" data-testid="turnos-empty-state" role="status">Todavía no hay turnos este día.</div>
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
