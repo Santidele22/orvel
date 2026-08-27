@@ -180,21 +180,21 @@
             <p class="rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-center text-xs font-medium text-error" role="alert">{{ formMessage() }}</p>
           }
 
-          @if (editingClientId()) {
-            <button
-              type="button"
-              data-testid="clientes-dar-de-baja"
-              class="h-11 w-full rounded-xl border border-error/30 bg-error/10 px-6 text-sm font-medium text-error transition-colors duration-200 hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
-              (click)="openBajaConfirm()"
-            >
-              Dar de baja
-            </button>
-          }
-
           <div class="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:justify-end">
-            <button type="button" data-testid="clientes-modal-cancel"
-              class="h-11 rounded-xl border border-white/10 bg-transparent px-6 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
-              (click)="closeModal()">Borrar</button>
+            @if (editingClientId()) {
+              <button
+                type="button"
+                data-testid="clientes-dar-de-baja"
+                class="h-11 rounded-xl border border-error/30 bg-error/10 px-6 text-sm font-medium text-error transition-colors duration-200 hover:bg-error/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
+                (click)="openBajaConfirm()"
+              >
+                Dar de baja
+              </button>
+            } @else {
+              <button type="button" data-testid="clientes-modal-cancel"
+                class="h-11 rounded-xl border border-white/10 bg-transparent px-6 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+                (click)="closeModal()">Borrar</button>
+            }
             <button type="submit" data-testid="client-form-submit"
               class="h-11 rounded-xl bg-primary px-7 text-sm font-semibold text-white shadow-sm shadow-primary/25 transition-colors duration-200 hover:bg-primary-hover active:bg-[#5B21B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]">
               {{ editingClientId() ? 'Guardar cambios' : 'Crear cliente' }}
