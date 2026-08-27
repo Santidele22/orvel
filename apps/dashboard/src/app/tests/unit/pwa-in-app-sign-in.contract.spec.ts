@@ -11,8 +11,8 @@ const routeBlock = (routesSource: string, path: string) => {
 describe('Contract: public PWA in-app sign-in', () => {
   it('exposes dashboard/login as a public top-level route before the guarded dashboard parent', () => {
     const appRoutes = source('src/app/app.routes.ts');
+    const dashboardShell = source('src/app/dashboard-shell.routes.ts');
     const signIn = routeBlock(appRoutes, 'dashboard/login');
-    const dashboard = routeBlock(appRoutes, 'dashboard');
     const signInIndex = appRoutes.search(/path:\s*'dashboard\/login'/);
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
@@ -21,7 +21,7 @@ describe('Contract: public PWA in-app sign-in', () => {
     expect(signIn).not.toContain('canActivate');
     expect(signInIndex).toBeGreaterThan(-1);
     expect(signInIndex).toBeLessThan(dashboardIndex);
-    expect(dashboard).toContain('canActivate: [dashboardAuthGuard]');
+    expect(dashboardShell).toContain('canActivate: [dashboardAuthGuard]');
   });
 
   it('signs in through AuthService.login and offers Crear cuenta without mounting the dashboard guard', () => {

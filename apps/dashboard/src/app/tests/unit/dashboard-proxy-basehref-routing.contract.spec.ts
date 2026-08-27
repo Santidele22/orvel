@@ -1,41 +1,42 @@
 import '@angular/compiler';
-import { Route } from '@angular/router';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { dashboardShellChildren, routes } from '../../app.routes';
-import { dashboardAuthChildGuard, dashboardAuthGuard } from '../../core/auth/dashboard-auth.guard';
-import { DashboardShellComponent } from '../../shared/dashboard-shell/dashboard-shell.component';
+import { routes } from '../../app.routes';
 
-const routesSource = readFileSync(resolve(process.cwd(), 'src/app/app.routes.ts'), 'utf8');
+const appRoutesSource = readFileSync(resolve(process.cwd(), 'src/app/app.routes.ts'), 'utf8');
+const shellRoutesPath = resolve(process.cwd(), 'src/app/dashboard-shell.routes.ts');
 
-function findTopLevelRoute(path: string): Route | undefined {
+function findTopLevelRoute(path: string) {
   return routes.find(route => route.path === path);
 }
 
 describe('Contract: dashboard routing under /dashboard/ baseHref proxy', () => {
-  it('mounts the protected dashboard shell at Angular app root for /dashboard/ baseHref', () => {
+  it('mounts the protected dashboard shell at Angular app root via loadChildren', () => {
     const proxyRootRoute = findTopLevelRoute('');
 
-    expect(proxyRootRoute?.component).toBe(DashboardShellComponent);
-    expect(proxyRootRoute?.canActivate).toEqual([dashboardAuthGuard]);
-    expect(proxyRootRoute?.canActivateChild).toEqual([dashboardAuthChildGuard]);
-    expect(proxyRootRoute?.children).toBe(dashboardShellChildren);
-    expect(proxyRootRoute?.children?.[0]).toMatchObject({ path: '', redirectTo: 'inicio', pathMatch: 'full' });
-    expect(proxyRootRoute?.children?.some(child => child.path === 'inicio')).toBe(true);
+    expect(typeof proxyRootRoute?.loadChildren).toBe('function');
+    expect(proxyRootRoute?.redirectTo).toBeUndefined();
+    expect(existsSync(shellRoutesPath)).toBe(true);
+
+    const shellRoutesSource = readFileSync(shellRoutesPath, 'utf8');
+    expect(shellRoutesSource).toMatch(/canActivate:\s*\[dashboardAuthGuard\]/);
+    expect(shellRoutesSource).toMatch(/canActivateChild:\s*\[dashboardAuthChildGuard\]/);
+    expect(shellRoutesSource).toMatch(/path:\s*'',[\s\S]*redirectTo:\s*'inicio'/);
+    expect(shellRoutesSource).toMatch(/path:\s*'inicio'/);
   });
 
-  it('preserves the legacy /dashboard/* route shape for non-proxied dashboard entry points', () => {
+  it('preserves the legacy /dashboard/* route shape via loadChildren', () => {
     const legacyDashboardRoute = findTopLevelRoute('dashboard');
 
-    expect(legacyDashboardRoute?.component).toBe(DashboardShellComponent);
-    expect(legacyDashboardRoute?.canActivate).toEqual([dashboardAuthGuard]);
-    expect(legacyDashboardRoute?.canActivateChild).toEqual([dashboardAuthChildGuard]);
-    expect(legacyDashboardRoute?.children).toBe(dashboardShellChildren);
-    expect(legacyDashboardRoute?.children?.some(child => child.path === 'inicio')).toBe(true);
+    expect(typeof legacyDashboardRoute?.loadChildren).toBe('function');
+    expect(existsSync(shellRoutesPath)).toBe(true);
+
+    const shellRoutesSource = readFileSync(shellRoutesPath, 'utf8');
+    expect(shellRoutesSource).toMatch(/path:\s*'inicio'/);
   });
 
   it('does not redirect Angular app root back to dashboard/inicio when baseHref is already /dashboard/', () => {
-    expect(routesSource).not.toMatch(/path:\s*'',\s*\n\s*redirectTo:\s*'dashboard\/inicio'/);
+    expect(appRoutesSource).not.toMatch(/path:\s*'',\s*\n\s*redirectTo:\s*'dashboard\/inicio'/);
   });
 });
