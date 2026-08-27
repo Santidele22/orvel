@@ -54,6 +54,65 @@ describe('mutation error log', () => {
         error: { code: '42804', message: 'datatype mismatch' }
       })
     ).toMatchObject({ operation: 'create_public_booking', code: '42804' });
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error: new Error('PostgREST 42804 datatype mismatch')
+      })
+    ).toMatchObject({ operation: 'create_admin_manual_booking', code: '42804' });
+  });
+
+  it('does not treat Spanish or English prose fragments as mutation codes', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error: new Error('No se pudo crear el turno')
+      })
+    ).toEqual<MutationErrorLog>({ operation: 'create_admin_manual_booking' });
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error: new Error('Error al guardar turno')
+      })
+    ).toEqual<MutationErrorLog>({ operation: 'create_admin_manual_booking' });
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error: new Error('Failed to create booking')
+      })
+    ).toEqual<MutationErrorLog>({ operation: 'create_admin_manual_booking' });
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error: new Error('Si el horario no está disponible')
+      })
+    ).toEqual<MutationErrorLog>({ operation: 'create_admin_manual_booking' });
+  });
+
+  it('prefers structured code and status on a thrown Error over Spanish message scrape', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const error = Object.assign(new Error('No se pudo crear el turno'), {
+      code: 'UNAUTHORIZED',
+      status: 401
+    });
+
+    expect(
+      logMutationFailure({
+        operation: 'create_admin_manual_booking',
+        error
+      })
+    ).toEqual<MutationErrorLog>({
+      operation: 'create_admin_manual_booking',
+      status: 401,
+      code: 'UNAUTHORIZED'
+    });
   });
 
   it('never includes email, phone, jwt, token, or raw payload in the console.error second argument', () => {
