@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import '@angular/compiler';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
@@ -12,6 +14,11 @@ import { ClienteService } from '../../../features/clientes/data-access/cliente.s
 import { ServicioService } from '../../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../../features/settings/data-access/business.service';
 import { DashboardService } from '../dashboard.service';
+
+const homePageSource = readFileSync(
+  resolve(process.cwd(), 'src/app/features/dashboard-home/pages/dashboard-home.page.ts'),
+  'utf8'
+);
 
 const openDay = { start: '00:00', end: '23:59', enabled: true };
 const workingHours = {
@@ -44,6 +51,19 @@ class InMemoryBookingQueries implements BookingQueries {
   ) {}
   getAvailabilityWindows = vi.fn(async () => []);
   getBookingCounts = vi.fn(async () => ({ total: this.rows.length, hoy: this.rows.length, futuros: 0 }));
+}
+
+class QueuedBookingQueries implements BookingQueries {
+  constructor(private readonly queue: BookingRecord[][]) {}
+  listBookingsByBranch = vi.fn(async () => this.queue.shift() ?? []);
+  getAvailabilityWindows = vi.fn(async () => []);
+  getBookingCounts = vi.fn(async () => ({ total: 0, hoy: 0, futuros: 0 }));
+}
+
+function setAfternoonNow(service: DashboardService): void {
+  const afternoon = new Date();
+  afternoon.setHours(15, 0, 0, 0);
+  service.now.set(afternoon);
 }
 
 vi.mock('../../branches/branch-context.service', () => ({
@@ -92,11 +112,79 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.agendaStatus().totalAppointments).toBe(1);
   });
 
-  it('computes completed-today ticket average from BookingQueries rows', async () => {
+    it('computes completed-today ticket average from BookingQueries rows', async () => {
     const queries = new InMemoryBookingQueries([todayRecord({ estado: 'completado' })]);
     const service = createService(queries);
     await flush();
     expect(service.stats()).toEqual({ ticketPromedio: 1000, nuevosClientes: 0 });
     expect(service.featuredAppointments()[0]?.estado).toBe('completado');
+  });
+
+  it('counts a today booking whose end time is already past as totalAppointments', async () => {
+    const queries = new InMemoryBookingQueries([todayRecord({ hora: '00:00', duracionMinutos: 1 })]);
+    const service = createService(queries);
+    await flush();
+    setAfternoonNow(service);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('includes an already-ended today booking in featuredAppointments as Hoy', async () => {
+    const queries = new InMemoryBookingQueries([todayRecord({ hora: '00:00', duracionMinutos: 1 })]);
+    const service = createService(queries);
+    await flush();
+    setAfternoonNow(service);
+    const featured = service.featuredAppointments();
+    expect(featured).toHaveLength(1);
+    expect(featured[0]).toMatchObject({ id: 'b-1', dateLabel: 'Hoy', hora: '00:00' });
+  });
+
+  it('does not count a cancelled today booking', async () => {
+    const queries = new InMemoryBookingQueries([
+      todayRecord({ hora: '23:59', estado: 'cancelado' })
+    ]);
+    const service = createService(queries);
+    await flush();
+    expect(service.agendaStatus().totalAppointments).toBe(0);
+    expect(service.featuredAppointments()).toHaveLength(0);
+  });
+
+  it('replaces stale constructor bookings on a second refreshData()', async () => {
+    const queries = new QueuedBookingQueries([
+      [],
+      [todayRecord({ hora: '00:00', duracionMinutos: 1 })]
+    ]);
+    const service = createService(queries);
+    await flush();
+    setAfternoonNow(service);
+    expect(service.agendaStatus().totalAppointments).toBe(0);
+    expect(service.featuredAppointments()).toHaveLength(0);
+
+    service.refreshData();
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
+    expect(service.featuredAppointments()[0]?.dateLabel).toBe('Hoy');
+  });
+
+  it('refreshes bookings when booking.created is dispatched', async () => {
+    const queries = new QueuedBookingQueries([
+      [],
+      [todayRecord({ hora: '00:00', duracionMinutos: 1 })]
+    ]);
+    const service = createService(queries);
+    await flush();
+    setAfternoonNow(service);
+    expect(service.agendaStatus().totalAppointments).toBe(0);
+
+    window.dispatchEvent(new CustomEvent('booking.created'));
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('DashboardHomeComponent calls refreshData on ngOnInit', () => {
+    expect(homePageSource).toMatch(
+      /ngOnInit\s*\([^)]*\)[\s\S]*?dashboardService\.refreshData\s*\(/
+    );
   });
 });
