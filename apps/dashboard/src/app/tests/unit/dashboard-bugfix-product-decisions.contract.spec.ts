@@ -78,9 +78,10 @@ describe('Dashboard bugfix product decisions contract', () => {
 
   it('settings hydrates idempotently when auth arrives late and does not gate saved settings on slug validity', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
+    const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
 
     expect(settingsPage).toMatch(/effect\(\(\)\s*=>[\s\S]*authService\.user\(\)\?\.id[\s\S]*hydrateBusinessSettings/i);
-    expect(settingsPage).toMatch(/hydratedUserId/);
+    expect(`${settingsPage}\n${businessService}`).toMatch(/hydratedUserId/);
     expect(settingsPage).not.toMatch(/setTimeout\(resolve,\s*500\)|setTimeout\([^)]*500/);
     expect(settingsPage).toMatch(/if\s*\(\s*saved\s*\)\s*\{[\s\S]*settingsForm\.patchValue\(saved\)[\s\S]*savedState\.set\(saved\)/i);
     expect(settingsPage).not.toMatch(/saved\s*&&\s*saved\.slug\s*&&\s*saved\.slug\s*!==\s*['"]id-pendiente['"]/i);

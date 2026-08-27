@@ -9,7 +9,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 
 const CUSTOMER_BASE_SELECT = `
         id,
@@ -28,9 +28,14 @@ export class ClienteService {
   private clientes = signal<Cliente[]>([]);
   private loading = signal<boolean>(false);
   private errorState = signal<string | null>(null);
+  private loaded = false;
   private provider: 'mock' | 'supabase' = 'supabase';
   private supabaseClient?: SupabaseClient;
   private readonly authService = this.resolveAuthService();
+
+  constructor() {
+    registerSectionCacheInvalidator(() => this.clearCache());
+  }
 
   // Readonly signals
   items = this.clientes.asReadonly();
@@ -51,7 +56,24 @@ export class ClienteService {
     }
   }
 
+  isLoaded(): boolean {
+    return this.loaded;
+  }
+
+  invalidate(): void {
+    this.loaded = false;
+  }
+
+  clearCache(): void {
+    this.loaded = false;
+    this.clientes.set([]);
+  }
+
   getAll(): Observable<Cliente[]> {
+    if (this.loaded) {
+      return of(this.clientes());
+    }
+
     this.loading.set(true);
     this.errorState.set(null);
 
@@ -60,6 +82,7 @@ export class ClienteService {
         delay(300),
         tap(clientes => {
           this.syncReadState(clientes);
+          this.loaded = true;
           this.loading.set(false);
         })
       );
@@ -72,6 +95,7 @@ export class ClienteService {
       return of(this.loadClientesFromFallbackStore()).pipe(
         tap(clientes => {
           this.syncReadState(clientes);
+          this.loaded = true;
           this.loading.set(false);
         })
       );
@@ -81,6 +105,7 @@ export class ClienteService {
       tap({
         next: (clientes) => {
           this.syncReadState(clientes);
+          this.loaded = true;
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -136,6 +161,7 @@ export class ClienteService {
     }
 
     this.errorState.set(null);
+    this.invalidate();
 
     if (this.provider === 'mock') {
       const nuevoCliente = this.createMockCliente(dto);
@@ -186,6 +212,8 @@ export class ClienteService {
       this.errorState.set(this.extractErrorMessage(error));
       return throwError(() => error as Error);
     }
+
+    this.invalidate();
 
     if (this.provider === 'mock') {
       this.clientes.update(c => {
@@ -248,6 +276,7 @@ export class ClienteService {
     }
 
     const cliente = this.clientes()[index];
+    this.invalidate();
     
     // Set the persisted inactive flag. Customer retention/purge policy is intentionally
     // not modeled until the database exposes those fields.
@@ -361,6 +390,9 @@ export class ClienteService {
   }
 
   setProvider(provider: 'mock' | 'supabase'): void {
+    if (this.provider !== provider) {
+      this.invalidate();
+    }
     this.provider = provider;
   }
 

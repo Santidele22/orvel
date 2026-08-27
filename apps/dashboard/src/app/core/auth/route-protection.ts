@@ -1,6 +1,6 @@
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from './session-contract';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
-import { resetBranchContextSession } from '../branches/branch-context.service';
+import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
 import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
@@ -391,6 +391,7 @@ export async function logoutAndRedirect(): Promise<string> {
   localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
   localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   resetBranchContextSession();
+  invalidateSectionCaches();
 
   return buildDashboardSignInRedirect('/dashboard');
 }

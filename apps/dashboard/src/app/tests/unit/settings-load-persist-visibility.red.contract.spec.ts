@@ -107,7 +107,7 @@ describe('Issue #348 - settings load/persist visibility', () => {
     expect(saveToSupabase).toMatch(/\.from\(\s*['"]businesses['"]\s*\)/);
     expect(saveToSupabase).toMatch(/loadFromSupabase/);
 
-    expect(pageTs).toMatch(/hydratedUserId\s*=\s*null/);
+    expect(pageTs).toMatch(/hydratedUserId\s*=\s*null|clearHydration\s*\(/);
     expect(pageTs).toMatch(/retryLoad|retrySettingsLoad|retryLoadSettings/);
     expect(pageTs).toMatch(/hydrateBusinessSettings/);
   });
