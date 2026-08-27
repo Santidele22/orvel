@@ -30,6 +30,13 @@
         </div>
 
         <!-- Client List -->
+        @if (loading()) {
+        <div data-testid="clientes-loading-skeleton" role="status" class="grid grid-cols-1 gap-3">
+          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
+          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
+          <div data-testid="clientes-skeleton-row" class="h-16 bg-surface-muted/50 rounded-zen-md animate-pulse"></div>
+        </div>
+        } @else {
         <div class="grid grid-cols-1 gap-3">
           @for (cliente of filteredClients(); track cliente.id) {
             <article [class]="ui.cardGlass + ' min-w-0 overflow-hidden flex items-center justify-between group transition-all ' + (cliente.active ? 'cursor-pointer hover:shadow-primary/5' : 'opacity-80')" (click)="startEdit(cliente)">
@@ -74,9 +81,18 @@
             </article>
           }
         </div>
+        }
+
       </main>
 
       <aside [class]="ui.sideColumn" data-layout-section="right_panel">
+        @if (loading()) {
+        <article data-testid="clientes-metrics-loading-skeleton" [class]="ui.cardGlass + ' animate-pulse space-y-4'" role="status">
+          <div class="h-6 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+        </article>
+        } @else {
         <article [class]="ui.cardGlass + ' space-y-4'">
           <div class="flex items-center gap-2 mb-2">
             <i class="ri-donut-chart-line text-primary"></i>
@@ -112,8 +128,9 @@
               <p class="text-xs font-medium text-text-tertiary leading-relaxed">
                 {{ showDeactivated() ? 'Vista de clientes dados de baja.' : 'Consulta clientes inactivos sin afectar la lista principal.' }}
               </p>
-            </div>
+             </div>
         </article>
+        }
       </aside>
     </div>
   </div>

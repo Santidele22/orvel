@@ -29,6 +29,20 @@
       </div>
     }
 
+  @if (dashboardService.isLoading()) {
+  <div data-testid="dashboard-home-loading-skeleton" role="status"
+    class="mb-8 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div data-testid="dashboard-home-skeleton-card" class="or-card animate-pulse">
+      <div class="h-24 bg-surface-muted/50 rounded-zen-md"></div>
+    </div>
+    <div data-testid="dashboard-home-skeleton-card" class="or-card animate-pulse">
+      <div class="h-24 bg-surface-muted/50 rounded-zen-md"></div>
+    </div>
+    <div data-testid="dashboard-home-skeleton-card" class="or-card animate-pulse">
+      <div class="h-24 bg-surface-muted/50 rounded-zen-md"></div>
+    </div>
+  </div>
+  } @else {
     <!-- Top Stats Row -->
   <div class="mb-8 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
     <!-- Card: Total Turnos -->
@@ -229,6 +243,7 @@
       </div>
     </div>
   </div>
+  }
 
     @if (!isPwaStandalone()) {
       <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
@@ -269,6 +284,16 @@
       <p class="text-[10px] text-amber-400" role="status">No pudimos copiar el link de reservas.</p>
     }
 
+    @if (dashboardService.isLoading()) {
+    <div data-testid="dashboard-home-loading-skeleton" role="status" class="grid min-w-0 grid-cols-2 gap-3">
+      <div data-testid="dashboard-home-skeleton-card" class="or-card animate-pulse">
+        <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+      </div>
+      <div data-testid="dashboard-home-skeleton-card" class="or-card animate-pulse">
+        <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+      </div>
+    </div>
+    } @else {
     <div class="grid min-w-0 grid-cols-2 gap-3">
       <div class="or-card min-w-0 space-y-1">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hoy</p>
@@ -281,6 +306,7 @@
         <p class="text-sm font-medium text-slate-400">Horarios</p>
       </div>
     </div>
+    }
 
     <a routerLink="/dashboard/turnos/new"
       class="flex h-11 w-full items-center justify-center rounded-xl border border-purple-400/15 bg-purple-500/10 text-sm font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
