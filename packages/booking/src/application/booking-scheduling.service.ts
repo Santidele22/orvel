@@ -59,10 +59,10 @@ export class BookingSchedulingService {
     if (!dto.fecha || Number.isNaN(dto.fecha.getTime())) throw new Error('fecha inválida');
     if (!dto.hora?.trim()) throw new Error('hora es requerido');
     if (!dto.duracionMinutos || dto.duracionMinutos <= 0) throw new Error('duracionMinutos debe ser mayor a 0');
-    const appointmentDate = new Date(dto.fecha);
-    const [hours, minutes] = dto.hora.split(':').map(Number);
-    appointmentDate.setHours(hours, minutes, 0, 0);
-    if (appointmentDate < new Date()) throw new Error('No se puede agendar en fecha pasada');
+    const appointmentDay = new Date(dto.fecha.getFullYear(), dto.fecha.getMonth(), dto.fecha.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (appointmentDay < today) throw new Error('No se puede agendar en fecha pasada');
   }
 
   private mapCreateError(code: string, message: string, status?: number): Error {

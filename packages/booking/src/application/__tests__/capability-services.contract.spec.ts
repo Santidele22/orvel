@@ -86,6 +86,34 @@ describe('bounded capability services', () => {
     ).rejects.toMatchObject({ code: 'SLOT_CONFLICT', status: 409 });
   });
 
+  it('admin create accepts today with a morning hour already earlier than now', async () => {
+    const createManualBooking = vi.fn().mockResolvedValue({
+      status: 201,
+      data: { bookingId: 'b-today', status: 'confirmed' }
+    });
+    const svc = new BookingSchedulingService({ createManualBooking } as unknown as AdminBookingRepository);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await expect(
+      svc.create({ clienteId: 'c-1', servicioId: 's-1', fecha: today, hora: '00:00', duracionMinutos: 30 }, ctx)
+    ).resolves.toEqual({ bookingId: 'b-today', status: 'confirmed' });
+    expect(createManualBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it('admin create still rejects a calendar date before today', async () => {
+    const createManualBooking = vi.fn();
+    const svc = new BookingSchedulingService({ createManualBooking } as unknown as AdminBookingRepository);
+    const yesterday = new Date();
+    yesterday.setHours(0, 0, 0, 0);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    await expect(
+      svc.create({ clienteId: 'c-1', servicioId: 's-1', fecha: yesterday, hora: '10:00', duracionMinutos: 30 }, ctx)
+    ).rejects.toThrow(/fecha pasada/);
+    expect(createManualBooking).not.toHaveBeenCalled();
+  });
+
   it('availability drops zero-capacity slots and fails closed on port errors', async () => {
     const req = { fecha: new Date('2026-08-17T00:00:00.000Z'), durationMinutes: 30, dateIso: '2026-08-17' };
     const ok = new BookingAvailabilityService({
