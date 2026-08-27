@@ -204,71 +204,6 @@
             </button>
           </div>
 
-          @if (showAdminReschedulePanel()) {
-          <form data-testid="turnos-admin-reschedule-form" class="space-y-4 pt-4 border-t border-white/10"
-            (ngSubmit)="submitAdminReschedule()" aria-describedby="turnos-admin-reschedule-feedback">
-            <div class="space-y-1">
-              <p class="text-xs font-bold uppercase tracking-wider text-text-secondary">Reprogramar turno</p>
-              @if (adminRescheduleTurno(); as turno) {
-              <p data-testid="turnos-admin-reschedule-service-context" class="text-sm font-semibold text-text-primary">
-                {{ turno.servicioNombre }} · {{ turno.duracionMinutos }} min
-              </p>
-              <p data-testid="turnos-admin-reschedule-branch-context" class="text-[11px] text-text-tertiary">
-                serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'alcance operativo' }}
-              </p>
-              }
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-date" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Fecha</label>
-              <input id="admin-reschedule-date" name="admin-reschedule-date" type="date" required
-                data-testid="turnos-admin-reschedule-date-field" [(ngModel)]="adminRescheduleForm.date"
-                (change)="onAdminRescheduleDateChange()"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-slot" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Horario disponible</label>
-              <select id="admin-reschedule-slot" name="admin-reschedule-slot" required
-                data-testid="turnos-admin-reschedule-slot-select" [(ngModel)]="adminRescheduleForm.selectedSlot"
-                [disabled]="adminRescheduleLoading() || adminRescheduleSlots().length === 0"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none disabled:opacity-60">
-                <option value="">{{ adminRescheduleLoading() ? 'Consultando disponibilidad…' : 'Seleccioná un horario' }}</option>
-                @for (slot of adminRescheduleSlots(); track slot) {
-                <option [value]="slot">{{ slot }}</option>
-                }
-              </select>
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-reason" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Motivo opcional</label>
-              <input id="admin-reschedule-reason" name="admin-reschedule-reason" type="text"
-                data-testid="turnos-admin-reschedule-reason-field" [(ngModel)]="adminRescheduleForm.reason"
-                placeholder="Ej: pedido del cliente"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
-            </div>
-
-            @if (adminRescheduleFeedback() || availabilityError()) {
-            <p id="turnos-admin-reschedule-feedback" role="alert" data-testid="turnos-admin-reschedule-feedback"
-              class="rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
-              {{ adminRescheduleFeedback() || availabilityError() }}
-            </p>
-            }
-
-            <div class="flex gap-2">
-              <button type="button" (click)="closeAdminReschedulePicker()"
-                class="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors">
-                Cancelar
-              </button>
-              <button type="submit" data-testid="turnos-admin-reschedule-submit-action"
-                [disabled]="adminRescheduleSubmitting() || !canSubmitReschedule()"
-                class="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
-                {{ adminRescheduleSubmitting() ? 'Reprogramando…' : 'Reprogramar' }}
-              </button>
-            </div>
-          </form>
-          }
-
           @if (showBlockedTimePanel()) {
           <form data-testid="turnos-admin-block-time-form" class="space-y-4 pt-4 border-t border-white/10"
             (ngSubmit)="submitBlockedTime()" aria-describedby="turnos-admin-block-time-error">
@@ -389,6 +324,88 @@
         (click)="confirmCancelTurno()"
       >Cancelar turno</button>
     </div>
+  </section>
+</div>
+}
+
+@if (showAdminReschedulePanel()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-admin-reschedule-overlay"
+    aria-label="Cerrar reprogramación"
+    (click)="closeAdminReschedulePicker()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-admin-reschedule-title"
+    data-testid="turnos-admin-reschedule-modal"
+  >
+    <h2 id="turnos-admin-reschedule-title" class="text-xl font-semibold tracking-tight text-white">Reprogramar turno</h2>
+
+    <form data-testid="turnos-admin-reschedule-form" class="mt-6 space-y-4"
+      (ngSubmit)="submitAdminReschedule()" aria-describedby="turnos-admin-reschedule-feedback">
+      @if (adminRescheduleTurno(); as turno) {
+      <p data-testid="turnos-admin-reschedule-service-context" class="text-sm font-semibold text-text-primary">
+        {{ turno.servicioNombre }} · {{ turno.duracionMinutos }} min
+      </p>
+      <p data-testid="turnos-admin-reschedule-branch-context" class="text-[11px] text-text-tertiary">
+        serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'alcance operativo' }}
+      </p>
+      }
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-date" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Fecha</label>
+        <input id="admin-reschedule-date" name="admin-reschedule-date" type="date" required
+          data-testid="turnos-admin-reschedule-date-field" [(ngModel)]="adminRescheduleForm.date"
+          (change)="onAdminRescheduleDateChange()"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
+      </div>
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-slot" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Horario disponible</label>
+        <select id="admin-reschedule-slot" name="admin-reschedule-slot" required
+          data-testid="turnos-admin-reschedule-slot-select" [(ngModel)]="adminRescheduleForm.selectedSlot"
+          [disabled]="adminRescheduleLoading() || adminRescheduleSlots().length === 0"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none disabled:opacity-60">
+          <option value="">{{ adminRescheduleLoading() ? 'Consultando disponibilidad…' : 'Seleccioná un horario' }}</option>
+          @for (slot of adminRescheduleSlots(); track slot) {
+          <option [value]="slot">{{ slot }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-reason" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Motivo opcional</label>
+        <input id="admin-reschedule-reason" name="admin-reschedule-reason" type="text"
+          data-testid="turnos-admin-reschedule-reason-field" [(ngModel)]="adminRescheduleForm.reason"
+          placeholder="Ej: pedido del cliente"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
+      </div>
+
+      @if (adminRescheduleFeedback() || availabilityError()) {
+      <p id="turnos-admin-reschedule-feedback" role="alert" data-testid="turnos-admin-reschedule-feedback"
+        class="rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+        {{ adminRescheduleFeedback() || availabilityError() }}
+      </p>
+      }
+
+      <div class="flex gap-2">
+        <button type="button" (click)="closeAdminReschedulePicker()"
+          class="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors">
+          Cancelar
+        </button>
+        <button type="submit" data-testid="turnos-admin-reschedule-submit-action"
+          [disabled]="adminRescheduleSubmitting() || !canSubmitReschedule()"
+          class="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
+          {{ adminRescheduleSubmitting() ? 'Reprogramando…' : 'Reprogramar' }}
+        </button>
+      </div>
+    </form>
   </section>
 </div>
 }
