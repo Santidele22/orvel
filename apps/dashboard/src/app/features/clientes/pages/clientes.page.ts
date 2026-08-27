@@ -44,6 +44,7 @@ export class ClientesPage {
   readonly clients = signal<ClienteListItem[]>([]);
   readonly showDeactivated = signal(false);
   readonly showBajaConfirm = signal(false);
+  readonly isClienteBajaResultModalOpen = signal(false);
 
   // DB-FIX-001: Track selected client for deactivate action
   readonly selectedClientId = signal<string | null>(null);
@@ -217,6 +218,10 @@ export class ClientesPage {
     this.selectedClientId.set(null);
   }
 
+  closeClienteBajaResultModal(): void {
+    this.isClienteBajaResultModalOpen.set(false);
+  }
+
   confirmBaja(): void {
     const clientId = this.selectedClientId();
     if (!clientId) {
@@ -238,6 +243,7 @@ export class ClientesPage {
         this.cancelBajaConfirm();
         this.closeModal();
         void this.loadClients();
+        this.isClienteBajaResultModalOpen.set(true);
       },
       error: (error) => {
         this.logClientError(error, 'customers.deactivate');

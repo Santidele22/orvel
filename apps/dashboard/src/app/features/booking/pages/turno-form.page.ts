@@ -47,6 +47,7 @@ export class TurnoFormPage implements OnInit {
   protected isEdit = signal<boolean>(false);
   protected turnoId = signal<string | null>(null);
   protected error = signal<string | null>(null);
+  protected isTurnoAgendadoModalOpen = signal(false);
 
   // Form data
   protected clientes = signal<Cliente[]>([]);
@@ -329,6 +330,12 @@ export class TurnoFormPage implements OnInit {
           performedBy,
           reason: this.notas() || 'Reprogramación desde formulario administrativo'
         }, await this.resolveScope());
+        this.resetAvailability();
+        if (this.presentation === 'modal') {
+          this.saved.emit();
+          return;
+        }
+        this.router.navigate(['/dashboard/turnos']);
       } else {
         // Create new
         const scope = await this.resolveScope();
@@ -346,16 +353,10 @@ export class TurnoFormPage implements OnInit {
           estado: this.estado()
         };
         await this.scheduling.create(dto, scope);
+        this.resetAvailability();
+        this.saving.set(false);
+        this.isTurnoAgendadoModalOpen.set(true);
       }
-
-      this.resetAvailability();
-
-      if (this.presentation === 'modal') {
-        this.saved.emit();
-        return;
-      }
-
-      this.router.navigate(['/dashboard/turnos']);
     } catch (error) {
       logMutationFailure({
         operation: this.isEdit() ? 'reschedule_admin_booking' : 'create_admin_manual_booking',
@@ -379,6 +380,15 @@ export class TurnoFormPage implements OnInit {
       }
       this.saving.set(false);
     }
+  }
+
+  protected closeTurnoAgendadoModal(): void {
+    this.isTurnoAgendadoModalOpen.set(false);
+    if (this.presentation === 'modal') {
+      this.saved.emit();
+      return;
+    }
+    this.router.navigate(['/dashboard/turnos']);
   }
 
   protected cancel() {
