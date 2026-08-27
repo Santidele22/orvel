@@ -103,13 +103,17 @@ describe('Contract: public PWA install-only page', () => {
   });
 
   it('classifies standalone display and iOS devices from the shared helper', async () => {
-    const { isStandaloneDisplay, isIosDevice } = await import(
+    const { isStandaloneDisplay, isIosDevice, shouldShowBootSplash } = await import(
       '../../features/pwa-install/pwa-display'
     );
 
     expect(isStandaloneDisplay(true, false)).toBe(true);
     expect(isStandaloneDisplay(false, true)).toBe(true);
     expect(isStandaloneDisplay(false, false)).toBe(false);
+    expect(shouldShowBootSplash(false, false, false, false)).toBe(false);
+    expect(shouldShowBootSplash(true, false, false, false)).toBe(true);
+    expect(shouldShowBootSplash(false, false, true, false)).toBe(true);
+    expect(shouldShowBootSplash(false, false, false, true)).toBe(true);
     expect(isIosDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)')).toBe(true);
     expect(isIosDevice('Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)')).toBe(true);
     expect(isIosDevice('Mozilla/5.0 (Linux; Android 14; Pixel 8)')).toBe(false);
