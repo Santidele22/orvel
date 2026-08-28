@@ -22,6 +22,10 @@ import { OperatorWebPushService } from '../../operator-web-push/operator-web-pus
 
     .mobile-inicio {
       font-family: 'Manrope', sans-serif;
+      background:
+        radial-gradient(120% 60% at 15% -5%, rgba(124, 92, 255, 0.16), transparent 55%),
+        radial-gradient(90% 40% at 100% 0%, rgba(124, 92, 255, 0.08), transparent 50%),
+        #0A0E1B;
     }
 
     .mobile-inicio h1,
@@ -95,14 +99,19 @@ export class DashboardHomeComponent {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   });
 
+  protected readonly operatorFirstName = computed(() => {
+    const name = this.user()?.nombre?.trim() ?? '';
+    return name.split(/\s+/)[0] || '';
+  });
+
   protected readonly operatorInitial = computed(() => {
-    const name = this.user()?.nombre?.trim();
+    const name = this.operatorFirstName();
     return name ? name.charAt(0).toUpperCase() : '?';
   });
 
   protected readonly occupancyDots = computed(() => {
-    const filled = Math.round((this.agendaStatus().occupancyPercentage / 100) * 5);
-    return Array.from({ length: 5 }, (_, index) => index < filled);
+    const filled = Math.max(0, Math.min(18, this.agendaStatus().freeSlots));
+    return Array.from({ length: 18 }, (_, index) => index < filled);
   });
 
   protected readonly nextUpcomingAppointment = computed(() => {

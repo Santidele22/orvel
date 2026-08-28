@@ -50,9 +50,21 @@ describe('DashboardHomePage mobile summary visual contract', () => {
   it('greets with time-based words, comma, and a gradient operator first name', () => {
     const mobile = mobileSummaryBlock(templateSource);
     expect(mobile).toMatch(/greeting\(\s*\)/);
-    expect(mobile).toMatch(/user\(\s*\)\?\.nombre/);
+    expect(mobile).toMatch(/<br\s*\/?>/);
     expect(mobile).toMatch(/linear-gradient/);
     expect(mobile).not.toContain('Santiago');
+  });
+
+  it('matches Inicio HTML chrome: violet eyebrow, rounded gradient avatar, amber badge, green occupancy dots', () => {
+    const mobile = mobileSummaryBlock(templateSource);
+    expect(mobile).toMatch(/text-\[#9B7BFF\]/);
+    expect(mobile).toMatch(/rounded-\[14px\]/);
+    expect(mobile).toMatch(/linear-gradient\(155deg/);
+    expect(mobile).toMatch(/linear-gradient\(135deg/);
+    expect(mobile).toMatch(/#FBBF24/);
+    expect(mobile).toMatch(/#34D399/);
+    expect(mobile).toContain('Acceso rápido desde tu pantalla de inicio');
+    expect(mobile).not.toContain('9:41');
   });
 
   it('uses Compartir link de reserva in the mobile block', () => {
