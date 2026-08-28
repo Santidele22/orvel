@@ -69,4 +69,13 @@ describe('PerfilPage contract', () => {
     expect(source).not.toContain('Plan Pro');
     expect(source).not.toContain('2.4.1');
   });
+
+  it('matches Perfil HTML chrome: 60px avatar, logout wash, no device status bar', () => {
+    expect(source).toMatch(/h-\[60px\]/);
+    expect(source).toMatch(/rounded-\[18px\]/);
+    expect(source).toMatch(/rounded-\[22px\]/);
+    expect(source).toContain('rgba(248,113,113,0.08)');
+    expect(source).not.toContain('9:41');
+    expect(source).not.toContain('ezedelebecq22@gmail.com');
+  });
 });
