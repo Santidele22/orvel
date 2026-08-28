@@ -8,11 +8,21 @@
       "updateMode": "prefetch",
       "resources": {
         "files": [
-          "/**/*.js",
-          "/**/*.css",
-          "/**/*.html",
+          "/index.html",
           "/icons/*.png",
           "/manifest.webmanifest"
+        ]
+      }
+    },
+    {
+      "name": "app-lazy",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/**/*.js",
+          "/**/*.css",
+          "/**/*.html"
         ]
       }
     },
