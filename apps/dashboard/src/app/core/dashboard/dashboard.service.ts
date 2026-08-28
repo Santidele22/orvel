@@ -6,6 +6,14 @@ import { ServicioService } from '../../features/servicios/data-access/servicio.s
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { WeekdayKey } from '../../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
+import { ArgentinaClockService } from '../time/argentina-clock.service';
+import {
+  civilDateKey,
+  filterLiveTurnos,
+  localDateFromDateKey,
+  readArgentinaClock,
+  weekdayIndexFromDateKey,
+} from '../time/argentina-clock';
 
 @Injectable({
   providedIn: 'root'
@@ -16,14 +24,12 @@ export class DashboardService {
   private readonly servicioService = inject(ServicioService);
   private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly now = inject(ArgentinaClockService).now;
   private readonly bookings = signal<BookingRecord[]>([]);
   private readonly adminBookings = signal<BookingRecord[]>([]);
   private bookingsLoaded = false;
   private adminBookingsLoadedBranchId: string | null = null;
   private refreshGeneration = 0;
-
-  // Time signal for real-time updates
-  readonly now = signal(new Date());
 
   // Loading and Error states
   readonly isLoading = signal(false);
@@ -35,31 +41,16 @@ export class DashboardService {
   readonly agendaStatus = computed(() => {
     const turnos = this.bookings();
     const settings = this.businessService.settings();
-    const now = this.now();
-    
-    const hoy = new Date();
+    const clock = readArgentinaClock(this.now());
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayKey = days[hoy.getDay()];
+    const dayKey = days[weekdayIndexFromDateKey(clock.dateKey)];
     
     const workingDay = settings?.workingHours?.[dayKey];
     const slotInterval = settings?.slotIntervalMinutes || 30;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowMinutes = clock.minutes;
 
-    const normalizeDate = (fecha: string | Date | undefined): number => {
-      if (!fecha) return 0;
-      const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    };
-    const hoyMs = normalizeDate(hoy);
-
-    const turnosHoy = turnos.filter(t => normalizeDate(t.fecha) === hoyMs && !['cancelado', 'no-asistio'].includes(t.estado));
-    const turnosFuturos = turnosHoy.filter(t => {
-      const tStart = t.hora || '00:00';
-      const tDuration = t.duracionMinutos || 30;
-      const [h, m] = tStart.split(':').map(Number);
-      const tEndMinutes = h * 60 + m + tDuration;
-      return tEndMinutes > nowMinutes;
-    });
+    const turnosHoy = turnos.filter(t => civilDateKey(t.fecha) === clock.dateKey && !['cancelado', 'no-asistio'].includes(t.estado));
+    const turnosFuturos = filterLiveTurnos(turnosHoy, clock);
 
     if (!workingDay?.enabled) {
       return {
@@ -178,22 +169,16 @@ export class DashboardService {
     const servicesMap = new Map(services.map(s => [s.id, s.nombre]));
     const clientsMap = new Map(clients.map(c => [c.id, c.nombre]));
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyMs = hoy.getTime();
+    const clock = readArgentinaClock(this.now());
+    const hoyMs = localDateFromDateKey(clock.dateKey).getTime();
 
-    const normalizeDate = (fecha: string | Date | undefined): number => {
-      if (!fecha) return 0;
-      const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    };
-
-    const hoyTurnos = turnos
-      .filter(t => normalizeDate(t.fecha) === hoyMs && !['cancelado', 'no-asistio'].includes(t.estado))
-      .sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+    const hoyTurnos = filterLiveTurnos(
+      turnos.filter(t => civilDateKey(t.fecha) === clock.dateKey && !['cancelado', 'no-asistio'].includes(t.estado)),
+      clock,
+    ).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
 
     const futureTurnos = turnos
-      .filter(t => normalizeDate(t.fecha) > hoyMs)
+      .filter(t => civilDateKey(t.fecha) > clock.dateKey)
       .sort((a, b) => {
         const dateA = new Date(a.fecha!).getTime();
         const dateB = new Date(b.fecha!).getTime();
@@ -210,7 +195,7 @@ export class DashboardService {
     const mañanaMs = hoyMs + 86400000;
 
     return combined.map(t => {
-      const tDate = normalizeDate(t.fecha);
+      const tDate = localDateFromDateKey(civilDateKey(t.fecha)).getTime();
       let dateLabel = '';
       if (tDate === hoyMs) dateLabel = 'Hoy';
       else if (tDate === mañanaMs) dateLabel = 'Mañana';
@@ -268,11 +253,6 @@ export class DashboardService {
     registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
-    // Update 'now' signal every minute for real-time filtering
-    const interval = setInterval(() => {
-      this.now.set(new Date());
-    }, 60000);
-
     const onBookingCreated = () => {
       this.invalidate();
       this.refreshData();
@@ -280,7 +260,6 @@ export class DashboardService {
     window.addEventListener('booking.created', onBookingCreated);
 
     this.destroyRef.onDestroy(() => {
-      clearInterval(interval);
       window.removeEventListener('booking.created', onBookingCreated);
     });
   }
