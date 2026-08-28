@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createEmailFailoverSender, resolveEmailProviders } from "../_shared/email-provider-failover.ts";
 import {
   renderTrialUserActivationReminder,
   type TrialUserActivationReminder,
@@ -147,6 +148,7 @@ function runtimeContext(environment: EnvironmentReader, fetcher: Fetcher) {
     bookingUrl: requiredHttpsUrl(environment, "TRIAL_REMINDER_BOOKING_URL"),
   };
   const supabase = createClient(requiredEnvironment(environment, "SUPABASE_URL"), serviceKey);
+  if (!resolveEmailProviders(environment).length) throw new Error("runtime_config_missing");
   const dependencies: TrialReminderDependencies = {
     reserve: async () => {
       const { data, error } = await supabase.rpc("reserve_trial_user_activation_reminder_attempt");
@@ -158,11 +160,7 @@ function runtimeContext(environment: EnvironmentReader, fetcher: Fetcher) {
       if (error) throw new Error("FINALIZATION_FAILED");
       return data === true;
     },
-    send: createMailtrapSender({
-      apiToken: requiredEnvironment(environment, "MAILTRAP_API_TOKEN"),
-      fromEmail: environment.get("MAILTRAP_FROM_EMAIL")?.trim() || "no-reply@orvel.test",
-      fromName: environment.get("MAILTRAP_FROM_NAME")?.trim() || "Orvel",
-    }, fetcher),
+    send: createEmailFailoverSender(environment, fetcher),
   };
   return { dependencies, reminderData };
 }
