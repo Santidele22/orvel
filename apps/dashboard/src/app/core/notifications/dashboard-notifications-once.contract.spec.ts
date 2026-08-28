@@ -201,6 +201,24 @@ describe('Dashboard notifications once per shell', () => {
     expect(service.unreadNotificationCount()).toBe(1);
   });
 
+  it('archiveAdminNotification drops that id from the visible list and unread count', async () => {
+    mocks.listAdminNotifications.mockResolvedValue([
+      notification({ id: 'n1', status: 'unread' }),
+      notification({ id: 'n2', status: 'read' })
+    ]);
+    const service = await createService();
+    await service.refreshForAdmin();
+    mocks.listAdminNotifications.mockResolvedValue([
+      notification({ id: 'n2', status: 'read' })
+    ]);
+
+    await service.archiveAdminNotification('n1');
+
+    expect(mocks.archiveNotification).toHaveBeenCalledWith('n1');
+    expect(service.notifications().map((item) => item.id)).toEqual(['n2']);
+    expect(service.unreadNotificationCount()).toBe(0);
+  });
+
   it('still refreshes after archiveAdminNotification and clearAll error', async () => {
     mocks.listAdminNotifications.mockResolvedValue([
       notification({ id: 'n1', status: 'unread' })
