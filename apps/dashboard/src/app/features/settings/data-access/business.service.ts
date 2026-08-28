@@ -312,7 +312,12 @@ export class BusinessService {
     }
 
     const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY) ?? candidateBusinessOrUserId;
-    const cached = getBranchContextService().peekSessionBusinessIdentity();
+    const branchContext = getBranchContextService();
+    let cached = branchContext.peekSessionBusinessIdentity();
+    if (!cached) {
+      await branchContext.getActiveBusinessId();
+      cached = branchContext.peekSessionBusinessIdentity();
+    }
     if (
       cached
       && cached.ownerId === ownerId
