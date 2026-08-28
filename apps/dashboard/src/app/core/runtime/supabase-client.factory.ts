@@ -13,6 +13,16 @@ const DASHBOARD_SUPABASE_AUTH_OPTIONS = {
   }
 };
 
+const dashboardSupabaseClientCache = new Map<string, unknown>();
+
+function dashboardSupabaseClientCacheKey(url: string, anonKey: string): string {
+  return `${url}\0${anonKey}\0${ORVEL_SUPABASE_AUTH_STORAGE_KEY}`;
+}
+
+export function resetDashboardSupabaseClientCacheForTests(): void {
+  dashboardSupabaseClientCache.clear();
+}
+
 export function createDashboardSupabaseClient<TClient = SupabaseClient>({
   env,
   createClient: createClientFn
@@ -24,10 +34,17 @@ export function createDashboardSupabaseClient<TClient = SupabaseClient>({
   const supabaseUrl = env[urlEnvKey];
   const supabaseAnonKey = env[anonKeyEnvKey];
 
-  // Use provided createClient function or default to @supabase/supabase-js
-  const client = createClientFn
-    ? createClientFn(supabaseUrl, supabaseAnonKey, DASHBOARD_SUPABASE_AUTH_OPTIONS)
-    : (createClient(supabaseUrl, supabaseAnonKey, DASHBOARD_SUPABASE_AUTH_OPTIONS) as unknown as TClient);
+  if (createClientFn) {
+    return createClientFn(supabaseUrl, supabaseAnonKey, DASHBOARD_SUPABASE_AUTH_OPTIONS);
+  }
 
-  return client as TClient;
+  const cacheKey = dashboardSupabaseClientCacheKey(supabaseUrl, supabaseAnonKey);
+  const cached = dashboardSupabaseClientCache.get(cacheKey);
+  if (cached) {
+    return cached as TClient;
+  }
+
+  const client = createClient(supabaseUrl, supabaseAnonKey, DASHBOARD_SUPABASE_AUTH_OPTIONS) as unknown as TClient;
+  dashboardSupabaseClientCache.set(cacheKey, client);
+  return client;
 }
