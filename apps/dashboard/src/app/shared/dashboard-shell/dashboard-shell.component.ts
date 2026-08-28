@@ -81,8 +81,12 @@ export class DashboardShellComponent implements AfterViewInit {
   }
 
   protected async handleLogout(): Promise<void> {
-    const redirectTo = await logoutAndRedirect();
-    await navigateAfterLogout(redirectTo, this.router);
+    try {
+      const redirectTo = await logoutAndRedirect();
+      await navigateAfterLogout(redirectTo, this.router);
+    } catch {
+      window.alert('No se pudo cerrar sesión. Intentá de nuevo.');
+    }
   }
 
   protected trackDashboard(index: number, dashboard: DashboardFromSessionConfig['dashboards'][number]): string {

@@ -28,7 +28,11 @@ export class PerfilPage {
   private readonly router = inject(Router);
 
   async logout(): Promise<void> {
-    const redirectTo = await logoutAndRedirect();
-    await navigateAfterLogout(redirectTo, this.router);
+    try {
+      const redirectTo = await logoutAndRedirect();
+      await navigateAfterLogout(redirectTo, this.router);
+    } catch {
+      window.alert('No se pudo cerrar sesión. Intentá de nuevo.');
+    }
   }
 }

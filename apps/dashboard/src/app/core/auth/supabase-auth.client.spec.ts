@@ -181,3 +181,23 @@ describe('SupabaseAuthClientAdapter.onAuthStateChange contract', () => {
     expect(receivedSession).toBeNull();
   });
 });
+
+describe('SupabaseAuthClientAdapter.signOut contract', () => {
+  beforeEach(() => {
+    createClientMock.mockReset();
+  });
+
+  it('passes optional scope through to supabase-js auth.signOut', async () => {
+    const signOut = vi.fn().mockResolvedValue({ error: null });
+    createClientMock.mockReturnValue({ auth: { signOut } });
+
+    const client = createSupabaseAuthClient({
+      supabaseUrl: 'https://example.supabase.co',
+      supabaseAnonKey: 'anon-key'
+    });
+
+    await expect(client.signOut({ scope: 'local' })).resolves.toEqual({ error: null });
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+});
+

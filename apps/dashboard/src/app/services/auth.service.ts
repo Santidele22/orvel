@@ -6,8 +6,8 @@ import { Injectable, signal } from '@angular/core';
 import { Observable, from, tap, map } from 'rxjs';
 import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../models/user.model';
 
-import { createSupabaseAuthClient, type SupabaseAuthClient, type SupabaseSession } from '../core/auth/supabase-auth.client';
-import { SUPABASE_CONFIG } from '../core/auth/supabase-config';
+import type { SupabaseAuthClient, SupabaseSession } from '../core/auth/supabase-auth.client';
+import { getSupabaseAuthClient } from '../core/auth/route-protection';
 
 @Injectable({
   providedIn: 'root'
@@ -20,10 +20,7 @@ export class AuthService {
   private supabase: SupabaseAuthClient;
 
   constructor() {
-    this.supabase = createSupabaseAuthClient({
-      supabaseUrl: SUPABASE_CONFIG.url,
-      supabaseAnonKey: SUPABASE_CONFIG.anonKey
-    });
+    this.supabase = getSupabaseAuthClient();
     void this.initializeSupabaseAuth();
   }
 
