@@ -351,12 +351,21 @@
       </a>
     }
   } @else {
-  <div data-testid="dashboard-home-mobile-summary" class="space-y-5">
-    <header class="space-y-1">
-      <h1 class="text-2xl font-semibold tracking-tight">
-        {{ greeting() }} {{ user()?.nombre }}
-      </h1>
-      <p class="text-sm font-medium leading-6 text-slate-400">Tu resumen de hoy.</p>
+  <div data-testid="dashboard-home-mobile-summary" class="mobile-inicio -mx-4 -mt-6 min-h-full space-y-5 bg-[#0A0E1B] px-5 pb-8 pt-4 text-[#F3F1FA]">
+    <header class="flex items-start justify-between gap-3">
+      <div class="min-w-0 space-y-1">
+        <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5D6280]">{{ eyebrowDate() }}</p>
+        <h1 class="text-[1.65rem] font-semibold tracking-tight text-[#F3F1FA]">
+          {{ greeting().replace('!', '') }},
+          <span class="bg-clip-text text-transparent bg-[linear-gradient(90deg,#9B7BFF,#7C5CFF)]">{{ user()?.nombre }}</span>!
+        </h1>
+      </div>
+      <div class="relative shrink-0">
+        <div class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1A2138] text-sm font-semibold text-[#F3F1FA]">
+          {{ operatorInitial() }}
+        </div>
+        <span class="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0A0E1B] bg-[#34D399]" aria-hidden="true"></span>
+      </div>
     </header>
 
     @if (showWebPushCoach()) {
@@ -364,7 +373,7 @@
         <p class="font-semibold">Activá avisos de turnos</p>
         <p>Te avisamos si un turno es creado, cancelado o reprogramado. El inbox de la app sigue igual.</p>
         <button type="button" data-testid="web-push-enable" (click)="enableWebPush()"
-          class="h-10 rounded-xl bg-[#7C3AED] px-4 font-semibold text-white">
+          class="h-10 rounded-xl bg-[#7C5CFF] px-4 font-semibold text-white">
           Activar avisos
         </button>
       </div>
@@ -373,23 +382,23 @@
     <button (click)="copyBookingUrl()"
       [attr.disabled]="hasBookingUrl() ? null : true"
       [attr.aria-disabled]="hasBookingUrl() ? null : true"
-      [class]="'flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#7C3AED] px-5 text-sm font-semibold text-white shadow-sm shadow-purple-950/25 transition-colors active:bg-[#5B21B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 ' + (hasBookingUrl() ? 'hover:bg-[#6D28D9]' : 'opacity-50 cursor-not-allowed')">
+      [class]="'flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#7C5CFF] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(91,61,224,0.35)] transition-colors active:bg-[#5B3DE0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7BFF]/70 ' + (hasBookingUrl() ? 'hover:bg-[#5B3DE0]' : 'opacity-50 cursor-not-allowed')">
       <i class="ri-share-line"></i>
-      {{ copied() ? 'Link copiado' : 'Compartir link' }}
+      {{ copied() ? 'Link copiado' : 'Compartir link de reserva' }}
     </button>
 
     @if (copyFailed()) {
-      <p class="text-[10px] text-amber-400" role="status">No pudimos copiar el link de reservas.</p>
+      <p class="text-[10px] text-[#FBBF24]" role="status">No pudimos copiar el link de reservas.</p>
     }
 
     @if (dashboardService.isLoading()) {
     <div data-testid="dashboard-home-loading-skeleton" role="status" class="grid min-w-0 grid-cols-2 gap-3">
-      <div data-testid="dashboard-home-skeleton-card" class="or-card min-w-0 space-y-1 animate-pulse">
+      <div data-testid="dashboard-home-skeleton-card" class="or-card min-w-0 space-y-1 animate-pulse bg-[#141A2C]">
         <div class="h-3 w-10 bg-surface-muted/50 rounded-zen-md"></div>
         <div class="h-7 w-12 bg-surface-muted/50 rounded-zen-md"></div>
         <div class="h-3 w-16 bg-surface-muted/50 rounded-zen-md"></div>
       </div>
-      <div data-testid="dashboard-home-skeleton-card" class="or-card min-w-0 space-y-1 animate-pulse">
+      <div data-testid="dashboard-home-skeleton-card" class="or-card min-w-0 space-y-1 animate-pulse bg-[#141A2C]">
         <div class="h-3 w-12 bg-surface-muted/50 rounded-zen-md"></div>
         <div class="h-7 w-10 bg-surface-muted/50 rounded-zen-md"></div>
         <div class="h-3 w-20 bg-surface-muted/50 rounded-zen-md"></div>
@@ -397,31 +406,68 @@
     </div>
     } @else {
     <div class="grid min-w-0 grid-cols-2 gap-3">
-      <div class="or-card min-w-0 space-y-1">
-        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hoy</p>
-        <p class="text-2xl font-semibold tracking-tight text-white">{{ agendaStatus().totalAppointments }}</p>
-        <p class="text-sm font-medium text-slate-400">Turnos</p>
+      <div class="min-w-0 space-y-1 rounded-2xl bg-[#141A2C] px-4 py-3">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-[#5D6280]">Hoy</p>
+        <p class="text-2xl font-semibold tracking-tight text-[#F3F1FA]">{{ agendaStatus().totalAppointments }}</p>
+        <p class="text-sm font-medium text-[#9096AE]">{{ agendaStatus().totalAppointments === 1 ? 'Turno agendado' : 'Turnos agendados' }}</p>
       </div>
-      <div class="or-card min-w-0 space-y-1">
-        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Libres</p>
-        <p class="text-2xl font-semibold tracking-tight text-white">{{ agendaStatus().freeSlots }}</p>
-        <p class="text-sm font-medium text-slate-400">Horarios</p>
+      <div class="min-w-0 space-y-1 rounded-2xl bg-[#141A2C] px-4 py-3">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-[#5D6280]">Libres</p>
+        <p class="text-2xl font-semibold tracking-tight text-[#F3F1FA]">{{ agendaStatus().freeSlots }}</p>
+        <p class="text-sm font-medium text-[#9096AE]">Horarios hoy</p>
+        <div class="flex gap-1 pt-1" aria-hidden="true">
+          @for (filled of occupancyDots(); track $index) {
+            <span class="h-1.5 w-1.5 rounded-full" [class]="filled ? 'bg-[#7C5CFF]' : 'bg-[#1A2138]'"></span>
+          }
+        </div>
       </div>
     </div>
     }
 
-    <a routerLink="/dashboard/turnos/new"
-      class="flex h-11 w-full items-center justify-center rounded-xl border border-purple-400/15 bg-purple-500/10 text-sm font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
-      Crear turno
-    </a>
+    <section class="space-y-3">
+      <h2 class="text-sm font-semibold text-[#F3F1FA]">Próximo turno</h2>
+      @if (featuredAppointments(); as featured) {
+        @if (nextUpcomingAppointment(); as next) {
+          <article class="flex items-center gap-3 rounded-2xl bg-[#141A2C] px-4 py-3">
+            <div class="flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-[#1A2138]">
+              <span class="text-sm font-semibold text-[#F3F1FA]">{{ next.hora }}</span>
+              <span class="text-[10px] font-semibold uppercase tracking-widest text-[#5D6280]">HS</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold text-[#F3F1FA]">{{ next.clienteNombre }}</p>
+              <p class="truncate text-xs text-[#9096AE]">{{ next.servicioNombre }}</p>
+            </div>
+            <span class="shrink-0 rounded-full bg-[rgba(124,92,255,0.12)] px-2.5 py-1 text-[11px] font-semibold text-[#9B7BFF]">
+              {{ relativeTimeBadge(next) }}
+            </span>
+          </article>
+        } @else {
+          <div class="rounded-2xl border border-dashed border-white/5 bg-[#141A2C] px-4 py-6 text-center">
+            <p class="text-sm font-medium text-[#9096AE]">No hay turnos próximos</p>
+          </div>
+        }
+      }
+    </section>
 
-    @if (!isPwaStandalone()) {
-      <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
-        class="flex items-center justify-between gap-3 rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-200">
-        Instalá Orvel en tu teléfono
-        <i class="ri-arrow-right-s-line text-lg" aria-hidden="true"></i>
+    <section class="space-y-3">
+      <h2 class="text-sm font-semibold text-[#F3F1FA]">Accesos rápidos</h2>
+      <a routerLink="/dashboard/turnos/new"
+        class="flex items-center justify-between gap-3 rounded-2xl bg-[#141A2C] px-4 py-3">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-[#F3F1FA]">Crear turno</p>
+          <p class="text-xs text-[#9096AE]">Agendá manualmente un cliente</p>
+        </div>
+        <i class="ri-arrow-right-s-line text-lg text-[#5D6280]" aria-hidden="true"></i>
       </a>
-    }
+
+      @if (!isPwaStandalone()) {
+        <a data-testid="pwa-install-coach" routerLink="/dashboard/installar"
+          class="flex items-center justify-between gap-3 rounded-2xl bg-[#141A2C] px-4 py-3 text-sm font-semibold text-[#F3F1FA]">
+          Instalá Orvel en tu teléfono
+          <i class="ri-arrow-right-s-line text-lg text-[#5D6280]" aria-hidden="true"></i>
+        </a>
+      }
+    </section>
   </div>
   }
 </section>

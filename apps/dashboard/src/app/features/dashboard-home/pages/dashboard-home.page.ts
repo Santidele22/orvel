@@ -17,7 +17,18 @@ import { OperatorWebPushService } from '../../operator-web-push/operator-web-pus
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-home.page.html',
-  styles: [':host { display: block; }']
+  styles: [`
+    :host { display: block; }
+
+    .mobile-inicio {
+      font-family: 'Manrope', sans-serif;
+    }
+
+    .mobile-inicio h1,
+    .mobile-inicio h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+  `]
 })
 export class DashboardHomeComponent {
   protected readonly dashboardService = inject(DashboardService);
@@ -74,6 +85,47 @@ export class DashboardHomeComponent {
     if (hour < 20) return '¡Buenas tardes!';
     return '¡Buenas noches!';
   });
+
+  protected readonly eyebrowDate = computed(() => {
+    const formatted = this.dashboardService.now().toLocaleDateString('es-AR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  });
+
+  protected readonly operatorInitial = computed(() => {
+    const name = this.user()?.nombre?.trim();
+    return name ? name.charAt(0).toUpperCase() : '?';
+  });
+
+  protected readonly occupancyDots = computed(() => {
+    const filled = Math.round((this.agendaStatus().occupancyPercentage / 100) * 5);
+    return Array.from({ length: 5 }, (_, index) => index < filled);
+  });
+
+  protected readonly nextUpcomingAppointment = computed(() => {
+    const nowMs = this.dashboardService.now().getTime();
+    return this.featuredAppointments().find((turno) => this.appointmentStart(turno).getTime() >= nowMs) ?? null;
+  });
+
+  protected relativeTimeBadge(turno: { fecha?: string | Date; hora?: string }): string {
+    const diffMs = this.appointmentStart(turno).getTime() - this.dashboardService.now().getTime();
+    if (diffMs <= 0) return 'Ahora';
+    const minutes = Math.round(diffMs / 60000);
+    if (minutes < 60) return `En ${minutes}m`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `En ${hours}h`;
+    return `En ${Math.round(hours / 24)}d`;
+  }
+
+  private appointmentStart(turno: { fecha?: string | Date; hora?: string }): Date {
+    const base = turno.fecha ? new Date(turno.fecha) : new Date(this.dashboardService.now());
+    const [hours, minutes] = (turno.hora || '00:00').split(':').map(Number);
+    base.setHours(hours || 0, minutes || 0, 0, 0);
+    return base;
+  }
 
   /** Business configuration details for the right sidebar */
   protected readonly businessInfo = computed(() => {
