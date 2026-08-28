@@ -31,7 +31,7 @@ const SESSION_HANDOFF_PARAM = 'handoff';
 /**
  * Gets the Supabase Auth client (cached for performance).
  */
-function getSupabaseAuthClient() {
+export function getSupabaseAuthClient() {
   if (!cachedAuthClient) {
     cachedAuthClient = createSupabaseAuthClient({
       supabaseUrl: SUPABASE_CONFIG.url,
@@ -378,15 +378,30 @@ export async function canAccessDashboardAsync(
 }
 
 export async function logoutAndRedirect(): Promise<string> {
-  resetDashboardAuthAccessCache();
+  const authClient = getSupabaseAuthClient();
+  let signOutError: { message?: string } | null = null;
+
   try {
-    const authClient = getSupabaseAuthClient();
-    await authClient.signOut();
-  } catch {
-    // Ignore errors from Supabase logout
+    const { error } = await authClient.signOut();
+    signOutError = error;
+  } catch (err) {
+    signOutError = { message: (err as Error).message };
   }
 
-  // Clear legacy localStorage data, but never trust it for dashboard access.
+  if (signOutError) {
+    try {
+      const { error } = await authClient.signOut({ scope: 'local' });
+      signOutError = error;
+    } catch (err) {
+      signOutError = { message: (err as Error).message };
+    }
+  }
+
+  if (signOutError) {
+    throw new Error(signOutError.message || 'Logout failed');
+  }
+
+  resetDashboardAuthAccessCache();
   localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
   localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
   localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
