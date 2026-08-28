@@ -234,9 +234,9 @@ class SupabaseAuthClientAdapter {
   /**
    * Signs out the current user.
    */
-  async signOut(): Promise<SignOutResult> {
+  async signOut(options?: { scope?: 'global' | 'local' | 'others' }): Promise<SignOutResult> {
     try {
-      const { error } = await this.client.auth.signOut();
+      const { error } = await this.client.auth.signOut(options);
 
       if (error) {
         return {
@@ -447,7 +447,7 @@ export interface SupabaseAuthClient {
       emailRedirectTo?: string;
     };
   }): Promise<SignUpResult>;
-  signOut(): Promise<SignOutResult>;
+  signOut(options?: { scope?: 'global' | 'local' | 'others' }): Promise<SignOutResult>;
   setSession(session: { access_token: string; refresh_token: string }): Promise<SetSessionResult>;
   resetPasswordForEmail(
     email: string,
