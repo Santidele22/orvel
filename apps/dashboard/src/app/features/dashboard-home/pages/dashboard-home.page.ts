@@ -17,7 +17,22 @@ import { OperatorWebPushService } from '../../operator-web-push/operator-web-pus
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-home.page.html',
-  styles: [':host { display: block; }']
+  styles: [`
+    :host { display: block; }
+
+    .mobile-inicio {
+      font-family: 'Manrope', sans-serif;
+      background:
+        radial-gradient(120% 60% at 15% -5%, rgba(124, 92, 255, 0.16), transparent 55%),
+        radial-gradient(90% 40% at 100% 0%, rgba(124, 92, 255, 0.08), transparent 50%),
+        #0A0E1B;
+    }
+
+    .mobile-inicio h1,
+    .mobile-inicio h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+  `]
 })
 export class DashboardHomeComponent {
   protected readonly dashboardService = inject(DashboardService);
@@ -74,6 +89,52 @@ export class DashboardHomeComponent {
     if (hour < 20) return '¡Buenas tardes!';
     return '¡Buenas noches!';
   });
+
+  protected readonly eyebrowDate = computed(() => {
+    const formatted = this.dashboardService.now().toLocaleDateString('es-AR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  });
+
+  protected readonly operatorFirstName = computed(() => {
+    const name = this.user()?.nombre?.trim() ?? '';
+    return name.split(/\s+/)[0] || '';
+  });
+
+  protected readonly operatorInitial = computed(() => {
+    const name = this.operatorFirstName();
+    return name ? name.charAt(0).toUpperCase() : '?';
+  });
+
+  protected readonly occupancyDots = computed(() => {
+    const filled = Math.max(0, Math.min(18, this.agendaStatus().freeSlots));
+    return Array.from({ length: 18 }, (_, index) => index < filled);
+  });
+
+  protected readonly nextUpcomingAppointment = computed(() => {
+    const nowMs = this.dashboardService.now().getTime();
+    return this.featuredAppointments().find((turno) => this.appointmentStart(turno).getTime() >= nowMs) ?? null;
+  });
+
+  protected relativeTimeBadge(turno: { fecha?: string | Date; hora?: string }): string {
+    const diffMs = this.appointmentStart(turno).getTime() - this.dashboardService.now().getTime();
+    if (diffMs <= 0) return 'Ahora';
+    const minutes = Math.round(diffMs / 60000);
+    if (minutes < 60) return `En ${minutes}m`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `En ${hours}h`;
+    return `En ${Math.round(hours / 24)}d`;
+  }
+
+  private appointmentStart(turno: { fecha?: string | Date; hora?: string }): Date {
+    const base = turno.fecha ? new Date(turno.fecha) : new Date(this.dashboardService.now());
+    const [hours, minutes] = (turno.hora || '00:00').split(':').map(Number);
+    base.setHours(hours || 0, minutes || 0, 0, 0);
+    return base;
+  }
 
   /** Business configuration details for the right sidebar */
   protected readonly businessInfo = computed(() => {

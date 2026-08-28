@@ -28,4 +28,54 @@ describe('PerfilPage contract', () => {
   it('exposes perfil-page test id', () => {
     expect(source).toMatch(/data-testid=["']perfil-page["']/);
   });
+
+  it('shows a Perfil title and Cuenta / Soporte sections', () => {
+    expect(source).toMatch(/<h1[^>]*>\s*Perfil\s*<\/h1>/);
+    expect(source).toContain('Cuenta');
+    expect(source).toContain('Soporte');
+  });
+
+  it('links Mi negocio to the configuracion negocio tab', () => {
+    expect(source).toContain('Mi negocio');
+    expect(source).toMatch(/routerLink=["']\/dashboard\/configuracion["']/);
+    expect(source).toMatch(/\[queryParams\]="\{\s*tab:\s*['"]negocio['"]\s*\}"/);
+  });
+
+  it('links Notificaciones with an Activas value', () => {
+    expect(source).toContain('Notificaciones');
+    expect(source).toMatch(/routerLink=["']\/dashboard\/notificaciones["']/);
+    expect(source).toContain('Activas');
+  });
+
+  it('opens help via mailto and privacy via the landing terms URL', () => {
+    expect(source).toContain('Ayuda y soporte');
+    expect(source).toContain('mailto:orvel2026@gmail.com');
+    expect(source).toContain('Privacidad y datos');
+    expect(source).toContain('https://orvel.app/terminos-y-condiciones');
+  });
+
+  it('keeps Cerrar sesión as a danger logout action', () => {
+    expect(source).toContain('Cerrar sesión');
+    expect(source).toMatch(/data-testid=["']perfil-logout["']/);
+    expect(source).toMatch(/#F87171/);
+  });
+
+  it('uses Inicio mobile tokens and a real plan badge without mock copy', () => {
+    expect(source.includes('#0A0E1B') || source.includes('#7C5CFF')).toBe(true);
+    expect(source).toMatch(/from\s+['"][^'"]*settings\/data-access\/business\.service['"]/);
+    expect(source).toMatch(/settings\(\s*\)\?\.plan/);
+    expect(source).toMatch(/Plan /);
+    expect(source).not.toContain('Santiago');
+    expect(source).not.toContain('Plan Pro');
+    expect(source).not.toContain('2.4.1');
+  });
+
+  it('matches Perfil HTML chrome: 60px avatar, logout wash, no device status bar', () => {
+    expect(source).toMatch(/h-\[60px\]/);
+    expect(source).toMatch(/rounded-\[18px\]/);
+    expect(source).toMatch(/rounded-\[22px\]/);
+    expect(source).toContain('rgba(248,113,113,0.08)');
+    expect(source).not.toContain('9:41');
+    expect(source).not.toContain('ezedelebecq22@gmail.com');
+  });
 });

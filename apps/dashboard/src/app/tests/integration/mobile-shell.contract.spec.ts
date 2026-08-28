@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
 const SHELL_TS = 'src/app/shared/dashboard-shell/dashboard-shell.component.ts';
-const ROUTES_TS = 'src/app/app.routes.ts';
+const ROUTES_TS = 'src/app/dashboard-shell.routes.ts';
 const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.html';
 const ZEN_TOPBAR_TS = 'src/app/shared/dashboard-topbar/templates/zen-topbar.component.ts';
 
