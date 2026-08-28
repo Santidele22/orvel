@@ -1,6 +1,14 @@
 /* global self, clients */
 importScripts('./ngsw-worker.js');
 
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 const DEFAULT_CLICK_URL = '/dashboard/turnos';
 
 self.addEventListener('push', (event) => {
