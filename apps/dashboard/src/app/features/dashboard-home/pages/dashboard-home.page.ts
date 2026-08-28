@@ -162,11 +162,6 @@ export class DashboardHomeComponent {
     }
   }
 
-  ngOnInit(): void {
-    const userId = this.authService.user()?.id;
-    if (userId) void this.hydrateBusinessSettings(userId);
-  }
-
   private async hydrateBusinessSettings(userId: string): Promise<void> {
     if (this.businessFacade.hasHydratedSnapshot(userId) || (this.hydratedUserId === userId && this.businessFacade.settings())) {
       return;

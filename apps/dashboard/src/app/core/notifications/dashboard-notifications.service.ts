@@ -3,15 +3,20 @@ import { AuthService } from '../../services/auth.service';
 import { createSupabaseClient } from '../runtime/supabase-client';
 import {
   archiveNotification,
-  getUnreadNotificationCount,
   listAdminNotifications,
   markNotificationRead,
   archiveAllNotifications,
   type DashboardNotification,
 } from './internal-dashboard-notifications.api';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { getBranchContextService } from '../branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
+
+const REALTIME_REFRESH_DEBOUNCE_MS = 400;
+
+function unreadCountFromList(items: readonly DashboardNotification[]): number {
+  return items.filter((item) => item.status === 'unread').length;
+}
 
 @Injectable({ providedIn: 'root' })
 export class DashboardNotificationsService implements OnDestroy {
@@ -22,6 +27,10 @@ export class DashboardNotificationsService implements OnDestroy {
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private subscription: RealtimeChannel | null = null;
+  private subscribedBusinessId: string | null = null;
+  private loadedBusinessId: string | null = null;
+  private inFlightRefresh: Promise<void> | null = null;
+  private realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly notifications = this.notificationsState.asReadonly();
   readonly unreadNotificationCount = this.unreadNotificationCountState.asReadonly();
@@ -30,28 +39,31 @@ export class DashboardNotificationsService implements OnDestroy {
   readonly error = this.errorState.asReadonly();
 
   constructor() {
-    // Auto-refresh and subscribe when user is available
-    this.init();
+    registerSectionCacheInvalidator(() => this.clearCache());
+    void this.init();
   }
 
   ngOnDestroy(): void {
     this.stopSubscription();
+    this.clearRealtimeRefreshTimer();
   }
 
   private async init() {
     const businessId = await this.resolveBusinessId();
     if (businessId) {
       await this.refreshForAdmin();
-      this.startSubscription(businessId);
     } else {
       this.applyMissingBusinessContext();
     }
   }
 
   private startSubscription(businessId: string) {
+    if (this.subscribedBusinessId === businessId && this.subscription) {
+      return;
+    }
     this.stopSubscription();
     const supabase = createSupabaseClient();
-    
+
     this.subscription = supabase
       .channel(`notifications:${businessId}`)
       .on(
@@ -63,11 +75,26 @@ export class DashboardNotificationsService implements OnDestroy {
           filter: `business_id=eq.${businessId}`,
         },
         () => {
-          console.log('[Notifications] Change detected, refreshing...');
-          void this.refreshForAdmin();
+          this.scheduleRealtimeRefresh();
         }
       )
       .subscribe();
+    this.subscribedBusinessId = businessId;
+  }
+
+  private scheduleRealtimeRefresh(): void {
+    this.clearRealtimeRefreshTimer();
+    this.realtimeRefreshTimer = setTimeout(() => {
+      this.realtimeRefreshTimer = null;
+      void this.refreshForAdmin(undefined, { force: true });
+    }, REALTIME_REFRESH_DEBOUNCE_MS);
+  }
+
+  private clearRealtimeRefreshTimer(): void {
+    if (this.realtimeRefreshTimer) {
+      clearTimeout(this.realtimeRefreshTimer);
+      this.realtimeRefreshTimer = null;
+    }
   }
 
   private stopSubscription() {
@@ -75,42 +102,83 @@ export class DashboardNotificationsService implements OnDestroy {
       void this.subscription.unsubscribe();
       this.subscription = null;
     }
+    this.subscribedBusinessId = null;
+    this.clearRealtimeRefreshTimer();
   }
 
-  async refreshForAdmin(cursor?: { createdAt: string; id: string }): Promise<void> {
+  private clearCache(): void {
+    this.loadedBusinessId = null;
+    this.inFlightRefresh = null;
+    this.notificationsState.set([]);
+    this.unreadNotificationCountState.set(0);
+    this.stopSubscription();
+  }
+
+  private syncUnreadFromList(): void {
+    this.unreadNotificationCountState.set(unreadCountFromList(this.notificationsState()));
+  }
+
+  async refreshForAdmin(
+    cursor?: { createdAt: string; id: string },
+    options?: { force?: boolean },
+  ): Promise<void> {
     const businessId = await this.resolveBusinessId();
     if (!businessId) {
       this.applyMissingBusinessContext();
       return;
     }
 
+    const force = options?.force === true;
+    if (!cursor && !force && this.loadedBusinessId === businessId) {
+      return;
+    }
+    if (!cursor && !force && this.inFlightRefresh) {
+      return this.inFlightRefresh;
+    }
+
+    const work = this.fetchNotifications(businessId, cursor);
+    if (!cursor) {
+      this.inFlightRefresh = work.finally(() => {
+        this.inFlightRefresh = null;
+      });
+      return this.inFlightRefresh;
+    }
+    return work;
+  }
+
+  private async fetchNotifications(
+    businessId: string,
+    cursor?: { createdAt: string; id: string },
+  ): Promise<void> {
     this.loadingState.set(true);
     this.errorState.set(null);
 
     try {
-      const [notificationList, notificationCount] = await Promise.all([
-        listAdminNotifications({
-          businessId,
-          ...(cursor ? { cursor: cursor.createdAt, cursorId: cursor.id } : {}),
-        }),
-        getUnreadNotificationCount(businessId),
-      ]);
+      const notificationList = await listAdminNotifications({
+        businessId,
+        ...(cursor ? { cursor: cursor.createdAt, cursorId: cursor.id } : {}),
+      });
 
       if (cursor) {
-        // Append to existing results when loading more
         this.notificationsState.update((existing) => [...existing, ...notificationList]);
       } else {
         this.notificationsState.set(notificationList);
+        this.loadedBusinessId = businessId;
       }
-      this.unreadNotificationCountState.set(notificationCount);
+      this.syncUnreadFromList();
     } catch (error) {
       this.errorState.set(error instanceof Error ? error.message : 'No se pudieron cargar las notificaciones');
       if (!cursor) {
+        this.loadedBusinessId = null;
         this.notificationsState.set([]);
         this.unreadNotificationCountState.set(0);
       }
     } finally {
       this.loadingState.set(false);
+    }
+
+    if (!cursor && this.loadedBusinessId === businessId) {
+      this.startSubscription(businessId);
     }
   }
 
@@ -133,7 +201,6 @@ export class DashboardNotificationsService implements OnDestroy {
       return;
     }
 
-    // Optimistic update
     this.notificationsState.set([]);
     this.unreadNotificationCountState.set(0);
 
@@ -142,7 +209,7 @@ export class DashboardNotificationsService implements OnDestroy {
     } catch (error) {
       console.error('Failed to archive notifications:', error);
       this.errorState.set('No se pudieron archivar las notificaciones en el servidor');
-      await this.refreshForAdmin(); // Revert on error
+      await this.refreshForAdmin(undefined, { force: true });
     }
   }
 
@@ -152,7 +219,7 @@ export class DashboardNotificationsService implements OnDestroy {
       this.notificationsState.update((notificationList) =>
         notificationList.map((notification) => notification.id === notificationId ? updated : notification),
       );
-      this.unreadNotificationCountState.update((count) => Math.max(0, count - 1));
+      this.syncUnreadFromList();
     } catch (error) {
       console.error('Error reading notification:', error);
     }
@@ -164,7 +231,8 @@ export class DashboardNotificationsService implements OnDestroy {
       this.notificationsState.update((notificationList) =>
         notificationList.filter((notification) => notification.id !== notificationId),
       );
-      await this.refreshForAdmin();
+      this.syncUnreadFromList();
+      await this.refreshForAdmin(undefined, { force: true });
     } catch (error) {
       console.error('Error archiving notification:', error);
     }
@@ -183,6 +251,7 @@ export class DashboardNotificationsService implements OnDestroy {
       retryable: true
     });
     this.stopSubscription();
+    this.loadedBusinessId = null;
     this.notificationsState.set([]);
     this.unreadNotificationCountState.set(0);
     this.loadingState.set(false);

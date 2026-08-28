@@ -5,7 +5,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
-import { registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
@@ -31,6 +31,7 @@ type ActiveBusinessContext = {
   businessId: string;
   ownerId: string;
   slug?: string;
+  name?: string;
 };
 
 const DEFAULT_BOOKING_POLICY = {
@@ -61,6 +62,7 @@ export class BusinessService {
   private currentSettings = signal<BusinessSettings | null>(null);
   private persistenceError = signal<string | null>(null);
   private hydratedUserId: string | null = null;
+  private settingsHydrateInFlight: Promise<void> | null = null;
   private authService = inject(AuthService);
 
   readonly items = this.businesses.asReadonly();
@@ -78,14 +80,17 @@ export class BusinessService {
 
   clearHydration(): void {
     this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
   }
 
   invalidate(): void {
     this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
   }
 
   clearCache(): void {
     this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
     this.currentSettings.set(null);
   }
 
@@ -123,6 +128,7 @@ export class BusinessService {
       }),
       tap(businesses => {
         this.businesses.set(businesses);
+        getBranchContextService().clearSessionBusinessIdentity();
         if (businesses.length > 0) {
           const stored = localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY);
           const exists = businesses.find(b => b.id === stored);
@@ -138,7 +144,12 @@ export class BusinessService {
     );
   }
 
-  async loadFromSupabase(businessId: string): Promise<void> {
+  async loadFromSupabase(businessId: string, forceReload = false): Promise<void> {
+    if (!forceReload && this.settingsHydrateInFlight) {
+      return this.settingsHydrateInFlight;
+    }
+
+    const load = (async () => {
     this.persistenceError.set(null);
 
     if (!this.supabaseClient) {
@@ -146,16 +157,34 @@ export class BusinessService {
     }
 
     const context = await this.resolveActiveBusinessContext(businessId);
+    if (!forceReload && this.hasHydratedSnapshot(context.ownerId)) {
+      return;
+    }
     const resolvedBusinessId = context.businessId;
+    const cachedIdentity = getBranchContextService().peekSessionBusinessIdentity();
+    const cachedRow = cachedIdentity
+      && cachedIdentity.ownerId === context.ownerId
+      && cachedIdentity.businessId === resolvedBusinessId
+      ? {
+          id: cachedIdentity.businessId,
+          owner_id: cachedIdentity.ownerId,
+          slug: cachedIdentity.slug,
+          name: cachedIdentity.name
+        }
+      : null;
 
-    const { data: businessData, error: businessError } = await this.supabaseClient
-      .from('businesses')
-      .select('*')
-      .eq('id', resolvedBusinessId)
-      .maybeSingle();
+    let businessData = cachedRow;
+    if (!businessData) {
+      const { data, error: businessError } = await this.supabaseClient
+        .from('businesses')
+        .select('*')
+        .eq('id', resolvedBusinessId)
+        .maybeSingle();
 
-    if (businessError || !businessData) {
-      throw this.failLoad('No se encontró el negocio activo.', 'BUSINESS_NOT_FOUND');
+      if (businessError || !data) {
+        throw this.failLoad('No se encontró el negocio activo.', 'BUSINESS_NOT_FOUND');
+      }
+      businessData = data;
     }
 
     const { data: settingsData } = await this.supabaseClient
@@ -172,6 +201,11 @@ export class BusinessService {
 
     this.currentSettings.set(this.mapToSettings(businessData, settingsData, profileData));
     this.hydratedUserId = context.ownerId;
+    })().finally(() => {
+      if (this.settingsHydrateInFlight === load) this.settingsHydrateInFlight = null;
+    });
+    this.settingsHydrateInFlight = load;
+    return load;
   }
 
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
@@ -210,6 +244,14 @@ export class BusinessService {
           'BUSINESS_UPDATE_FAILED'
         );
       }
+
+      const cached = getBranchContextService().peekSessionBusinessIdentity();
+      if (cached && cached.businessId === resolvedBusinessId) {
+        getBranchContextService().rememberSessionBusinessIdentity({
+          ...cached,
+          name: settings.businessName
+        });
+      }
     }
 
     // Update business_settings table
@@ -236,7 +278,8 @@ export class BusinessService {
       );
     }
 
-    await this.loadFromSupabase(resolvedBusinessId);
+    this.invalidate();
+    await this.loadFromSupabase(resolvedBusinessId, true);
     return { source: 'supabase' };
   }
 
@@ -269,10 +312,25 @@ export class BusinessService {
     }
 
     const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY) ?? candidateBusinessOrUserId;
+    const cached = getBranchContextService().peekSessionBusinessIdentity();
+    if (
+      cached
+      && cached.ownerId === ownerId
+      && (!preferredBusinessId || preferredBusinessId === cached.businessId || preferredBusinessId === ownerId)
+    ) {
+      this.activeBusinessId.set(cached.businessId);
+      localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, cached.businessId);
+      return {
+        businessId: cached.businessId,
+        ownerId,
+        slug: cached.slug,
+        name: cached.name
+      };
+    }
 
     const { data: ownedBusinesses, error } = await this.supabaseClient
       .from('businesses')
-      .select('id, owner_id, slug')
+      .select('id, owner_id, slug, name')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: true });
 
@@ -280,7 +338,7 @@ export class BusinessService {
       throw new BusinessSettingsPersistenceError('No se pudo resolver el negocio activo.', 'BUSINESS_NOT_FOUND');
     }
 
-    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string; slug?: string }>;
+    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string; slug?: string; name?: string }>;
     const resolved = businesses.find(business => business.id === preferredBusinessId)
       ?? businesses.find(business => business.id === candidateBusinessOrUserId)
       ?? businesses[0];
@@ -291,8 +349,14 @@ export class BusinessService {
 
     this.activeBusinessId.set(resolved.id);
     localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved.id);
+    getBranchContextService().rememberSessionBusinessIdentity({
+      ownerId,
+      businessId: resolved.id,
+      slug: resolved.slug,
+      name: resolved.name
+    });
 
-    return { businessId: resolved.id, ownerId, slug: resolved.slug };
+    return { businessId: resolved.id, ownerId, slug: resolved.slug, name: resolved.name };
   }
 
   getDefaultWorkingHours(): Record<WeekdayKey, WorkingDayHours> {
