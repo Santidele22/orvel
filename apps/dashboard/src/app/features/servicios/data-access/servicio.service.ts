@@ -10,7 +10,7 @@ import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-cl
 import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../services/auth.service';
 import { inject } from '@angular/core';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 
 type ServicioMutationScope = {
@@ -91,6 +91,7 @@ export class ServicioService {
   private categorias = signal<CategoriaCatalogRecord[]>([]);
   private loading = signal<boolean>(false);
   private errorState = signal<string | null>(null);
+  private loaded = false;
   private provider: 'mock' | 'supabase' = 'supabase';
   private readonly authService = this.resolveAuthService();
   private readonly businessSettings = this.resolveBusinessSettings();
@@ -101,7 +102,28 @@ export class ServicioService {
   isLoading = this.loading.asReadonly();
   error = this.errorState.asReadonly();
 
+  constructor() {
+    registerSectionCacheInvalidator(() => this.clearCache());
+  }
+
+  isLoaded(): boolean {
+    return this.loaded;
+  }
+
+  invalidate(): void {
+    this.loaded = false;
+  }
+
+  clearCache(): void {
+    this.loaded = false;
+    this.servicios.set([]);
+  }
+
   getAll(): Observable<Servicio[]> {
+    if (this.loaded) {
+      return of(this.servicios());
+    }
+
     this.loading.set(true);
     this.errorState.set(null);
 
@@ -110,6 +132,7 @@ export class ServicioService {
         delay(300),
         tap(servicios => {
           this.syncStateFromRead(servicios);
+          this.loaded = true;
           this.loading.set(false);
         })
       );
@@ -120,6 +143,7 @@ export class ServicioService {
       return of(this.loadServiciosFromFallbackStore()).pipe(
         tap(servicios => {
           this.syncStateFromRead(servicios);
+          this.loaded = true;
           this.loading.set(false);
         })
       );
@@ -129,6 +153,7 @@ export class ServicioService {
       tap({
         next: (servicios) => {
           this.syncStateFromRead(servicios);
+          this.loaded = true;
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -167,6 +192,8 @@ export class ServicioService {
     } catch (error) {
       return throwError(() => error as Error);
     }
+
+    this.invalidate();
 
     if (this.provider === 'mock') {
       const nuevo: Servicio = {
@@ -228,6 +255,8 @@ export class ServicioService {
       updatedAt: new Date()
     };
 
+    this.invalidate();
+
     if (this.provider === 'mock') {
       this.servicios.update(s => {
         const nuevas = [...s];
@@ -279,6 +308,8 @@ export class ServicioService {
     if (this.hasActiveBookingsReference(id)) {
       return throwError(() => new Error('Servicio en uso por turnos activos / booking references'));
     }
+
+    this.invalidate();
 
     if (this.provider === 'mock') {
       this.servicios.update(s => s.filter(servicio => servicio.id !== id));
@@ -377,6 +408,7 @@ export class ServicioService {
   }
 
   async createCategoriaAndPersist(input: { nombre: string }): Promise<CategoriaDomainRecord> {
+    this.invalidate();
     const created = this.createCategoria(input);
 
     if (this.provider !== 'supabase') {
@@ -426,6 +458,7 @@ export class ServicioService {
   }
 
   async renameCategoria(categoriaId: string, nuevoNombre: string): Promise<CategoriaDomainRecord> {
+    this.invalidate();
     const nombre = this.normalizeNombre(nuevoNombre);
     this.assertNombreCategoriaValido(nombre);
 
@@ -528,6 +561,9 @@ export class ServicioService {
   }
 
   setProvider(provider: 'mock' | 'supabase'): void {
+    if (this.provider !== provider) {
+      this.invalidate();
+    }
     this.provider = provider;
   }
 

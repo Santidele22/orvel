@@ -52,6 +52,7 @@ export class BranchContextService {
     this.errorState.set(null);
     this.clearActiveBranch();
     this.storage()?.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
+    invalidateSectionCaches();
   }
 
   async refresh(): Promise<void> {
@@ -100,9 +101,13 @@ export class BranchContextService {
       return false;
     }
 
+    const previousId = this.activeBranchIdState();
     this.activeBranchIdState.set(branch.id);
     this.storage()?.setItem(ACTIVE_BRANCH_STORAGE_KEY, branch.id);
     this.errorState.set(null);
+    if (previousId !== branch.id) {
+      invalidateSectionCaches();
+    }
     return true;
   }
 
@@ -233,6 +238,18 @@ export class BranchContextService {
 
   private storage(): Storage | null {
     return typeof window !== 'undefined' ? window.localStorage : null;
+  }
+}
+
+const sectionCacheInvalidators = new Set<() => void>();
+
+export function registerSectionCacheInvalidator(invalidate: () => void): void {
+  sectionCacheInvalidators.add(invalidate);
+}
+
+export function invalidateSectionCaches(): void {
+  for (const invalidate of sectionCacheInvalidators) {
+    invalidate();
   }
 }
 

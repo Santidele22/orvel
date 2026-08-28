@@ -99,6 +99,12 @@ export class ClientesPage {
 
   constructor() {
     this.showDeactivated.set(this.route.snapshot.queryParamMap.get('estado') === 'bajas');
+    if (this.clienteService.isLoaded()) {
+      this.facade.hydrateFromCache();
+      this.clients.set(this.facade.getList());
+      this.loading.set(false);
+      return;
+    }
     void this.loadClients();
   }
 
@@ -178,6 +184,12 @@ export class ClientesPage {
   }
 
   private async loadClients(): Promise<void> {
+    if (this.clienteService.isLoaded()) {
+      this.facade.hydrateFromCache();
+      this.clients.set(this.facade.getList());
+      this.loading.set(false);
+      return;
+    }
     this.loading.set(true);
     this.formMessage.set('');
     try {

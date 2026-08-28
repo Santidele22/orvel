@@ -5,7 +5,7 @@ import { ClienteService } from '../../features/clientes/data-access/cliente.serv
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { WeekdayKey } from '../../models/business.model';
-import { getBranchContextService } from '../branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +17,9 @@ export class DashboardService {
   private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly bookings = signal<BookingRecord[]>([]);
+  private readonly adminBookings = signal<BookingRecord[]>([]);
+  private bookingsLoaded = false;
+  private adminBookingsLoadedBranchId: string | null = null;
   private refreshGeneration = 0;
 
   // Time signal for real-time updates
@@ -252,6 +255,7 @@ export class DashboardService {
   });
 
   constructor() {
+    registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
     // Update 'now' signal every minute for real-time filtering
@@ -259,7 +263,10 @@ export class DashboardService {
       this.now.set(new Date());
     }, 60000);
 
-    const onBookingCreated = () => this.refreshData();
+    const onBookingCreated = () => {
+      this.invalidate();
+      this.refreshData();
+    };
     window.addEventListener('booking.created', onBookingCreated);
 
     this.destroyRef.onDestroy(() => {
@@ -268,7 +275,34 @@ export class DashboardService {
     });
   }
 
+  isAdminBookingsWarm(branchId: string): boolean {
+    return this.adminBookingsLoadedBranchId === branchId;
+  }
+
+  getAdminBookings(): BookingRecord[] {
+    return this.adminBookings();
+  }
+
+  rememberAdminBookings(branchId: string, rows: BookingRecord[]): void {
+    this.adminBookingsLoadedBranchId = branchId;
+    this.adminBookings.set(rows);
+  }
+
+  invalidate(): void {
+    this.bookingsLoaded = false;
+    this.adminBookingsLoadedBranchId = null;
+  }
+
+  clearCache(): void {
+    this.invalidate();
+    this.bookings.set([]);
+    this.adminBookings.set([]);
+  }
+
   refreshData(): void {
+    if (this.bookingsLoaded) {
+      return;
+    }
     this.isLoading.set(true);
     const generation = ++this.refreshGeneration;
     void this.loadBookings(generation);
@@ -295,6 +329,7 @@ export class DashboardService {
       const rows = await this.bookingQueries.listBookingsByBranch(branchId, { from, to });
       if (generation !== this.refreshGeneration) return;
       this.bookings.set(rows);
+      this.bookingsLoaded = true;
       this.clienteService.getAll().subscribe({
         next: () => {
           this.servicioService.getAll().subscribe({

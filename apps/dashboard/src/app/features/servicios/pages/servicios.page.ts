@@ -133,6 +133,13 @@ export class ServiciosPage {
   readonly shouldShowSuggestions = computed(() => this.suggestedServices().length > 0 && this.filteredServicios().length < 3);
 
   constructor() {
+    if (this.servicioService.isLoaded()) {
+      this.servicios.set(this.servicioService.items());
+      this.selectedRubros.set(this.readSelectedRubrosDraft());
+      this.categorias.set(this.servicioService.listCategorias());
+      this.loading.set(false);
+      return;
+    }
     void this.loadData();
   }
 
@@ -247,6 +254,13 @@ export class ServiciosPage {
   }
 
   private async loadData(): Promise<void> {
+    if (this.servicioService.isLoaded()) {
+      this.servicios.set(this.servicioService.items());
+      this.selectedRubros.set(this.readSelectedRubrosDraft());
+      this.categorias.set(this.servicioService.listCategorias());
+      this.loading.set(false);
+      return;
+    }
     this.loading.set(true);
     this.feedback.set('');
     try {

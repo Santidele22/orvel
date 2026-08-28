@@ -5,6 +5,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
+import { registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
@@ -59,6 +60,7 @@ export class BusinessService {
   private activeBusinessId = signal<string | null>(null);
   private currentSettings = signal<BusinessSettings | null>(null);
   private persistenceError = signal<string | null>(null);
+  private hydratedUserId: string | null = null;
   private authService = inject(AuthService);
 
   readonly items = this.businesses.asReadonly();
@@ -67,6 +69,24 @@ export class BusinessService {
 
   constructor() {
     this.initSupabase();
+    registerSectionCacheInvalidator(() => this.clearCache());
+  }
+
+  hasHydratedSnapshot(userId: string): boolean {
+    return this.hydratedUserId === userId && this.currentSettings() !== null;
+  }
+
+  clearHydration(): void {
+    this.hydratedUserId = null;
+  }
+
+  invalidate(): void {
+    this.hydratedUserId = null;
+  }
+
+  clearCache(): void {
+    this.hydratedUserId = null;
+    this.currentSettings.set(null);
   }
 
   private initSupabase() {
@@ -151,6 +171,7 @@ export class BusinessService {
       .maybeSingle();
 
     this.currentSettings.set(this.mapToSettings(businessData, settingsData, profileData));
+    this.hydratedUserId = context.ownerId;
   }
 
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {

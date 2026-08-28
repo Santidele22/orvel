@@ -78,7 +78,9 @@ vi.mock('../../branches/branch-context.service', () => ({
   getBranchContextService: () => ({
     getActiveBranchId: () => branchContextMock.activeBranchId,
     ensureLoaded: () => branchContextMock.ensureLoaded()
-  })
+  }),
+  registerSectionCacheInvalidator: () => undefined,
+  invalidateSectionCaches: () => undefined
 }));
 
 async function flush(): Promise<void> {
@@ -164,7 +166,30 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.featuredAppointments()).toHaveLength(0);
   });
 
-  it('replaces stale constructor bookings on a second refreshData()', async () => {
+  it('skips network and does not set isLoading when home bookings are already warm', async () => {
+    const queries = new InMemoryBookingQueries([todayRecord()]);
+    const service = createService(queries);
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+    expect(service.isLoading()).toBe(false);
+
+    service.refreshData();
+    expect(service.isLoading()).toBe(false);
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a successful empty home booking list as warm', async () => {
+    const queries = new InMemoryBookingQueries([]);
+    const service = createService(queries);
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+
+    service.refreshData();
+    expect(service.isLoading()).toBe(false);
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches home bookings after invalidate()', async () => {
     const queries = new QueuedBookingQueries([
       [],
       [todayRecord({ hora: '00:00', duracionMinutos: 1 })]
@@ -175,6 +200,7 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.agendaStatus().totalAppointments).toBe(0);
     expect(service.featuredAppointments()).toHaveLength(0);
 
+    service.invalidate();
     service.refreshData();
     await flush();
     expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
@@ -198,9 +224,10 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.agendaStatus().totalAppointments).toBe(1);
   });
 
-  it('DashboardHomeComponent calls refreshData on ngOnInit', () => {
-    expect(homePageSource).toMatch(
-      /ngOnInit\s*\([^)]*\)[\s\S]*?dashboardService\.refreshData\s*\(/
+  it('DashboardHomeComponent keeps constructor-driven freshness; ngOnInit must not require a refetch on every enter', () => {
+    expect(homePageSource).toMatch(/class DashboardHomeComponent/);
+    expect(homePageSource).not.toMatch(
+      /ngOnInit\s*\([^)]*\)\s*\{[\s\S]*?dashboardService\.refreshData\s*\(/
     );
   });
 
@@ -232,6 +259,18 @@ describe('DashboardService BookingQueries consumer', () => {
     );
     expect(service.featuredAppointments()).toHaveLength(1);
     expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('holds admin turnos list rows as warm for the same branch and clears them on invalidate', () => {
+    const queries = new InMemoryBookingQueries([]);
+    const service = createService(queries);
+    const rows = [todayRecord()];
+    service.rememberAdminBookings('br-1', rows);
+    expect(service.isAdminBookingsWarm('br-1')).toBe(true);
+    expect(service.isAdminBookingsWarm('br-2')).toBe(false);
+    expect(service.getAdminBookings()).toEqual(rows);
+    service.invalidate();
+    expect(service.isAdminBookingsWarm('br-1')).toBe(false);
   });
 
   it('does not list bookings when ensureLoaded still has no active branch', async () => {
