@@ -88,6 +88,9 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     const mobile = mobileSummaryBlock(templateSource);
     expect(mobile).toContain('Próximo turno');
     expect(mobile).toMatch(/featuredAppointments\(\s*\)/);
+    expect(mobile).toMatch(/nextUpcomingAppointment\(\s*\)/);
+    expect(componentSource).toMatch(/pickNextAppointment\s*\(/);
+    expect(componentSource).not.toMatch(/appointmentStart\s*\(/);
     expect(mobile).not.toContain('María Gómez');
     expect(mobile).not.toContain('16:30');
   });

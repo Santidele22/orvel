@@ -11,6 +11,7 @@ import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
+import { pickNextAppointment } from './pick-next-appointment';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -114,26 +115,22 @@ export class DashboardHomeComponent {
     return Array.from({ length: 18 }, (_, index) => index < filled);
   });
 
-  protected readonly nextUpcomingAppointment = computed(() => {
-    const nowMs = this.dashboardService.now().getTime();
-    return this.featuredAppointments().find((turno) => this.appointmentStart(turno).getTime() >= nowMs) ?? null;
-  });
+  protected readonly nextUpcomingAppointment = computed(() =>
+    pickNextAppointment(this.featuredAppointments(), this.dashboardService.now()),
+  );
 
-  protected relativeTimeBadge(turno: { fecha?: string | Date; hora?: string }): string {
-    const diffMs = this.appointmentStart(turno).getTime() - this.dashboardService.now().getTime();
-    if (diffMs <= 0) return 'Ahora';
-    const minutes = Math.round(diffMs / 60000);
-    if (minutes < 60) return `En ${minutes}m`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return `En ${hours}h`;
-    return `En ${Math.round(hours / 24)}d`;
-  }
-
-  private appointmentStart(turno: { fecha?: string | Date; hora?: string }): Date {
-    const base = turno.fecha ? new Date(turno.fecha) : new Date(this.dashboardService.now());
+  protected relativeTimeBadge(turno: { hora?: string; dateLabel?: string }): string {
+    if (turno.dateLabel && turno.dateLabel !== 'Hoy') {
+      return turno.dateLabel;
+    }
     const [hours, minutes] = (turno.hora || '00:00').split(':').map(Number);
-    base.setHours(hours || 0, minutes || 0, 0, 0);
-    return base;
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return 'Hoy';
+    }
+    const diffMinutes = hours * 60 + minutes - (this.dashboardService.now().getHours() * 60 + this.dashboardService.now().getMinutes());
+    if (diffMinutes <= 0) return 'Ahora';
+    if (diffMinutes < 60) return `En ${diffMinutes}m`;
+    return `En ${Math.round(diffMinutes / 60)}h`;
   }
 
   /** Business configuration details for the right sidebar */
