@@ -1,4 +1,5 @@
-import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { assert, assertEquals, assertMatch, assertStringIncludes } from "std/assert/mod.ts";
+import { createEmailFailoverSender } from "./email-provider-failover.ts";
 import { renderTrialUserActivationReminder } from "./templates/business-templates.ts";
 import {
   createMailtrapSender,
@@ -71,7 +72,7 @@ Deno.test("rejects unauthorized and caller-controlled requests before reservatio
 
 Deno.test("requires gateway JWT verification and an exact configured service key", async () => {
   const config = await Deno.readTextFile(new URL("../../config.toml", import.meta.url));
-  assertStringIncludes(config, "[functions.send-trial-user-activation-reminder-once]\nverify_jwt = true");
+  assertMatch(config, /\[functions\.send-trial-user-activation-reminder-once\]\s*verify_jwt = true/);
   const { calls, deps } = dependencies();
   const response = await handleTrialUserActivationReminder(request(), deps, undefined, reminderData);
   assertEquals(response.status, 403);
@@ -178,6 +179,36 @@ Deno.test("Mailtrap adapter bounds provider time and never retries after abort",
   assertEquals(await response.json(), { state: "ambiguous" });
   assertEquals(calls, ["reserve", "finalize:ambiguous"]);
   assertEquals(fetches, 1);
+});
+
+Deno.test("production failover sender: 429/throw recover, both-throw stays ambiguous", async () => {
+  const source = await Deno.readTextFile(new URL("../send-trial-user-activation-reminder-once/index.ts", import.meta.url));
+  assertStringIncludes(source, "createEmailFailoverSender");
+  assertEquals(source.includes('requiredEnvironment(environment, "MAILTRAP_API_TOKEN")'), false);
+
+  const bothEnv = {
+    get: (name: string) => ({ MAILTRAP_API_TOKEN: "mt", RESEND_API_KEY: "re", RESEND_FROM_EMAIL: "noreply@orvel.app" }[name]),
+  };
+  const urls: string[] = [];
+  const quota = dependencies();
+  quota.deps.send = createEmailFailoverSender(bothEnv, (input) => {
+    urls.push(String(input));
+    return Promise.resolve(new Response("", { status: String(input).includes("mailtrap") ? 429 : 200 }));
+  });
+  assertEquals(await (await handleTrialUserActivationReminder(request(), quota.deps, serviceKey, reminderData)).json(), { state: "sent" });
+  assertEquals(quota.calls, ["reserve", "finalize:sent"]);
+  assertEquals(urls, ["https://send.api.mailtrap.io/api/send", "https://api.resend.com/emails"]);
+
+  const recovered = dependencies();
+  recovered.deps.send = createEmailFailoverSender(bothEnv, (input) =>
+    String(input).includes("mailtrap") ? Promise.reject(new TypeError("timeout")) : Promise.resolve(new Response("", { status: 200 }))
+  );
+  assertEquals(await (await handleTrialUserActivationReminder(request(), recovered.deps, serviceKey, reminderData)).json(), { state: "sent" });
+
+  const ambiguous = dependencies();
+  ambiguous.deps.send = createEmailFailoverSender(bothEnv, () => Promise.reject(new TypeError("timeout")));
+  assertEquals(await (await handleTrialUserActivationReminder(request(), ambiguous.deps, serviceKey, reminderData)).json(), { state: "ambiguous" });
+  assertEquals(ambiguous.calls, ["reserve", "finalize:ambiguous"]);
 });
 
 Deno.test("already-consumed attempts never call the provider", async () => {
