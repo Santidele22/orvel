@@ -12,8 +12,10 @@ const BRANCH_ID = 'branch-owned';
 
 function supabaseDouble(options: {
   ownedBusinessIds?: string[];
+  delayMs?: number;
 } = {}) {
   const ownedBusinessIds = options.ownedBusinessIds ?? [BUSINESS_ID];
+  const delayMs = options.delayMs ?? 0;
 
   return {
     auth: {
@@ -37,15 +39,23 @@ function supabaseDouble(options: {
       return {
         select: () => ({
           eq: () => ({
-            order: () => Promise.resolve({
-              data: ownedBusinessIds.map((id) => ({
-                id,
-                owner_id: USER_ID,
-                slug: 'studio',
-                name: 'Studio'
-              })),
-              error: null
-            })
+            order: () => {
+              const result = {
+                data: ownedBusinessIds.map((id) => ({
+                  id,
+                  owner_id: USER_ID,
+                  slug: 'studio',
+                  name: 'Studio'
+                })),
+                error: null
+              };
+              if (delayMs <= 0) {
+                return Promise.resolve(result);
+              }
+              return new Promise((resolve) => {
+                setTimeout(() => resolve(result), delayMs);
+              });
+            }
           })
         })
       };
@@ -119,5 +129,56 @@ describe('BranchContext session business identity is resolved once', () => {
     window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, BUSINESS_ID);
     await next.getActiveBusinessId();
     expect(client.from).toHaveBeenCalledTimes(3);
+  });
+
+  it('concurrent getActiveBusinessId and ensureLoaded on a cold service share one businesses GET', async () => {
+    const branchContext = new BranchContextService();
+    const client = supabaseDouble({ delayMs: 40 });
+    attachClient(branchContext, client);
+
+    const [activeId] = await Promise.all([
+      branchContext.getActiveBusinessId(),
+      branchContext.ensureLoaded()
+    ]);
+
+    expect(activeId).toBe(BUSINESS_ID);
+    expect(client.from).toHaveBeenCalledTimes(1);
+    expect(client.from).toHaveBeenCalledWith('businesses');
+  });
+
+  it('concurrent triple getActiveBusinessId shares one businesses GET', async () => {
+    const branchContext = new BranchContextService();
+    const client = supabaseDouble({ delayMs: 40 });
+    attachClient(branchContext, client);
+
+    const [first, second, third] = await Promise.all([
+      branchContext.getActiveBusinessId(),
+      branchContext.getActiveBusinessId(),
+      branchContext.getActiveBusinessId()
+    ]);
+
+    expect(first).toBe(BUSINESS_ID);
+    expect(second).toBe(BUSINESS_ID);
+    expect(third).toBe(BUSINESS_ID);
+    expect(client.from).toHaveBeenCalledTimes(1);
+  });
+
+  it('resetSession after a coalesced resolve clears in-flight so the next resolve queries again', async () => {
+    const branchContext = new BranchContextService();
+    const client = supabaseDouble({ delayMs: 40 });
+    attachClient(branchContext, client);
+
+    await Promise.all([
+      branchContext.getActiveBusinessId(),
+      branchContext.getActiveBusinessId()
+    ]);
+    expect(client.from).toHaveBeenCalledTimes(1);
+
+    branchContext.resetSession();
+    attachClient(branchContext, client);
+    const nextId = await branchContext.getActiveBusinessId();
+
+    expect(nextId).toBe(BUSINESS_ID);
+    expect(client.from).toHaveBeenCalledTimes(2);
   });
 });
