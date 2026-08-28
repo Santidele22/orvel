@@ -31,6 +31,15 @@ import { AuthService } from '../../../services/auth.service';
                 @if (notif.status === 'unread') {
                   <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
                 }
+                <button
+                  type="button"
+                  data-testid="notificaciones-item-dismiss"
+                  aria-label="Descartar notificación"
+                  (click)="onDismiss($event, notif.id)"
+                  class="shrink-0 text-text-secondary"
+                >
+                  <i class="ri-close-line" aria-hidden="true"></i>
+                </button>
               </div>
             </li>
           }
@@ -67,5 +76,10 @@ export class NotificacionesPage {
 
   onRead(id: string): void {
     void this.notifications.readNotification(id);
+  }
+
+  onDismiss(event: MouseEvent, id: string): void {
+    event.stopPropagation();
+    void this.notifications.archiveAdminNotification(id);
   }
 }

@@ -79,4 +79,19 @@ describe('Zen topbar notifications panel contract', () => {
       /class="fixed inset-0 z-40"\s+\(click\)="showNotificationList\.set\(false\)"/
     );
   });
+
+  it('gives each notification row a dismiss X that archives without marking read', () => {
+    expect(topbarTs).toMatch(/data-testid=["']dashboard-topbar-notification-dismiss["']/);
+    expect(topbarTs).toMatch(/aria-label=["']Descartar notificación["']/);
+    expect(topbarTs).toMatch(/ri-close-line/);
+    expect(topbarTs).toMatch(/archiveNotification\(notif\.id\)/);
+    expect(topbarTs).toMatch(/\$event\.stopPropagation\(\)/);
+    expect(topbarTs).toMatch(/Limpiar/);
+    expect(topbarTs).toMatch(/clearAllNotifications/);
+
+    const dismissOpenTag = openTagContaining(topbarTs, 'dashboard-topbar-notification-dismiss');
+    expect(dismissOpenTag).toMatch(/\(click\)="/);
+    expect(dismissOpenTag).not.toMatch(/markNotificationRead/);
+    expect(dismissOpenTag).toMatch(/archiveNotification|stopPropagation/);
+  });
 });
