@@ -74,6 +74,15 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
                         @if (notif.status === 'unread') {
                           <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1"></span>
                         }
+                        <button
+                          type="button"
+                          data-testid="dashboard-topbar-notification-dismiss"
+                          aria-label="Descartar notificación"
+                          (click)="$event.stopPropagation(); archiveNotification(notif.id)"
+                          class="shrink-0 text-text-secondary hover:text-primary transition-colors"
+                        >
+                          <i class="ri-close-line text-sm" aria-hidden="true"></i>
+                        </button>
                       </div>
                     </div>
                   }
