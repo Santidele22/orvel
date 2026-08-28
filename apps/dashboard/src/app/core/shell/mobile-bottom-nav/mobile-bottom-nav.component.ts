@@ -18,14 +18,15 @@ export interface NavItem {
       class="fixed bottom-0 inset-x-0 z-50 lg:hidden safe-area-bottom"
       aria-label="Navegación principal"
       data-testid="mobile-bottom-nav">
-      <div class="flex items-center justify-around h-16 bg-bg-primary border-t border-border px-2 pb-[env(safe-area-inset-bottom)]">
+      <div class="flex items-center justify-around h-16 px-2 pb-[env(safe-area-inset-bottom)] border-t bg-[rgba(13,18,32,0.92)] backdrop-blur-xl border-[rgba(255,255,255,0.045)]">
         @for (item of navItems; track item.path) {
           <a
             [routerLink]="item.path"
-            routerLinkActive="text-primary"
+            routerLinkActive="text-[#9B7BFF]"
             [attr.data-testid]="item.testId"
-            class="flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 py-1 px-0 rounded-lg transition-colors duration-150 text-text-tertiary"
-            [class.text-primary]="isActive(item.path)">
+            class="flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 py-1 px-0 rounded-full transition-colors duration-150 text-[#5D6280]"
+            [class.text-[#9B7BFF]]="isActive(item.path)"
+            [class.bg-[rgba(124,92,255,0.12)]]="isActive(item.path)">
             <i [class]="(isActive(item.path) ? item.activeIcon : item.icon) + ' text-xl'" aria-hidden="true"></i>
             <span class="text-[10px] font-medium leading-tight truncate max-w-full">{{ item.label }}</span>
           </a>
@@ -41,10 +42,6 @@ export interface NavItem {
     .safe-area-bottom {
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-
-    .text-text-tertiary {
-      color: var(--divider, #475569);
-    }
   `]
 })
 export class MobileBottomNavComponent {
@@ -52,9 +49,9 @@ export class MobileBottomNavComponent {
 
   protected readonly navItems: NavItem[] = [
     { path: '/dashboard/inicio', label: 'Inicio', icon: 'ri-home-5-line', activeIcon: 'ri-home-5-fill', testId: 'nav-inicio' },
-    { path: '/dashboard/turnos', label: 'Turnos', icon: 'ri-calendar-line', activeIcon: 'ri-calendar-fill', testId: 'nav-turnos' },
+    { path: '/dashboard/turnos', label: 'Agenda', icon: 'ri-calendar-line', activeIcon: 'ri-calendar-fill', testId: 'nav-turnos' },
     { path: '/dashboard/clientes', label: 'Clientes', icon: 'ri-group-line', activeIcon: 'ri-group-fill', testId: 'nav-clientes' },
-    { path: '/dashboard/notificaciones', label: 'Notificaciones', icon: 'ri-notification-3-line', activeIcon: 'ri-notification-3-fill', testId: 'nav-notificaciones' },
+    { path: '/dashboard/notificaciones', label: 'Avisos', icon: 'ri-notification-3-line', activeIcon: 'ri-notification-3-fill', testId: 'nav-notificaciones' },
     { path: '/dashboard/perfil', label: 'Perfil', icon: 'ri-user-line', activeIcon: 'ri-user-fill', testId: 'nav-perfil' },
   ];
 
