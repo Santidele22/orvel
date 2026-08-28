@@ -22,9 +22,9 @@ describe('pickNextAppointment', () => {
     expect(pickNextAppointment([current], atHour(15))).toEqual(current);
   });
 
-  it('falls back to the featured row when every today booking already ended', () => {
+  it('returns null when every today booking already ended', () => {
     const morning = { id: 'am', hora: '09:00', duracionMinutos: 30, dateLabel: 'Hoy' };
-    expect(pickNextAppointment([morning], atHour(15))).toEqual(morning);
+    expect(pickNextAppointment([morning], atHour(15))).toBeNull();
   });
 
   it('skips ended today bookings in favor of tomorrow', () => {

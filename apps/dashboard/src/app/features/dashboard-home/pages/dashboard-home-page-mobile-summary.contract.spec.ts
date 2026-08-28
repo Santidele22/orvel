@@ -80,8 +80,10 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(mobile).toMatch(/Turno agendado/);
     expect(mobile).toMatch(/Turnos agendados/);
     expect(mobile).toContain('Horarios hoy');
-    expect(mobile).toMatch(/agendaStatus\(\s*\)\.totalAppointments/);
+    expect(mobile).toMatch(/agendaStatus\(\s*\)\.remainingAppointments/);
     expect(mobile).toMatch(/agendaStatus\(\s*\)\.freeSlots/);
+    expect(componentSource).toMatch(/capacitySlots/);
+    expect(componentSource).not.toMatch(/length:\s*18/);
   });
 
   it('renders Próximo turno from featuredAppointments without mock names or times', () => {

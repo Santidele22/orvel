@@ -111,8 +111,10 @@ export class DashboardHomeComponent {
   });
 
   protected readonly occupancyDots = computed(() => {
-    const filled = Math.max(0, Math.min(18, this.agendaStatus().freeSlots));
-    return Array.from({ length: 18 }, (_, index) => index < filled);
+    const status = this.agendaStatus();
+    const total = Math.max(0, status.capacitySlots);
+    const filled = Math.max(0, Math.min(total, status.freeSlots));
+    return Array.from({ length: total }, (_, index) => index < filled);
   });
 
   protected readonly nextUpcomingAppointment = computed(() =>

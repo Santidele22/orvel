@@ -32,5 +32,5 @@ export function pickNextAppointment<T extends FeaturedAppointmentLike>(
     return start + (turno.duracionMinutos || 30) > nowMinutes;
   });
 
-  return upcoming ?? featured[0];
+  return upcoming ?? null;
 }
