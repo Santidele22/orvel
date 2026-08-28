@@ -13,9 +13,11 @@ import {
   createSupabaseAuthClient,
   type SupabaseSession
 } from './supabase-auth.client';
+import { resetDashboardSupabaseClientCacheForTests } from '../runtime/supabase-client.factory';
 
 describe('SupabaseAuthClientAdapter.onAuthStateChange contract', () => {
   beforeEach(() => {
+    resetDashboardSupabaseClientCacheForTests();
     createClientMock.mockReset();
   });
 
@@ -184,6 +186,7 @@ describe('SupabaseAuthClientAdapter.onAuthStateChange contract', () => {
 
 describe('SupabaseAuthClientAdapter.signOut contract', () => {
   beforeEach(() => {
+    resetDashboardSupabaseClientCacheForTests();
     createClientMock.mockReset();
   });
 
