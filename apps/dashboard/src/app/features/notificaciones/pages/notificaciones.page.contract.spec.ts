@@ -42,4 +42,18 @@ describe('NotificacionesPage contract', () => {
     expect(source).toMatch(/overflow-x-hidden/);
     expect(source).toMatch(/\bp-4\b/);
   });
+
+  it('gives each item a dismiss X that archives without marking read', () => {
+    expect(source).toMatch(/data-testid=["']notificaciones-item-dismiss["']/);
+    expect(source).toMatch(/aria-label=["']Descartar notificación["']/);
+    expect(source).toMatch(/ri-close-line/);
+    expect(source).toMatch(/archiveAdminNotification/);
+    expect(source).toMatch(/stopPropagation/);
+    expect(source).toMatch(/\(click\)="onRead\(notif\.id\)"/);
+
+    const dismissOpenTag = source.slice(source.lastIndexOf('<', source.indexOf('notificaciones-item-dismiss')));
+    const dismissTag = dismissOpenTag.match(/<[a-zA-Z][\w-]*\b[^>]*>/)?.[0] ?? '';
+    expect(dismissTag).toMatch(/\(click\)="/);
+    expect(dismissTag).not.toMatch(/onRead/);
+  });
 });
