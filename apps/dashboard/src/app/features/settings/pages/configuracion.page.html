@@ -97,13 +97,13 @@
   <div class="fixed inset-zen-xs z-50 flex items-center justify-center p-zen-lg">
     <button
       type="button"
-      class="absolute inset-zen-xs bg-text-primary [opacity:var(--zen-overlay-opacity)]"
+      class="absolute inset-zen-xs bg-transparent"
       data-testid="account-cancellation-modal-overlay"
       aria-label="Cerrar solicitud de baja"
       (click)="cancelAccountCancellationModal()"
     ></button>
     <div
-      class="relative w-full max-w-zen-content rounded-zen-card border border-error/20 bg-surface p-zen-xxl shadow-xl"
+      class="relative w-full max-w-sm rounded-zen-card border border-error/20 bg-surface p-zen-md shadow-xl"
       data-testid="account-cancellation-modal"
       role="dialog"
       aria-modal="true"
@@ -123,10 +123,10 @@
       @if (!accountCancellationSubmitted()) {
         <div id="account-cancellation-modal-description" class="space-y-zen-md">
           <p [class]="ui.bodyPrimary">
-            Vamos a cancelar la renovación de Mercado Pago ahora. Si ya pagaste el mes, mantenés el acceso hasta el final del período pago.
+            La baja la procesamos a mano. Pedila acá y Santi la confirma. No hay checkout automático.
           </p>
           <p [class]="ui.bodySecondary">
-            No eliminamos tus datos de forma inmediata cuando hay una suscripción paga vigente: dejamos registrada la baja y programamos el cierre para que no pierdas acceso antes de tiempo.
+            No eliminamos tus datos de forma inmediata: dejamos registrada la baja y Santi programa el cierre.
           </p>
         </div>
 

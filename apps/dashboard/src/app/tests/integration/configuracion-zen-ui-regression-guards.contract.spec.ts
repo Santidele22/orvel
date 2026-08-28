@@ -73,7 +73,11 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
     expect(perfilBlock).toContain('Sucursal activa');
     expect(perfilBlock).toContain('Dar de baja la cuenta');
     expect(perfilBlock).toMatch(/data-testid=["']account-cancellation-open-trigger["']/i);
-    expect(perfilBlock).toContain('Cancelamos la renovación de Mercado Pago');
+    expect(perfilBlock).not.toMatch(/Mercado Pago/i);
+    expect(perfilBlock).toMatch(/alias/i);
+    expect(perfilBlock).toMatch(/comprobante/i);
+    expect(perfilBlock).toMatch(/Santi/i);
+    expect(perfilBlock).toMatch(/activa/i);
 
     expect(negocioBlock).toContain('Políticas y Logística');
     expect(negocioBlock).toContain('Horarios de atención');
@@ -92,8 +96,18 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
     expect(accountSection).toContain('Zona de baja');
     expect(accountSection).toContain('Dar de baja la cuenta');
     expect(accountSection).toContain('Solicitar baja');
-    expect(accountSection).toContain('Mercado Pago');
-    expect(accountSection).toContain('período ya pago');
+    expect(accountSection).not.toMatch(/Mercado Pago/i);
+    expect(accountSection).toMatch(/Santi/i);
+    expect(accountSection).toMatch(/a mano/i);
     expect(accountSection).toMatch(/\(click\)=["']openAccountCancellationModal\(\)["']/i);
+
+    const upgradeCta = source.match(
+      /<button\b[^>]*data-testid=["']upgrade-plan-cta["'][\s\S]*?<\/button>/i
+    )?.[0] ?? '';
+    expect(upgradeCta).toMatch(/\bdisabled\b/i);
+    expect(upgradeCta).not.toMatch(/próximamente/i);
+    expect(upgradeCta).not.toMatch(/Mercado Pago/i);
+    expect(source).toMatch(/te pasamos el alias/i);
+    expect(source).toMatch(/enviá el comprobante/i);
   });
 });

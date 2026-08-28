@@ -314,7 +314,7 @@ export class ConfiguracionPage {
       this.accountCancellationSubmitted.set(true);
       this.accountCancellationMessage.set(
         result.accountClosureAt
-          ? `Listo. Cancelamos la renovación y tu cuenta queda activa hasta ${this.formatAccountClosureDate(result.accountClosureAt)}.`
+          ? `Listo. Registramos tu pedido de baja. Santi la procesa a mano. Tu cuenta queda activa hasta ${this.formatAccountClosureDate(result.accountClosureAt)}.`
           : result.message
       );
     } catch (error) {

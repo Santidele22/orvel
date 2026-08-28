@@ -105,8 +105,40 @@ describe('Configuracion account cancellation modal behavior', () => {
     expect(template).toMatch(/aria-modal=["']true["']/i);
     expect(template).toMatch(/aria-labelledby=["']account-cancellation-modal-title["']/i);
     expect(template).toMatch(/data-testid=["']account-cancellation-confirm["']/i);
-    expect(template).toContain('cancelar la renovación de Mercado Pago');
-    expect(template).toContain('mantenés el acceso hasta el final del período pago');
+    expect(template).toMatch(/data-testid=["']account-cancellation-cancel["']/i);
+    expect(template).toMatch(/data-testid=["']account-cancellation-modal-close["']/i);
+    expect(template).toMatch(/data-testid=["']account-cancellation-modal-overlay["']/i);
+    expect(template).not.toMatch(/Mercado Pago/i);
+    expect(template).toMatch(/Santi/i);
+    expect(template).toMatch(/baja/i);
+
+    const overlayOpen = template.match(
+      /<button\b[^>]*data-testid=["']account-cancellation-modal-overlay["'][^>]*>|<button\b[^>]*class=["'][^"']*["'][^>]*data-testid=["']account-cancellation-modal-overlay["']/i
+    );
+    const overlayClass =
+      template.match(
+        /<button\b[^>]*class=["']([^"']+)["'][^>]*data-testid=["']account-cancellation-modal-overlay["']/i
+      )?.[1] ??
+      template.match(
+        /<button\b[^>]*data-testid=["']account-cancellation-modal-overlay["'][^>]*class=["']([^"']+)["']/i
+      )?.[1] ??
+      '';
+    expect(overlayOpen, 'overlay button must remain for click-outside dismiss').toBeTruthy();
+    expect(overlayClass).not.toContain('bg-text-primary');
+    expect(overlayClass).not.toContain('--zen-overlay-opacity');
+    expect(overlayClass).not.toContain('bg-black/65');
+
+    const cardClass =
+      template.match(
+        /<div\b[^>]*class=["']([^"']+)["'][^>]*data-testid=["']account-cancellation-modal["']/i
+      )?.[1] ??
+      template.match(
+        /<div\b[^>]*data-testid=["']account-cancellation-modal["'][^>]*class=["']([^"']+)["']/i
+      )?.[1] ??
+      '';
+    expect(cardClass).toMatch(/\bmax-w-sm\b/);
+    expect(cardClass).not.toContain('max-w-zen-content');
+    expect(cardClass).not.toContain('p-zen-xxl');
   });
 
   it('opens the account-cancellation modal through the component action and resets transient state', () => {
@@ -143,7 +175,8 @@ describe('Configuracion account cancellation modal behavior', () => {
       mode: 'account_cancellation',
     });
     expect(page.accountCancellationSubmitted()).toBe(true);
-    expect(page.accountCancellationMessage()).toContain('Cancelamos la renovación');
+    expect(page.accountCancellationMessage()).toMatch(/pedido de baja|Santi/i);
+    expect(page.accountCancellationMessage()).not.toMatch(/Mercado Pago/i);
     expect(page.loading()).toBe(false);
   });
 

@@ -112,6 +112,8 @@ describe('BillingSubscriptionPage manual cancellation request state', () => {
       message: BILLING_SUBSCRIPTION_CANCELLATION_READY_MESSAGE
     });
     expect(page.state().message).toMatch(/solicitar|procesamos manualmente|próximo ciclo/i);
+    expect(page.state().message).toMatch(/a mano|Santi/i);
+    expect(page.state().message).not.toMatch(/Mercado Pago/i);
     expect(page.state().message).not.toMatch(/cancelada|completada/i);
   });
 
@@ -142,7 +144,9 @@ describe('BillingSubscriptionPage manual cancellation request state', () => {
       status: 'cancellation_requested',
       message: BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE
     });
-    expect(page.state().message).toMatch(/recibimos|procesar manualmente|Mercado Pago|próximo ciclo/i);
+    expect(page.state().message).toMatch(/recibimos|procesar manualmente|próximo ciclo/i);
+    expect(page.state().message).toMatch(/a mano|Santi/i);
+    expect(page.state().message).not.toMatch(/Mercado Pago/i);
     expect(page.state().message).not.toMatch(/ya está cancelada|cancelación completada/i);
   });
 });
