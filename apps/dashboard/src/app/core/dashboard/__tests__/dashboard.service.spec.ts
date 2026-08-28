@@ -146,14 +146,12 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.agendaStatus().totalAppointments).toBe(1);
   });
 
-  it('includes an already-ended today booking in featuredAppointments as Hoy', async () => {
+  it('drops an already-ended today booking from featuredAppointments', async () => {
     const queries = new InMemoryBookingQueries([todayRecord({ hora: '00:00', duracionMinutos: 1 })]);
     const service = createService(queries);
     await flush();
     setAfternoonNow(service);
-    const featured = service.featuredAppointments();
-    expect(featured).toHaveLength(1);
-    expect(featured[0]).toMatchObject({ id: 'b-1', dateLabel: 'Hoy', hora: '00:00' });
+    expect(service.featuredAppointments()).toHaveLength(0);
   });
 
   it('does not count a cancelled today booking', async () => {
@@ -192,7 +190,7 @@ describe('DashboardService BookingQueries consumer', () => {
   it('refetches home bookings after invalidate()', async () => {
     const queries = new QueuedBookingQueries([
       [],
-      [todayRecord({ hora: '00:00', duracionMinutos: 1 })]
+      [todayRecord({ hora: '23:59', duracionMinutos: 1 })]
     ]);
     const service = createService(queries);
     await flush();

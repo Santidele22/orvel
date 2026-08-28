@@ -12,6 +12,7 @@ import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display'
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { pickNextAppointment } from './pick-next-appointment';
+import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '../../../core/time/argentina-clock';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -84,7 +85,7 @@ export class DashboardHomeComponent {
 
   /** Dynamic greeting based on current time */
   protected readonly greeting = computed(() => {
-    const hour = this.dashboardService.now().getHours();
+    const hour = Math.floor(readArgentinaClock(this.dashboardService.now()).minutes / 60);
     if (hour < 5) return '¡Buenas noches!';
     if (hour < 12) return '¡Buen día!';
     if (hour < 20) return '¡Buenas tardes!';
@@ -92,7 +93,8 @@ export class DashboardHomeComponent {
   });
 
   protected readonly eyebrowDate = computed(() => {
-    const formatted = this.dashboardService.now().toLocaleDateString('es-AR', {
+        const formatted = this.dashboardService.now().toLocaleDateString('es-AR', {
+      timeZone: ARGENTINA_TIME_ZONE,
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -129,7 +131,7 @@ export class DashboardHomeComponent {
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
       return 'Hoy';
     }
-    const diffMinutes = hours * 60 + minutes - (this.dashboardService.now().getHours() * 60 + this.dashboardService.now().getMinutes());
+    const diffMinutes = hours * 60 + minutes - readArgentinaClock(this.dashboardService.now()).minutes;
     if (diffMinutes <= 0) return 'Ahora';
     if (diffMinutes < 60) return `En ${diffMinutes}m`;
     return `En ${Math.round(diffMinutes / 60)}h`;
