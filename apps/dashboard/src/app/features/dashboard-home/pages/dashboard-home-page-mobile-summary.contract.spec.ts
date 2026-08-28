@@ -80,14 +80,19 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(mobile).toMatch(/Turno agendado/);
     expect(mobile).toMatch(/Turnos agendados/);
     expect(mobile).toContain('Horarios hoy');
-    expect(mobile).toMatch(/agendaStatus\(\s*\)\.totalAppointments/);
+    expect(mobile).toMatch(/agendaStatus\(\s*\)\.remainingAppointments/);
     expect(mobile).toMatch(/agendaStatus\(\s*\)\.freeSlots/);
+    expect(componentSource).toMatch(/capacitySlots/);
+    expect(componentSource).not.toMatch(/length:\s*18/);
   });
 
   it('renders Próximo turno from featuredAppointments without mock names or times', () => {
     const mobile = mobileSummaryBlock(templateSource);
     expect(mobile).toContain('Próximo turno');
     expect(mobile).toMatch(/featuredAppointments\(\s*\)/);
+    expect(mobile).toMatch(/nextUpcomingAppointment\(\s*\)/);
+    expect(componentSource).toMatch(/pickNextAppointment\s*\(/);
+    expect(componentSource).not.toMatch(/appointmentStart\s*\(/);
     expect(mobile).not.toContain('María Gómez');
     expect(mobile).not.toContain('16:30');
   });

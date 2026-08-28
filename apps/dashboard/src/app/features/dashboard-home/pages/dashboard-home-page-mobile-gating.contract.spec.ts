@@ -69,7 +69,7 @@ describe('DashboardHomePage mobile gating contract', () => {
 
   it('mobile branch shows today counts from agendaStatus()', () => {
     const mobile = mobileSummaryBlock(templateSource);
-    expect(mobile).toMatch(/agendaStatus\(\s*\)\.totalAppointments/);
+    expect(mobile).toMatch(/agendaStatus\(\s*\)\.remainingAppointments/);
     expect(mobile).toMatch(/agendaStatus\(\s*\)\.freeSlots/);
   });
 
