@@ -43,20 +43,23 @@ describe('Booking lifecycle email notifications contract', () => {
   it('renders distinct booking-user and business-client lifecycle templates through the Resend outbox processor', () => {
     // Arrange
     const processor = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/process-email-outbox/index.ts'));
+    const failover = readRequiredFile(path.join(REPO_ROOT, 'supabase/functions/_shared/email-provider-failover.ts'));
     const sharedTemplates = readRequiredFile(path.join(REPO_ROOT, 'apps/shared/email-templates/appointment-templates.ts'));
 
     // Act / Assert
-    expect(processor).toMatch(/send\.api\.mailtrap\.io/);
-    expect(processor).toMatch(/api\.resend\.com\/emails/);
-    expect(processor).toMatch(/MAILTRAP_API_TOKEN/);
-    expect(processor).toMatch(/RESEND_API_KEY/);
-    const mailtrapTokenIndex = processor.search(/MAILTRAP_API_TOKEN/);
-    const resendKeyIndex = processor.search(/RESEND_API_KEY/);
+    expect(failover).toMatch(/send\.api\.mailtrap\.io/);
+    expect(failover).toMatch(/api\.resend\.com\/emails/);
+    expect(failover).toMatch(/MAILTRAP_API_TOKEN/);
+    expect(failover).toMatch(/RESEND_API_KEY/);
+    const mailtrapTokenIndex = failover.search(/MAILTRAP_API_TOKEN/);
+    const resendKeyIndex = failover.search(/RESEND_API_KEY/);
     expect(mailtrapTokenIndex).toBeGreaterThan(-1);
     expect(resendKeyIndex).toBeGreaterThan(mailtrapTokenIndex);
+    expect(processor).toMatch(/email-provider-failover/);
+    expect(processor).toMatch(/sendEmailWithFailover/);
     expect(processor).toMatch(/email_provider_config_missing/);
-    expect(processor).toMatch(/mailtrap_error/);
-    expect(processor).toMatch(/resend_error/);
+    expect(processor).toMatch(/email_provider_error/);
+    expect(processor).toMatch(/sent_provider/);
     expect(processor).toMatch(/renderAppointmentConfirmationEmail/);
     expect(processor).toMatch(/renderAppointmentRescheduleEmail/);
     // Post-1.0.1 PR #2 + 1.0.2 PR #3 (email-templates-shared): the processor no longer

@@ -1,61 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import * as AppointmentTemplates from "../../../apps/shared/email-templates/appointment-templates.ts";
 import * as BusinessTemplates from "../_shared/templates/business-templates.ts";
+import { resolveEmailProviders, sendEmailWithFailover, type EmailProviderName } from "../_shared/email-provider-failover.ts";
 import { appointmentTimeLabel, normalizeAppointmentTemplateData, scrubTokenBearingOutboxPayload } from "../_shared/process-email-outbox-helpers.ts";
 import { buildDashboardUrl } from "../_shared/orvel-url.ts";
-
-const MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send";
-const RESEND_API_URL = "https://api.resend.com/emails";
-
-type EmailProviderError = "mailtrap_error" | "resend_error";
-
-type ResolvedEmailProvider = {
-  apiUrl: string;
-  apiKey: string;
-  fromEmail: string;
-  errorCode: EmailProviderError;
-  payload: (toEmail: string, subject: string, html: string) => Record<string, unknown>;
-};
-
-function resolveEmailProvider(): ResolvedEmailProvider | null {
-  const mailtrapToken = Deno.env.get("MAILTRAP_API_TOKEN") || Deno.env.get("MAILTRAP_TOKEN") || Deno.env.get("MAILTRAP_API_KEY");
-  if (mailtrapToken) {
-    const fromEmail = Deno.env.get("MAILTRAP_FROM_EMAIL") || "no-reply@orvel.test";
-    const fromName = Deno.env.get("MAILTRAP_FROM_NAME") || "Orvel";
-    return {
-      apiUrl: MAILTRAP_API_URL,
-      apiKey: mailtrapToken,
-      fromEmail,
-      errorCode: "mailtrap_error",
-      payload: (toEmail, subject, html) => ({
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: toEmail }],
-        subject,
-        html,
-      }),
-    };
-  }
-
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (resendKey) {
-    const from = Deno.env.get("RESEND_FROM_EMAIL") || "Orvel <onboarding@resend.dev>";
-    const fromEmail = /<([^>]+)>/.exec(from)?.[1] ?? from;
-    return {
-      apiUrl: RESEND_API_URL,
-      apiKey: resendKey,
-      fromEmail,
-      errorCode: "resend_error",
-      payload: (toEmail, subject, html) => ({
-        from,
-        to: [toEmail],
-        subject,
-        html,
-      }),
-    };
-  }
-
-  return null;
-}
 
 type AppointmentLinks = {
   view?: string | null;
@@ -306,6 +254,7 @@ async function markOutboxRecordSent(
   supabase: SupabaseServiceClient | null,
   record: OutboxRecord,
   claimId: string | null,
+  sentProvider: EmailProviderName,
 ): Promise<boolean> {
   if (!record.id) return true;
   if (!supabase) return false;
@@ -315,6 +264,7 @@ async function markOutboxRecordSent(
     set_password_url: record.payload?.set_password_url,
     first_login_url: record.payload?.first_login_url,
     action_link: record.payload?.action_link,
+    sent_provider: sentProvider,
   });
 
   let update = supabase
@@ -353,15 +303,15 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log("Processing notification", safeLogContext(payload.record));
 
-    const provider = resolveEmailProvider();
-    const fromEmail = provider?.fromEmail ?? "";
+    const providers = resolveEmailProviders(Deno.env);
+    const fromEmail = providers[0]?.fromEmail ?? "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const dashboardUrl = buildDashboardUrl();
     const isPublicEmailRoleRejected = isRejectedPublicEmailRole(authorizationHeader);
     const isPrivilegedEmailInvocationAuthorized = hasPrivilegedEmailInvocationAuthorization(authorizationHeader, serviceKey);
 
-    if (!provider) {
+    if (!providers.length) {
       console.error("email_provider_config_missing");
       return new Response(JSON.stringify({ error: "email_provider_config_missing" }), { status: 500 });
     }
@@ -548,34 +498,30 @@ Deno.serve(async (req) => {
       }
 
       const providerSubject = sanitizeEmailSubject(subject);
-      const res = await fetch(provider.apiUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${provider.apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(provider.payload(to_email, providerSubject, html))
-      });
-
-      if (!res.ok) {
-        await res.body?.cancel();
-        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId, provider.errorCode);
-        console.error("Failed to send email", {
-          ...safeLogContext(record),
-          provider_status: res.status,
-        });
-        return new Response(JSON.stringify({ error: provider.errorCode }), { status: 502 });
+      let sendResult: Awaited<ReturnType<typeof sendEmailWithFailover>>;
+      try {
+        sendResult = await sendEmailWithFailover(Deno.env, { to: to_email, subject: providerSubject, html });
+      } catch {
+        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId, "email_provider_error");
+        console.error("Failed to send email", safeLogContext(record));
+        return new Response(JSON.stringify({ error: "email_provider_error" }), { status: 502 });
       }
 
-      const finalized = await markOutboxRecordSent(supabase, record, claim.claimId);
+      if (!sendResult.ok) {
+        const error = sendResult.error;
+        await clearOutboxClaimAfterProviderError(supabase, record, claim.claimId, error);
+        console.error("Failed to send email", safeLogContext(record));
+        return new Response(JSON.stringify({ error }), { status: error === "email_provider_config_missing" ? 500 : 502 });
+      }
+
+      const finalized = await markOutboxRecordSent(supabase, record, claim.claimId, sendResult.provider);
       if (!finalized) {
-        await res.body?.cancel();
         console.error("Email provider sent but outbox finalization failed", safeLogContext(record));
         return new Response(JSON.stringify({ error: "outbox_finalization_failed" }), { status: 502 });
       }
 
-      console.log("Email successfully sent", safeLogContext(record));
-      return new Response(JSON.stringify({ success: true, sent: true }), { headers: { "Content-Type": "application/json" } });
+      console.log("Email successfully sent", { ...safeLogContext(record), provider: sendResult.provider });
+      return new Response(JSON.stringify({ success: true, sent: true, provider: sendResult.provider }), { headers: { "Content-Type": "application/json" } });
     }
     
     return new Response("No action taken", { status: 200 });
