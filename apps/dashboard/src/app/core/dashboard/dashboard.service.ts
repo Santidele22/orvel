@@ -41,22 +41,9 @@ export class DashboardService {
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayKey = days[hoy.getDay()];
     
-    const workingDay = settings?.workingHours?.[dayKey] || { start: '09:00', end: '18:00', enabled: true };
+    const workingDay = settings?.workingHours?.[dayKey];
     const slotInterval = settings?.slotIntervalMinutes || 30;
-
-    if (!workingDay.enabled) {
-      return { totalAppointments: 0, freeSlots: 0, freeMinutes: 0, freeGaps: [], totalMinutes: 0, occupancyPercentage: 0 };
-    }
-
-    const [startH, startM] = workingDay.start.split(':').map(Number);
-    const [endH, endM] = workingDay.end.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    // Total minutes remaining in the workday
-    const totalMinutesRemaining = Math.max(0, endMinutes - Math.max(startMinutes, nowMinutes));
-    const capacitySlots = Math.floor(totalMinutesRemaining / slotInterval);
 
     const normalizeDate = (fecha: string | Date | undefined): number => {
       if (!fecha) return 0;
@@ -64,7 +51,6 @@ export class DashboardService {
       return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     };
     const hoyMs = normalizeDate(hoy);
-    const nowTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
     const turnosHoy = turnos.filter(t => normalizeDate(t.fecha) === hoyMs && !['cancelado', 'no-asistio'].includes(t.estado));
     const turnosFuturos = turnosHoy.filter(t => {
@@ -74,6 +60,28 @@ export class DashboardService {
       const tEndMinutes = h * 60 + m + tDuration;
       return tEndMinutes > nowMinutes;
     });
+
+    if (!workingDay?.enabled) {
+      return {
+        totalAppointments: turnosHoy.length,
+        remainingAppointments: turnosFuturos.length,
+        freeSlots: 0,
+        capacitySlots: 0,
+        freeMinutes: 0,
+        freeGaps: [] as { range: string; duration: string; label: string }[],
+        totalMinutes: 0,
+        occupancyPercentage: 0,
+      };
+    }
+
+    const [startH, startM] = workingDay.start.split(':').map(Number);
+    const [endH, endM] = workingDay.end.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    
+    // Total minutes remaining in the workday
+    const totalMinutesRemaining = Math.max(0, endMinutes - Math.max(startMinutes, nowMinutes));
+    const capacitySlots = Math.floor(totalMinutesRemaining / slotInterval);
     
     const occupiedMinutesRemaining = turnosFuturos.reduce((acc, t) => {
       const [h, m] = (t.hora || '00:00').split(':').map(Number);
@@ -150,7 +158,9 @@ export class DashboardService {
 
     return {
       totalAppointments: turnosHoy.length,
+      remainingAppointments: turnosFuturos.length,
       freeSlots: Math.max(0, capacitySlots - occupiedSlotsRemaining),
+      capacitySlots: Math.max(0, capacitySlots),
       freeMinutes: Math.max(0, totalMinutesRemaining - occupiedMinutesRemaining),
       freeGaps: gaps as any[],
       totalMinutes: totalMinutesRemaining,
