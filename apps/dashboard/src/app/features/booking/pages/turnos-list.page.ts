@@ -30,6 +30,13 @@ import { logMutationFailure } from '../../../core/observability/mutation-error-l
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import {
+  civilDateKey,
+  filterLiveAvailableStarts,
+  filterLiveTurnos,
+  localDateFromDateKey,
+  readArgentinaClock,
+} from '../../../core/time/argentina-clock';
 
 type BlockedTimeFormState = {
   date: string;
@@ -136,8 +143,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected loading = signal<boolean>(false);
   protected viewMode = signal<'list' | 'calendar'>('list');
   protected filterStatus = signal<TurnoEstado | 'todos'>('todos');
-  protected filterFecha = signal<Date>(new Date());
-  protected selectedDate = signal<Date>(new Date());
+  protected filterFecha = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
+  protected selectedDate = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
 
   // Summary Metrics for the sidebar widget
   protected readonly daySummary = computed(() => {
@@ -160,7 +167,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected blockedTimeSubmitting = signal(false);
   protected showAdminReschedulePanel = signal(false);
   protected adminRescheduleTurno = signal<TurnoWithRelations | null>(null);
-  protected adminRescheduleSlots = signal<string[]>([]);
+  private readonly adminRescheduleSlotStarts = signal<string[]>([]);
+  protected readonly adminRescheduleSlots = computed(() =>
+    filterLiveAvailableStarts(
+      this.adminRescheduleSlotStarts(),
+      this.adminRescheduleForm.date,
+      readArgentinaClock(this.dashboardService.now()),
+    ),
+  );
   protected adminRescheduleLoading = signal(false);
   protected adminRescheduleSubmitting = signal(false);
   protected adminRescheduleFeedback = signal<string | null>(null);
@@ -209,12 +223,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const status = this.filterStatus();
     const allTurnos = this.turnos();
     const selectedDate = this.selectedDate();
+    const clock = readArgentinaClock(this.dashboardService.now());
+    const selectedKey = civilDateKey(selectedDate);
     
-    const daily = allTurnos.filter(t => {
-      const tStr = t.fecha.getFullYear() + '-' + (t.fecha.getMonth() + 1).toString().padStart(2, '0') + '-' + t.fecha.getDate().toString().padStart(2, '0');
-      const sStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
-      return tStr === sStr;
-    });
+    let daily = allTurnos.filter(t => civilDateKey(t.fecha) === selectedKey);
+    if (selectedKey === clock.dateKey) {
+      daily = filterLiveTurnos(daily, clock);
+    }
 
     const filtered = status === 'todos' 
       ? daily 
@@ -229,22 +244,10 @@ export class TurnosListPage implements OnInit, OnDestroy {
    */
   protected readonly mobileAppointments = computed<TurnoWithRelations[]>(() => {
     const allTurnos = this.turnos(); // already enriched by processTurnos()
-    const selectedDate = this.selectedDate();
-    const tStr =
-      selectedDate.getFullYear() +
-      '-' +
-      (selectedDate.getMonth() + 1).toString().padStart(2, '0') +
-      '-' +
-      selectedDate.getDate().toString().padStart(2, '0');
-    return allTurnos.filter((t) => {
-      const ts =
-        t.fecha.getFullYear() +
-        '-' +
-        (t.fecha.getMonth() + 1).toString().padStart(2, '0') +
-        '-' +
-        t.fecha.getDate().toString().padStart(2, '0');
-      return ts === tStr;
-    });
+    const clock = readArgentinaClock(this.dashboardService.now());
+    const selectedKey = civilDateKey(this.selectedDate());
+    const daily = allTurnos.filter((t) => civilDateKey(t.fecha) === selectedKey);
+    return selectedKey === clock.dateKey ? filterLiveTurnos(daily, clock) : daily;
   });
 
   protected readonly hasTurnosOnSelectedDate = computed(() => this.mobileAppointments().length > 0);
@@ -620,7 +623,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected closeAdminReschedulePicker() {
     this.showAdminReschedulePanel.set(false);
     this.adminRescheduleTurno.set(null);
-    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleSlotStarts.set([]);
     this.adminRescheduleSubmitting.set(false);
     this.adminRescheduleLoading.set(false);
     this.adminRescheduleFeedback.set(null);
@@ -641,7 +644,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected async loadAdminRescheduleAvailability() {
     const turno = this.adminRescheduleTurno();
     const selectedDate = this.adminRescheduleForm.date?.trim();
-    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleSlotStarts.set([]);
     this.adminRescheduleFeedback.set(null);
     this.availabilityError.set(null);
     this.hasLoadedAvailability.set(false);
@@ -661,7 +664,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
         context: 'admin-reschedule',
         bookingId: turno.id
       });
-      this.adminRescheduleSlots.set(availableSlots);
+      this.adminRescheduleSlotStarts.set(availableSlots);
       this.hasLoadedAvailability.set(true);
       if (availableSlots.length === 0) {
         this.adminRescheduleFeedback.set('No hay horarios disponibles para esa fecha.');

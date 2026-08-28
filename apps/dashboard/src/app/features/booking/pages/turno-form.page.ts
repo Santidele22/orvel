@@ -17,6 +17,8 @@ import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { ArgentinaClockService } from '../../../core/time/argentina-clock.service';
+import { filterLiveAvailableStarts, readArgentinaClock } from '../../../core/time/argentina-clock';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 @Component({
@@ -34,6 +36,7 @@ export class TurnoFormPage implements OnInit {
   private servicioService = inject(ServicioService);
   private authService = inject(AuthService);
   protected branchContext = getBranchContextService();
+  private readonly argentinaClock = inject(ArgentinaClockService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -52,7 +55,14 @@ export class TurnoFormPage implements OnInit {
   // Form data
   protected clientes = signal<Cliente[]>([]);
   protected servicios = signal<Servicio[]>([]);
-  protected disponibles = signal<string[]>([]);
+  private readonly availableStarts = signal<string[]>([]);
+  protected readonly disponibles = computed(() =>
+    filterLiveAvailableStarts(
+      this.availableStarts(),
+      this.fecha(),
+      readArgentinaClock(this.argentinaClock.now()),
+    ),
+  );
   protected availabilityLoading = signal<boolean>(false);
   protected availabilityError = signal<string | null>(null);
   protected availabilityEmpty = signal<boolean>(false);
@@ -68,7 +78,7 @@ export class TurnoFormPage implements OnInit {
   protected walkInName = signal<string>('');
   protected walkInMode = signal<boolean>(false);
   protected servicioId = signal<string>('');
-  protected fecha = signal<string>(toLocalDateIso());
+  protected fecha = signal<string>(readArgentinaClock(new Date()).dateKey);
   private resolvedBusinessId = signal<string>('');
   protected hora = signal<string>('');
   protected duracionMinutos = signal<number>(30);
@@ -178,10 +188,10 @@ export class TurnoFormPage implements OnInit {
   protected async checkAvailability() {
     const availabilityVersion = ++this.latestAvailabilityVersion;
     const fechaDate = parseLocalDate(this.fecha());
-    const today = parseLocalDate(toLocalDateIso());
+    const today = parseLocalDate(readArgentinaClock(this.argentinaClock.now()).dateKey);
     const requestKey = `${this.fecha()}|${this.duracionMinutos()}|${this.servicioId()}|${this.turnoId() ?? ''}|${availabilityVersion}`;
     this.availabilityRequestKey.set(requestKey);
-    this.disponibles.set([]);
+    this.availableStarts.set([]);
     this.hora.set('');
     this.availabilityError.set(null);
     this.availabilityEmpty.set(false);
@@ -216,7 +226,7 @@ export class TurnoFormPage implements OnInit {
         return;
       }
 
-      this.disponibles.set(horarios);
+      this.availableStarts.set(horarios);
       this.availabilityEmpty.set(horarios.length === 0);
       this.hasLoadedAvailability.set(true);
       this.availabilityStale.set(false);
@@ -234,7 +244,7 @@ export class TurnoFormPage implements OnInit {
         }
       });
 
-      this.disponibles.set([]);
+      this.availableStarts.set([]);
       this.hora.set('');
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (/SERVICE_NOT_FOUND/i.test(errorMessage)) {
@@ -287,7 +297,7 @@ export class TurnoFormPage implements OnInit {
 
   protected resetAvailability(staleMessage?: string) {
     this.latestAvailabilityVersion += 1;
-    this.disponibles.set([]);
+    this.availableStarts.set([]);
     this.hora.set('');
     this.availabilityLoading.set(false);
     this.availabilityError.set(null);
@@ -474,13 +484,6 @@ export class TurnoFormPage implements OnInit {
       currency: 'ARS'
     }).format(precio);
   };
-}
-
-function toLocalDateIso(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function parseLocalDate(iso: string): Date {
