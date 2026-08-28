@@ -17,7 +17,8 @@ const USER_ID = 'user-1';
 const BUSINESS_ID = 'business-owned';
 const BRANCH_ID = 'branch-owned';
 
-function supabaseDouble() {
+function supabaseDouble(options: { delayMs?: number } = {}) {
+  const delayMs = options.delayMs ?? 0;
   const owned = [{
     id: BUSINESS_ID,
     owner_id: USER_ID,
@@ -48,7 +49,14 @@ function supabaseDouble() {
     } = {
       select: () => query,
       eq: () => query,
-      order: () => Promise.resolve(listResult),
+      order: () => {
+        if (delayMs <= 0 || table !== 'businesses') {
+          return Promise.resolve(listResult);
+        }
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(listResult), delayMs);
+        });
+      },
       maybeSingle: () => Promise.resolve({ data: singleData, error: null })
     };
     return query;
@@ -149,5 +157,21 @@ describe('BusinessService shares BranchContext session business identity', () =>
     expect(id).toBe(BUSINESS_ID);
     expect(businessesCalls(client)).toBe(1);
     expect(window.localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY)).toBe(BUSINESS_ID);
+  });
+
+  it('cold concurrent BranchContext and BusinessService getActiveBusinessId share one businesses GET', async () => {
+    const client = supabaseDouble({ delayMs: 40 });
+    const branchContext = getBranchContextService();
+    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = client;
+    const service = createService(client);
+
+    const [fromBranch, fromService] = await Promise.all([
+      branchContext.getActiveBusinessId(),
+      service.getActiveBusinessId()
+    ]);
+
+    expect(fromBranch).toBe(BUSINESS_ID);
+    expect(fromService).toBe(BUSINESS_ID);
+    expect(businessesCalls(client)).toBe(1);
   });
 });

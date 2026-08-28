@@ -31,6 +31,7 @@ export class BranchContextService {
   private lastResolvedBusinessId: string | null = null;
   private sessionIdentity: SessionBusinessIdentity | null = null;
   private inFlight: Promise<void> | null = null;
+  private identityInFlight: Promise<string | null> | null = null;
   private branchesState = signal<DashboardBranch[]>([]);
   private activeBranchIdState = signal<string | null>(null);
   private errorState = signal<string | null>(null);
@@ -82,6 +83,7 @@ export class BranchContextService {
     this.lastResolvedBusinessId = null;
     this.sessionIdentity = null;
     this.inFlight = null;
+    this.identityInFlight = null;
     this.branchesState.set([]);
     this.activeBranchIdState.set(null);
     this.errorState.set(null);
@@ -209,6 +211,15 @@ export class BranchContextService {
   }
 
   private async resolveActiveBusinessId(supabase: SupabaseClient): Promise<string | null> {
+    if (this.identityInFlight) return this.identityInFlight;
+    const pending = this.resolveActiveBusinessIdInternal(supabase).finally(() => {
+      if (this.identityInFlight === pending) this.identityInFlight = null;
+    });
+    this.identityInFlight = pending;
+    return pending;
+  }
+
+  private async resolveActiveBusinessIdInternal(supabase: SupabaseClient): Promise<string | null> {
     try {
       const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
       const { data, error } = await supabase.auth.getSession();
