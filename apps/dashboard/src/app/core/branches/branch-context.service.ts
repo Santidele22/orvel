@@ -11,9 +11,27 @@ export type DashboardBranch = {
   businessId: string;
 };
 
+export type SessionBusinessIdentity = {
+  ownerId: string;
+  businessId: string;
+  slug?: string;
+  name?: string;
+};
+
+type OwnedBusinessRow = {
+  id: string;
+  owner_id?: string;
+  slug?: string;
+  name?: string;
+};
+
 export class BranchContextService {
   private supabaseClient?: SupabaseClient;
   private initialized = false;
+  private lastResolvedBusinessId: string | null = null;
+  private sessionIdentity: SessionBusinessIdentity | null = null;
+  private inFlight: Promise<void> | null = null;
+  private identityInFlight: Promise<string | null> | null = null;
   private branchesState = signal<DashboardBranch[]>([]);
   private activeBranchIdState = signal<string | null>(null);
   private errorState = signal<string | null>(null);
@@ -25,9 +43,53 @@ export class BranchContextService {
   readonly loading = this.loadingState.asReadonly();
 
   async ensureLoaded(): Promise<void> {
-    if (this.initialized) return;
+    if (this.inFlight) return this.inFlight;
+    const load = this.ensureLoadedInternal().finally(() => {
+      if (this.inFlight === load) this.inFlight = null;
+    });
+    this.inFlight = load;
+    return load;
+  }
+
+  private async ensureLoadedInternal(): Promise<void> {
+    if (
+      this.initialized
+      && this.sessionIdentity
+      && this.lastResolvedBusinessId === this.sessionIdentity.businessId
+    ) {
+      return;
+    }
+    const currentBusinessId = await this.resolveActiveBusinessId(this.getSupabaseClient());
+    if (this.initialized && currentBusinessId === this.lastResolvedBusinessId) return;
     this.initialized = true;
+    this.lastResolvedBusinessId = currentBusinessId;
     await this.refresh();
+  }
+
+  peekSessionBusinessIdentity(): SessionBusinessIdentity | null {
+    return this.sessionIdentity;
+  }
+
+  rememberSessionBusinessIdentity(identity: SessionBusinessIdentity): void {
+    this.sessionIdentity = identity;
+  }
+
+  clearSessionBusinessIdentity(): void {
+    this.sessionIdentity = null;
+  }
+
+  resetSession(): void {
+    this.initialized = false;
+    this.lastResolvedBusinessId = null;
+    this.sessionIdentity = null;
+    this.inFlight = null;
+    this.identityInFlight = null;
+    this.branchesState.set([]);
+    this.activeBranchIdState.set(null);
+    this.errorState.set(null);
+    this.clearActiveBranch();
+    this.storage()?.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
+    invalidateSectionCaches();
   }
 
   async refresh(): Promise<void> {
@@ -76,9 +138,13 @@ export class BranchContextService {
       return false;
     }
 
+    const previousId = this.activeBranchIdState();
     this.activeBranchIdState.set(branch.id);
     this.storage()?.setItem(ACTIVE_BRANCH_STORAGE_KEY, branch.id);
     this.errorState.set(null);
+    if (previousId !== branch.id) {
+      invalidateSectionCaches();
+    }
     return true;
   }
 
@@ -145,23 +211,111 @@ export class BranchContextService {
   }
 
   private async resolveActiveBusinessId(supabase: SupabaseClient): Promise<string | null> {
-    try {
-      const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim();
-      if (storedBusinessId) return storedBusinessId;
+    if (this.identityInFlight) return this.identityInFlight;
+    const pending = this.resolveActiveBusinessIdInternal(supabase).finally(() => {
+      if (this.identityInFlight === pending) this.identityInFlight = null;
+    });
+    this.identityInFlight = pending;
+    return pending;
+  }
 
+  private async resolveActiveBusinessIdInternal(supabase: SupabaseClient): Promise<string | null> {
+    try {
+      const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
       const { data, error } = await supabase.auth.getSession();
-      if (error) return null;
+      if (error) return storedBusinessId;
+
+      const userId = data.session?.user?.id?.trim() || null;
+      if (userId && this.sessionIdentity?.ownerId === userId) {
+        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, this.sessionIdentity.businessId);
+        return this.sessionIdentity.businessId;
+      }
 
       const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
-      const businessId = metadata?.['businessId'] ?? metadata?.['business_id'];
-      return typeof businessId === 'string' && businessId.trim() ? businessId.trim() : null;
-    } catch {
+      const sessionBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
+      const resolvedSessionId = typeof sessionBusinessId === 'string' && sessionBusinessId.trim()
+        ? sessionBusinessId.trim()
+        : null;
+
+      let ownedBusinesses: OwnedBusinessRow[] | null = null;
+      if (userId) {
+        try {
+          ownedBusinesses = await this.listOwnedBusinesses(supabase, userId);
+        } catch {
+          ownedBusinesses = null;
+        }
+      }
+
+      const ownedBusinessIds = ownedBusinesses?.map((row) => row.id) ?? null;
+      const owned = (candidate: string | null): string | null =>
+        candidate && ownedBusinessIds?.includes(candidate) ? candidate : null;
+
+      const resolved = ownedBusinessIds
+        ? owned(resolvedSessionId)
+          ?? owned(storedBusinessId)
+          ?? ownedBusinessIds[0]
+          ?? resolvedSessionId
+          ?? storedBusinessId
+        : resolvedSessionId ?? storedBusinessId;
+
+      if (resolved) {
+        if (storedBusinessId && storedBusinessId !== resolved) {
+          this.clearActiveBranch();
+        }
+        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved);
+        if (userId && ownedBusinesses) {
+          const row = ownedBusinesses.find((candidate) => candidate.id === resolved);
+          this.sessionIdentity = {
+            ownerId: userId,
+            businessId: resolved,
+            slug: row?.slug,
+            name: row?.name
+          };
+        }
+        return resolved;
+      }
+
       return null;
+    } catch {
+      return this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
     }
+  }
+
+  private async listOwnedBusinesses(supabase: SupabaseClient, ownerId: string): Promise<OwnedBusinessRow[]> {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('id, owner_id, slug, name')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as Array<{ id?: unknown; owner_id?: unknown; slug?: unknown; name?: unknown }>)
+      .map((row) => ({
+        id: typeof row.id === 'string' ? row.id.trim() : '',
+        owner_id: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+        slug: typeof row.slug === 'string' ? row.slug : undefined,
+        name: typeof row.name === 'string' ? row.name : undefined
+      }))
+      .filter((row) => row.id.length > 0);
   }
 
   private storage(): Storage | null {
     return typeof window !== 'undefined' ? window.localStorage : null;
+  }
+}
+
+const sectionCacheInvalidators = new Set<() => void>();
+
+export function registerSectionCacheInvalidator(invalidate: () => void): void {
+  sectionCacheInvalidators.add(invalidate);
+}
+
+export function invalidateSectionCaches(): void {
+  for (const invalidate of sectionCacheInvalidators) {
+    invalidate();
   }
 }
 
@@ -170,4 +324,9 @@ let branchContextSingleton: BranchContextService | null = null;
 export function getBranchContextService(): BranchContextService {
   branchContextSingleton ??= new BranchContextService();
   return branchContextSingleton;
+}
+
+export function resetBranchContextSession(): void {
+  branchContextSingleton?.resetSession();
+  branchContextSingleton = null;
 }

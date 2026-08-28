@@ -1,22 +1,35 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
+import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { WeekdayKey } from '../../models/business.model';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
+import { ArgentinaClockService } from '../time/argentina-clock.service';
+import {
+  civilDateKey,
+  filterLiveTurnos,
+  localDateFromDateKey,
+  readArgentinaClock,
+  weekdayIndexFromDateKey,
+} from '../time/argentina-clock';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
-  private readonly turnoService = inject(TurnoService);
+  private readonly bookingQueries = inject<BookingQueries>(BOOKING_QUERIES);
   private readonly clienteService = inject(ClienteService);
   private readonly servicioService = inject(ServicioService);
   private readonly businessService = inject(BusinessService);
   private readonly destroyRef = inject(DestroyRef);
-
-  // Time signal for real-time updates
-  readonly now = signal(new Date());
+  readonly now = inject(ArgentinaClockService).now;
+  private readonly bookings = signal<BookingRecord[]>([]);
+  private readonly adminBookings = signal<BookingRecord[]>([]);
+  private bookingsLoaded = false;
+  private adminBookingsLoadedBranchId: string | null = null;
+  private refreshGeneration = 0;
 
   // Loading and Error states
   readonly isLoading = signal(false);
@@ -26,47 +39,40 @@ export class DashboardService {
    * Calculates agenda status for today based on real working hours and appointments.
    */
   readonly agendaStatus = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const settings = this.businessService.settings();
-    const now = this.now();
-    
-    const hoy = new Date();
+    const clock = readArgentinaClock(this.now());
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayKey = days[hoy.getDay()];
+    const dayKey = days[weekdayIndexFromDateKey(clock.dateKey)];
     
-    const workingDay = settings?.workingHours?.[dayKey] || { start: '09:00', end: '18:00', enabled: true };
+    const workingDay = settings?.workingHours?.[dayKey];
     const slotInterval = settings?.slotIntervalMinutes || 30;
+    const nowMinutes = clock.minutes;
 
-    if (!workingDay.enabled) {
-      return { totalAppointments: 0, freeSlots: 0, freeMinutes: 0, freeGaps: [], totalMinutes: 0, occupancyPercentage: 0 };
+    const turnosHoy = turnos.filter(t => civilDateKey(t.fecha) === clock.dateKey && !['cancelado', 'no-asistio'].includes(t.estado));
+    const turnosFuturos = filterLiveTurnos(turnosHoy, clock);
+
+    if (!workingDay?.enabled) {
+      return {
+        totalAppointments: turnosHoy.length,
+        remainingAppointments: turnosFuturos.length,
+        freeSlots: 0,
+        capacitySlots: 0,
+        freeMinutes: 0,
+        freeGaps: [] as { range: string; duration: string; label: string }[],
+        totalMinutes: 0,
+        occupancyPercentage: 0,
+      };
     }
 
     const [startH, startM] = workingDay.start.split(':').map(Number);
     const [endH, endM] = workingDay.end.split(':').map(Number);
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
     
     // Total minutes remaining in the workday
     const totalMinutesRemaining = Math.max(0, endMinutes - Math.max(startMinutes, nowMinutes));
     const capacitySlots = Math.floor(totalMinutesRemaining / slotInterval);
-
-    const normalizeDate = (fecha: string | Date | undefined): number => {
-      if (!fecha) return 0;
-      const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    };
-    const hoyMs = normalizeDate(hoy);
-    const nowTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-    const turnosHoy = turnos.filter(t => normalizeDate(t.fecha) === hoyMs && !['cancelado', 'no-asistio'].includes(t.estado));
-    const turnosFuturos = turnosHoy.filter(t => {
-      const tStart = t.hora || '00:00';
-      const tDuration = t.duracionMinutos || 30;
-      const [h, m] = tStart.split(':').map(Number);
-      const tEndMinutes = h * 60 + m + tDuration;
-      return tEndMinutes > nowMinutes;
-    });
     
     const occupiedMinutesRemaining = turnosFuturos.reduce((acc, t) => {
       const [h, m] = (t.hora || '00:00').split(':').map(Number);
@@ -142,8 +148,10 @@ export class DashboardService {
     }
 
     return {
-      totalAppointments: turnosFuturos.length,
+      totalAppointments: turnosHoy.length,
+      remainingAppointments: turnosFuturos.length,
       freeSlots: Math.max(0, capacitySlots - occupiedSlotsRemaining),
+      capacitySlots: Math.max(0, capacitySlots),
       freeMinutes: Math.max(0, totalMinutesRemaining - occupiedMinutesRemaining),
       freeGaps: gaps as any[],
       totalMinutes: totalMinutesRemaining,
@@ -155,31 +163,22 @@ export class DashboardService {
    * Returns a prioritized list of appointments for the home roadmap.
    */
   readonly featuredAppointments = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const services = this.servicioService.items();
     const clients = this.clienteService.items();
     const servicesMap = new Map(services.map(s => [s.id, s.nombre]));
     const clientsMap = new Map(clients.map(c => [c.id, c.nombre]));
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyMs = hoy.getTime();
+    const clock = readArgentinaClock(this.now());
+    const hoyMs = localDateFromDateKey(clock.dateKey).getTime();
 
-    const now = this.now();
-    const nowTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-    const normalizeDate = (fecha: string | Date | undefined): number => {
-      if (!fecha) return 0;
-      const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    };
-
-    const hoyTurnos = turnos
-      .filter(t => normalizeDate(t.fecha) === hoyMs && (t.hora || '00:00') >= nowTimeStr)
-      .sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+    const hoyTurnos = filterLiveTurnos(
+      turnos.filter(t => civilDateKey(t.fecha) === clock.dateKey && !['cancelado', 'no-asistio'].includes(t.estado)),
+      clock,
+    ).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
 
     const futureTurnos = turnos
-      .filter(t => normalizeDate(t.fecha) > hoyMs)
+      .filter(t => civilDateKey(t.fecha) > clock.dateKey)
       .sort((a, b) => {
         const dateA = new Date(a.fecha!).getTime();
         const dateB = new Date(b.fecha!).getTime();
@@ -196,7 +195,7 @@ export class DashboardService {
     const mañanaMs = hoyMs + 86400000;
 
     return combined.map(t => {
-      const tDate = normalizeDate(t.fecha);
+      const tDate = localDateFromDateKey(civilDateKey(t.fecha)).getTime();
       let dateLabel = '';
       if (tDate === hoyMs) dateLabel = 'Hoy';
       else if (tDate === mañanaMs) dateLabel = 'Mañana';
@@ -207,8 +206,8 @@ export class DashboardService {
 
       return {
         ...t,
-        clienteNombre: clientsMap.get(t.clienteId) || 'Cliente',
-        servicioNombre: servicesMap.get(t.servicioId) || 'Servicio',
+        clienteNombre: clientsMap.get(t.clienteId ?? '') || 'Cliente',
+        servicioNombre: servicesMap.get(t.servicioId ?? '') || 'Servicio',
         dateLabel
       };
     });
@@ -218,7 +217,7 @@ export class DashboardService {
    * Calculates overall business stats for the dashboard.
    */
   readonly stats = computed(() => {
-    const turnos = this.turnoService.items();
+    const turnos = this.bookings();
     const clientes = this.clienteService.items();
     
     const hoy = new Date();
@@ -251,31 +250,87 @@ export class DashboardService {
   });
 
   constructor() {
+    registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
-    // Update 'now' signal every minute for real-time filtering
-    const interval = setInterval(() => {
-      this.now.set(new Date());
-    }, 60000);
+    const onBookingCreated = () => {
+      this.invalidate();
+      this.refreshData();
+    };
+    window.addEventListener('booking.created', onBookingCreated);
 
-    this.destroyRef.onDestroy(() => clearInterval(interval));
+    this.destroyRef.onDestroy(() => {
+      window.removeEventListener('booking.created', onBookingCreated);
+    });
+  }
+
+  isAdminBookingsWarm(branchId: string): boolean {
+    return this.adminBookingsLoadedBranchId === branchId;
+  }
+
+  getAdminBookings(): BookingRecord[] {
+    return this.adminBookings();
+  }
+
+  rememberAdminBookings(branchId: string, rows: BookingRecord[]): void {
+    this.adminBookingsLoadedBranchId = branchId;
+    this.adminBookings.set(rows);
+  }
+
+  invalidate(): void {
+    this.bookingsLoaded = false;
+    this.adminBookingsLoadedBranchId = null;
+  }
+
+  clearCache(): void {
+    this.invalidate();
+    this.bookings.set([]);
+    this.adminBookings.set([]);
   }
 
   refreshData(): void {
+    if (this.bookingsLoaded) {
+      return;
+    }
     this.isLoading.set(true);
-    this.turnoService.getAll().subscribe({
-      next: () => {
-        this.clienteService.getAll().subscribe({
-          next: () => {
-            this.servicioService.getAll().subscribe({
-              next: () => this.isLoading.set(false),
-              error: () => this.isLoading.set(false)
-            });
-          },
-          error: () => this.isLoading.set(false)
-        });
-      },
-      error: () => this.isLoading.set(false)
-    });
+    const generation = ++this.refreshGeneration;
+    void this.loadBookings(generation);
+  }
+
+  private async loadBookings(generation: number): Promise<void> {
+    const branchContext = getBranchContextService();
+    await branchContext.ensureLoaded();
+    if (generation !== this.refreshGeneration) return;
+
+    const branchId = branchContext.getActiveBranchId() ?? '';
+    if (!branchId) {
+      this.bookings.set([]);
+      this.isLoading.set(false);
+      return;
+    }
+
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 14);
+
+    try {
+      const rows = await this.bookingQueries.listBookingsByBranch(branchId, { from, to });
+      if (generation !== this.refreshGeneration) return;
+      this.bookings.set(rows);
+      this.bookingsLoaded = true;
+      this.clienteService.getAll().subscribe({
+        next: () => {
+          this.servicioService.getAll().subscribe({
+            next: () => this.isLoading.set(false),
+            error: () => this.isLoading.set(false)
+          });
+        },
+        error: () => this.isLoading.set(false)
+      });
+    } catch {
+      if (generation !== this.refreshGeneration) return;
+      this.isLoading.set(false);
+    }
   }
 }

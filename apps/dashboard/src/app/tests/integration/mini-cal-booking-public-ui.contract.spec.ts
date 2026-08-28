@@ -30,7 +30,7 @@ describe('Mini Calendly public booking UI route RED contract', () => {
   it('loads business + availability through existing API adapter', () => {
     const source = getPublicBookingSource();
 
-    expect(source).toMatch(/from\s+['"].*core\/api\/supabase-booking\.api['"]/);
+    expect(source).toMatch(/from\s+['"]@orvel\/booking['"]/);
     expect(source).toMatch(/resolveBusinessBySlug\(/);
     expect(source).toMatch(/data-testid=["']booking-business-name["']/i);
     expect(source).toMatch(/data-testid=["']booking-availability-slot["']/i);

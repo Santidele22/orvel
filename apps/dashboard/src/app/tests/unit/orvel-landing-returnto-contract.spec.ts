@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { buildLandingLoginRedirect, sanitizeReturnTo } from '../../core/auth/route-protection';
+import {
+  buildLandingLoginRedirect,
+  buildLandingPlanSelectionRedirect,
+  sanitizeReturnTo
+} from '../../core/auth/route-protection';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../../core/plans/plan-entitlements';
 
 const DASHBOARD_AUTH_GUARD_PATH = new URL('../../core/auth/dashboard-auth.guard.ts', import.meta.url);
@@ -54,6 +58,26 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     }
   });
 
+  it('keeps QA dashboard redirects on qa.orvel.pro when PUBLIC_LANDING_URL is unset', () => {
+    delete process.env.PUBLIC_LANDING_URL;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { location: { origin: 'https://qa.orvel.pro', hostname: 'qa.orvel.pro' } }
+    });
+
+    try {
+      const login = new URL(buildLandingLoginRedirect('/dashboard/inicio'));
+      const plan = new URL(buildLandingPlanSelectionRedirect('/dashboard/inicio'));
+
+      expect(login.origin).toBe('https://qa.orvel.pro');
+      expect(login.pathname).toBe('/auth/login');
+      expect(plan.origin).toBe('https://qa.orvel.pro');
+      expect(plan.pathname).toBe('/auth/signup/plan');
+    } finally {
+      restoreRuntime();
+    }
+  });
+
   it('honors PUBLIC_LANDING_URL before localhost defaults', () => {
     process.env.PUBLIC_LANDING_URL = 'http://127.0.0.1:4321/some/path?ignored=true';
 
@@ -85,8 +109,8 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     const source = await loadDashboardAuthGuardSource();
 
     expect(source).toContain('const safeReturnTo = sanitizeReturnTo(currentUrl ??');
-    expect(source).toContain('buildLandingLoginRedirect(safeReturnTo)');
-    expect(source).not.toContain('access.redirectTo ?? buildLandingLoginRedirect(safeReturnTo)');
+    expect(source).toContain('buildDashboardSignInRedirect(safeReturnTo)');
+    expect(source).not.toContain('access.redirectTo ?? buildDashboardSignInRedirect(safeReturnTo)');
   });
 
   it('dashboard guard hard-navigates to landing auth instead of returning an internal UrlTree that can blank the shell', async () => {

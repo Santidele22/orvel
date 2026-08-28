@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { assert, assertEquals, assertMatch, assertStringIncludes } from "std/assert/mod.ts";
 
 const migrationUrl = new URL(
   "../../migrations/20260704140000_fix_public_booking_dashboard_and_email_contracts.sql",
@@ -197,6 +197,85 @@ Deno.test("public booking RPCs reject account-closed businesses before availabil
   assert(
     availabilityGuardIndex > -1 && availabilityGuardIndex < availabilityReturnIndex,
     "query_public_slot_availability must check account_closed_at before returning availability",
+  );
+});
+
+const publicTurneroGateUrl = new URL(
+  "../../migrations/20260824201000_public_turnero_unconfirmed_gate.sql",
+  import.meta.url,
+);
+
+const confirmEmailUrl = new URL(
+  "../../../apps/landing/src/pages/api/signup/confirm-email.ts",
+  import.meta.url,
+);
+
+Deno.test("7-day unconfirmed gate disables only the public turnero and leaves admin booking ungated", async () => {
+  const migration = await Deno.readTextFile(publicTurneroGateUrl);
+  const assertBody = requiredMatch(
+    migration,
+    /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\._assert_business_accepts_public_bookings[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/i,
+    "Guard must inspect the latest _assert_business_accepts_public_bookings body",
+  );
+  const enqueueBody = requiredMatch(
+    migration,
+    /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.enqueue_signup_email_verification_actions[\s\S]*?AS\s+\$\$([\s\S]*?)\$\$/i,
+    "Guard must inspect the 7-day disable half of enqueue_signup_email_verification_actions",
+  );
+
+  assertStringIncludes(migration, "ADD COLUMN IF NOT EXISTS public_turnero_disabled_at timestamptz");
+  assertMatch(assertBody, /account_closed_at\s+IS\s+NOT\s+NULL[\s\S]*BUSINESS_ACCOUNT_CLOSED/i);
+  assertMatch(assertBody, /public_turnero_disabled_at\s+IS\s+NOT\s+NULL[\s\S]*PUBLIC_TURNERO_DISABLED/i);
+  const closedIndex = assertBody.search(/account_closed_at\s+IS\s+NOT\s+NULL/i);
+  const turneroIndex = assertBody.search(/public_turnero_disabled_at\s+IS\s+NOT\s+NULL/i);
+  assert(closedIndex > -1 && turneroIndex > closedIndex, "public turnero check must run after the closed-account check");
+  assertMatch(enqueueBody, /email_confirmed_at\s+IS\s+NULL/i);
+  assertMatch(enqueueBody, /dashboard_ready_at\s*<=\s*now\(\)\s*-\s*interval\s+'7 days'/i);
+  assertMatch(enqueueBody, /UPDATE\s+public\.businesses[\s\S]*public_turnero_disabled_at\s*=\s*now\(\)/i);
+  assertEquals(/create_admin_manual_booking/i.test(migration), false);
+  assertEquals(/_assert_business_accepts_public_bookings\(/.test(enqueueBody), false);
+});
+
+Deno.test("late email confirmation clears public_turnero_disabled_at without provisioning", async () => {
+  const source = await Deno.readTextFile(confirmEmailUrl);
+  const freeSignupIndex = source.search(/purpose\s*===\s*["']paid_signup["']/);
+  const freeSlice = freeSignupIndex >= 0 ? source.slice(freeSignupIndex) : source;
+
+  assertMatch(freeSlice, /public_turnero_disabled_at\s*:\s*null/i);
+  assertEquals(/\.from\(["']businesses["']\)[\s\S]{0,320}\.insert\(/i.test(freeSlice), false);
+});
+
+const publicBookingSkipsMissingBusinessEmailUrl = new URL(
+  "../../migrations/20260825160000_public_booking_skips_missing_business_email.sql",
+  import.meta.url,
+);
+
+Deno.test("latest create_public_booking inserts booking and dashboard notification without requiring a business email", async () => {
+  const migration = await Deno.readTextFile(publicBookingSkipsMissingBusinessEmailUrl);
+  const body = latestCreatePublicBookingBody(migration);
+  const bookingInsertIndex = body.search(/INSERT\s+INTO\s+public\.bookings/i);
+  const dashboardInsertIndex = body.search(/INSERT\s+INTO\s+public\.dashboard_notifications/i);
+  const raiseBusinessEmail = /PERFORM\s+public\._raise_rpc\(\s*'BUSINESS_EMAIL_RECIPIENT_REQUIRED'\s*\)/i.test(body);
+  const hardcodedBusinessEmailEnqueued = /'business_email_outbox_enqueued'\s*,\s*true/i.test(body);
+  const businessEmailInsert = /INSERT\s+INTO\s+public\.notification_email_outbox[\s\S]*'appointment_created_business'/i.test(body);
+
+  assert(bookingInsertIndex > -1, "create_public_booking must still insert bookings");
+  assert(dashboardInsertIndex > -1, "create_public_booking must still insert dashboard_notifications");
+  assert(bookingInsertIndex < dashboardInsertIndex, "dashboard notification must follow the booking insert");
+  assertEquals(raiseBusinessEmail, false, "missing business email must not abort public booking");
+  assertStringIncludes(body, "_resolve_booking_business_email");
+  assertStringIncludes(body, "IF v_customer_email IS NOT NULL THEN");
+  assertStringIncludes(body, "business_email_outbox_enqueued");
+  assertEquals(
+    hardcodedBusinessEmailEnqueued && !businessEmailInsert,
+    false,
+    "business_email_outbox_enqueued must be true only when a business email is actually enqueued",
+  );
+  assertStringIncludes(migration, "GRANT EXECUTE ON FUNCTION public.create_public_booking(text, text, text, jsonb, text, text, text) TO anon, authenticated");
+  assertStringIncludes(migration, "GRANT EXECUTE ON FUNCTION public.create_public_booking(text, text, text, jsonb, text, text) TO anon, authenticated");
+  assertStringIncludes(
+    migration,
+    "SELECT public.create_public_booking(business_slug, service_id, starts_at_iso, client, notes, professional_id, NULL::text)",
   );
 });
 

@@ -79,7 +79,8 @@ describe('RED contract: landing signup credentials phone + continuation flow', (
     expect(freeSignupBranch).toMatch(/createAccountAndBusiness\(accountBusinessPayload\)\.catch/);
     expect(freeSignupBranch).toMatch(/button\.disabled\s*=\s*false/);
     expect(freeSignupBranch).toMatch(/signupError|errorEl/);
-    expect(freeSignupBranch).toMatch(/showAccountCreatedModal\(\)/);
+    expect(freeSignupBranch).toMatch(/loginWithProvider|loginAfterFreeSignup/);
+    expect(freeSignupBranch).toMatch(/window\.location\.assign/);
     expect(freeSignupBranch).not.toMatch(/window\.location\.href|\/billing\/subscription|Mercado\s*Pago|preapproval/i);
   });
 });

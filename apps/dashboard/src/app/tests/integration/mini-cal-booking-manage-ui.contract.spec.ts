@@ -33,7 +33,7 @@ describe('Mini Calendly manage-by-token UI route RED contract', () => {
     expect(source).toMatch(/queryParamMap\.get\(['"]token['"]\)/);
     expect(source).toMatch(/PublicBookingService/);
     expect(source).toMatch(/manageBookingByToken\(/);
-    expect(source).not.toMatch(/from\s+['"].*core\/api\/supabase-booking\.api['"]/);
+    expect(source).not.toMatch(/from\s+['"][^'"]*supabase-booking['"]/);
   });
 
   it('renders deterministic messages for invalid/expired/policy-window states', () => {

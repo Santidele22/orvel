@@ -441,3 +441,12 @@ verify_jwt = true
 # `Authorization: Bearer $ACCOUNT_CLOSURE_CRON_SECRET` or `x-cron-key`.
 [functions.account-closure]
 verify_jwt = false
+
+# Hourly cron is enough for the 48h reminder / 7d public-turnero windows.
+# Authenticate with CRON_KEY like appointment-reminders-24h.
+[functions.signup-email-verification-lifecycle]
+verify_jwt = false
+
+# Authenticate with CRON_KEY like appointment-reminders-24h.
+[functions.process-web-push-outbox]
+verify_jwt = false

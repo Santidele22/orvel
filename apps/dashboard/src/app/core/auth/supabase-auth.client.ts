@@ -5,8 +5,8 @@
  * Provides authentication methods using @supabase/supabase-js.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-config';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
 
 export { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-config';
 
@@ -111,20 +111,14 @@ export function createSupabaseAuthClient(
 }
 
 export function createSupabaseBrowserClient(config: SupabaseAuthConfig): SupabaseClient {
-  return createClient(
-    config.supabaseUrl,
-    config.supabaseAnonKey,
-    {
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-        storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      }
+  return createDashboardSupabaseClient({
+    env: {
+      PUBLIC_SUPABASE_URL: config.supabaseUrl,
+      PUBLIC_SUPABASE_ANON_KEY: config.supabaseAnonKey,
+      NEXT_PUBLIC_SUPABASE_URL: config.supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: config.supabaseAnonKey
     }
-  );
+  });
 }
 
 /**
@@ -234,9 +228,9 @@ class SupabaseAuthClientAdapter {
   /**
    * Signs out the current user.
    */
-  async signOut(): Promise<SignOutResult> {
+  async signOut(options?: { scope?: 'global' | 'local' | 'others' }): Promise<SignOutResult> {
     try {
-      const { error } = await this.client.auth.signOut();
+      const { error } = await this.client.auth.signOut(options);
 
       if (error) {
         return {
@@ -447,7 +441,7 @@ export interface SupabaseAuthClient {
       emailRedirectTo?: string;
     };
   }): Promise<SignUpResult>;
-  signOut(): Promise<SignOutResult>;
+  signOut(options?: { scope?: 'global' | 'local' | 'others' }): Promise<SignOutResult>;
   setSession(session: { access_token: string; refresh_token: string }): Promise<SetSessionResult>;
   resetPasswordForEmail(
     email: string,

@@ -11,16 +11,49 @@
   <meta name="apple-mobile-web-app-title" content="Orvel">
   <meta name="theme-color" content="#0F172A">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="manifest" href="/dashboard/manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
-  <!-- Consolidated Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
-    rel="stylesheet">
+  <!-- Consolidated Fonts (non-blocking: print + onload swap) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+      rel="stylesheet">
+  </noscript>
   <style>
     body {
       font-family: 'Inter', sans-serif;
+    }
+
+    .pwa-boot-splash {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #0F172A;
+      color: #ffffff;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .pwa-boot-splash.is-visible {
+      display: flex;
+    }
+
+    .pwa-boot-splash img {
+      width: 96px;
+      height: 96px;
+    }
+
+    .pwa-boot-splash p {
+      margin: 0;
+      font-size: 14px;
     }
 
     .no-scrollbar::-webkit-scrollbar {
@@ -70,7 +103,53 @@
 </head>
 
 <body class="antialiased bg-bg-primary text-text-primary">
-  <app-root></app-root>
+  <script>
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      window.__ORVEL_DEFERRED_INSTALL_PROMPT = event;
+    });
+  </script>
+  <app-root>
+    <div class="pwa-boot-splash" data-testid="pwa-boot-splash">
+      <img src="/dashboard/icons/icon-192x192.png" alt="Orvel" width="96" height="96">
+      <p>Cargando</p>
+    </div>
+    <script>
+      (function () {
+        var standaloneMq = window.matchMedia && window.matchMedia('(display-mode: standalone)');
+        function isStandalone() {
+          return (standaloneMq && standaloneMq.matches) || navigator.standalone === true;
+        }
+        function isMobileFirst() {
+          var coarse = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+          var compact = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+          return Boolean(coarse || compact);
+        }
+        function shouldReveal() {
+          return isStandalone() || isMobileFirst();
+        }
+        function reveal() {
+          var splash = document.querySelector('[data-testid="pwa-boot-splash"]');
+          if (splash) {
+            splash.classList.add('is-visible');
+          }
+        }
+        function revealIfNeeded() {
+          if (shouldReveal()) {
+            reveal();
+          }
+        }
+        revealIfNeeded();
+        if (standaloneMq && standaloneMq.addEventListener) {
+          standaloneMq.addEventListener('change', revealIfNeeded);
+        }
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(revealIfNeeded);
+        }
+        window.addEventListener('pageshow', revealIfNeeded);
+      })();
+    </script>
+  </app-root>
 </body>
 
 </html>

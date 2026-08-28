@@ -415,11 +415,11 @@ Deno.test("account closure refuses to delete without scheduled cancellation evid
   assertEquals((insertCalls[0].values as Record<string, unknown>).event_type, "account.cancellation_closure_failed");
 });
 
-Deno.test("account closure refuses provider-backed delete without provider cancelled evidence", async () => {
+Deno.test("account closure refuses paid manual delete without scheduled cancellation evidence", async () => {
   const mock = createMockSupabase({
+    subscriptions: [baseSubscription({ provider: "manual" })],
     events: {
-      "account-cancel-request:business-1:subscription-1:scheduled": { occurred_at: "2026-07-01T00:00:00.000Z", raw_payload: { requested_by: "user-1" } },
-      "account-cancel-request:business-1:subscription-1:provider-cancelled": null,
+      "account-cancel-request:business-1:subscription-1:scheduled": null,
     },
   });
 
@@ -430,16 +430,15 @@ Deno.test("account closure refuses provider-backed delete without provider cance
   });
 
   assertEquals(summary.failed, 1);
-  assertEquals(summary.results[0].reason, "provider_cancelled_evidence_missing");
+  assertEquals(summary.results[0].reason, "scheduled_evidence_missing");
   assertEquals(mock.calls.filter((call) => call.operation === "deleteUser"), []);
 });
 
-Deno.test("account closure refuses paid Mercado Pago delete without provider evidence even when provider id is missing", async () => {
+Deno.test("account closure refuses paid manual delete without scheduled evidence even when provider id is missing", async () => {
   const mock = createMockSupabase({
-    subscriptions: [baseSubscription({ provider_subscription_id: null, mp_preapproval_id: null, plan_code: "pro" })],
+    subscriptions: [baseSubscription({ provider: "manual", provider_subscription_id: null, mp_preapproval_id: null, plan_code: "pro" })],
     events: {
-      "account-cancel-request:business-1:subscription-1:scheduled": { occurred_at: "2026-07-01T00:00:00.000Z", raw_payload: { requested_by: "user-1" } },
-      "account-cancel-request:business-1:subscription-1:provider-cancelled": null,
+      "account-cancel-request:business-1:subscription-1:scheduled": null,
     },
   });
 
@@ -450,16 +449,15 @@ Deno.test("account closure refuses paid Mercado Pago delete without provider evi
   });
 
   assertEquals(summary.failed, 1);
-  assertEquals(summary.results[0].reason, "provider_cancelled_evidence_missing");
+  assertEquals(summary.results[0].reason, "scheduled_evidence_missing");
   assertEquals(mock.calls.filter((call) => call.operation === "deleteUser"), []);
 });
 
-Deno.test("account closure refuses Mercado Pago trial delete without provider evidence", async () => {
+Deno.test("account closure refuses manual trial delete without scheduled evidence", async () => {
   const mock = createMockSupabase({
-    subscriptions: [baseSubscription({ status: "trialing", plan_code: "trial", provider_subscription_id: "mp-subscription-1" })],
+    subscriptions: [baseSubscription({ provider: "manual", status: "trialing", plan_code: "trial", provider_subscription_id: "manual-subscription-1" })],
     events: {
-      "account-cancel-request:business-1:subscription-1:scheduled": { occurred_at: "2026-07-01T00:00:00.000Z", raw_payload: { requested_by: "user-1" } },
-      "account-cancel-request:business-1:subscription-1:provider-cancelled": null,
+      "account-cancel-request:business-1:subscription-1:scheduled": null,
     },
   });
 
@@ -470,16 +468,15 @@ Deno.test("account closure refuses Mercado Pago trial delete without provider ev
   });
 
   assertEquals(summary.failed, 1);
-  assertEquals(summary.results[0].reason, "provider_cancelled_evidence_missing");
+  assertEquals(summary.results[0].reason, "scheduled_evidence_missing");
   assertEquals(mock.calls.filter((call) => call.operation === "deleteUser"), []);
 });
 
-Deno.test("account closure allows local/free closure with scheduled evidence but no provider evidence", async () => {
+Deno.test("account closure allows paid manual closure with scheduled evidence and no provider evidence", async () => {
   const mock = createMockSupabase({
-    subscriptions: [baseSubscription({ provider: "local", provider_subscription_id: null, plan_code: "free" })],
+    subscriptions: [baseSubscription({ provider: "manual", provider_subscription_id: "manual-subscription-1" })],
     events: {
       "account-cancel-request:business-1:subscription-1:scheduled": { occurred_at: "2026-07-01T00:00:00.000Z", raw_payload: { requested_by: "user-1" } },
-      "account-cancel-request:business-1:subscription-1:provider-cancelled": null,
     },
   });
 

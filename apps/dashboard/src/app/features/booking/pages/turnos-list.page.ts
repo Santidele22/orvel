@@ -6,7 +6,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { TurnoService } from '../data-access/turno.service';
+import {
+  BookingAvailabilityService,
+  BookingCrudService,
+  BookingNotificationsService,
+  BookingSchedulingService,
+  type BookingRecord
+} from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';
@@ -17,11 +23,20 @@ import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
-import type { AdminBlockedTimePayload } from '../../../core/api/supabase-booking.api';
+import type { AdminBlockedTimePayload } from '@orvel/booking';
+import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import {
+  civilDateKey,
+  filterLiveAvailableStarts,
+  filterLiveTurnos,
+  localDateFromDateKey,
+  readArgentinaClock,
+} from '../../../core/time/argentina-clock';
 
 type BlockedTimeFormState = {
   date: string;
@@ -37,6 +52,7 @@ type AdminRescheduleFormState = {
 };
 
 const ADMIN_CANCEL_FAILURE_FEEDBACK = 'No pudimos cancelar el turno. Revisá el alcance activo e intentá nuevamente.';
+const ADMIN_APPROVE_FAILURE_FEEDBACK = 'No pudimos aprobar el turno. Revisá el alcance activo e intentá nuevamente.';
 
 export type AdminCancelFailurePresentation = {
   feedback: string;
@@ -97,7 +113,11 @@ interface CalendarioEvento {
   styleUrl: './turnos-list.page.scss'
 })
 export class TurnosListPage implements OnInit, OnDestroy {
-  private turnoService = inject(TurnoService);
+  private dashboardService = inject(DashboardService);
+  private crud = inject(BookingCrudService);
+  private scheduling = inject(BookingSchedulingService);
+  private availability = inject(BookingAvailabilityService);
+  private notifications = inject(BookingNotificationsService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
   protected themeService = inject(ThemeService);
@@ -113,6 +133,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   get isZen() { return this.themeService.activeTheme() === 'zen'; }
 
+  private readonly bookings = signal<Turno[]>([]);
+  private readonly loadErrorState = signal<string | null>(null);
+
   // State signals
   protected turnos = signal<TurnoWithRelations[]>([]);
   protected clientes = signal<Cliente[]>([]);
@@ -120,8 +143,8 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected loading = signal<boolean>(false);
   protected viewMode = signal<'list' | 'calendar'>('list');
   protected filterStatus = signal<TurnoEstado | 'todos'>('todos');
-  protected filterFecha = signal<Date>(new Date());
-  protected selectedDate = signal<Date>(new Date());
+  protected filterFecha = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
+  protected selectedDate = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
 
   // Summary Metrics for the sidebar widget
   protected readonly daySummary = computed(() => {
@@ -144,11 +167,21 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected blockedTimeSubmitting = signal(false);
   protected showAdminReschedulePanel = signal(false);
   protected adminRescheduleTurno = signal<TurnoWithRelations | null>(null);
-  protected adminRescheduleSlots = signal<string[]>([]);
+  private readonly adminRescheduleSlotStarts = signal<string[]>([]);
+  protected readonly adminRescheduleSlots = computed(() =>
+    filterLiveAvailableStarts(
+      this.adminRescheduleSlotStarts(),
+      this.adminRescheduleForm.date,
+      readArgentinaClock(this.dashboardService.now()),
+    ),
+  );
   protected adminRescheduleLoading = signal(false);
   protected adminRescheduleSubmitting = signal(false);
   protected adminRescheduleFeedback = signal<string | null>(null);
   protected adminCancelFeedback = signal<string | null>(null);
+  protected pendingCancelTurno = signal<TurnoWithRelations | null>(null);
+  protected adminApproveFeedback = signal<string | null>(null);
+  protected pendingApproveTurno = signal<TurnoWithRelations | null>(null);
   protected turnosLoadError = signal<string | null>(null);
   protected availabilityError = signal<string | null>(null);
   protected hasLoadedAvailability = signal(false);
@@ -166,7 +199,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected visibleLimit = signal<number>(4);
   protected branchSelectorMessage = computed(() => {
-    if (this.branchContext.loading()) return 'Cargando alcance operativo…';
+    if (this.branchContext.loading()) return null;
     if (this.branchContext.requiresExplicitSelection()) return 'No pudimos preparar la configuración de cuenta para administrar turnos.';
     return null;
   });
@@ -190,12 +223,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const status = this.filterStatus();
     const allTurnos = this.turnos();
     const selectedDate = this.selectedDate();
+    const clock = readArgentinaClock(this.dashboardService.now());
+    const selectedKey = civilDateKey(selectedDate);
     
-    const daily = allTurnos.filter(t => {
-      const tStr = t.fecha.getFullYear() + '-' + (t.fecha.getMonth() + 1).toString().padStart(2, '0') + '-' + t.fecha.getDate().toString().padStart(2, '0');
-      const sStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
-      return tStr === sStr;
-    });
+    let daily = allTurnos.filter(t => civilDateKey(t.fecha) === selectedKey);
+    if (selectedKey === clock.dateKey) {
+      daily = filterLiveTurnos(daily, clock);
+    }
 
     const filtered = status === 'todos' 
       ? daily 
@@ -210,23 +244,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
    */
   protected readonly mobileAppointments = computed<TurnoWithRelations[]>(() => {
     const allTurnos = this.turnos(); // already enriched by processTurnos()
-    const selectedDate = this.selectedDate();
-    const tStr =
-      selectedDate.getFullYear() +
-      '-' +
-      (selectedDate.getMonth() + 1).toString().padStart(2, '0') +
-      '-' +
-      selectedDate.getDate().toString().padStart(2, '0');
-    return allTurnos.filter((t) => {
-      const ts =
-        t.fecha.getFullYear() +
-        '-' +
-        (t.fecha.getMonth() + 1).toString().padStart(2, '0') +
-        '-' +
-        t.fecha.getDate().toString().padStart(2, '0');
-      return ts === tStr;
-    });
+    const clock = readArgentinaClock(this.dashboardService.now());
+    const selectedKey = civilDateKey(this.selectedDate());
+    const daily = allTurnos.filter((t) => civilDateKey(t.fecha) === selectedKey);
+    return selectedKey === clock.dateKey ? filterLiveTurnos(daily, clock) : daily;
   });
+
+  protected readonly hasTurnosOnSelectedDate = computed(() => this.mobileAppointments().length > 0);
+  protected readonly hasAnyTurnos = computed(() => this.turnos().length > 0);
 
   protected hasMoreTurnos = computed(() => {
     const status = this.filterStatus();
@@ -262,7 +287,6 @@ export class TurnosListPage implements OnInit, OnDestroy {
   });
 
   async ngOnInit() {
-    this.loading.set(true);
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
     
     try {
@@ -272,15 +296,21 @@ export class TurnosListPage implements OnInit, OnDestroy {
         return;
       }
 
+      const branchId = this.branchContext.getActiveBranchId() ?? '';
+      const warm = !!branchId && this.dashboardService.isAdminBookingsWarm(branchId);
+      if (!warm) {
+        this.loading.set(true);
+      }
+
       this.turnosLoadError.set(null);
-      await firstValueFrom(this.turnoService.getAll());
+      await this.loadBookings();
       await this.loadSupportingAppointmentData();
       
       await this.processTurnos();
       
       this.loading.set(false);
     } catch {
-      this.turnosLoadError.set(this.turnoService.loadError() ?? this.branchContext.error() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+      this.turnosLoadError.set(this.loadErrorState() ?? this.branchContext.error() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
       this.loading.set(false);
     }
   }
@@ -290,11 +320,11 @@ export class TurnosListPage implements OnInit, OnDestroy {
     this.loading.set(true);
     try {
       this.turnosLoadError.set(null);
-      await firstValueFrom(this.turnoService.getAll());
+      await this.loadBookings();
       await this.loadSupportingAppointmentData();
       await this.processTurnos();
     } catch {
-      this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+      this.turnosLoadError.set(this.loadErrorState() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
     } finally {
       this.loading.set(false);
     }
@@ -306,12 +336,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   private async refreshTurnosFromSource() {
     try {
+      this.dashboardService.invalidate();
       this.turnosLoadError.set(null);
-      await this.turnoService.getAll().toPromise();
+      await this.loadBookings();
       await this.loadSupportingAppointmentData();
       await this.processTurnos();
     } catch {
-      this.turnosLoadError.set(this.turnoService.loadError() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+      this.turnosLoadError.set(this.loadErrorState() ?? 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
     }
   }
 
@@ -326,7 +357,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   private async processTurnos() {
-    const turnosRaw = this.turnoService.items();
+    const turnosRaw = this.bookings();
     const clientes = this.clientes();
     const servicios = this.servicios();
     
@@ -380,6 +411,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   private getStatusColor(estado: TurnoEstado): string {
     const colors: Record<TurnoEstado, string> = {
+      'pendiente': 'var(--secondary)',
       'confirmado': 'var(--primary)',
       'en-proceso': 'var(--primary)',
       'completado': 'var(--primary)',
@@ -399,7 +431,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected async updateEstado(turnoId: string, nuevoEstado: TurnoEstado) {
     try {
-      await firstValueFrom(this.turnoService.updateEstado(turnoId, nuevoEstado));
+      await this.crud.updateEstado(turnoId, nuevoEstado, this.resolveScope().performedBy);
+      this.dashboardService.invalidate();
+      this.bookings.set(this.bookings().map((item) => item.id === turnoId ? { ...item, estado: nuevoEstado } : item));
       await this.processTurnos();
     } catch {
       // Keep runtime details out of logs/UI for admin actions.
@@ -407,13 +441,11 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected async deleteTurno(turnoId: string) {
-    if (confirm('¿Está seguro de cancelar este turno?')) {
-      try {
-        await this.turnoService.delete(turnoId).toPromise();
-        await this.processTurnos();
-      } catch {
-        // Keep runtime details out of logs/UI for admin actions.
-      }
+    try {
+      this.bookings.set(this.crud.delete(this.bookings() as never, turnoId).map((row) => this.toTurno(row)));
+      await this.processTurnos();
+    } catch {
+      // Keep runtime details out of logs/UI for admin actions.
     }
   }
 
@@ -422,14 +454,23 @@ export class TurnosListPage implements OnInit, OnDestroy {
     if (!performedBy) return;
 
     try {
-      await this.turnoService.cancelByAdmin(turnoId, {
+      await this.crud.cancelByAdmin(turnoId, {
         performedBy,
-        reason: 'Cancelado desde listado administrativo'
-      }).toPromise();
-
+        reason: 'Cancelado desde listado administrativo',
+        branchId: this.resolveScope().branchId
+      });
+      this.dashboardService.invalidate();
+      this.bookings.set(this.bookings().map((item) => item.id === turnoId ? { ...item, estado: 'cancelado' } : item));
       await this.processTurnos();
-    } catch {
-      // Keep runtime details out of logs/UI for admin actions.
+    } catch (error) {
+      logMutationFailure({
+        operation: 'cancel_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turnoId
+        }
+      });
     }
   }
 
@@ -458,29 +499,78 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
     try {
       this.adminRescheduleSubmitting.set(true);
-      await firstValueFrom(this.turnoService.rescheduleByAdmin(turno.id, {
+      await this.scheduling.rescheduleByAdmin(turno.id, {
         fecha: this.dateFromInputValue(selectedDate),
         hora: selectedSlot,
         performedBy,
         reason: this.adminRescheduleForm.reason.trim() || undefined
-      }));
-
-      this.turnoService.invalidateAdminAvailability();
+      }, this.resolveScope());
       await this.refreshTurnosFromSource();
       this.closeAdminReschedulePicker();
     } catch (error) {
       this.adminRescheduleSubmitting.set(false);
       const failure = buildAdminRescheduleFailurePresentation(error);
-      console.warn('Admin booking reschedule failed', {
-        action: 'admin_booking_reschedule',
-        reason: failure.telemetryCode
+      logMutationFailure({
+        operation: 'reschedule_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
       });
       this.adminRescheduleFeedback.set(failure.feedback);
     }
   }
 
-  protected async cancelTurno(turno: TurnoWithRelations) {
-    if (!confirm(`¿Estás seguro de que deseas cancelar el turno de ${turno.clienteNombre}?`)) return;
+  protected cancelTurno(turno: TurnoWithRelations) {
+    this.adminCancelFeedback.set(null);
+    this.pendingCancelTurno.set(turno);
+  }
+
+  protected approveTurno(turno: TurnoWithRelations) {
+    this.adminApproveFeedback.set(null);
+    this.pendingApproveTurno.set(turno);
+  }
+
+  protected dismissApproveTurnoConfirm() {
+    this.pendingApproveTurno.set(null);
+  }
+
+  protected async confirmApproveTurno() {
+    const turno = this.pendingApproveTurno();
+    if (!turno) return;
+    this.pendingApproveTurno.set(null);
+    this.adminApproveFeedback.set(null);
+    const performedBy = this.currentAdminActorId();
+    if (!performedBy) {
+      this.adminApproveFeedback.set('No se pudo identificar la cuenta administradora. Volvé a iniciar sesión.');
+      return;
+    }
+
+    try {
+      await this.crud.approvePending(turno.id, performedBy);
+      await this.refreshTurnosFromSource();
+    } catch (error) {
+      logMutationFailure({
+        operation: 'approve_pending_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
+      });
+      this.adminApproveFeedback.set(ADMIN_APPROVE_FAILURE_FEEDBACK);
+    }
+  }
+
+  protected dismissCancelTurnoConfirm() {
+    this.pendingCancelTurno.set(null);
+  }
+
+  protected async confirmCancelTurno() {
+    const turno = this.pendingCancelTurno();
+    if (!turno) return;
+    this.pendingCancelTurno.set(null);
     this.adminCancelFeedback.set(null);
     const performedBy = this.currentAdminActorId();
     if (!performedBy) {
@@ -489,19 +579,24 @@ export class TurnosListPage implements OnInit, OnDestroy {
     }
 
     try {
-      await firstValueFrom(this.turnoService.cancelByAdmin(turno.id, {
+      await this.crud.cancelByAdmin(turno.id, {
         performedBy,
-        reason: 'Cancelado desde acceso rápido'
-      }));
+        reason: 'Cancelado desde acceso rápido',
+        branchId: this.resolveScope().branchId
+      });
 
       await this.refreshTurnosFromSource();
     } catch (error) {
       const failure = buildAdminCancelFailurePresentation(error);
-      console.warn('Admin booking cancellation failed', {
-        action: 'admin_booking_cancel',
-        reason: failure.telemetryCode
+      logMutationFailure({
+        operation: 'cancel_admin_booking',
+        error,
+        ids: {
+          branchId: this.branchContext.getActiveBranchId() ?? undefined,
+          bookingId: turno.id
+        }
       });
-      void this.turnoService.recordAdminCancelFailureTelemetry({
+      void this.notifications.recordAdminCancelFailureTelemetry({
         stage: 'rpc',
         code: failure.telemetryCode,
         retryable: true
@@ -528,7 +623,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected closeAdminReschedulePicker() {
     this.showAdminReschedulePanel.set(false);
     this.adminRescheduleTurno.set(null);
-    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleSlotStarts.set([]);
     this.adminRescheduleSubmitting.set(false);
     this.adminRescheduleLoading.set(false);
     this.adminRescheduleFeedback.set(null);
@@ -549,7 +644,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected async loadAdminRescheduleAvailability() {
     const turno = this.adminRescheduleTurno();
     const selectedDate = this.adminRescheduleForm.date?.trim();
-    this.adminRescheduleSlots.set([]);
+    this.adminRescheduleSlotStarts.set([]);
     this.adminRescheduleFeedback.set(null);
     this.availabilityError.set(null);
     this.hasLoadedAvailability.set(false);
@@ -561,15 +656,15 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
     try {
       this.adminRescheduleLoading.set(true);
-      const availableSlots = await this.turnoService.loadAvailabilityAdminSlotTimes({
+      const availableSlots = await this.availability.loadAvailabilityAdminSlotTimes({
         fecha: this.dateFromInputValue(selectedDate),
         durationMinutes: turno.duracionMinutos,
         serviceId: turno.servicioId,
-        branchId: turno.branchId ?? this.turnoService.getActiveBranchId(),
+        branchId: turno.branchId ?? this.branchContext.getActiveBranchId(),
         context: 'admin-reschedule',
         bookingId: turno.id
       });
-      this.adminRescheduleSlots.set(availableSlots);
+      this.adminRescheduleSlotStarts.set(availableSlots);
       this.hasLoadedAvailability.set(true);
       if (availableSlots.length === 0) {
         this.adminRescheduleFeedback.set('No hay horarios disponibles para esa fecha.');
@@ -632,7 +727,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected async openBlockedTimePanel() {
     try {
-      await this.turnoService.ensureDefaultBranchId();
+      this.resolveScope();
     } catch {
       this.showBlockedTimePanel.set(false);
       this.blockedTimeError.set('No pudimos preparar el bloqueo para esta cuenta. Revisá la configuración de cuenta o contactá soporte.');
@@ -689,7 +784,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
     try {
       this.blockedTimeSubmitting.set(true);
-      const branchId = await this.turnoService.ensureDefaultBranchId();
+      const { branchId } = this.resolveScope();
       if (!branchId) {
         this.blockedTimeError.set('No pudimos preparar el bloqueo para esta cuenta. Revisá la configuración de cuenta o contactá soporte.');
         this.blockedTimeSubmitting.set(false);
@@ -702,13 +797,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
         reason: this.blockedTimeForm.reason.trim(),
         performedBy
       };
+      const businessId = (await this.branchContext.getActiveBusinessId()) ?? '';
       const response = {
-        data: await firstValueFrom(this.turnoService.createBlockedTime(payload))
+        data: await this.scheduling.createBlockedTime({ ...payload, businessId, branchId })
       };
       // Legacy contract note: this replaces the old direct createAdminBlockedTime( page helper path.
 
       if (response.data) {
-        this.turnoService.invalidateAdminAvailability();
         await this.refreshTurnosFromSource();
         this.closeBlockedTimePanel();
       }
@@ -768,6 +863,39 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private currentAdminActorId(): string | null {
     const user = this.authService.user();
     return user?.id?.trim() || null;
+  }
+
+  private toTurno(row: BookingRecord): Turno {
+    return { ...row, clienteId: row.clienteId ?? '', servicioId: row.servicioId ?? '', precio: row.precio ?? 0 };
+  }
+
+  private resolveScope() {
+    const user = this.authService.user() as { id?: string; activeBranchId?: string } | null;
+    const userId = String(user?.id ?? '').trim();
+    const branchId = this.branchContext.getActiveBranchId() ?? user?.activeBranchId ?? '';
+    if (!userId) throw new Error('AUTH_REQUIRED: No active tenant session');
+    if (!branchId) throw new Error('ACTIVE_BRANCH_REQUIRED: Se requiere sucursal activa');
+    return { userId, branchId, businessId: '', performedBy: userId };
+  }
+
+  private async loadBookings(): Promise<void> {
+    this.loadErrorState.set(null);
+    try {
+      const branchId = this.resolveScope().branchId;
+      if (this.dashboardService.isAdminBookingsWarm(branchId)) {
+        this.bookings.set(this.dashboardService.getAdminBookings().map((row) => this.toTurno(row)));
+        return;
+      }
+      const rows = await this.crud.getAll(branchId);
+      this.dashboardService.rememberAdminBookings(branchId, rows);
+      this.bookings.set(rows.map((row) => this.toTurno(row)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.loadErrorState.set(/BRANCH|AUTH/i.test(message)
+        ? 'No pudimos validar el alcance de sucursal. Reintentá antes de operar turnos.'
+        : 'No pudimos cargar turnos. Reintentá antes de asumir que la agenda está vacía.');
+      throw error;
+    }
   }
 
   protected  nextWeek() {

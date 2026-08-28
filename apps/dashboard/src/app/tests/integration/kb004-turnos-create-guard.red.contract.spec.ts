@@ -16,9 +16,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // Imports
 // =============================================================================
 
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
 import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
-import { createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 // =============================================================================
 // Test Fixtures
@@ -586,7 +585,7 @@ describe('KB-004.4: Error Handling', () => {
 
       // ACT & ASSERT - Should return structured error
       const apiSpy = vi.fn();
-      vi.doMock('../../core/api/supabase-booking.api', () => ({
+      vi.doMock('@orvel/booking/infrastructure', () => ({
         createAdminManualBooking: apiSpy
       }));
 
@@ -626,7 +625,7 @@ describe('KB-004.4: Error Handling', () => {
   describe('KB-004.4.3: Network errors', () => {
     it('KB-004.4.3.1 @RED - Should handle Supabase offline gracefully', async () => {
       // ARRANGE - Set up mock to simulate offline
-      vi.doMock('../../core/api/supabase-booking.api', () => ({
+      vi.doMock('@orvel/booking/infrastructure', () => ({
         createAdminManualBooking: async () => {
           throw new Error('Supabase not available');
         }

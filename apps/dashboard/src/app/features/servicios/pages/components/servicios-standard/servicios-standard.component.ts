@@ -32,8 +32,37 @@ import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../../../core/theming/dashboa
             </div>
 
             @if (loading()) {
-              <div class="rounded-zen-card border border-text-primary/10 bg-surface p-zen-lg text-sm font-medium text-text-tertiary animate-pulse italic">
-                Cargando servicios...
+              <div data-testid="servicios-loading-skeleton" role="status" class="animate-pulse flex flex-col gap-zen-md">
+                <article data-testid="servicios-skeleton-card" class="rounded-zen-card border border-text-primary/10 bg-surface p-zen-lg flex items-center justify-between gap-zen-lg">
+                  <div class="flex items-center gap-4 min-w-0 flex-1">
+                    <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                    <div class="space-y-2 min-w-0">
+                      <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+                      <div class="h-3 w-40 bg-surface-muted/50 rounded-zen-md"></div>
+                    </div>
+                  </div>
+                  <div class="h-5 w-12 bg-surface-muted/50 rounded-zen-md shrink-0"></div>
+                </article>
+                <article data-testid="servicios-skeleton-card" class="rounded-zen-card border border-text-primary/10 bg-surface p-zen-lg flex items-center justify-between gap-zen-lg">
+                  <div class="flex items-center gap-4 min-w-0 flex-1">
+                    <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                    <div class="space-y-2 min-w-0">
+                      <div class="h-4 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+                      <div class="h-3 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                    </div>
+                  </div>
+                  <div class="h-5 w-12 bg-surface-muted/50 rounded-zen-md shrink-0"></div>
+                </article>
+                <article data-testid="servicios-skeleton-card" class="rounded-zen-card border border-text-primary/10 bg-surface p-zen-lg flex items-center justify-between gap-zen-lg">
+                  <div class="flex items-center gap-4 min-w-0 flex-1">
+                    <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                    <div class="space-y-2 min-w-0">
+                      <div class="h-4 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                      <div class="h-3 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+                    </div>
+                  </div>
+                  <div class="h-5 w-12 bg-surface-muted/50 rounded-zen-md shrink-0"></div>
+                </article>
               </div>
             } @else {
               <div class="flex flex-col gap-zen-md">

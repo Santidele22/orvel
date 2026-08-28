@@ -1,1 +1,8 @@
-<router-outlet />
+@if (bootSplashVisible()) {
+  <div class="pwa-boot-splash" data-testid="pwa-boot-splash">
+    <img src="/dashboard/icons/icon-192x192.png" alt="Orvel" width="96" height="96" />
+    <p>Cargando</p>
+  </div>
+}
+<app-pwa-in-app-update-banner />
+<router-outlet (activate)="onRouteActivate()" />

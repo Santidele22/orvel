@@ -48,8 +48,8 @@ describe('UX hardening final: responsive/layout contracts (mock mode, RED)', () 
         'Shell root must expose data-testid="dashboard-shell-responsive-root".'
       ),
       ...missingWhen(
-        /app-dashboard-sidebar[\s\S]*class=["'][^"']*(?:hidden\s+lg:(?:block|flex)|lg:(?:block|flex)\s+hidden)/.test(shellHtml),
-        'Desktop sidebar must be hidden below lg and visible at lg+ with stable Tailwind hooks.'
+        /class=["'][^"']*\bhidden lg:block\b[\s\S]*<app-dashboard-sidebar/.test(shellHtml),
+        'Desktop sidebar must be hidden below lg and visible at lg+ with a hidden lg:block wrapper before the host.'
       ),
       ...missingWhen(
         /app-dashboard-topbar[\s\S]*class=["'][^"']*\bz-40\b[^"']*\bshrink-0\b/.test(shellHtml) &&
@@ -118,8 +118,9 @@ describe('UX hardening final: responsive/layout contracts (mock mode, RED)', () 
         'Shell HTML must render a single app-dashboard-sidebar; no separate mobile drawer/sidebar instance is allowed.'
       ),
       ...missingWhen(
-        /<app-dashboard-sidebar[\s\S]*\[collapsed\]=["']isSidebarCollapsed\(\)["'][\s\S]*\(collapseToggle\)=["']toggleSidebarCollapsed\(\)["'][\s\S]*\[style\.width\.px\]=["']sidebarWidth\(\)["']/.test(shellHtml),
-        'Shell HTML must wire the only sidebar with [collapsed]="isSidebarCollapsed()", (collapseToggle)="toggleSidebarCollapsed()", and [style.width.px]="sidebarWidth()".'
+        /<app-dashboard-sidebar[\s\S]*\[collapsed\]=["']isSidebarCollapsed\(\)["'][\s\S]*\(collapseToggle\)=["']toggleSidebarCollapsed\(\)["']/.test(shellHtml) &&
+          /\[style\.width\.px\]=["']sidebarWidth\(\)["']/.test(shellHtml),
+        'Shell HTML must wire the only sidebar with [collapsed]="isSidebarCollapsed()", (collapseToggle)="toggleSidebarCollapsed()", and [style.width.px]="sidebarWidth()" on the hide wrapper.'
       ),
       ...missingWhen(
         !/isMobileSidebarDrawerOpen|openMobileSidebarDrawer|closeMobileSidebarDrawer|toggleMobileSidebarDrawer/.test(shellTs),

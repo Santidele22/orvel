@@ -125,7 +125,7 @@ describe('MobileAgendaDayView contract', () => {
   });
 
   it('component does NOT import TurnoService from data-access path', () => {
-    expect(componentSource).not.toMatch(/import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.service['"]/);
+    expect(componentSource).not.toMatch(/import\s*\{[^}]*\bTurnoService\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/data-access\/turno\.facade['"]/);
   });
 
   it('component has @Output() selectedDateChange', () => {
@@ -168,5 +168,38 @@ describe('MobileAgendaDayView contract', () => {
     // Check the TS source for admin action patterns that would indicate scope creep
     const adminPattern = /\b(reschedule|blockedTime|cancelTurno|adminReschedule)\b/i;
     expect(componentSource).not.toMatch(adminPattern);
+  });
+
+  // ── PR #2: Card tap → route navigation ────────────────────────────
+  it('template wires (cardTapped) to onCardTapped($event)', () => {
+    expect(templateSource).toMatch(/\(cardTapped\)="onCardTapped\(\$event\)"/);
+  });
+
+  it('has onCardTapped method in component TS', () => {
+    expect(componentSource).toMatch(/onCardTapped\(/);
+  });
+
+  it('onCardTapped calls router.navigate with path and state', () => {
+    expect(componentSource).toMatch(
+      /router\.navigate\(.+dashboard\/turnos.+state.+turno/,
+    );
+  });
+
+  it('imports Router from @angular/router', () => {
+    expect(componentSource).toMatch(
+      /import\s*\{[^}]*\bRouter\b[^}]*\}\s*from\s+['"]@angular\/router['"]/,
+    );
+  });
+
+  it('imports inject from @angular/core for Router', () => {
+    // The day view uses inject() for Router — verify it's imported or available
+    expect(componentSource).toMatch(
+      /import\s*\{[^}]*\binject\b[^}]*\}\s*from\s+['"]@angular\/core['"]/,
+    );
+  });
+
+  it('component does NOT use [routerLink] on mobile-appointment-card (navigation via event)', () => {
+    // Card navigation must be via (cardTapped) event, not [routerLink]
+    expect(templateSource).not.toMatch(/\[routerLink\].*mobile-appointment-card/);
   });
 });

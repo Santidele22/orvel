@@ -20,15 +20,16 @@ describe('Dashboard bugfix product decisions contract', () => {
     expect(settings).toMatch(/supportEmail|Email de Soporte/i);
   });
 
-  it('keeps public portal links on the canonical root domain outside localhost', () => {
+  it('keeps public portal links on the canonical root domain except localhost and QA', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
     const settingsTemplate = readDashboardFile('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
     const dashboardHome = readDashboardFile('src/app/features/dashboard-home/pages/dashboard-home.page.html');
-    const publicBookingUrlHelper = readDashboardFile('src/app/core/booking/public-booking-url.ts');
+    const publicBookingUrlHelper = readDashboardFile('../../packages/booking/src/domain/public-booking-url.ts');
 
     expect(`${settingsPage}\n${publicBookingUrlHelper}`).toMatch(/buildPublicBookingUrl/);
     expect(publicBookingUrlHelper).toMatch(/https:\/\/orvel\.pro/);
     expect(publicBookingUrlHelper).toMatch(/localhost|127\.0\.0\.1|0\.0\.0\.0/);
+    expect(publicBookingUrlHelper).toMatch(/qa\.orvel\.pro/);
     expect(`${settingsPage}\n${settingsTemplate}\n${dashboardHome}`).not.toMatch(/dashboard\.orvel\.pro\/booking|\/auth\/signup\/plan[\s\S]{0,160}(booking|reservas)/i);
     expect(settingsTemplate).not.toMatch(/localhost|href=["'][^"']*\/auth\/signup\/plan/i);
   });
@@ -77,9 +78,10 @@ describe('Dashboard bugfix product decisions contract', () => {
 
   it('settings hydrates idempotently when auth arrives late and does not gate saved settings on slug validity', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
+    const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
 
     expect(settingsPage).toMatch(/effect\(\(\)\s*=>[\s\S]*authService\.user\(\)\?\.id[\s\S]*hydrateBusinessSettings/i);
-    expect(settingsPage).toMatch(/hydratedUserId/);
+    expect(`${settingsPage}\n${businessService}`).toMatch(/hydratedUserId/);
     expect(settingsPage).not.toMatch(/setTimeout\(resolve,\s*500\)|setTimeout\([^)]*500/);
     expect(settingsPage).toMatch(/if\s*\(\s*saved\s*\)\s*\{[\s\S]*settingsForm\.patchValue\(saved\)[\s\S]*savedState\.set\(saved\)/i);
     expect(settingsPage).not.toMatch(/saved\s*&&\s*saved\.slug\s*&&\s*saved\.slug\s*!==\s*['"]id-pendiente['"]/i);

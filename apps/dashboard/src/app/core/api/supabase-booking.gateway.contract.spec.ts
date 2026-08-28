@@ -166,6 +166,39 @@ describe('createSupabaseBookingGateway contract surface', () => {
     );
   });
 
+  it('maps PUBLIC_TURNERO_DISABLED public booking RPC errors to a non-500 unavailable contract', async () => {
+    const gateway = createSupabaseBookingGateway({
+      client: { rpc: vi.fn(() => errorRpc('PUBLIC_TURNERO_DISABLED', 'PUBLIC_TURNERO_DISABLED')) }
+    });
+
+    await expect(
+      gateway.createPublicBooking({
+        businessSlug: 'demo-salon',
+        serviceId: 'service-1',
+        startsAtIso: '2026-06-01T10:00:00.000Z',
+        client: { fullName: 'Ada Lovelace', email: 'ada@example.test' }
+      })
+    ).resolves.toEqual(
+      expectedError(422, 'PUBLIC_TURNERO_DISABLED', 'Public booking is temporarily unavailable.')
+    );
+  });
+
+  it('maps PUBLIC_TURNERO_DISABLED availability RPC errors to a non-500 unavailable contract', async () => {
+    const gateway = createSupabaseBookingGateway({
+      client: { rpc: vi.fn(() => errorRpc('PUBLIC_TURNERO_DISABLED', 'PUBLIC_TURNERO_DISABLED')) }
+    });
+
+    await expect(
+      gateway.queryPublicSlotAvailability({
+        businessSlug: 'demo-salon',
+        serviceId: 'service-1',
+        dateIso: '2026-06-01'
+      })
+    ).resolves.toEqual(
+      expectedError(422, 'PUBLIC_TURNERO_DISABLED', 'Public booking is temporarily unavailable.')
+    );
+  });
+
   it('rejects locally-invalid public booking payloads without calling Supabase RPC', async () => {
     const rpc = vi.fn(() => okRpc({ booking_id: 'booking-public-1' }));
     const gateway = createSupabaseBookingGateway({ client: { rpc } });

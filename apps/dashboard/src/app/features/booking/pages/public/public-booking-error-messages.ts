@@ -1,4 +1,5 @@
-import type { ApiError, ApiResponse } from '../../../../core/api/supabase-booking.api';
+import type { ApiError, ApiResponse } from '@orvel/booking';
+import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 
 const GENERIC_BOOKING_ERROR_MESSAGE = 'No pudimos confirmar la reserva. Revisá los datos e intentá nuevamente.';
 
@@ -7,14 +8,6 @@ const SLOT_UNAVAILABLE_MESSAGE = 'Ese horario se acaba de ocupar o ya no está d
 const BUSINESS_OR_SERVICE_UNAVAILABLE_MESSAGE = 'No pudimos completar la reserva para este negocio o servicio. Contactá al negocio para coordinar tu turno.';
 
 const VALIDATION_ERROR_MESSAGE = 'Revisá los datos obligatorios y volvé a intentar.';
-
-type BookingErrorDiagnostics = {
-  status?: number;
-  code?: string;
-  message?: string;
-  details?: Record<string, unknown>;
-  raw?: unknown;
-};
 
 export function getPublicBookingSubmitErrorMessage(error?: ApiError): string {
   const code = error?.code ?? '';
@@ -39,7 +32,10 @@ export function getPublicBookingSubmitErrorMessage(error?: ApiError): string {
     searchable.includes('BRANCH_TENANT_MISMATCH') ||
     searchable.includes('INVALID_SERVICE') ||
     searchable.includes('SERVICE_NOT_FOUND') ||
-    searchable.includes('DATABASE_CONTRACT_UNAVAILABLE')
+    searchable.includes('DATABASE_CONTRACT_UNAVAILABLE') ||
+    searchable.includes('PUBLIC_TURNERO_DISABLED') ||
+    searchable.includes('BUSINESS_EMAIL_RECIPIENT_REQUIRED') ||
+    searchable.includes('BOOKING_BRANCH_CONFIGURATION_REQUIRED')
   ) {
     return BUSINESS_OR_SERVICE_UNAVAILABLE_MESSAGE;
   }
@@ -55,13 +51,9 @@ export function logPublicBookingSubmitFailure(input: {
   response?: ApiResponse<unknown>;
   caughtError?: unknown;
 }): void {
-  const diagnostics: BookingErrorDiagnostics = {
-    status: input.response?.status,
-    code: input.response?.error?.code,
-    message: input.response?.error?.message,
-    details: input.response?.error?.details,
-    raw: input.caughtError ?? input.response?.error ?? input.response
-  };
-
-  console.error('[PublicBooking] Booking submit failed', diagnostics);
+  logMutationFailure({
+    operation: 'create_public_booking',
+    error: input.caughtError,
+    response: input.response
+  });
 }

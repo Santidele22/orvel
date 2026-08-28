@@ -13,7 +13,7 @@ import {
   getPlanEntitlements,
   normalizePlanCode
 } from '../../core/plans/plan-entitlements';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 
 const supabaseAuthClientMock = {
   getSession: vi.fn(),
@@ -29,7 +29,8 @@ vi.mock('../../core/auth/supabase-config', () => ({
   SUPABASE_CONFIG: {
     url: 'https://test.supabase.co',
     anonKey: 'test-anon-key'
-  }
+  },
+  ORVEL_SUPABASE_AUTH_STORAGE_KEY: 'orvel.supabase.auth'
 }));
 
 function ensureLocalStorage(): Storage {
@@ -211,16 +212,18 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     );
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    resetDashboardAuthAccessCache();
     const result = await canAccessDashboardAsync(now);
 
     expect(result.allowed).toBe(false);
-    expect(result.redirectTo).toMatch(/^https:\/\/orvel\.pro\/auth\/login\?returnTo=|^\/auth\/onboarding\?/);
+    expect(result.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 
   it('Supabase session reaches dashboard only after persisted complete onboarding metadata', async () => {
-    const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    resetDashboardAuthAccessCache();
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {
@@ -275,7 +278,8 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   });
 
   it('keeps account-first paid users blocked from dashboard while payment is still pending', async () => {
-    const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    resetDashboardAuthAccessCache();
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
       data: {

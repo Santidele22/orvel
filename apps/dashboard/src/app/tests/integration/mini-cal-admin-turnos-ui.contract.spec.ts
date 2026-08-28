@@ -21,7 +21,7 @@ describe('Mini Calendly admin turnos UI RED contract', () => {
   it('adds manual booking creation flow using existing API adapter (no duplicated gateway logic)', () => {
     const source = readTurnosListSource();
 
-    expect(source).toMatch(/from\s+['"].*core\/api\/supabase-booking\.api['"]/);
+    expect(source).toMatch(/from\s+['"]@orvel\/booking['"]/);
     expect(source).toMatch(/createAdminManualBooking\(/);
     expect(source).toMatch(/data-testid=["']turno-admin-manual-booking-open["']/i);
     expect(source).toMatch(/data-testid=["']turno-admin-manual-booking-submit["']/i);

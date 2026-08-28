@@ -7,6 +7,7 @@ import { ClienteService } from '../data-access/cliente.service';
 import { ThemeService } from '../../../core/theming/theme.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../core/theming/dashboard-structural.tokens';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 type ClienteListItem = {
   id: string;
@@ -42,7 +43,9 @@ export class ClientesPage {
   readonly showModal = signal(false);
   readonly clients = signal<ClienteListItem[]>([]);
   readonly showDeactivated = signal(false);
-  
+  readonly showBajaConfirm = signal(false);
+  readonly isClienteBajaResultModalOpen = signal(false);
+
   // DB-FIX-001: Track selected client for deactivate action
   readonly selectedClientId = signal<string | null>(null);
 
@@ -65,6 +68,7 @@ export class ClientesPage {
     this.editingClientId.set(null);
     this.clientForm.reset();
     this.formMessage.set('');
+    this.cancelBajaConfirm();
   }
 
   readonly filteredClients = computed(() => {
@@ -95,6 +99,12 @@ export class ClientesPage {
 
   constructor() {
     this.showDeactivated.set(this.route.snapshot.queryParamMap.get('estado') === 'bajas');
+    if (this.clienteService.isLoaded()) {
+      this.facade.hydrateFromCache();
+      this.clients.set(this.facade.getList());
+      this.loading.set(false);
+      return;
+    }
     void this.loadClients();
   }
 
@@ -147,7 +157,7 @@ export class ClientesPage {
       this.clients.set(this.facade.getList());
       this.closeModal();
     } catch (error) {
-      this.logClientError(error);
+      this.logClientError(error, editingId ? 'customers.update' : 'customers.insert');
       this.formMessage.set(`No se pudo ${editingId ? 'guardar' : 'crear'} el cliente. ${this.mapClientErrorMessage(error)}`);
     }
   }
@@ -169,18 +179,24 @@ export class ClientesPage {
     return '';
   }
 
-  private logClientError(error: unknown): void {
-    console.error('[Clientes] operación fallida', error);
+  private logClientError(error: unknown, operation: string): void {
+    logMutationFailure({ operation, error });
   }
 
   private async loadClients(): Promise<void> {
+    if (this.clienteService.isLoaded()) {
+      this.facade.hydrateFromCache();
+      this.clients.set(this.facade.getList());
+      this.loading.set(false);
+      return;
+    }
     this.loading.set(true);
     this.formMessage.set('');
     try {
       await this.facade.load();
       this.clients.set(this.facade.getList());
     } catch (error) {
-      this.logClientError(error);
+      this.logClientError(error, 'customers.load');
       this.formMessage.set('No se pudieron cargar los clientes. Podés reintentar en unos minutos.');
     } finally {
       this.loading.set(false);
@@ -199,22 +215,50 @@ export class ClientesPage {
     });
   }
 
-  // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
-  // Use signal to track selected client for deactivate action
-  deactivateClient(client: ClienteListItem): void {
-    this.selectedClientId.set(client.id);
-    // Open confirmation modal or directly deactivate
-    this.performDeactivate(client.id);
+  openBajaConfirm(): void {
+    const editingId = this.editingClientId();
+    if (!editingId) {
+      return;
+    }
+
+    this.selectedClientId.set(editingId);
+    this.showBajaConfirm.set(true);
   }
 
-// DB-FIX-001: Soft-delete implementation
+  cancelBajaConfirm(): void {
+    this.showBajaConfirm.set(false);
+    this.selectedClientId.set(null);
+  }
+
+  closeClienteBajaResultModal(): void {
+    this.isClienteBajaResultModalOpen.set(false);
+  }
+
+  confirmBaja(): void {
+    const clientId = this.selectedClientId();
+    if (!clientId) {
+      return;
+    }
+
+    this.performDeactivate(clientId);
+  }
+
+  // DB-FIX-001: Soft-delete/deactivate methods for Gestionar Bajas
+  deactivateClient(client: ClienteListItem): void {
+    this.selectedClientId.set(client.id);
+    this.showBajaConfirm.set(true);
+  }
+
   performDeactivate(clientId: string): void {
     this.clienteService.darDeBajaCliente(clientId).subscribe({
       next: () => {
+        this.cancelBajaConfirm();
+        this.closeModal();
         void this.loadClients();
+        this.isClienteBajaResultModalOpen.set(true);
       },
       error: (error) => {
-        this.logClientError(error);
+        this.logClientError(error, 'customers.deactivate');
         this.formMessage.set('No se pudo dar de baja el cliente. Intentá nuevamente.');
       }
     });

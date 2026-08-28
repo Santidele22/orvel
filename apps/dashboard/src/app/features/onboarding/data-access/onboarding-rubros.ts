@@ -1,13 +1,16 @@
+// Shim: the RequiredRubro type moved to @orvel/domain; the runtime stays here
+// (it depends on the app-internal reference-catalog gateway snapshot, D3 split).
 import {
   resolveBusinessTypeCodeFromCatalog
 } from '../../../core/catalog/reference-catalog';
 import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+import type { RequiredRubro } from '@orvel/domain';
+
+export type { RequiredRubro } from '@orvel/domain';
 
 const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 
 export const REQUIRED_RUBROS = REFERENCE_CATALOG.businessTypes.map((businessType) => businessType.code.toLowerCase());
-
-export type RequiredRubro = (typeof REQUIRED_RUBROS)[number];
 
 const REQUIRED_RUBROS_SET = new Set<string>(REQUIRED_RUBROS);
 

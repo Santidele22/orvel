@@ -1,0 +1,155 @@
+@if (isMobile()) {
+  <div class="flex flex-col min-h-screen bg-surface">
+    <!-- Back button header -->
+    <header class="flex items-center gap-3 px-4 py-3 border-b border-white/10">
+      <button
+        type="button"
+        (click)="back()"
+        class="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-primary transition-colors"
+        data-testid="mobile-turno-detail-back"
+      >
+        <i class="ri-arrow-left-line text-lg"></i>
+        <span>Volver</span>
+      </button>
+    </header>
+
+    @if (isEmpty()) {
+      <!-- Empty state for invalid/missing id -->
+      <div
+        data-testid="mobile-turno-detail-empty"
+        class="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center"
+      >
+        <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+          <i class="ri-calendar-close-line text-3xl text-primary"></i>
+        </div>
+        <h2 class="text-xl font-bold text-text-primary mb-2">Turno no encontrado</h2>
+        <p class="text-sm text-text-tertiary mb-8 max-w-xs">
+          No pudimos encontrar el turno solicitado. Puede que haya sido eliminado o que el enlace sea incorrecto.
+        </p>
+        <button
+          type="button"
+          (click)="back()"
+          class="w-full max-w-xs py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+        >
+          Volver a turnos
+        </button>
+      </div>
+    } @else {
+      <!-- Detail content -->
+      <div class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        <!-- Client name + telefono -->
+        <section>
+          <h1 class="text-2xl font-bold text-text-primary mb-1">{{ turno()?.clienteNombre }}</h1>
+          @if (telefono()) {
+            <a
+              href="tel:{{ telefono() }}"
+              class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+            >
+              <i class="ri-phone-line"></i>
+              Llamar
+            </a>
+          }
+        </section>
+
+        <!-- Service + Price -->
+        <section class="rounded-xl bg-surface-container p-4 space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Servicio</p>
+              <p class="text-sm font-semibold text-text-primary mt-0.5">{{ turno()?.servicioNombre }}</p>
+            </div>
+            <span class="shrink-0 text-sm font-bold text-text-primary tabular-nums">{{ turno()?.precio | currency }}</span>
+          </div>
+        </section>
+
+        <!-- Date, Time, Duration -->
+        <section class="rounded-xl bg-surface-container p-4 space-y-3">
+          <div class="flex items-center gap-3">
+            <i class="ri-calendar-line text-lg text-text-tertiary"></i>
+            <div>
+              <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Fecha y hora</p>
+              <p class="text-sm font-semibold text-text-primary mt-0.5">
+                {{ turno()?.hora }} · {{ turno()?.duracionMinutos }} min
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Status pill -->
+        <section class="rounded-xl bg-surface-container p-4 space-y-3">
+          <div class="flex items-center gap-3">
+            <i class="ri-information-line text-lg text-text-tertiary"></i>
+            <div>
+              <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Estado</p>
+              <div class="mt-1.5">
+                @switch (turno()?.estado) {
+                  @case ('confirmado') {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-success/20 text-success border-success/40"
+                    >
+                      Confirmado
+                    </span>
+                  }
+                  @case ('en-proceso') {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning border-warning/40"
+                    >
+                      En proceso
+                    </span>
+                  }
+                  @case ('completado') {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-success/20 text-success border-success/40"
+                    >
+                      Completado
+                    </span>
+                  }
+                  @case ('cancelado') {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-error/20 text-error border-error/40"
+                    >
+                      Cancelado
+                    </span>
+                  }
+                  @case ('no-asistio') {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-error/80 text-error border-error/60"
+                    >
+                      No-show
+                    </span>
+                  }
+                  @default {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-surface-muted text-text-tertiary border-border/40"
+                    >
+                      {{ turno()?.estado }}
+                    </span>
+                  }
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Notes -->
+        @if (turno()?.notas) {
+          <section class="rounded-xl bg-surface-container p-4 space-y-3">
+            <div class="flex items-start gap-3">
+              <i class="ri-file-text-line text-lg text-text-tertiary mt-0.5"></i>
+              <div>
+                <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Notas</p>
+                <p class="text-sm text-text-primary mt-0.5 whitespace-pre-wrap">{{ turno()?.notas }}</p>
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+    }
+  </div>
+}

@@ -9,7 +9,7 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
   standalone: true,
   imports: [CommonModule],
   template: `
-    <header data-testid="dashboard-topbar-responsive" class="w-full bg-bg-secondary/80 backdrop-blur-xl px-8 h-20 flex items-center justify-end shrink-0 animate-in fade-in duration-500 relative z-100 transition-all shadow-xl shadow-black/10">
+    <header data-testid="dashboard-topbar-responsive" class="hidden lg:flex w-full bg-bg-primary px-8 h-20 items-center justify-end shrink-0 animate-in fade-in duration-500 relative z-100 transition-all">
       <div class="flex items-center gap-5">
         <div class="flex items-center gap-2 relative">
           <button
@@ -28,7 +28,10 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
           </button>
 
           @if (showNotificationList()) {
-            <div class="absolute right-0 top-full mt-4 w-80 bg-tertiary rounded-3xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 slide-in-from-top-4 duration-200 origin-top-right z-50 border border-white/5 shadow-black/50">
+            <div
+              data-testid="dashboard-topbar-notifications-panel"
+              class="absolute right-0 top-full mt-4 w-80 bg-[#121827] rounded-3xl shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 slide-in-from-top-4 duration-200 origin-top-right z-50 border border-white/10 shadow-black/50"
+            >
               <div class="flex items-center justify-between px-1">
                 <h3 class="text-[10px] font-bold text-text-primary uppercase tracking-[0.2em]">Notificaciones</h3>
                 @if (notificationList().length > 0) {
@@ -61,7 +64,7 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
                   @for (notif of notificationList(); track notif.id) {
                     <div 
                       (click)="markNotificationRead(notif.id)"
-                      class="p-3 rounded-2xl bg-bg-primary/50 hover:bg-primary/10 transition-all cursor-pointer group relative border border-white/5"
+                      class="p-3 rounded-2xl bg-[#182033] hover:bg-primary/10 transition-all cursor-pointer group relative border border-white/5"
                     >
                       <div class="flex justify-between items-start gap-3">
                         <div class="space-y-1 flex-1">
@@ -71,6 +74,15 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
                         @if (notif.status === 'unread') {
                           <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1"></span>
                         }
+                        <button
+                          type="button"
+                          data-testid="dashboard-topbar-notification-dismiss"
+                          aria-label="Descartar notificación"
+                          (click)="$event.stopPropagation(); archiveNotification(notif.id)"
+                          class="shrink-0 text-text-secondary hover:text-primary transition-colors"
+                        >
+                          <i class="ri-close-line text-sm" aria-hidden="true"></i>
+                        </button>
                       </div>
                     </div>
                   }

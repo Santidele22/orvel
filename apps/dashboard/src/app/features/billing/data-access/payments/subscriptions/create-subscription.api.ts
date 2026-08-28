@@ -84,12 +84,8 @@ function mapServerErrorToDeterministicError(input: {
     return new CreateSubscriptionError('PLAN_NOT_FOUND', 'El plan seleccionado no está disponible.');
   }
 
-  if (code === 'MP_CONFIG_ERROR') {
-    return new CreateSubscriptionError('SERVER_CONFIG_ERROR', 'Configuración de pagos incompleta. Contactá soporte.');
-  }
-
-  if (code === 'MP_API_ERROR' || code === 'MP_INVALID_RESPONSE') {
-    return new CreateSubscriptionError('PROVIDER_ERROR', 'No pudimos conectar con Mercado Pago. Reintentá en unos minutos.');
+  if (code === 'PROVIDER_ERROR') {
+    return new CreateSubscriptionError('PROVIDER_ERROR', 'No pudimos registrar el pago. Contactá soporte.');
   }
 
   if (input.statusCode && input.statusCode >= 500) {
@@ -106,7 +102,7 @@ function resolveDefaultInvoker(): (payload: { plan_code: PlanCode }) => Promise<
   return () => {
     throw new CreateSubscriptionError(
       'SERVER_CONFIG_ERROR',
-      'Los pagos online no están disponibles desde esta aplicación. Contactá soporte.'
+      'Los pagos se coordinan manualmente. Contactá soporte.'
     );
   };
 }

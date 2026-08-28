@@ -2,18 +2,27 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const APP_ROUTES_PATH = new URL('../../../app.routes.ts', import.meta.url);
+const DASHBOARD_SHELL_PATH = new URL('../../../dashboard-shell.routes.ts', import.meta.url);
+const TURNOS_ROUTES_PATH = new URL('../turnos.routes.ts', import.meta.url);
 const TURNOS_LIST_TS_PATH = new URL('./turnos-list.page.ts', import.meta.url);
 const TURNOS_LIST_HTML_PATH = new URL('./turnos-list.page.html', import.meta.url);
 const TURNO_FORM_TS_PATH = new URL('./turno-form.page.ts', import.meta.url);
 const TURNO_FORM_HTML_PATH = new URL('./turno-form.page.html', import.meta.url);
-const TURNO_SERVICE_TS_PATH = new URL('../data-access/turno.service.ts', import.meta.url);
+const SCHEDULING_TS_PATH = new URL('../../../../../../../packages/booking/src/application/booking-scheduling.service.ts', import.meta.url);
 
-const appRoutesSource = fs.readFileSync(APP_ROUTES_PATH, 'utf8');
+const appRoutesSource = `${fs.readFileSync(APP_ROUTES_PATH, 'utf8')}\n${fs.readFileSync(DASHBOARD_SHELL_PATH, 'utf8')}\n${(() => {
+  try {
+    return fs.readFileSync(TURNOS_ROUTES_PATH, 'utf8');
+  } catch {
+    return '';
+  }
+})()}`;
 const turnosListSource = fs.readFileSync(TURNOS_LIST_TS_PATH, 'utf8');
 const turnosListTemplate = fs.readFileSync(TURNOS_LIST_HTML_PATH, 'utf8');
 const turnoFormSource = fs.readFileSync(TURNO_FORM_TS_PATH, 'utf8');
 const turnoFormTemplate = fs.readFileSync(TURNO_FORM_HTML_PATH, 'utf8');
-const turnoServiceSource = fs.readFileSync(TURNO_SERVICE_TS_PATH, 'utf8');
+const turnoServiceSource = fs.readFileSync(SCHEDULING_TS_PATH, 'utf8')
+  + fs.readFileSync(new URL('../../../../../../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts', import.meta.url), 'utf8');
 
 function methodBody(sourceText: string, methodName: string): string {
   const signatureMatch = new RegExp(`\\n\\s{2}(?:private\\s+|protected\\s+|public\\s+)?(?:async\\s+)?${methodName}\\s*\\(`).exec(sourceText);
@@ -62,7 +71,7 @@ describe('M2 real admin new turno UX RED contract', () => {
       /branchId\s*:\s*branchId\s*\?\?\s*['"]{2}|branchId\s*:\s*['"]{2}/i
     );
     expect(saveBody, 'TurnoService.create must be called only after the internal branch scope is known').toMatch(
-      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}turnoService\.create\(/i
+      /(?:resolve|ensure|getOrProvision)[\s\S]{0,600}branch[\s\S]{0,600}(?:turnoService|scheduling)\.create\(/i
     );
   });
 
@@ -142,7 +151,7 @@ describe('M2 real admin new turno UX RED contract', () => {
   });
 
   it('wires a real /dashboard/turnos/new route or an explicit modal flow from the list', () => {
-    const hasNewRoute = /path:\s*["']turnos\/new["'][\s\S]{0,220}TurnoFormPage/i.test(appRoutesSource);
+    const hasNewRoute = /path:\s*["']new["'][\s\S]{0,220}TurnoFormPage/i.test(appRoutesSource);
     const hasRealModalFlow = /data-testid=["']turno-admin-new-modal["']|openAdminNewTurnoModal|openNewTurnoFlow/i.test(turnosListTemplate + turnosListSource);
 
     expect(hasNewRoute || hasRealModalFlow, 'M2 requires a real new-turno route or modal flow wired from the visible list action').toBe(true);
@@ -161,7 +170,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     );
     expect(combinedNewTurnoUx, 'Nuevo Turno modal must be an accessible modal, not a separate naked page').toMatch(/aria-modal=["']true["']/i);
     expect(combinedNewTurnoUx, 'Nuevo Turno modal needs an overlay/backdrop matching Nuevo Cliente dark zen shell').toMatch(
-      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,180}(?:backdrop-blur|bg-black\/60|fixed inset-0)/i
+      /data-testid=["']turno-admin-new-modal-overlay["'][\s\S]{0,180}(?:backdrop-blur-md|bg-black\/65|fixed inset-0)/i
     );
   });
 
@@ -172,7 +181,7 @@ describe('M2 real admin new turno UX RED contract', () => {
       /data-testid=["']turno-admin-new-modal-shell["']/i
     );
     expect(combinedNewTurnoUx, 'modal shell must use the same dark/zen visual logic as Nuevo Cliente').toMatch(
-      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,260}(?:bg-\[#151b2b\]|bg-bg-primary|rounded-\[32px\]|rounded-zen-card|shadow-2xl|border-white\/5)/i
+      /data-testid=["']turno-admin-new-modal-shell["'][\s\S]{0,260}(?:bg-\[#121827\]|rounded-3xl|shadow-2xl|border-white\/10)/i
     );
     expect(combinedNewTurnoUx, 'modal close button must be deterministic and explicit').toMatch(
       /<button\b(?=[^>]*data-testid=["']turno-admin-new-modal-close["'])(?=[^>]*type=["']button["'])[^>]*>/i
@@ -186,7 +195,7 @@ describe('M2 real admin new turno UX RED contract', () => {
   });
 
   it('renders Nuevo Turno form fields as dark modal controls rather than default white browser inputs', () => {
-    const darkModalControlClass = /class=["'][^"']*(?:bg-\[#1a2236\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
+    const darkModalControlClass = /class=["'][^"']*(?:bg-\[#182033\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
     const requiredDarkControls = [
       'turno-admin-client-select',
       'turno-admin-walk-in-name',
@@ -227,7 +236,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     }
 
     expect(turnoFormTemplate, 'footer actions must be in a dedicated modal footer, visually separated from form fields').toMatch(
-      /<(?:footer|div)\b(?=[^>]*data-testid=["']turno-admin-new-modal-footer["'])(?=[^>]*class=["'][^"']*(?:border-t|pt-zen|pt-6|justify-end|sm:justify-end|items-center))[\s\S]{0,900}data-testid=["']turno-admin-new-modal-cancel["'][\s\S]{0,900}data-testid=["']turno-admin-submit-action["']/i
+      /<(?:footer|div)\b(?=[^>]*data-testid=["']turno-admin-new-modal-footer["'])(?=[^>]*class=["'][^"']*(?:flex-col-reverse|pt-3|sm:flex-row|sm:justify-end|border-t|pt-6|justify-end))[\s\S]{0,1600}data-testid=["']turno-admin-new-modal-cancel["'][\s\S]{0,1600}data-testid=["']turno-admin-submit-action["']/i
     );
   });
 
@@ -267,7 +276,7 @@ describe('M2 real admin new turno UX RED contract', () => {
     const availabilityBody = methodBody(turnoFormSource, 'checkAvailability');
 
     expect(availabilityBody, 'admin new turno flow must ask TurnoService for backend-decided slot availability').toMatch(
-      /turnoService\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
+      /(?:turnoService|availability)\.loadAvailabilityAdminSlotTimes\(|turnoService\.queryAdminSlotAvailability\(|query_admin_slot_availability/i
     );
     expect(availabilityBody, 'admin create availability request must pass the selected service and duration').toMatch(/serviceId[\s\S]{0,120}durationMinutes|durationMinutes[\s\S]{0,120}serviceId/i);
     expect(turnoFormTemplate + turnoFormSource, 'available slots must come from a loaded availability collection, not hardcoded time arrays').not.toMatch(
@@ -281,11 +290,11 @@ describe('M2 real admin new turno UX RED contract', () => {
     const createWithSupabaseBody = methodBody(turnoServiceSource, 'createWithSupabase');
 
     expect(saveBody + createBody + createWithSupabaseBody, 'new-turno submit must flow to create_admin_manual_booking via TurnoService').toMatch(
-      /createAdminManualBooking\(|create_admin_manual_booking/i
+      /createAdminManualBooking\(|create_admin_manual_booking|createManualBooking\(/i
     );
     expect(saveBody, 'new-turno submit must include branch context collected from real app state before calling TurnoService.create').toMatch(/branchId\s*:/i);
     expect(saveBody, 'new-turno conflict/errors must be shown safely without treating failures as success').toMatch(/SLOT_CONFLICT|SLOT_COLLISION|conflict|no disponible|bloqueado/i);
-    expect(saveBody + createBody, 'successful create must invalidate admin availability so stale slots cannot be reused').toMatch(/invalidateAdminAvailability/i);
+    expect(saveBody + createBody, 'successful create must invalidate admin availability so stale slots cannot be reused').toMatch(/invalidateAdminAvailability|resetAvailability/i);
     expect(saveBody + turnosListSource, 'successful create must return to or refresh the turnos timeline/list').toMatch(/refreshTurnosFromSource|getAll\(\)|navigate\(\[\s*["']\/dashboard\/turnos["']/i);
   });
 });

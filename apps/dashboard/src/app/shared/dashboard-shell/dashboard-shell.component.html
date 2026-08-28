@@ -2,30 +2,23 @@
   [class]="structure.shellRoot + ' ' + activeTemplate().surfaceBgClass + ' ' + activeThemeClass()"
   data-testid="dashboard-shell-responsive-root">
   <!-- Sidebar (flex child, no gap) -->
-  <app-dashboard-sidebar data-testid="sidebar" [theme]="activeTheme()" [businessName]="activeTemplate().displayName"
-    [dashboards]="dashboards()" (themeChange)="onThemeChange($event)" [collapsed]="isSidebarCollapsed()" (collapseToggle)="toggleSidebarCollapsed()" (logoutConfirm)="handleLogout()"
-    class="hidden lg:block shrink-0 h-full z-50 transition-[width] duration-500 ease-in-out"
-    [style.width.px]="sidebarWidth()" />
+  <div class="hidden lg:block shrink-0 h-full z-50 transition-[width] duration-500 ease-in-out" [style.width.px]="sidebarWidth()">
+    <app-dashboard-sidebar data-testid="sidebar" [theme]="activeTheme()" [businessName]="activeTemplate().displayName"
+      [dashboards]="dashboards()" (themeChange)="onThemeChange($event)" [collapsed]="isSidebarCollapsed()" (collapseToggle)="toggleSidebarCollapsed()" (logoutConfirm)="handleLogout()"
+      class="h-full" />
+  </div>
 
   <!-- Main Viewport (flush against sidebar) -->
   <div [class]="structure.shellViewport">
-    <app-dashboard-topbar data-testid="topbar" [theme]="activeTheme()" [dashboards]="dashboards()" [onLogout]="handleLogout"
-      (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
+    <div class="hidden lg:block z-40 shrink-0">
+      <app-dashboard-topbar data-testid="topbar" [theme]="activeTheme()" [dashboards]="dashboards()" [onLogout]="handleLogout"
+        (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
+    </div>
 
     <main class="flex-1 overflow-y-auto no-scrollbar relative pb-16 lg:pb-0" data-testid="content">
       <router-outlet />
     </main>
 
     <app-mobile-bottom-nav />
-
-    <button
-      type="button"
-      data-testid="dashboard-shell-global-action"
-      aria-label="Crear nuevo turno"
-      (click)="navigateToNewTurno()"
-      class="fixed bottom-20 right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center lg:hidden hover:bg-primary-hover active:scale-95 transition-all duration-200"
-    >
-      <i class="ri-add-line text-2xl" aria-hidden="true"></i>
-    </button>
   </div>
 </div>

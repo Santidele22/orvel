@@ -3,12 +3,17 @@ import { Observable, from, throwError, map, tap } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
-import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../core/api/supabase-booking/public-booking-slug';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 import { AuthService } from '../../../services/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import {
+  mapNullableSettingsToFormDefaults,
+  resolveWorkingHours
+} from './map-nullable-settings-to-form-defaults';
 
 export type ApiError = {
   code: string;
@@ -26,6 +31,7 @@ type ActiveBusinessContext = {
   businessId: string;
   ownerId: string;
   slug?: string;
+  name?: string;
 };
 
 const DEFAULT_BOOKING_POLICY = {
@@ -54,6 +60,9 @@ export class BusinessService {
   private businesses = signal<Business[]>([]);
   private activeBusinessId = signal<string | null>(null);
   private currentSettings = signal<BusinessSettings | null>(null);
+  private persistenceError = signal<string | null>(null);
+  private hydratedUserId: string | null = null;
+  private settingsHydrateInFlight: Promise<void> | null = null;
   private authService = inject(AuthService);
 
   readonly items = this.businesses.asReadonly();
@@ -62,6 +71,27 @@ export class BusinessService {
 
   constructor() {
     this.initSupabase();
+    registerSectionCacheInvalidator(() => this.clearCache());
+  }
+
+  hasHydratedSnapshot(userId: string): boolean {
+    return this.hydratedUserId === userId && this.currentSettings() !== null;
+  }
+
+  clearHydration(): void {
+    this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
+  }
+
+  invalidate(): void {
+    this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
+  }
+
+  clearCache(): void {
+    this.hydratedUserId = null;
+    this.settingsHydrateInFlight = null;
+    this.currentSettings.set(null);
   }
 
   private initSupabase() {
@@ -98,6 +128,7 @@ export class BusinessService {
       }),
       tap(businesses => {
         this.businesses.set(businesses);
+        getBranchContextService().clearSessionBusinessIdentity();
         if (businesses.length > 0) {
           const stored = localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY);
           const exists = businesses.find(b => b.id === stored);
@@ -113,19 +144,48 @@ export class BusinessService {
     );
   }
 
-  async loadFromSupabase(businessId: string): Promise<void> {
-    if (!this.supabaseClient) return;
+  async loadFromSupabase(businessId: string, forceReload = false): Promise<void> {
+    if (!forceReload && this.settingsHydrateInFlight) {
+      return this.settingsHydrateInFlight;
+    }
+
+    const load = (async () => {
+    this.persistenceError.set(null);
+
+    if (!this.supabaseClient) {
+      throw this.failLoad('No se pudo conectar con el servidor.', 'BUSINESS_NOT_FOUND');
+    }
 
     const context = await this.resolveActiveBusinessContext(businessId);
+    if (!forceReload && this.hasHydratedSnapshot(context.ownerId)) {
+      return;
+    }
     const resolvedBusinessId = context.businessId;
+    const cachedIdentity = getBranchContextService().peekSessionBusinessIdentity();
+    const cachedRow = cachedIdentity
+      && cachedIdentity.ownerId === context.ownerId
+      && cachedIdentity.businessId === resolvedBusinessId
+      ? {
+          id: cachedIdentity.businessId,
+          owner_id: cachedIdentity.ownerId,
+          slug: cachedIdentity.slug,
+          name: cachedIdentity.name
+        }
+      : null;
 
-    const { data: businessData, error: businessError } = await this.supabaseClient
-      .from('businesses')
-      .select('*')
-      .eq('id', resolvedBusinessId)
-      .maybeSingle();
+    let businessData = cachedRow;
+    if (!businessData) {
+      const { data, error: businessError } = await this.supabaseClient
+        .from('businesses')
+        .select('*')
+        .eq('id', resolvedBusinessId)
+        .maybeSingle();
 
-    if (businessError || !businessData) return;
+      if (businessError || !data) {
+        throw this.failLoad('No se encontró el negocio activo.', 'BUSINESS_NOT_FOUND');
+      }
+      businessData = data;
+    }
 
     const { data: settingsData } = await this.supabaseClient
       .from('business_settings')
@@ -140,13 +200,37 @@ export class BusinessService {
       .maybeSingle();
 
     this.currentSettings.set(this.mapToSettings(businessData, settingsData, profileData));
+    this.hydratedUserId = context.ownerId;
+    })().finally(() => {
+      if (this.settingsHydrateInFlight === load) this.settingsHydrateInFlight = null;
+    });
+    this.settingsHydrateInFlight = load;
+    return load;
   }
 
   async saveToSupabase(businessId: string, settings: Partial<BusinessSettings>): Promise<{ source: string }> {
-    if (!this.supabaseClient) return { source: 'error:no-supabase' };
+    this.persistenceError.set(null);
+
+    if (!this.supabaseClient) {
+      throw this.failLoad('No se pudo conectar con el servidor.', 'SETTINGS_SAVE_FAILED');
+    }
 
     const context = await this.resolveActiveBusinessContext(businessId);
     const resolvedBusinessId = context.businessId;
+
+    const { error: profileError } = await this.supabaseClient
+      .from('profiles')
+      .update({
+        first_name: settings.firstName ?? '',
+        last_name: settings.lastName ?? '',
+        phone: settings.phone ?? ''
+      })
+      .eq('id', context.ownerId);
+
+    if (profileError) {
+      throw this.failLoad('No se pudo guardar el perfil.', 'PROFILE_SAVE_FAILED');
+    }
+
     // Update businesses table
     if (settings.businessName) {
       const { error: businessUpdateError } = await this.supabaseClient
@@ -159,6 +243,14 @@ export class BusinessService {
           'No se pudo actualizar el negocio. Los cambios no fueron guardados.',
           'BUSINESS_UPDATE_FAILED'
         );
+      }
+
+      const cached = getBranchContextService().peekSessionBusinessIdentity();
+      if (cached && cached.businessId === resolvedBusinessId) {
+        getBranchContextService().rememberSessionBusinessIdentity({
+          ...cached,
+          name: settings.businessName
+        });
       }
     }
 
@@ -186,7 +278,8 @@ export class BusinessService {
       );
     }
 
-    await this.loadFromSupabase(resolvedBusinessId);
+    this.invalidate();
+    await this.loadFromSupabase(resolvedBusinessId, true);
     return { source: 'supabase' };
   }
 
@@ -198,14 +291,12 @@ export class BusinessService {
     return this.currentSettings();
   }
 
-  async getActiveBusinessId(candidateBusinessOrUserId?: string): Promise<string | null> {
-    if (!this.supabaseClient) return candidateBusinessOrUserId ?? null;
+  lastPersistenceError(): string | null {
+    return this.persistenceError();
+  }
 
-    try {
-      return (await this.resolveActiveBusinessContext(candidateBusinessOrUserId)).businessId;
-    } catch {
-      return null;
-    }
+  async getActiveBusinessId(candidateBusinessOrUserId?: string): Promise<string> {
+    return (await this.resolveActiveBusinessContext(candidateBusinessOrUserId)).businessId;
   }
 
   private async resolveActiveBusinessContext(candidateBusinessOrUserId?: string): Promise<ActiveBusinessContext> {
@@ -221,10 +312,30 @@ export class BusinessService {
     }
 
     const preferredBusinessId = this.activeBusinessId() ?? localStorage.getItem(ACTIVE_BUSINESS_STORAGE_KEY) ?? candidateBusinessOrUserId;
+    const branchContext = getBranchContextService();
+    let cached = branchContext.peekSessionBusinessIdentity();
+    if (!cached) {
+      await branchContext.getActiveBusinessId();
+      cached = branchContext.peekSessionBusinessIdentity();
+    }
+    if (
+      cached
+      && cached.ownerId === ownerId
+      && (!preferredBusinessId || preferredBusinessId === cached.businessId || preferredBusinessId === ownerId)
+    ) {
+      this.activeBusinessId.set(cached.businessId);
+      localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, cached.businessId);
+      return {
+        businessId: cached.businessId,
+        ownerId,
+        slug: cached.slug,
+        name: cached.name
+      };
+    }
 
     const { data: ownedBusinesses, error } = await this.supabaseClient
       .from('businesses')
-      .select('id, owner_id, slug')
+      .select('id, owner_id, slug, name')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: true });
 
@@ -232,7 +343,7 @@ export class BusinessService {
       throw new BusinessSettingsPersistenceError('No se pudo resolver el negocio activo.', 'BUSINESS_NOT_FOUND');
     }
 
-    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string; slug?: string }>;
+    const businesses = (ownedBusinesses ?? []) as Array<{ id: string; owner_id?: string; slug?: string; name?: string }>;
     const resolved = businesses.find(business => business.id === preferredBusinessId)
       ?? businesses.find(business => business.id === candidateBusinessOrUserId)
       ?? businesses[0];
@@ -243,8 +354,14 @@ export class BusinessService {
 
     this.activeBusinessId.set(resolved.id);
     localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved.id);
+    getBranchContextService().rememberSessionBusinessIdentity({
+      ownerId,
+      businessId: resolved.id,
+      slug: resolved.slug,
+      name: resolved.name
+    });
 
-    return { businessId: resolved.id, ownerId, slug: resolved.slug };
+    return { businessId: resolved.id, ownerId, slug: resolved.slug, name: resolved.name };
   }
 
   getDefaultWorkingHours(): Record<WeekdayKey, WorkingDayHours> {
@@ -260,15 +377,25 @@ export class BusinessService {
     return defaultHours as Record<WeekdayKey, WorkingDayHours>;
   }
 
+  private failLoad(
+    message: string,
+    code: BusinessSettingsPersistenceError['code']
+  ): BusinessSettingsPersistenceError {
+    const error = new BusinessSettingsPersistenceError(message, code);
+    this.persistenceError.set(error.message);
+    return error;
+  }
+
   private mapToSettings(business: any, settings: any, profile?: any): BusinessSettings {
     const defaultHours = this.getDefaultWorkingHours();
+    const formDefaults = mapNullableSettingsToFormDefaults(settings, defaultHours);
     return {
       businessName: business.name || '',
       slug: business.slug || '',
       bufferMinutes: settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
       minNoticeMinutes: settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
       slotIntervalMinutes: settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
-      workingHours: settings?.working_hours ?? defaultHours,
+      workingHours: formDefaults.workingHours,
       logoUrl: settings?.logo_url,
       coverUrl: settings?.cover_url,
       brandColor: settings?.brand_color,
@@ -277,12 +404,12 @@ export class BusinessService {
       supportEmail: settings?.support_email,
       businessType: settings?.business_type ?? business?.business_type ?? business?.tipo_negocio ?? '',
       plan: this.resolveDisplayPlan(),
-      cancelationGracePeriod: settings?.cancellation_window_minutes,
+      cancelationGracePeriod: formDefaults.cancelationGracePeriod,
       autoConfirm: settings?.auto_confirm,
-      maxAdvanceDays: settings?.max_advance_days,
+      maxAdvanceDays: formDefaults.maxAdvanceDays,
       allowMultipleServices: settings?.allow_multiple_services,
-      cleanupTimeMinutes: settings?.cleanup_time_minutes,
-      capacity: settings?.capacity ?? 1,
+      cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
+      capacity: formDefaults.capacity,
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',
@@ -396,7 +523,10 @@ export class BusinessService {
         bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
         minNoticeMinutes: settings?.minNoticeMinutes ?? settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
         slotIntervalMinutes: settings?.slotIntervalMinutes ?? settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
-        workingHours: settings?.workingHours ?? settings?.working_hours ?? this.getDefaultWorkingHours()
+        workingHours: resolveWorkingHours(
+          settings?.workingHours ?? settings?.working_hours,
+          this.getDefaultWorkingHours()
+        )
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,

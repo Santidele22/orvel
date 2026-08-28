@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
 const SHELL_TS = 'src/app/shared/dashboard-shell/dashboard-shell.component.ts';
-const ROUTES_TS = 'src/app/app.routes.ts';
+const ROUTES_TS = 'src/app/dashboard-shell.routes.ts';
+const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.html';
+const ZEN_TOPBAR_TS = 'src/app/shared/dashboard-topbar/templates/zen-topbar.component.ts';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);
@@ -39,51 +41,20 @@ describe('Mobile shell: bottom nav integration', () => {
 });
 
 describe('Mobile shell: FAB activation', () => {
-  it('FAB does NOT have opacity-0 pointer-events-none', async () => {
+  it('does not render a floating + action over the bottom nav', async () => {
     const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).not.toContain('opacity-0');
-    expect(html).not.toContain('pointer-events-none');
-  });
-
-  it('FAB is hidden on lg breakpoint', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('lg:hidden');
-  });
-
-  it('FAB has click handler for navigation', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('(click)');
-  });
-
-  it('FAB navigates to /dashboard/turnos/new', async () => {
-    const source = await readFile(fromRoot(SHELL_TS), 'utf-8');
-    expect(source).toContain('/dashboard/turnos/new');
-  });
-
-  it('FAB has circular shape and primary color', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('rounded-full');
-    expect(html).toContain('bg-primary');
-    expect(html).toContain('text-white');
-  });
-
-  it('FAB is positioned above bottom nav with bottom-20', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('bottom-20');
-  });
-
-  it('keeps data-testid="dashboard-shell-global-action"', async () => {
-    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('data-testid="dashboard-shell-global-action"');
-  });
-
-  it('has navigateToNewTurno method in shell component', async () => {
-    const source = await readFile(fromRoot(SHELL_TS), 'utf-8');
-    expect(source).toContain('navigateToNewTurno');
+    expect(html).not.toContain('data-testid="dashboard-shell-global-action"');
+    expect(html).not.toContain('ri-add-line');
   });
 });
 
 describe('Mobile shell: notificaciones and perfil routes', () => {
+  it('shows an empty-state icon on the notifications page', async () => {
+    const source = await readFile(fromRoot('src/app/features/notificaciones/pages/notificaciones.page.ts'), 'utf-8');
+    expect(source).toContain('data-testid="notificaciones-empty-state"');
+    expect(source).toContain('ri-notification-off-line');
+  });
+
   it('adds notificaciones route', async () => {
     const routes = await readFile(fromRoot(ROUTES_TS), 'utf-8');
     expect(routes).toContain('notificaciones');
@@ -92,5 +63,49 @@ describe('Mobile shell: notificaciones and perfil routes', () => {
   it('adds perfil route', async () => {
     const routes = await readFile(fromRoot(ROUTES_TS), 'utf-8');
     expect(routes).toContain('perfil');
+  });
+});
+
+describe('Mobile shell: hide desktop topbar below lg', () => {
+  it('wraps topbar with hidden lg:block without hiding the host tag', async () => {
+    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
+    const hostIndex = html.indexOf('<app-dashboard-topbar');
+    const topbarIndex = html.indexOf('data-testid="topbar"');
+    const hostMatch = html.match(/<app-dashboard-topbar\b[^>]*>/);
+    const preceding = html.slice(Math.max(0, hostIndex - 240), hostIndex);
+
+    expect(hostIndex).toBeGreaterThan(-1);
+    expect(topbarIndex).toBeGreaterThan(hostIndex);
+    expect(preceding).toMatch(/<div[^>]*class=["'][^"']*\bhidden lg:block\b/);
+    expect(preceding.indexOf('hidden lg:block')).toBeGreaterThan(-1);
+    expect(preceding.indexOf('hidden lg:block')).toBeLessThan(preceding.length);
+    expect(hostMatch?.[0]).toContain('class="z-40 shrink-0"');
+    expect(hostMatch?.[0]).not.toMatch(/\bhidden\b|\*ngIf/);
+  });
+
+  it('wraps sidebar with hidden lg:block without hiding the host tag', async () => {
+    const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
+    const sidebarHookIndex = html.indexOf('data-testid="sidebar"');
+    const hostIndex = html.indexOf('<app-dashboard-sidebar');
+    const hostMatch = html.match(/<app-dashboard-sidebar\b[^>]*>/);
+    const preceding = html.slice(Math.max(0, sidebarHookIndex - 280), sidebarHookIndex);
+
+    expect(sidebarHookIndex).toBeGreaterThan(-1);
+    expect(hostIndex).toBeGreaterThan(-1);
+    expect(hostIndex).toBeLessThan(sidebarHookIndex);
+    expect(preceding).toMatch(/<div[^>]*class=["'][^"']*\bhidden lg:block\b/);
+    expect(preceding.indexOf('hidden lg:block')).toBeGreaterThan(-1);
+    expect(hostMatch?.[0]).not.toMatch(/\bhidden\b|\*ngIf/);
+  });
+
+  it('gates topbar wrappers and Zen header at hidden lg:block', async () => {
+    const [topbarHtml, zenTopbar] = await Promise.all([
+      readFile(fromRoot(TOPBAR_HTML), 'utf-8'),
+      readFile(fromRoot(ZEN_TOPBAR_TS), 'utf-8')
+    ]);
+
+    expect(topbarHtml).toMatch(/class=["'][^"']*\bhidden lg:block\b/);
+    expect(topbarHtml).toMatch(/dashboard-topbar-contract[^"']*\bhidden lg:block\b|\bhidden lg:block\b[^"']*dashboard-topbar-contract/);
+    expect(zenTopbar).toMatch(/<header[^>]*\bhidden lg:flex\b/);
   });
 });

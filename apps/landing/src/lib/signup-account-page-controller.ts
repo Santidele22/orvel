@@ -1,5 +1,12 @@
 import { ARGENTINA_AREA_CODE_DATA_VERSION } from './argentina-area-codes';
+import {
+  createSupabaseLoginAdapterFromEnv,
+  loginWithProvider
+} from './auth-provider';
+import { sanitizeLandingAuthReturnTo } from './auth-return-to';
 import { SIGNUP_STORAGE_KEYS } from './browser-storage-keys';
+import { createDashboardSessionHandoffInvoke } from './dashboard-session-handoff';
+import { loginAfterFreeSignup } from './supabase-auth-adapter';
 import {
   SIGNUP_ACCOUNT_FIELDS,
   mapSignupAccountErrorsForAstro,
@@ -452,8 +459,46 @@ export function initSignupAccountPage(env: SignupEnv): void {
         }
         return;
       }
+      if (accountResult.status !== 'signup_ready') {
+        button.disabled = false;
+        button.textContent = 'Continuar';
+        if (errorEl) {
+          errorEl.textContent = 'No pudimos crear tu cuenta y negocio. Reintentá en unos segundos.';
+          errorEl.classList.remove('hidden');
+        }
+        return;
+      }
       sessionStorage.setItem(SIGNUP_STORAGE_KEYS.tipoNegocio, values.rubro);
-      showAccountCreatedModal();
+      const supabaseLogin = createSupabaseLoginAdapterFromEnv({
+        SUPABASE_URL: env.PUBLIC_SUPABASE_URL,
+        SUPABASE_ANON_KEY: env.PUBLIC_SUPABASE_ANON_KEY
+      });
+      const dashboardOrigin = env.PUBLIC_DASHBOARD_URL;
+      const dashboardHandoff = env.PUBLIC_SUPABASE_URL
+        ? {
+            dashboardOrigin,
+            invoke: createDashboardSessionHandoffInvoke({ supabaseUrl: env.PUBLIC_SUPABASE_URL })
+          }
+        : undefined;
+      const returnTo = sanitizeLandingAuthReturnTo('/dashboard/inicio', {
+        currentOrigin: window.location.origin,
+        dashboardBaseUrl: env.PUBLIC_DASHBOARD_URL
+      });
+      const loginResult = await loginWithProvider({
+        attempt: { email: values.email, password: values.password, returnTo },
+        supabaseLogin: (attempt) => loginAfterFreeSignup(supabaseLogin, attempt),
+        dashboardHandoff
+      });
+      if (loginResult.ok && loginResult.redirectTo) {
+        window.location.assign(loginResult.redirectTo);
+        return;
+      }
+      button.disabled = false;
+      button.textContent = 'Continuar';
+      if (errorEl) {
+        errorEl.textContent = loginResult.error || 'No pudimos iniciar sesión. Reintentá en unos segundos.';
+        errorEl.classList.remove('hidden');
+      }
       return;
     }
 

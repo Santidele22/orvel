@@ -12,7 +12,7 @@ const ACTIVE_GROWTH_SUBSCRIPTION: SubscriptionSnapshot = {
   subscriptionId: 'sub_state_machine_catalog',
   planCode: 'GROWTH' as any,
   status: 'active',
-  provider: 'mercado_pago',
+  provider: 'manual',
   providerSubscriptionId: 'mp_preapproval_state_machine_catalog',
   currentPeriodStart: '2026-06-01T00:00:00.000Z',
   currentPeriodEnd: '2026-07-01T00:00:00.000Z',
@@ -25,7 +25,7 @@ function readSource(): string {
   return fs.readFileSync(SOURCE_PATH, 'utf8');
 }
 
-describe('RED contract: Mercado Pago subscription state machine uses catalog canonical plans', () => {
+describe('RED contract: subscription state machine uses catalog canonical plans', () => {
   it('does not keep a local legacy PlanCode or PLAN_RANK source of truth', () => {
     const source = readSource();
 
@@ -43,7 +43,7 @@ describe('RED contract: Mercado Pago subscription state machine uses catalog can
         current: ACTIVE_GROWTH_SUBSCRIPTION,
         nowIso: '2026-06-05T00:00:00.000Z',
         event: {
-          provider: 'mercado_pago',
+          provider: 'manual',
           providerEventId: 'mp_evt_legacy_alias_basic',
           providerSubscriptionId: ACTIVE_GROWTH_SUBSCRIPTION.providerSubscriptionId,
           eventType: 'subscription.plan_changed',
@@ -63,7 +63,7 @@ describe('RED contract: Mercado Pago subscription state machine uses catalog can
         current: { ...ACTIVE_GROWTH_SUBSCRIPTION, planCode: 'STARTER' as any },
         nowIso: '2026-06-05T00:00:00.000Z',
         event: {
-          provider: 'mercado_pago',
+          provider: 'manual',
           providerEventId: 'mp_evt_legacy_alias_medium',
           providerSubscriptionId: ACTIVE_GROWTH_SUBSCRIPTION.providerSubscriptionId,
           eventType: 'subscription.payment_approved',

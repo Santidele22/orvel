@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
-import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '../../core/auth/session-contract';
+import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
 import {
@@ -80,13 +80,13 @@ export class DashboardShellComponent implements AfterViewInit {
     this.isSidebarCollapsed.update(collapsed => !collapsed);
   }
 
-  protected navigateToNewTurno(): void {
-    void this.router.navigate(['/dashboard/turnos/new']);
-  }
-
   protected async handleLogout(): Promise<void> {
-    const redirectTo = await logoutAndRedirect();
-    await navigateAfterLogout(redirectTo, this.router);
+    try {
+      const redirectTo = await logoutAndRedirect();
+      await navigateAfterLogout(redirectTo, this.router);
+    } catch {
+      window.alert('No se pudo cerrar sesión. Intentá de nuevo.');
+    }
   }
 
   protected trackDashboard(index: number, dashboard: DashboardFromSessionConfig['dashboards'][number]): string {

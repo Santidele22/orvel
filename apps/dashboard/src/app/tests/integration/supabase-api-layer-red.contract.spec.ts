@@ -127,11 +127,11 @@ const BLOCK_ID = '99999999-9999-4999-8999-999999999999';
 
 async function loadSupabaseBookingApi(): Promise<SupabaseBookingApiModule> {
   try {
-    const mod = await import('../../core/api/supabase-booking.api');
+    const mod = await import('@orvel/booking/infrastructure');
     return mod as SupabaseBookingApiModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): missing src/app/core/api/supabase-booking.api.ts implementing resolveBusinessBySlug(), createPublicBooking(), manageBookingByToken(), createAdminManualBooking(), createAdminBlockedTime()'
+      'TODO(Magnus): missing @orvel/booking/infrastructure implementing resolveBusinessBySlug(), createPublicBooking(), manageBookingByToken(), createAdminManualBooking(), createAdminBlockedTime()'
     );
   }
 }

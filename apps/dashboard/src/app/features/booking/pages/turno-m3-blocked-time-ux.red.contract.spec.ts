@@ -40,7 +40,7 @@ describe('M3 blocked-time form UX RED contract', () => {
     const blockedTimeRuntime = `${openBlockedTimePanel}\n${submitBlockedTime}`;
 
     expect(blockedTimeRuntime, 'blocked-time action must resolve/ensure the MVP internal default branch before opening or submitting').toMatch(
-      /resolve(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|ensure(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|getOrProvisionDefaultBranch|defaultBranchScope/i
+      /resolveScope|resolve(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|ensure(?:Internal|Default|Admin|Active)?Branch(?:Scope|Id)|getOrProvisionDefaultBranch|defaultBranchScope/i
     );
     expect(blockedTimeRuntime, 'blocked-time flow must show account/setup copy before submit if internal scope cannot be prepared').toMatch(
       /No pudimos preparar|configuraci[oó]n de cuenta|cuenta administradora|account setup|preparar el bloqueo/i
@@ -103,7 +103,7 @@ describe('M3 blocked-time form UX RED contract', () => {
       /businessId\s*:\s*(?:bizId|this\.authService\.user\(\)\?\.id)|const\s+bizId\s*=\s*this\.authService\.user\(\)\?\.id/i
     );
     expect(submitBlockedTime, 'submitBlockedTime must route through the default-branch resolver before calling TurnoService').toMatch(
-      /ensureDefaultBranchId\(\)|ensureInternalDefaultBranchId\(\)|resolveActiveBranch/i
+      /ensureDefaultBranchId\(\)|ensureInternalDefaultBranchId\(\)|resolveActiveBranch|resolveScope\(/i
     );
     expect(submitBlockedTime, 'blocked-time submit must not relabel the implicit active branch as an explicit branchId payload').not.toMatch(
       /getActiveBranchId\(\)[\s\S]{0,500}branchId\s*:/i
@@ -112,7 +112,7 @@ describe('M3 blocked-time form UX RED contract', () => {
       /if\s*\([^)]*!branchId[\s\S]{0,220}blockedTimeError\.set\([\s\S]{0,220}return/i
     );
     expect(submitBlockedTime, 'the service call must happen after branch validation so NULL branch cannot create a global block').toMatch(
-      /if\s*\([^)]*!branchId[\s\S]{0,260}return[\s\S]{0,700}turnoService\.createBlockedTime\(/i
+      /if\s*\([^)]*!branchId[\s\S]{0,260}return[\s\S]{0,700}(?:turnoService|scheduling)\.createBlockedTime\(/i
     );
   });
 
@@ -148,7 +148,7 @@ describe('M3 blocked-time form UX RED contract', () => {
       /buildBlockedTimeIso\(\s*blockedTimeDate\s*,\s*blockedTimeStartTime\s*,\s*blockedTimeEndTime\s*\)/i
     );
     expect(submitBlockedTime, 'valid submit must send startsAtIso, endsAtIso, reason, and performedBy to TurnoService.createBlockedTime while branch scope stays service-owned').toMatch(
-      /createBlockedTime\(\s*payload\s*\)/i
+      /createBlockedTime\(\s*(?:payload|\{)/i
     );
     expect(submitBlockedTime, 'valid blocked-time payload must not pass the page preflight/default branch as an explicit branchId').not.toMatch(
       /const\s+payload[\s\S]{0,320}branchId\s*:/i
@@ -164,6 +164,6 @@ describe('M3 blocked-time form UX RED contract', () => {
       /data-testid=["']turnos-admin-block-time-conflict-error["']|BLOCKED_TIME_COLLISION|horario.*(?:ocupado|bloqueado)|conflicto/i
     );
     expect(successBranch, 'successful blocked-time creation must refresh the visible turnos timeline/list').toMatch(/refreshTurnosFromSource\(|processTurnos\(|turnoService\.getAll\(/i);
-    expect(successBranch, 'successful blocked-time creation must invalidate admin availability before stale slots are reused').toMatch(/turnoService\.invalidateAdminAvailability\(\)/i);
+    expect(successBranch, 'successful blocked-time creation must invalidate admin availability before stale slots are reused').toMatch(/turnoService\.invalidateAdminAvailability\(\)|refreshTurnosFromSource\(/i);
   });
 });

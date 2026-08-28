@@ -26,6 +26,26 @@ describe('MobileBottomNavComponent', () => {
     expect(source).toContain('/dashboard/perfil');
   });
 
+  it('uses Agenda and Avisos as visible labels, not Turnos or Notificaciones', async () => {
+    const source = await readFile(fromRoot(COMPONENT_TS), 'utf-8');
+    expect(source).toMatch(/label:\s*'Agenda'/);
+    expect(source).toMatch(/label:\s*'Avisos'/);
+    expect(source).toMatch(/testId:\s*'nav-turnos'/);
+    expect(source).toMatch(/testId:\s*'nav-notificaciones'/);
+    expect(source).not.toMatch(/label:\s*'Turnos'/);
+    expect(source).not.toMatch(/label:\s*'Notificaciones'/);
+  });
+
+  it('uses dark translucent chrome with violet active pill', async () => {
+    const source = await readFile(fromRoot(COMPONENT_TS), 'utf-8');
+    expect(source).toContain('rgba(13,18,32,0.92)');
+    expect(source).toMatch(/backdrop-blur/);
+    expect(source).toContain('rgba(255,255,255,0.045)');
+    expect(source).toContain('#9B7BFF');
+    expect(source).toContain('rgba(124,92,255,0.12)');
+    expect(source).toContain('#5D6280');
+  });
+
   it('uses Remix icons for each item', async () => {
     const source = await readFile(fromRoot(COMPONENT_TS), 'utf-8');
     // Each nav item should have icon and activeIcon with ri- prefix

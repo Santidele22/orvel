@@ -16,6 +16,7 @@ import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { AuthService } from '../../../services/auth.service';
+import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import {
@@ -182,6 +183,7 @@ export class ConfiguracionPage {
   }
 
   readonly loading = signal(true);
+  readonly loadError = signal<string | null>(null);
   readonly formMessage = signal('');
   readonly fieldErrors = signal<Record<string, string>>({});
   readonly savedState = signal<BusinessSettings | null>(null);
@@ -201,6 +203,7 @@ export class ConfiguracionPage {
   readonly selectedMinute = signal<number>(0);
   readonly isAccountSettingsModalOpen = signal(false);
   readonly isAccountCancellationModalOpen = signal(false);
+  readonly isSettingsSavedModalOpen = signal(false);
   readonly isResetSent = signal(false);
   readonly resetError = signal<string | null>(null);
   readonly accountCancellationError = signal<string | null>(null);
@@ -280,6 +283,10 @@ export class ConfiguracionPage {
     }, 300);
   }
 
+  closeSettingsSavedModal(): void {
+    this.isSettingsSavedModalOpen.set(false);
+  }
+
   async confirmAccountCancellation(): Promise<void> {
     const user = this.authService.user();
     if (!user) {
@@ -307,7 +314,7 @@ export class ConfiguracionPage {
       this.accountCancellationSubmitted.set(true);
       this.accountCancellationMessage.set(
         result.accountClosureAt
-          ? `Listo. Cancelamos la renovación y tu cuenta queda activa hasta ${this.formatAccountClosureDate(result.accountClosureAt)}.`
+          ? `Listo. Registramos tu pedido de baja. Santi la procesa a mano. Tu cuenta queda activa hasta ${this.formatAccountClosureDate(result.accountClosureAt)}.`
           : result.message
       );
     } catch (error) {
@@ -495,9 +502,10 @@ export class ConfiguracionPage {
       return;
     }
 
+    let activeBusinessId: string | undefined;
     try {
       this.loading.set(true);
-      const activeBusinessId = await this.facade.getActiveBusinessId(user.id);
+      activeBusinessId = await this.facade.getActiveBusinessId(user.id);
       if (!activeBusinessId) {
         this.formMessage.set('No se pudo identificar el negocio activo. Volvé a intentar en unos segundos.');
         return;
@@ -509,22 +517,13 @@ export class ConfiguracionPage {
         minNoticeMinutes: values.minNoticeMinutes,
         slotIntervalMinutes: values.slotIntervalMinutes,
         workingHours: values.workingHours,
-        logoUrl: values.logoUrl,
-        coverUrl: values.coverUrl,
-        brandColor: values.brandColor,
-        whatsapp: values.whatsapp,
-        instagram: values.instagram,
         supportEmail: values.supportEmail,
         businessType: values.businessType,
         plan: values.plan,
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
-        allowMultipleServices: values.allowMultipleServices,
-        cleanupTimeMinutes: values.cleanupTimeMinutes,
         capacity: values.capacity,
-        weekStartDay: values.weekStartDay,
-        timeFormat: values.timeFormat,
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone
@@ -533,9 +532,14 @@ export class ConfiguracionPage {
       this.savedState.set(this.facade.getSnapshot());
       this.settingsForm.markAsPristine();
       this.formMessage.set('Configuración guardada exitosamente.');
+      this.isSettingsSavedModalOpen.set(true);
     } catch (error) {
       this.formMessage.set('No se pudo guardar la configuración. Revisá tu conexión e intentá nuevamente.');
-      console.error('Error saving settings:', error);
+      logMutationFailure({
+        operation: 'business_settings.update',
+        error,
+        ids: { businessId: activeBusinessId }
+      });
     } finally {
       this.loading.set(false);
     }
@@ -590,31 +594,59 @@ export class ConfiguracionPage {
     this.loading.set(false);
   }
 
+  retryLoadSettings(): void {
+    this.hydratedUserId = null;
+    this.facade.clearHydration();
+    this.loadError.set(null);
+    const userId = this.authService.user()?.id;
+    if (userId) {
+      void this.hydrateBusinessSettings(userId);
+    }
+  }
+
   private async hydrateBusinessSettings(userId: string): Promise<void> {
-    if (this.hydratedUserId === userId && this.facade.getSnapshot()) {
+    if (this.facade.hasHydratedSnapshot(userId) && !this.loadError()) {
+      const cached = this.facade.getSnapshot();
+      if (cached) {
+        this.settingsForm.patchValue(cached);
+        this.savedState.set(cached);
+      }
+      this.loading.set(false);
       return;
     }
 
     this.hydratedUserId = userId;
+    this.loadError.set(null);
 
     try {
       this.loading.set(true);
       const activeBusinessId = await this.facade.getActiveBusinessId(userId);
-      if (activeBusinessId) {
-        await this.facade.loadFromSupabase(activeBusinessId);
+      await this.facade.loadFromSupabase(activeBusinessId);
+      const persistenceError = this.facade.lastPersistenceError();
+      if (persistenceError) {
+        this.loadError.set(persistenceError);
+        this.savedState.set(null);
+        this.loading.set(false);
+        return;
       }
     } catch (error) {
-      console.error('Error loading settings from Supabase:', error);
+      this.loadError.set(
+        error instanceof Error && error.message
+          ? error.message
+          : 'No pudimos cargar la configuración'
+      );
+      this.savedState.set(null);
+      this.loading.set(false);
+      return;
     }
 
     const saved = this.facade.getSnapshot();
 
     if (saved) {
-      console.log('[Configuracion] Patching form with saved settings:', saved.businessName);
       this.settingsForm.patchValue(saved);
       this.savedState.set(saved);
     } else {
-      this.patchDefaultSettings();
+      this.loadError.set('No pudimos cargar la configuración');
       this.savedState.set(null);
     }
 

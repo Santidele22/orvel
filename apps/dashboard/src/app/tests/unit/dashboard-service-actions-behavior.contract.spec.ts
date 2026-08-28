@@ -10,6 +10,19 @@ import { ServicioService } from '../../features/servicios/data-access/servicio.s
 import { ServiciosPage } from '../../features/servicios/pages/servicios.page';
 import { ThemeService } from '../../core/theming/theme.service';
 
+const mocks = vi.hoisted(() => ({
+  branchContext: {
+    ensureLoaded: vi.fn(async () => undefined),
+    getActiveBusinessId: vi.fn(async () => 'business-1')
+  }
+}));
+
+vi.mock('../../core/branches/branch-context.service', () => ({
+  getBranchContextService: () => mocks.branchContext,
+  registerSectionCacheInvalidator: () => undefined,
+  invalidateSectionCaches: () => undefined
+}));
+
 describe('Dashboard service actions behavior', () => {
   it('maps persisted inactive customer state into the clientes UI facade', async () => {
     const clienteService = {
@@ -53,48 +66,35 @@ describe('Dashboard service actions behavior', () => {
     const service = runInInjectionContext(Injector.create({ providers: [] }), () => new ClienteService());
 
     const supabase = {
-      auth: {
-        getSession: vi.fn(async () => ({ data: { session: { user: { id: 'owner-1' } } } }))
-      },
-      from: vi.fn((table: string) => {
-        if (table === 'businesses') {
+      from: vi.fn(() => ({
+        select: vi.fn((columns: string) => {
+          selectedColumns.push(columns);
           return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: { id: 'business-1' }, error: null })) }))
+            eq: vi.fn(() => ({
+              order: vi.fn(async () => ({
+                data: [
+                  {
+                    id: 'customer-1',
+                    business_id: 'business-1',
+                    full_name: 'Ina Ctiva',
+                    email: null,
+                    phone: '+542222222222',
+                    created_at: '2026-01-01T00:00:00.000Z',
+                    active: false
+                  }
+                ],
+                error: null
+              }))
             }))
           };
-        }
-
-        return {
-          select: vi.fn((columns: string) => {
-            selectedColumns.push(columns);
-            return {
-              eq: vi.fn(() => ({
-                order: vi.fn(async () => ({
-                  data: [
-                    {
-                      id: 'customer-1',
-                      business_id: 'business-1',
-                      full_name: 'Ina Ctiva',
-                      email: null,
-                      phone: '+542222222222',
-                      created_at: '2026-01-01T00:00:00.000Z',
-                      active: false
-                    }
-                  ],
-                  error: null
-                }))
-              }))
-            };
-          }),
-          update: vi.fn((payload: Record<string, unknown>) => {
-            updatePayloads.push(payload);
-            return {
-              eq: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }))
-            };
-          })
-        };
-      })
+        }),
+        update: vi.fn((payload: Record<string, unknown>) => {
+          updatePayloads.push(payload);
+          return {
+            eq: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }))
+          };
+        })
+      }))
     };
 
     const customers = await (
@@ -162,6 +162,7 @@ describe('Dashboard service actions behavior', () => {
           useValue: {
           getAll: vi.fn(() => of(servicios())),
           items: servicios,
+          isLoaded: () => false,
           listCategorias: vi.fn(() => []),
           update,
           create: vi.fn(),

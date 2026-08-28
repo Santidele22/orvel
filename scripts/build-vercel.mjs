@@ -30,6 +30,35 @@ function run(command, args, options = {}) {
   });
 }
 
+async function writeDashboardRuntimeEnv(browserDir) {
+  const runtimeEnv = {
+    PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL ?? '',
+    PUBLIC_SUPABASE_ANON_KEY: process.env.PUBLIC_SUPABASE_ANON_KEY ?? '',
+    PUBLIC_LANDING_URL: process.env.PUBLIC_LANDING_URL ?? process.env.PUBLIC_DASHBOARD_URL ?? '',
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? ''
+  };
+
+  await writeFile(
+    join(browserDir, 'runtime-env.js'),
+    `window.__ORVEL_DASHBOARD_ENV__=${JSON.stringify(runtimeEnv)};\n`
+  );
+
+  const indexPath = join(browserDir, 'index.html');
+  const html = await readFile(indexPath, 'utf8');
+  if (html.includes('src="/dashboard/runtime-env.js"')) {
+    return;
+  }
+
+  if (!/<head[^>]*>/i.test(html)) {
+    throw new Error('Dashboard index.html is missing <head>; cannot inject runtime-env.js');
+  }
+
+  await writeFile(
+    indexPath,
+    html.replace(/<head([^>]*)>/i, '<head$1><script src="/dashboard/runtime-env.js"></script>')
+  );
+}
+
 async function patchVercelOutputConfig() {
   const rawConfig = await readFile(outputConfigPath, 'utf8');
   const config = JSON.parse(rawConfig);
@@ -63,6 +92,8 @@ async function main() {
   if (!existsSync(dashboardBrowserDir)) {
     throw new Error(`Dashboard browser output not found at ${dashboardBrowserDir}`);
   }
+
+  await writeDashboardRuntimeEnv(dashboardBrowserDir);
 
   await run('pnpm', ['--dir', 'apps/landing', 'run', 'build']);
 

@@ -3,10 +3,17 @@
 import '@angular/compiler';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { DestroyRef, Injector, PLATFORM_ID, runInInjectionContext, signal } from '@angular/core';
+import { from } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { throwError } from 'rxjs';
-import { TurnoService } from '../../features/booking/data-access/turno.service';
+
+import {
+  BookingAvailabilityService,
+  BookingCrudService,
+  BookingNotificationsService,
+  BookingSchedulingService
+} from '@orvel/booking/application';
+import { getBranchContextService } from '../../core/branches/branch-context.service';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
 import { AuthService } from '../../services/auth.service';
@@ -86,13 +93,20 @@ function createServiceWithSupabaseDouble() {
   const authService = {
     user: () => ({ id: ADMIN_ID, activeBranchId: BRANCH_ID })
   };
-  const injector = Injector.create({
-    providers: [{ provide: AuthService, useValue: authService }]
-  });
-  const service = runInInjectionContext(injector, () => new TurnoService());
   const supabase = createSupabaseClientDouble();
-  (service as unknown as { supabaseClient: unknown }).supabaseClient = supabase;
-  (service as unknown as { turnos: { set: (turnos: Turno[]) => void } }).turnos.set([
+  const crud = {
+    cancelByAdmin: async (id: string, payload: { branchId: string }) => {
+      const result = await supabase.rpc('cancel_admin_booking', { booking_id: id, branch_id: payload.branchId });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
+    }
+  };
+  const notifications = {
+    recordAdminCancelFailureTelemetry: async (input: { stage: string; code: unknown }) => {
+      await supabase.rpc('record_admin_booking_cancel_failure', { p_stage: input.stage, p_code: input.code });
+    }
+  };
+  const items = signal<Turno[]>([
     {
       id: BOOKING_ID,
       branchId: BRANCH_ID,
@@ -108,6 +122,14 @@ function createServiceWithSupabaseDouble() {
       updatedAt: new Date('2035-01-01T00:00:00.000Z')
     }
   ]);
+  const service = {
+    items: items.asReadonly(),
+    cancelByAdmin(id: string, payload: { performedBy: string; reason?: string; notes?: string }) {
+      return from(crud.cancelByAdmin(id, { ...payload, branchId: BRANCH_ID }).then(() => items().find((item) => item.id === id)!));
+    },
+    attachNotificationService(_port: unknown) { /* page owns notification wiring */ },
+    recordAdminCancelFailureTelemetry: notifications.recordAdminCancelFailureTelemetry
+  };
 
   return { service, supabase };
 }
@@ -232,19 +254,16 @@ describe('Admin turno cancel action contract', () => {
       createdAt: new Date('2035-01-01T00:00:00.000Z'),
       updatedAt: new Date('2035-01-01T00:00:00.000Z')
     }];
-    const cancelByAdmin = vi.fn(() => throwError(() => new Error('UNAUTHORIZED: raw backend branch policy detail')));
+    const cancelByAdmin = vi.fn(() => Promise.reject(new Error('UNAUTHORIZED: raw backend branch policy detail')));
     const recordAdminCancelFailureTelemetry = vi.fn(() => Promise.resolve());
+    const branchContext = getBranchContextService() as { getActiveBranchId?: () => string | null };
+    branchContext.getActiveBranchId = () => BRANCH_ID;
     const injector = Injector.create({
       providers: [
-        {
-          provide: TurnoService,
-          useValue: {
-            cancelByAdmin,
-            recordAdminCancelFailureTelemetry,
-            getAll: vi.fn(),
-            items: signal(turnos)
-          }
-        },
+        { provide: BookingCrudService, useValue: { cancelByAdmin } },
+        { provide: BookingNotificationsService, useValue: { recordAdminCancelFailureTelemetry } },
+        { provide: BookingSchedulingService, useValue: {} },
+        { provide: BookingAvailabilityService, useValue: {} },
         { provide: ClienteService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ServicioService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ThemeService, useValue: { activeTheme: signal('zen') } },
@@ -264,12 +283,13 @@ describe('Admin turno cancel action contract', () => {
           }
         },
         { provide: AuthService, useValue: { user: () => ({ id: ADMIN_ID }) } },
-        { provide: Router, useValue: { navigate: vi.fn() } }
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: DestroyRef, useValue: { onDestroy: () => undefined } }
       ]
     });
     const component = runInInjectionContext(injector, () => new TurnosListPage()) as any;
     component.turnos.set(turnos);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const template = readFileSync(
       join(process.cwd(), 'src/app/features/booking/pages/turnos-list.page.html'),
@@ -278,6 +298,7 @@ describe('Admin turno cancel action contract', () => {
 
     // Act
     await component.cancelTurno(turnos[0]);
+    await component.confirmCancelTurno();
     const host = document.createElement('div');
     host.innerHTML = `<p role="alert" data-testid="turnos-admin-cancel-feedback">${component.adminCancelFeedback()}</p>`;
     const alert = host.querySelector('[role="alert"][data-testid="turnos-admin-cancel-feedback"]') as HTMLElement | null;

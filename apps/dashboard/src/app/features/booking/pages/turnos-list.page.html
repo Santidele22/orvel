@@ -1,29 +1,76 @@
 <section class="min-h-full flex flex-col" data-testid="turnos-responsive-container" [attr.aria-busy]="loading()"
   aria-live="polite">
   @if (loading()) {
+  @if (!isMobile()) {
   <!-- DB-FIX-002: Loading skeletons with data-testid selectors -->
   <div class="flex-1 overflow-y-auto h-full no-scrollbar p-zen-xl lg:p-zen-section"
     data-testid="turnos-loading-skeleton" role="status">
     <div class="grid grid-cols-12 gap-zen-xxl">
-      <!-- DB-FIX-002: Skeleton row for appointments list -->
-      <div class="col-span-12 lg:col-span-8 rounded-zen-card bg-surface-muted p-zen-xl shadow-lg">
-        <div data-testid="turnos-skeleton-row" class="animate-pulse space-y-3">
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-16 bg-surface-muted/50 rounded-zen-md"></div>
+      <div class="col-span-12 lg:col-span-8 flex flex-col gap-zen-xl">
+        <div class="bg-surface/60 backdrop-blur-md p-zen-md rounded-zen-card shadow-2xl min-h-[220px] animate-pulse">
+          <div class="min-h-[220px] bg-surface-muted/50 rounded-zen-card"></div>
+        </div>
+        <div class="flex-1 bg-surface/40 backdrop-blur-sm rounded-zen-card shadow-2xl overflow-hidden p-zen-xl space-y-px">
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-40 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
+          <div data-testid="turnos-skeleton-row" class="relative py-zen-xl flex gap-zen-xl animate-pulse">
+            <div class="w-zen-control-lg h-4 bg-surface-muted/50 rounded-zen-md"></div>
+            <div class="flex-1 min-h-[90px]">
+              <article class="or-card !p-zen-xl space-y-3">
+                <div class="h-5 w-44 bg-surface-muted/50 rounded-zen-md"></div>
+                <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+              </article>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- DB-FIX-002: Skeleton panel for side panel -->
-      <div class="col-span-12 lg:col-span-4 rounded-zen-card bg-surface-muted p-zen-xl shadow-lg">
-        <div data-testid="turnos-skeleton-panel" class="animate-pulse space-y-3">
-          <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
-          <div class="h-20 bg-surface-muted/50 rounded-zen-md"></div>
+      <div class="col-span-12 lg:col-span-4 flex flex-col gap-zen-xl">
+        <div data-testid="turnos-skeleton-panel" class="or-card !p-zen-xl space-y-6 animate-pulse">
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-text-secondary pb-4">
+            Resumen de Agenda</h4>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between p-zen-md bg-bg rounded-zen-md shadow-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-surface-muted/50"></div>
+                <div class="h-3 w-20 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+            <div class="flex items-center justify-between p-zen-md bg-bg rounded-zen-md shadow-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-surface-muted/50"></div>
+                <div class="h-3 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+              </div>
+              <div class="h-4 w-8 bg-surface-muted/50 rounded-zen-md"></div>
+            </div>
+          </div>
+          <div class="h-11 w-full bg-surface-muted/50 rounded-xl"></div>
+          <div class="h-11 w-full bg-surface-muted/50 rounded-xl"></div>
         </div>
       </div>
     </div>
   </div>
   } @else {
-  <div class="sr-only" data-testid="turnos-empty-state" role="status">No appointments available.</div>
+      <app-mobile-agenda-day-view [turnos]="mobileAppointments()" [selectedDate]="selectedDate()" (selectedDateChange)="selectedDate.set($event)" [loading]="true"></app-mobile-agenda-day-view>
+  }
+  } @else {
+  <div class="sr-only" data-testid="turnos-empty-state" role="status">Todavía no hay turnos este día.</div>
   <div class="sr-only" data-testid="turnos-error-state" role="alert">Unable to load appointments.</div>
 
   @if (!isMobile()) {
@@ -80,13 +127,28 @@
             {{ adminCancelFeedback() }}
           </p>
           }
-          @if (turnosLoadError()) {
+          @if (adminApproveFeedback()) {
+          <p role="alert" data-testid="turnos-admin-approve-feedback"
+            class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+            {{ adminApproveFeedback() }}
+          </p>
+          }
+          @if (turnosLoadError() && hasAnyTurnos()) {
           <p role="alert" data-testid="turnos-load-error"
             class="m-zen-xl mb-0 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
             {{ turnosLoadError() }}
           </p>
           }
           <div class="flex-1 overflow-y-auto p-zen-xl space-y-px relative custom-scrollbar">
+            @if (!hasTurnosOnSelectedDate()) {
+            <div data-testid="turnos-desktop-empty-state" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <i class="ri-calendar-todo-line text-3xl text-border" aria-hidden="true"></i>
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-text-primary">Todavía no hay turnos este día</p>
+                <p class="text-xs font-medium text-text-tertiary">Cuando alguien reserve o agregues uno, va a aparecer acá.</p>
+              </div>
+            </div>
+            } @else {
             @for (hour of timelineHours(); track hour) {
             <div class="relative py-zen-xl flex gap-zen-xl group transition-all duration-300">
               <div
@@ -118,6 +180,13 @@
 
                     <!-- Action Buttons: Orvel Style (Glass + Shadows) -->
                     <div class="flex items-center gap-3">
+                      @if (turno.estado === 'pendiente') {
+                      <button type="button" (click)="approveTurno(turno)" title="Aprobar"
+                        data-testid="turno-admin-approve-action"
+                        class="w-12 h-12 flex items-center justify-center rounded-full bg-bg-primary border border-white/5 backdrop-blur-md text-primary shadow-lg hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all duration-500 group/btn">
+                        <i class="ri-checkbox-circle-line text-xl group-hover/btn:scale-110 transition-transform"></i>
+                      </button>
+                      }
                       <button (click)="openAdminReschedulePicker(turno)" title="Reprogramar"
                         data-testid="turnos-admin-reschedule-action"
                         class="w-12 h-12 flex items-center justify-center rounded-full bg-bg-primary border border-white/5 backdrop-blur-md text-primary shadow-lg hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(139,92,246,0.3)] transition-all duration-500 group/btn">
@@ -142,6 +211,7 @@
                 }
               </div>
             </div>
+            }
             }
             <!-- Current Time Indicator -->
             <div class="absolute left-0 right-0 h-0.5 bg-accent z-10 shadow-[0_0_10px_rgba(245,158,11,0.5)]" style="top: 45%;">
@@ -193,71 +263,6 @@
               Bloquear horario
             </button>
           </div>
-
-          @if (showAdminReschedulePanel()) {
-          <form data-testid="turnos-admin-reschedule-form" class="space-y-4 pt-4 border-t border-white/10"
-            (ngSubmit)="submitAdminReschedule()" aria-describedby="turnos-admin-reschedule-feedback">
-            <div class="space-y-1">
-              <p class="text-xs font-bold uppercase tracking-wider text-text-secondary">Reprogramar turno</p>
-              @if (adminRescheduleTurno(); as turno) {
-              <p data-testid="turnos-admin-reschedule-service-context" class="text-sm font-semibold text-text-primary">
-                {{ turno.servicioNombre }} · {{ turno.duracionMinutos }} min
-              </p>
-              <p data-testid="turnos-admin-reschedule-branch-context" class="text-[11px] text-text-tertiary">
-                serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'alcance operativo' }}
-              </p>
-              }
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-date" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Fecha</label>
-              <input id="admin-reschedule-date" name="admin-reschedule-date" type="date" required
-                data-testid="turnos-admin-reschedule-date-field" [(ngModel)]="adminRescheduleForm.date"
-                (change)="onAdminRescheduleDateChange()"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-slot" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Horario disponible</label>
-              <select id="admin-reschedule-slot" name="admin-reschedule-slot" required
-                data-testid="turnos-admin-reschedule-slot-select" [(ngModel)]="adminRescheduleForm.selectedSlot"
-                [disabled]="adminRescheduleLoading() || adminRescheduleSlots().length === 0"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none disabled:opacity-60">
-                <option value="">{{ adminRescheduleLoading() ? 'Consultando disponibilidad…' : 'Seleccioná un horario' }}</option>
-                @for (slot of adminRescheduleSlots(); track slot) {
-                <option [value]="slot">{{ slot }}</option>
-                }
-              </select>
-            </div>
-
-            <div class="space-y-2">
-              <label for="admin-reschedule-reason" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Motivo opcional</label>
-              <input id="admin-reschedule-reason" name="admin-reschedule-reason" type="text"
-                data-testid="turnos-admin-reschedule-reason-field" [(ngModel)]="adminRescheduleForm.reason"
-                placeholder="Ej: pedido del cliente"
-                class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
-            </div>
-
-            @if (adminRescheduleFeedback() || availabilityError()) {
-            <p id="turnos-admin-reschedule-feedback" role="alert" data-testid="turnos-admin-reschedule-feedback"
-              class="rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
-              {{ adminRescheduleFeedback() || availabilityError() }}
-            </p>
-            }
-
-            <div class="flex gap-2">
-              <button type="button" (click)="closeAdminReschedulePicker()"
-                class="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors">
-                Cancelar
-              </button>
-              <button type="submit" data-testid="turnos-admin-reschedule-submit-action"
-                [disabled]="adminRescheduleSubmitting() || !canSubmitReschedule()"
-                class="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
-                {{ adminRescheduleSubmitting() ? 'Reprogramando…' : 'Reprogramar' }}
-              </button>
-            </div>
-          </form>
-          }
 
           @if (showBlockedTimePanel()) {
           <form data-testid="turnos-admin-block-time-form" class="space-y-4 pt-4 border-t border-white/10"
@@ -332,4 +337,184 @@
 
 @if (showNewTurnoModal()) {
 <app-turno-form presentation="modal" (cancelled)="closeAdminNewTurnoModal()" (saved)="handleAdminNewTurnoSaved()"></app-turno-form>
+}
+
+@if (pendingCancelTurno()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-cancel-confirm-overlay"
+    aria-label="Cerrar confirmación de cancelación"
+    (click)="dismissCancelTurnoConfirm()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-cancel-confirm-title"
+    aria-describedby="turnos-cancel-confirm-description"
+    data-testid="turnos-cancel-confirm-modal"
+  >
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-error/10 text-error">
+        <i class="ri-close-circle-line text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0 space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Confirmación</p>
+        <h2 id="turnos-cancel-confirm-title" class="text-xl font-semibold tracking-tight text-white">¿Cancelar este turno?</h2>
+        <p id="turnos-cancel-confirm-description" class="text-sm leading-relaxed text-text-secondary">
+          Se cancelará el turno de <strong class="font-semibold text-white">{{ pendingCancelTurno()?.clienteNombre }}</strong>. La cancelación se aplica únicamente al confirmar.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        data-testid="turnos-cancel-confirm-cancel"
+        class="h-11 rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+        (click)="dismissCancelTurnoConfirm()"
+      >Cancelar</button>
+      <button
+        type="button"
+        data-testid="turnos-cancel-confirm-confirm"
+        class="h-11 rounded-xl bg-error px-5 text-sm font-semibold text-white shadow-sm shadow-error/25 transition-colors duration-200 hover:bg-error/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
+        (click)="confirmCancelTurno()"
+      >Cancelar turno</button>
+    </div>
+  </section>
+</div>
+}
+
+@if (pendingApproveTurno()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-approve-confirm-overlay"
+    aria-label="Cerrar confirmación de aprobación"
+    (click)="dismissApproveTurnoConfirm()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-approve-confirm-title"
+    aria-describedby="turnos-approve-confirm-description"
+    data-testid="turnos-approve-confirm-modal"
+  >
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <i class="ri-checkbox-circle-line text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0 space-y-2">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">Confirmación</p>
+        <h2 id="turnos-approve-confirm-title" class="text-xl font-semibold tracking-tight text-white">¿Aprobar este turno?</h2>
+        <p id="turnos-approve-confirm-description" class="text-sm leading-relaxed text-text-secondary">
+          Se confirmará el turno de <strong class="font-semibold text-white">{{ pendingApproveTurno()?.clienteNombre }}</strong>. La aprobación se aplica únicamente al confirmar.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        data-testid="turnos-approve-confirm-cancel"
+        class="h-11 rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
+        (click)="dismissApproveTurnoConfirm()"
+      >Cancelar</button>
+      <button
+        type="button"
+        data-testid="turnos-approve-confirm-confirm"
+        class="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white shadow-sm shadow-primary/25 transition-colors duration-200 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827]"
+        (click)="confirmApproveTurno()"
+      >Aprobar turno</button>
+    </div>
+  </section>
+</div>
+}
+
+@if (showAdminReschedulePanel()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md animate-in fade-in duration-200 sm:p-6">
+  <button
+    type="button"
+    class="absolute inset-0 h-full w-full"
+    data-testid="turnos-admin-reschedule-overlay"
+    aria-label="Cerrar reprogramación"
+    (click)="closeAdminReschedulePicker()"
+  ></button>
+
+  <section
+    class="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#121827] p-6 shadow-2xl shadow-black/60 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="turnos-admin-reschedule-title"
+    data-testid="turnos-admin-reschedule-modal"
+  >
+    <h2 id="turnos-admin-reschedule-title" class="text-xl font-semibold tracking-tight text-white">Reprogramar turno</h2>
+
+    <form data-testid="turnos-admin-reschedule-form" class="mt-6 space-y-4"
+      (ngSubmit)="submitAdminReschedule()" aria-describedby="turnos-admin-reschedule-feedback">
+      @if (adminRescheduleTurno(); as turno) {
+      <p data-testid="turnos-admin-reschedule-service-context" class="text-sm font-semibold text-text-primary">
+        {{ turno.servicioNombre }} · {{ turno.duracionMinutos }} min
+      </p>
+      <p data-testid="turnos-admin-reschedule-branch-context" class="text-[11px] text-text-tertiary">
+        serviceId: {{ turno.servicioId }} · branchId: {{ turno.branchId || 'alcance operativo' }}
+      </p>
+      }
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-date" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Fecha</label>
+        <input id="admin-reschedule-date" name="admin-reschedule-date" type="date" required
+          data-testid="turnos-admin-reschedule-date-field" [(ngModel)]="adminRescheduleForm.date"
+          (change)="onAdminRescheduleDateChange()"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
+      </div>
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-slot" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Horario disponible</label>
+        <select id="admin-reschedule-slot" name="admin-reschedule-slot" required
+          data-testid="turnos-admin-reschedule-slot-select" [(ngModel)]="adminRescheduleForm.selectedSlot"
+          [disabled]="adminRescheduleLoading() || adminRescheduleSlots().length === 0"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none disabled:opacity-60">
+          <option value="">{{ adminRescheduleLoading() ? 'Consultando disponibilidad…' : 'Seleccioná un horario' }}</option>
+          @for (slot of adminRescheduleSlots(); track slot) {
+          <option [value]="slot">{{ slot }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="space-y-2">
+        <label for="admin-reschedule-reason" class="text-xs font-bold uppercase tracking-wider text-text-secondary">Motivo opcional</label>
+        <input id="admin-reschedule-reason" name="admin-reschedule-reason" type="text"
+          data-testid="turnos-admin-reschedule-reason-field" [(ngModel)]="adminRescheduleForm.reason"
+          placeholder="Ej: pedido del cliente"
+          class="w-full rounded-xl bg-bg-primary border border-white/10 px-3 py-2 text-sm text-text-primary focus:border-primary outline-none">
+      </div>
+
+      @if (adminRescheduleFeedback() || availabilityError()) {
+      <p id="turnos-admin-reschedule-feedback" role="alert" data-testid="turnos-admin-reschedule-feedback"
+        class="rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs font-medium text-error">
+        {{ adminRescheduleFeedback() || availabilityError() }}
+      </p>
+      }
+
+      <div class="flex gap-2">
+        <button type="button" (click)="closeAdminReschedulePicker()"
+          class="flex-1 py-2 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors">
+          Cancelar
+        </button>
+        <button type="submit" data-testid="turnos-admin-reschedule-submit-action"
+          [disabled]="adminRescheduleSubmitting() || !canSubmitReschedule()"
+          class="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
+          {{ adminRescheduleSubmitting() ? 'Reprogramando…' : 'Reprogramar' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
 }

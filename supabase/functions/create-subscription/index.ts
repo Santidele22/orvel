@@ -1,5 +1,5 @@
 // create-subscription Edge Function
-// Creates a Mercado Pago preapproval subscription
+// Creates a manual-mode subscription
 // Endpoint: POST /functions/v1/create-subscription
 
 import { createClient } from "@supabase/supabase-js";
@@ -13,11 +13,7 @@ import {
   normalizeCadence,
   normalizeTier,
   resolvePlanCatalogRow,
-} from "../_shared/mp-plan-catalog.ts";
-import { evaluatePreapprovalPlanRollout } from "../_shared/mp-rollout-control.ts";
-import { recordPreapprovalCreateMetric } from "../_shared/mp-rollout-observability.ts";
-import { createSubscriptionSessionReference } from "../_shared/mp-subscription-session-reference.ts";
-import { buildAppUrl } from "../_shared/orvel-url.ts";
+} from "../_shared/plan-catalog.ts";
 import {
   getBearerToken,
   shouldValidateCreateSubscriptionAuthorization,
@@ -55,12 +51,8 @@ function isRateLimited(req: Request): boolean {
   return false;
 }
 
-// Mercado Pago API URLs
-const MP_API_BASE = "https://api.mercadopago.com";
-
 export interface CreateSubscriptionDependencies {
   createClient?: typeof createClient;
-  fetch?: typeof fetch;
   envGet?: (key: string) => string | undefined;
 }
 
@@ -104,50 +96,6 @@ interface SubscriptionRequest {
     billing_period?: string;
   } | null;
   business_type?: string;
-}
-
-function sanitizeDiagnosticText(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-
-  const trimmed = value.replace(/[\r\n\t]+/g, " ").trim();
-  if (!trimmed) return undefined;
-
-  return trimmed.slice(0, 240);
-}
-
-function sanitizeMercadoPagoError(errorText: string, status: number): {
-  provider: "mercado_pago";
-  status: number;
-  code?: string;
-  message?: string;
-} {
-  const fallback = {
-    provider: "mercado_pago" as const,
-    status,
-    message: sanitizeDiagnosticText(errorText) ||
-      "Mercado Pago rejected the preapproval request",
-  };
-
-  try {
-    const parsed = JSON.parse(errorText) as Record<string, unknown>;
-    const cause = Array.isArray(parsed.cause)
-      ? parsed.cause[0] as Record<string, unknown> | undefined
-      : undefined;
-
-    return {
-      provider: "mercado_pago",
-      status,
-      code: sanitizeDiagnosticText(parsed.error) ||
-        sanitizeDiagnosticText(parsed.status) ||
-        sanitizeDiagnosticText(cause?.code),
-      message: sanitizeDiagnosticText(parsed.message) ||
-        sanitizeDiagnosticText(cause?.description) ||
-        sanitizeDiagnosticText(cause?.message) ||
-        fallback.message,
-    };
-  } catch {
-    return fallback;
-  }
 }
 
 async function sha256Text(value: string): Promise<string> {
@@ -205,16 +153,6 @@ function planPriceForCadence(
   return Number(plan.price);
 }
 
-function planFrequencyForCadence(
-  plan: Plan,
-  cadence: "monthly",
-): { frequency: number; frequencyType: string } {
-  return {
-    frequency: plan.billing_frequency || 1,
-    frequencyType: plan.billing_frequency_type || "months",
-  };
-}
-
 function getCanonicalIdempotencyKey(headers: Headers): string | null {
   return headers.get("Idempotency-Key")?.trim() ||
     headers.get("x-idempotency-key")?.trim() ||
@@ -226,7 +164,6 @@ export async function createSubscriptionHandler(
   dependencies: CreateSubscriptionDependencies = {},
 ): Promise<Response> {
   const createSupabaseClient = dependencies.createClient ?? createClient;
-  const fetch = dependencies.fetch ?? globalThis.fetch;
   const envGet = dependencies.envGet ?? ((key: string) => Deno.env.get(key));
   const corsHeaders = getBillingCorsHeaders(req);
   const requestStartedAt = Date.now();
@@ -600,42 +537,6 @@ export async function createSubscriptionHandler(
       );
     }
 
-    if (!catalogRow?.preapproval_plan_id.trim()) {
-      return new Response(
-        JSON.stringify({
-          error: "PREAPPROVAL_PLAN_MANUAL_CONFIGURATION_REQUIRED",
-          message:
-            "El plan Premium mensual de Mercado Pago requiere configuración manual antes de iniciar la suscripción.",
-          correlation_id: correlationId,
-        }),
-        {
-          status: 409,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-            "x-correlation-id": correlationId,
-          },
-        },
-      );
-    }
-
-    // =============================================================================
-    // 5. CREATE MERCADO PAGO PREAPPROVAL
-    // =============================================================================
-    const mpAccessToken = envGet("MP_ACCESS_TOKEN");
-    if (!mpAccessToken) {
-      return new Response(
-        JSON.stringify({
-          error: "MP_CONFIG_ERROR",
-          message: "Mercado Pago no configurado en el servidor",
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     // Calculate billing dates
     const now = new Date();
 
@@ -748,7 +649,7 @@ export async function createSubscriptionHandler(
         return new Response(
           JSON.stringify({
             error: "EMAIL_CONFIRMATION_REQUIRED",
-            message: "Email confirmation is required before Mercado Pago preapproval",
+            message: "Email confirmation is required before subscription activation",
           }),
           {
             status: 409,
@@ -804,7 +705,7 @@ export async function createSubscriptionHandler(
         plan_code: plan.code,
         billing_period: requestedCadence,
         status: "created",
-        provider: "mercado_pago",
+        provider: "manual",
         idempotency_key_hash: idempotencyHash,
         expires_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
       };
@@ -914,47 +815,6 @@ export async function createSubscriptionHandler(
       );
     }
 
-    const rolloutDecision = evaluatePreapprovalPlanRollout({
-      tenantId: business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      environment: (envGet("DENO_ENV") as
-        | "development"
-        | "staging"
-        | "production"
-        | undefined) || "production",
-    });
-
-    if (!rolloutDecision.allowed) {
-      recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        rolloutPercent: rolloutDecision.rolloutPercent,
-        rolloutBucket: rolloutDecision.bucket,
-        result: "blocked",
-        retryable: false,
-        idempotencyDecision: "not_applicable",
-        latencyMs: Date.now() - requestStartedAt,
-        httpStatus: 503,
-      });
-
-      return new Response(
-        JSON.stringify({
-          error: "ROLLOUT_BLOCKED",
-          message:
-            "Mercado Pago subscription flow temporarily unavailable for this tenant during canary rollout",
-          rollout_percent: rolloutDecision.rolloutPercent,
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const subscriptionSessionToken = createOpaqueSubscriptionSessionToken();
     const idempotencyScope = business?.owner_id || pendingSignupRecord?.id ||
       "pending_signup";
@@ -963,9 +823,7 @@ export async function createSubscriptionHandler(
         `idem:${idempotencyScope}:${plan.code}:${idempotencyKey}`,
       )
       : subscriptionSessionToken;
-    const externalReference = createSubscriptionSessionReference(
-      idempotencySuffix,
-    );
+    const externalReference = `preapproval-session:${idempotencySuffix.trim()}`;
     const subscriptionSessionExpiresAt = new Date(
       now.getTime() + 30 * 60 * 1000,
     );
@@ -1010,7 +868,7 @@ export async function createSubscriptionHandler(
             (catalogRow as Record<string, unknown> | null)?.currency ||
               plan.currency,
           ),
-          provider: "mercado_pago",
+          provider: "manual",
           external_reference: externalReference,
           token_hash: await sha256Text(subscriptionSessionToken),
           expires_at: subscriptionSessionExpiresAt.toISOString(),
@@ -1060,177 +918,6 @@ export async function createSubscriptionHandler(
       );
     }
 
-    // Build MP preapproval request
-    const payerEmail = user?.email || pendingSignupEmail;
-    if (!payerEmail) {
-      return new Response(
-        JSON.stringify({
-          error: "EMAIL_REQUIRED",
-          message: "Se requiere un email para procesar el pago",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const catalogRecord = catalogRow as Record<string, unknown> | null;
-    const recurring = catalogRecord && Number(catalogRecord.amount) > 0
-      ? {
-        frequency: Number(catalogRecord.frequency || 1),
-        frequency_type: String(catalogRecord.frequency_type || "months"),
-        transaction_amount: Number(catalogRecord.amount),
-        currency_id: String(catalogRecord.currency || plan.currency || "ARS"),
-      }
-      : {
-        frequency: planFrequencyForCadence(plan, requestedCadence).frequency,
-        frequency_type:
-          planFrequencyForCadence(plan, requestedCadence).frequencyType,
-        transaction_amount: planPriceForCadence(plan, requestedCadence),
-        currency_id: plan.currency || "ARS",
-      };
-
-    const mpPreapprovalRequest: Record<string, unknown> = {
-      payer_email: payerEmail,
-      back_url: buildAppUrl(
-        `billing/subscription?plan=${plan.code}&billing=${requestedCadence}&subscription_session_id=${
-          encodeURIComponent(externalReference)
-        }`,
-      ),
-      reason: `${plan.name} - Orvel`,
-      external_reference: externalReference,
-      status: "pending",
-      preapproval_plan_id: catalogRow.preapproval_plan_id,
-      auto_recurring: recurring,
-    };
-
-    // Create preapproval in Mercado Pago
-    const mpResponse = await fetch(`${MP_API_BASE}/preapproval`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${mpAccessToken}`,
-        ...(idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : {}),
-      },
-      body: JSON.stringify(mpPreapprovalRequest),
-    });
-
-    if (!mpResponse.ok) {
-      const errorText = await mpResponse.text();
-      const upstreamError = sanitizeMercadoPagoError(
-        errorText,
-        mpResponse.status,
-      );
-      recordPreapprovalCreateMetric({
-        tenantId: business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-          "pending_signup",
-        rolloutPercent: rolloutDecision.rolloutPercent,
-        rolloutBucket: rolloutDecision.bucket,
-        result: "error",
-        retryable: mpResponse.status >= 500 || mpResponse.status === 429,
-        idempotencyDecision: "not_applicable",
-        latencyMs: Date.now() - requestStartedAt,
-        httpStatus: mpResponse.status,
-      });
-      console.error("Mercado Pago API Error", {
-        correlation_id: correlationId,
-        status: mpResponse.status,
-        mode: "associated_plan",
-        responseSize: errorText.length,
-        upstream_error: upstreamError,
-      });
-      return new Response(
-        JSON.stringify({
-          error: "MP_API_ERROR",
-          message: "Error al crear pre-aprobación en Mercado Pago",
-          upstream_error: upstreamError,
-          correlation_id: correlationId,
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-            "x-correlation-id": correlationId,
-          },
-        },
-      );
-    }
-
-    const mpData = await mpResponse.json();
-
-    if (!mpData.id || !mpData.init_point) {
-      return new Response(
-        JSON.stringify({
-          error: "MP_INVALID_RESPONSE",
-          message: "Respuesta inválida de Mercado Pago",
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const { data: updatedCheckoutSession, error: billingSessionUpdateError } = await supabaseAdmin
-      .from("billing_checkout_sessions")
-      .update({
-        provider_preference_id: mpData.id,
-        provider_resource_id: mpData.id,
-        provider_plan_id: mpData.preapproval_plan_id ||
-          mpData.preapproval_plan?.id || null,
-        status: "provider_created",
-      })
-      .eq("id", subscriptionSession.id)
-      .select("id")
-      .single();
-
-    const checkoutSessionUpdateCount = updatedCheckoutSession ? 1 : 0;
-    if (billingSessionUpdateError || !updatedCheckoutSession || checkoutSessionUpdateCount !== 1) {
-      return new Response(
-        JSON.stringify({
-          error: "SUBSCRIPTION_SESSION_PROVIDER_UPDATE_FAILED",
-          message: "No se pudo confirmar localmente la sesión de pago. Reintentá en unos segundos.",
-          correlation_id: correlationId,
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-        },
-      );
-    }
-
-    if (pendingSignupRecord) {
-      const { data: updatedPendingSignup, error: pendingSignupUpdateError } = await supabaseAdmin
-        .from("pending_signup_intents")
-        .update({
-          provider_subscription_id: mpData.id,
-          external_reference: externalReference,
-          status: "provider_created",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", pendingSignupRecord.id)
-        .select("id")
-        .single();
-      const pendingSignupUpdateCount = updatedPendingSignup ? 1 : 0;
-      if (pendingSignupUpdateError || !updatedPendingSignup || pendingSignupUpdateCount !== 1) {
-        return new Response(
-          JSON.stringify({
-            error: "PENDING_SIGNUP_PROVIDER_UPDATE_FAILED",
-            message: "No se pudo confirmar localmente el alta paga. Reintentá en unos segundos.",
-            correlation_id: correlationId,
-          }),
-          {
-            status: 503,
-            headers: { ...corsHeaders, "Content-Type": "application/json", "x-correlation-id": correlationId },
-          },
-        );
-      }
-    }
-
     // =============================================================================
     // 6. SAVE PENDING SUBSCRIPTION (Only if business exists)
     // =============================================================================
@@ -1244,15 +931,10 @@ export async function createSubscriptionHandler(
           plan_code: plan.code,
           status: "pending",
           period_start: now.toISOString(),
-          period_end: null, // Will be set when MP confirms payment
+          period_end: null, // Will be set when the manual payment is confirmed
           current_period_start: now.toISOString(),
           current_period_end: null,
-          provider: "mercado_pago",
-          provider_subscription_id: mpData.id,
-          provider_plan_id: mpData.preapproval_plan_id ||
-            mpData.preapproval_plan?.id || null,
-          mp_preapproval_id: mpData.id,
-          mp_preapproval_status: mpData.status || "pending",
+          provider: "manual",
           start_date: now.toISOString(),
         })
         .select()
@@ -1274,31 +956,6 @@ export async function createSubscriptionHandler(
       subscriptionId = subscription.id;
     }
 
-    // =============================================================================
-    // 7. RETURN INIT POINT TO FRONTEND
-    // =============================================================================
-    // Detect if using test token to return appropriate init_point
-    // Mercado Pago returns BOTH init_point (production) AND sandbox_init_point (test)
-    // Test tokens start with "TEST-" prefix
-    const isTestMode = mpAccessToken.startsWith("TEST-");
-    const effectiveInitPoint = isTestMode && mpData.sandbox_init_point
-      ? mpData.sandbox_init_point
-      : mpData.init_point;
-
-    recordPreapprovalCreateMetric({
-      tenantId: business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      userId: user?.id || business?.owner_id || pendingSignupRecord?.id ||
-        "pending_signup",
-      rolloutPercent: rolloutDecision.rolloutPercent,
-      rolloutBucket: rolloutDecision.bucket,
-      result: "success",
-      retryable: false,
-      idempotencyDecision: "not_applicable",
-      latencyMs: Date.now() - requestStartedAt,
-      httpStatus: 200,
-    });
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -1306,16 +963,9 @@ export async function createSubscriptionHandler(
           id: subscriptionId,
           plan_code: plan.code,
           status: business ? "pending" : "pending_signup_intent",
-          mp_preapproval_id: mpData.id,
-          external_reference: externalReference,
         },
-        init_point: effectiveInitPoint,
-        correlation_id: correlationId,
-        // Include sandbox_init_point separately when in test mode for clarity
-        ...(isTestMode && mpData.sandbox_init_point
-          ? { sandbox_init_point: mpData.sandbox_init_point }
-          : {}),
-        message: "_redirect_to_mercadopago",
+        init_point: null,
+        message: "manual_mode",
       }),
       {
         headers: {
@@ -1326,17 +976,6 @@ export async function createSubscriptionHandler(
       },
     );
   } catch (error) {
-    recordPreapprovalCreateMetric({
-      tenantId: "unknown",
-      userId: "unknown",
-      rolloutPercent: 100,
-      rolloutBucket: 0,
-      result: "error",
-      retryable: true,
-      idempotencyDecision: "not_applicable",
-      latencyMs: Date.now() - requestStartedAt,
-      httpStatus: 500,
-    });
     console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({

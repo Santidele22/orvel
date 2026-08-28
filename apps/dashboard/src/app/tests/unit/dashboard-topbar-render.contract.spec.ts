@@ -91,7 +91,8 @@ describe('Dashboard topbar rendered behavior', () => {
     const notifications = fixture.nativeElement.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLElement | null;
     expect(topbar).not.toBeNull();
     expect(topbar?.hidden).toBe(false);
-    expect(topbar?.className).not.toMatch(/(?:^|\s)(?:hidden|lg:hidden)(?:\s|$)/);
+    expect(topbar?.className).toMatch(/(?:^|\s)hidden lg:flex(?:\s|$)/);
+    expect(topbar?.className).not.toMatch(/(?:^|\s)lg:hidden(?:\s|$)/);
     expect(notifications).not.toBeNull();
     expect(topbar?.textContent).not.toContain('Santi');
     expect(topbar?.textContent).not.toContain('Orvel Studio');
@@ -233,8 +234,9 @@ describe('Dashboard topbar rendered behavior', () => {
     const notifications = composedWrapper?.querySelector('[data-testid="dashboard-topbar-notifications"]') as HTMLElement | null;
 
     expect(composedWrapper).not.toBeUndefined();
-    expect(wrapperClasses).toEqual(expect.arrayContaining(['relative', 'sm:block', 'md:block', 'lg:block']));
-    expect(wrapperClasses).not.toContain('hidden');
+    expect(wrapperClasses).toEqual(expect.arrayContaining(['relative', 'hidden', 'lg:block']));
+    expect(wrapperClasses).not.toContain('sm:block');
+    expect(wrapperClasses).not.toContain('md:block');
     expect(wrapperClasses).not.toContain('lg:hidden');
     expect(renderedTopbar).not.toBeNull();
     expect(notifications).not.toBeNull();

@@ -1,3 +1,5 @@
+import { mapPublicTurneroDisabledError } from './supabase-booking/mappers'
+
 type ApiErrorCode =
   | 'BUSINESS_NOT_FOUND'
   | 'VALIDATION_ERROR'
@@ -10,6 +12,7 @@ type ApiErrorCode =
   | 'SLOT_CONFLICT'
   | 'BLOCKED_TIME_COLLISION'
   | 'AUTH_REQUIRED'
+  | 'PUBLIC_TURNERO_DISABLED'
 
 type ApiError = {
   code: ApiErrorCode
@@ -307,7 +310,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
     async createPublicBooking(
       payload: PublicBookingPayload
-    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed'; manageToken?: string; source: 'client-self-service' }>> {
+    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' }>> {
       const validationFields = validatePublicBookingPayload(payload)
       if (validationFields.length > 0) {
         return validationError(validationFields)
@@ -324,6 +327,17 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       })
 
       if (result.error) {
+        const turneroDisabled = mapPublicTurneroDisabledError(result.error)
+        if (turneroDisabled) {
+          return {
+            status: turneroDisabled.status,
+            error: {
+              code: turneroDisabled.code,
+              message: turneroDisabled.message
+            }
+          }
+        }
+
         const knownMappings: Record<string, RpcErrorMapping> = {
           BOOKING_VALIDATION_ERROR: {
             status: 422,
@@ -352,9 +366,9 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       }
 
       const row = result.data as any;
-      const responseData: { bookingId: string; status: 'confirmed'; manageToken?: string; source: 'client-self-service' } = {
+      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' } = {
         bookingId: row.booking_id,
-        status: 'confirmed',
+        status: row.status === 'pending' ? 'pending' : 'confirmed',
         source: 'client-self-service'
       }
 
@@ -378,6 +392,17 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       })
 
       if (result.error) {
+        const turneroDisabled = mapPublicTurneroDisabledError(result.error)
+        if (turneroDisabled) {
+          return {
+            status: turneroDisabled.status,
+            error: {
+              code: turneroDisabled.code,
+              message: turneroDisabled.message
+            }
+          }
+        }
+
         const mapped = mapRpcError(result.error, {
           BOOKING_VALIDATION_ERROR: {
             status: 422,

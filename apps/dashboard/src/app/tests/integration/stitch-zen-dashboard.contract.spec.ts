@@ -21,7 +21,7 @@ describe('Dashboard contract: admin flow and functional structure', () => {
 
     expect(shellHtml.indexOf('<app-dashboard-sidebar')).toBeLessThan(shellHtml.indexOf('<app-dashboard-topbar'));
     expect(shellHtml.indexOf('<app-dashboard-topbar')).toBeLessThan(shellHtml.indexOf('<router-outlet'));
-    expect(shellHtml).toContain('data-testid="dashboard-shell-global-action"');
+    expect(shellHtml).not.toContain('data-testid="dashboard-shell-global-action"');
   });
 
   it('keeps admin sidebar navigation routes for supervision sections', async () => {

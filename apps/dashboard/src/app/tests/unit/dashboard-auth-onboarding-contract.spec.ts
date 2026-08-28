@@ -188,7 +188,7 @@ describe('dashboard auth onboarding contract', () => {
     expect(window.location.assign).not.toHaveBeenCalledWith(expect.stringContaining('/auth/onboarding'));
   });
 
-  it('dashboardAuthGuard sends missing sessions to canonical landing login', async () => {
+  it('dashboardAuthGuard sends missing sessions to in-app dashboard sign-in', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
     const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
@@ -196,7 +196,7 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Finicio'
+      '/dashboard/login?returnTo=%2Fdashboard%2Finicio'
     );
   });
 
@@ -209,18 +209,93 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Finicio'
+      '/dashboard/login?returnTo=%2Finicio'
     );
   });
 
   it('keeps /auth/onboarding as a dashboard compatibility redirect, not the real onboarding UI route', async () => {
     const routesSource = await readFile(new URL('../../app.routes.ts', import.meta.url), 'utf8');
 
-    const onboardingRoute = routesSource.match(/path:\s*['"]auth\/onboarding['"][\s\S]*?(?=\n\s*\},\n\s*\{|\n\s*\}\n\];)/)?.[0];
+    const onboardingRoute = routesSource.match(
+      /path:\s*['"]auth\/onboarding['"][\s\S]*?redirectTo[\s\S]*?pathMatch:\s*['"]full['"]/
+    )?.[0];
 
     expect(onboardingRoute).toBeDefined();
     expect(onboardingRoute).toContain('redirectTo');
     expect(onboardingRoute).not.toContain('signup-business-types-step.component');
     expect(onboardingRoute).not.toContain('features/onboarding/pages');
+  });
+
+  describe('in-shell dashboard auth access cache', () => {
+    function allowedSession(userId = 'allowed-operator') {
+      return {
+        data: {
+          session: {
+            access_token: 'supabase-access-token',
+            user: {
+              id: userId,
+              email: 'owner@orvel.pro',
+              user_metadata: {
+                plan: 'FREE',
+                tipoNegocio: 'peluqueria',
+                onboardingCompleted: true
+              }
+            }
+          }
+        },
+        error: null
+      };
+    }
+
+    function allowedAuthState() {
+      return {
+        data: { dashboard_ready: true, selected_plan_code: 'FREE', business_type: 'peluqueria' },
+        error: null
+      };
+    }
+
+    it('calls getDashboardAuthState once for two canAccessDashboardAsync checks of the same allowed user', async () => {
+      supabaseAuthClientMock.getSession.mockResolvedValue(allowedSession());
+      supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue(allowedAuthState());
+
+      const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+
+      await expect(canAccessDashboardAsync(Date.now(), '/dashboard/inicio')).resolves.toEqual({ allowed: true });
+      await expect(canAccessDashboardAsync(Date.now(), '/dashboard/turnos')).resolves.toEqual({ allowed: true });
+
+      expect(supabaseAuthClientMock.getDashboardAuthState).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls getDashboardAuthState again after logoutAndRedirect', async () => {
+      supabaseAuthClientMock.getSession.mockResolvedValue(allowedSession());
+      supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue(allowedAuthState());
+      supabaseAuthClientMock.signOut.mockResolvedValue({ error: null });
+
+      const { canAccessDashboardAsync, logoutAndRedirect } = await import('../../core/auth/route-protection');
+
+      await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
+      await logoutAndRedirect();
+      await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
+
+      expect(supabaseAuthClientMock.getDashboardAuthState).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not reuse a denied or missing-plan result as allow', async () => {
+      supabaseAuthClientMock.getSession.mockResolvedValue(allowedSession('pending-operator'));
+      supabaseAuthClientMock.getDashboardAuthState
+        .mockResolvedValueOnce({
+          data: { dashboard_ready: false, selected_plan_code: null, business_type: null },
+          error: null
+        })
+        .mockResolvedValueOnce(allowedAuthState());
+
+      const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+
+      const denied = await canAccessDashboardAsync(Date.now(), '/dashboard/inicio');
+      expect(denied.allowed).toBe(false);
+
+      await expect(canAccessDashboardAsync(Date.now(), '/dashboard/inicio')).resolves.toEqual({ allowed: true });
+      expect(supabaseAuthClientMock.getDashboardAuthState).toHaveBeenCalledTimes(2);
+    });
   });
 });

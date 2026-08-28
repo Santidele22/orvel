@@ -30,10 +30,10 @@ const BILLING_SUBSCRIPTION_HEADINGS: Record<BillingSubscriptionMode, { kicker: s
 };
 
 export const BILLING_SUBSCRIPTION_CANCELLATION_READY_MESSAGE =
-  'Podés solicitar la baja de tu suscripción. La procesamos manualmente con soporte y Mercado Pago antes del próximo ciclo de facturación.';
+  'Podés solicitar la baja de tu suscripción. Santi la procesa a mano. No hay cancelación automática.';
 
 export const BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE =
-  'Recibimos tu solicitud de baja. El equipo de soporte la va a procesar manualmente con Mercado Pago antes del próximo ciclo de facturación.';
+  'Recibimos tu solicitud de baja. Santi la va a procesar a mano.';
 
 const BILLING_SUBSCRIPTION_CANCELLATION_GENERIC_ERROR_MESSAGE =
   'No pudimos registrar la solicitud de baja. Contactá soporte para procesarla manualmente.';

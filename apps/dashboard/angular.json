@@ -56,10 +56,11 @@
                 "input": "src/icons",
                 "output": "icons"
               },
-              "src/manifest.webmanifest"
+              "src/manifest.webmanifest",
+              "src/orvel-push-sw.js"
             ],
             "styles": [
-              "node_modules/remixicon/fonts/remixicon.css",
+              "src/styles/remixicon-used.css",
               "src/styles.css",
               "src/styles.scss"
             ],
@@ -74,6 +75,11 @@
                 }
               ],
               "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": true
+                },
                 "fonts": {
                   "inline": false
                 }

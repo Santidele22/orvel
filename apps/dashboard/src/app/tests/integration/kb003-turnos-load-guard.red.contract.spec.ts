@@ -5,11 +5,10 @@
 // Tests will pass after Magnus implements real Supabase queries
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
 import type { ClienteService } from '../../services/cliente.service';
 import type { ServicioService } from '../../services/servicio.service';
 import { firstValueFrom } from 'rxjs';
-import { createMockClienteService, createMockServicioService, createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 describe('KB-003: Turnos CRUD - Load (TDD Guard)', () => {
   let turnoService: TurnoService;

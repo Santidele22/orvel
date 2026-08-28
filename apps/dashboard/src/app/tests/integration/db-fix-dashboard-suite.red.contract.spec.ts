@@ -85,6 +85,7 @@ describe('DB-FIX-002 RED - Loading skeletons for appointments views', () => {
 
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-loading-skeleton["']/i);
     expect(turnoFormHtml).toMatch(/data-testid=["']turno-form-skeleton-field["']/i);
+    expect(turnoFormHtml).not.toContain('Cargando...');
   });
 });
 
@@ -121,7 +122,7 @@ describe('DB-FIX-004 RED - Turnos management via Mini Calendly integration path'
   });
 
   it('turno service keeps create/edit/cancel integration through existing booking adapter', () => {
-    const source = readSource('src/app/features/booking/data-access/turno.service.ts');
+    const source = readSource('../../packages/booking/src/infrastructure/supabase/admin-booking.repository.ts');
 
     expect(source).toMatch(/createAdminManualBooking\(/);
     expect(source).toMatch(/updateAdminBooking\(/);
@@ -163,8 +164,8 @@ describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned
     const homeSource = readSource('src/app/pages/dashboard/home/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 
-    // Must use real services (TurnoService, ClienteService) for dynamic data
-    expect(merged).toMatch(/TurnoService/);
+    // Must use real services (BookingQueries, ClienteService) for dynamic data
+    expect(merged).toMatch(/BookingQueries/);
     expect(merged).toMatch(/ClienteService/);
     
     // Must have dynamic metric IDs from DASHBOARD_SYSTEM

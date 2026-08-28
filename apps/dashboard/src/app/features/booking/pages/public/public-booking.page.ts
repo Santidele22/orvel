@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BusinessService } from '../../../settings/data-access/business.service';
-import { PublicBookingService } from '../../data-access/public-booking.service';
+import { PublicBookingService } from '@orvel/booking/application';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
-import type { PublicSlot } from '../../../../core/api/supabase-booking.api';
+import type { PublicSlot } from '@orvel/booking';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
 import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
+import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 
 type ReschedulePreload = {
@@ -36,6 +37,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly loadingAvailability = signal(false);
   protected readonly businessName = signal('');
   protected readonly bookingConfirmed = signal(false);
+  protected readonly bookingAwaitingApproval = signal(false);
   protected readonly errorMessage = signal('');
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
@@ -82,6 +84,7 @@ export class PublicBookingPage implements OnInit {
     this.availabilityErrorMessage.set('');
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
+    this.bookingAwaitingApproval.set(false);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
@@ -214,10 +217,19 @@ export class PublicBookingPage implements OnInit {
 
       if (response.error || response.status < 200 || response.status >= 300) {
         emitPublicBookingFailureEvent({ stage: 'availability', status: response.status, code: response.error?.code });
+        logMutationFailure({
+          operation: 'query_public_slot_availability',
+          response,
+          ids: { businessId: this.resolvedBusinessId() || undefined }
+        });
         this.availabilitySlots.set([]);
         this.updateDayAvailability(date, false);
         this.selectedSlot = '';
-        this.availabilityErrorMessage.set('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
+        this.availabilityErrorMessage.set(
+          response.error?.code === 'PUBLIC_TURNERO_DISABLED'
+            ? getPublicBookingSubmitErrorMessage(response.error)
+            : 'No pudimos consultar los horarios disponibles. Intentá nuevamente.'
+        );
         return;
       }
 
@@ -243,6 +255,11 @@ export class PublicBookingPage implements OnInit {
         return;
       }
       emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
+      logMutationFailure({
+        operation: 'query_public_slot_availability',
+        error,
+        ids: { businessId: this.resolvedBusinessId() || undefined }
+      });
       this.availabilitySlots.set([]);
       this.updateDayAvailability(date, false);
       this.selectedSlot = '';
@@ -324,11 +341,12 @@ export class PublicBookingPage implements OnInit {
         notes: this.notes
       });
 
-      if (response.data?.status === 'confirmed') {
+      if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
+        this.bookingAwaitingApproval.set(response.data.status === 'pending');
         window.dispatchEvent(new CustomEvent('booking.created', {
           detail: {
-            status: 'confirmed',
+            status: response.data.status,
             startsAtIso: this.selectedSlot
           }
         }));
@@ -419,7 +437,7 @@ export class PublicBookingPage implements OnInit {
           return;
         }
         failedAvailabilityChecks = true;
-        emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
+      emitPublicBookingFailureEvent({ stage: 'availability', code: 'AVAILABILITY_LOOKUP_FAILED', status: 503 });
         days[i] = { ...day, hasAvailability: false };
         if (day.date === this.selectedDate()) {
           this.availabilitySlots.set([]);

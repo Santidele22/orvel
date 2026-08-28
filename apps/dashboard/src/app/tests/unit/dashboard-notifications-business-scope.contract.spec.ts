@@ -25,7 +25,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../core/branches/branch-context.service', () => ({
-  getBranchContextService: () => mocks.branchContext
+  getBranchContextService: () => mocks.branchContext,
+  registerSectionCacheInvalidator: () => undefined,
+  invalidateSectionCaches: () => undefined
 }));
 
 vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => ({
@@ -36,7 +38,7 @@ vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => (
   archiveNotification: mocks.archiveNotification
 }));
 
-vi.mock('../../core/api/supabase-booking/real-gateway', () => ({
+vi.mock('../../core/runtime/supabase-client', () => ({
   createSupabaseClient: () => ({
     channel: mocks.channel.mockReturnValue({
       on: vi.fn().mockReturnThis(),
@@ -86,7 +88,7 @@ describe('Dashboard notification business scope contract', () => {
     await service.refreshForAdmin();
 
     expect(mocks.listAdminNotifications).toHaveBeenCalledWith(expect.objectContaining({ businessId: 'business-real-1' }));
-    expect(mocks.getUnreadNotificationCount).toHaveBeenCalledWith('business-real-1');
+    expect(mocks.getUnreadNotificationCount).not.toHaveBeenCalled();
     expect(mocks.listAdminNotifications).not.toHaveBeenCalledWith(expect.objectContaining({ businessId: 'auth-user-1' }));
   });
 
@@ -123,7 +125,8 @@ describe('Dashboard notification business scope contract', () => {
     expect(source).toMatch(/getBranchContextService/);
     expect(source).toMatch(/getActiveBusinessId\(\)/);
     expect(source).toMatch(/listAdminNotifications\(\s*\{[\s\S]*?businessId[\s\S]*?\}\)/);
-    expect(source).toMatch(/getUnreadNotificationCount\(businessId\)/);
+    expect(source).not.toMatch(/getUnreadNotificationCount\(/);
+    expect(source).toMatch(/status === 'unread'/);
     expect(source).toMatch(/archiveAllNotifications\(businessId\)/);
     expect(source).not.toMatch(/const\s+businessId\s*=\s*this\.authService\.user\(\)\?\.id/);
     expect(branchContext).toMatch(/async getActiveBusinessId\(\)/);

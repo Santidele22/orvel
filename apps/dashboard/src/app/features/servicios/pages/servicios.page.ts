@@ -28,6 +28,7 @@ type CategoriaItem = {
 };
 
 const SAVE_SERVICE_ERROR_MESSAGE = 'No se pudo guardar el servicio. Intentá nuevamente en unos minutos.';
+const SAVE_CATEGORY_ERROR_MESSAGE = 'No se pudo guardar la categoría. Intentá nuevamente en unos minutos.';
 const DELETE_SERVICE_ERROR_MESSAGE = 'No se pudo eliminar el servicio. Intentá nuevamente en unos minutos.';
 
 @Component({
@@ -55,6 +56,7 @@ export class ServiciosPage {
   readonly servicios = signal<Servicio[]>([]);
   readonly selectedRubros = signal<BusinessTypeCode[]>([]);
   readonly deleteConfirmServiceId = signal<string | null>(null);
+  readonly isServicioDeletedModalOpen = signal(false);
   
   // DB-FIX-003: Selected service ID to track which service is being edited/deleted
   readonly selectedServiceId = signal<string | null>(null);
@@ -131,6 +133,13 @@ export class ServiciosPage {
   readonly shouldShowSuggestions = computed(() => this.suggestedServices().length > 0 && this.filteredServicios().length < 3);
 
   constructor() {
+    if (this.servicioService.isLoaded()) {
+      this.servicios.set(this.servicioService.items());
+      this.selectedRubros.set(this.readSelectedRubrosDraft());
+      this.categorias.set(this.servicioService.listCategorias());
+      this.loading.set(false);
+      return;
+    }
     void this.loadData();
   }
 
@@ -179,6 +188,10 @@ export class ServiciosPage {
     this.feedback.set('');
   }
 
+  closeServicioDeletedModal(): void {
+    this.isServicioDeletedModalOpen.set(false);
+  }
+
   badgeToneClass(tone: OrvelBadgeTone): string {
     return ORVEL_BADGE_TONE_CLASS[tone];
   }
@@ -195,11 +208,16 @@ export class ServiciosPage {
     const nombre = this.categoryForm.controls.nombre.value.trim();
 
     try {
-      this.servicioService.createCategoria({ nombre });
+      await this.servicioService.createCategoriaAndPersist({ nombre });
       this.categorias.set(this.servicioService.listCategorias());
       this.closeModal();
-    } catch {
-      this.feedback.set('La categoría ya existe.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      this.feedback.set(
+        /duplicada|existente/i.test(message)
+          ? 'La categoría ya existe.'
+          : SAVE_CATEGORY_ERROR_MESSAGE
+      );
     }
   }
 
@@ -236,6 +254,13 @@ export class ServiciosPage {
   }
 
   private async loadData(): Promise<void> {
+    if (this.servicioService.isLoaded()) {
+      this.servicios.set(this.servicioService.items());
+      this.selectedRubros.set(this.readSelectedRubrosDraft());
+      this.categorias.set(this.servicioService.listCategorias());
+      this.loading.set(false);
+      return;
+    }
     this.loading.set(true);
     this.feedback.set('');
     try {
@@ -303,6 +328,7 @@ export class ServiciosPage {
       this.servicios.set(this.servicioService.items());
       this.deleteConfirmServiceId.set(null);
       this.selectedServiceId.set(null);
+      this.isServicioDeletedModalOpen.set(true);
     } catch (error) {
       throw error;
     }

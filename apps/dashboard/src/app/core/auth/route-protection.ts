@@ -1,15 +1,28 @@
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from './session-contract';
+import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
 import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
+let allowedDashboardAuthUserId: string | null = null;
+
+export function resetDashboardAuthAccessCache(): void {
+  allowedDashboardAuthUserId = null;
+}
+
+function sessionUserId(session: { user?: { id?: unknown } } | null | undefined): string | null {
+  const userId = session?.user?.id;
+  return typeof userId === 'string' && userId.length > 0 ? userId : null;
+}
 
 const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
-const LOGIN_ROUTE = '/auth/login';
-const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
+	const LOGIN_ROUTE = '/auth/login';
+	const DASHBOARD_SIGN_IN_ROUTE = '/dashboard/login';
+	const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
 const SIGNUP_ONBOARDING_ROUTE = '/auth/signup/onboarding';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
@@ -18,7 +31,7 @@ const SESSION_HANDOFF_PARAM = 'handoff';
 /**
  * Gets the Supabase Auth client (cached for performance).
  */
-function getSupabaseAuthClient() {
+export function getSupabaseAuthClient() {
   if (!cachedAuthClient) {
     cachedAuthClient = createSupabaseAuthClient({
       supabaseUrl: SUPABASE_CONFIG.url,
@@ -69,6 +82,15 @@ export function sanitizeReturnTo(returnTo: string | null | undefined): string {
 export function buildLandingLoginRedirect(returnTo: string): string {
   const safeReturnTo = sanitizeReturnTo(returnTo);
   return `${resolveLandingOrigin()}${LOGIN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+export function buildDashboardSignInRedirect(returnTo: string): string {
+  const safeReturnTo = sanitizeReturnTo(returnTo);
+  return `${DASHBOARD_SIGN_IN_ROUTE}?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
+
+export function buildLandingSignupRedirect(): string {
+  return `${resolveLandingOrigin()}${PLAN_SELECTION_ROUTE}`;
 }
 
 type SessionHandoffAuth = {
@@ -154,19 +176,40 @@ export function buildLandingPlanSelectionRedirect(returnTo: string): string {
   return `${resolveLandingOrigin()}${PLAN_SELECTION_ROUTE}?${params.toString()}`;
 }
 
-function resolveLandingOrigin(): string {
-  const env = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  const raw = env.process?.env?.['PUBLIC_LANDING_URL']?.trim();
-  if (!raw) return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+function originFromUrl(raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
 
   try {
-    const url = new URL(raw);
+    const url = new URL(value);
     url.search = '';
     url.hash = '';
     return url.origin;
   } catch {
-    return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
+    return null;
   }
+}
+
+function resolveLandingOrigin(): string {
+  const env = globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+    window?: {
+      __ORVEL_DASHBOARD_ENV__?: { PUBLIC_LANDING_URL?: string };
+      location?: { hostname?: string; protocol?: string };
+    };
+  };
+
+  const fromProcess = originFromUrl(env.process?.env?.['PUBLIC_LANDING_URL']);
+  if (fromProcess) return fromProcess;
+
+  const fromWindow = originFromUrl(env.window?.__ORVEL_DASHBOARD_ENV__?.PUBLIC_LANDING_URL);
+  if (fromWindow) return fromWindow;
+
+  if (env.window?.location?.hostname === 'qa.orvel.pro') {
+    return 'https://qa.orvel.pro';
+  }
+
+  return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
 }
 
 function resolveLocalLandingOrigin(): string | null {
@@ -257,11 +300,17 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     const { data, error } = await authClient.getSession();
 
     if (error) {
-      return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+      resetDashboardAuthAccessCache();
+      return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
     }
 
     // If we have a valid session, require persisted onboarding completeness before dashboard access.
     if (data?.session?.access_token) {
+      const userId = sessionUserId(data.session);
+      if (userId && allowedDashboardAuthUserId === userId) {
+        return { allowed: true };
+      }
+
       const metadata = data.session.user.user_metadata;
       const serverState = await loadDashboardAuthState(authClient);
 
@@ -270,6 +319,7 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
         hasSelectedPlanCode(serverState.selected_plan_code) &&
         isAllowedOnboardingBusinessType(serverState.business_type)
       ) {
+        allowedDashboardAuthUserId = userId;
         return { allowed: true };
       }
 
@@ -282,10 +332,12 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
     }
 
     // No Supabase session
-    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+    resetDashboardAuthAccessCache();
+    return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   } catch {
     // On error, fail closed (deny access)
-    return { allowed: false, redirectTo: buildLandingLoginRedirect(safeReturnTo) };
+    resetDashboardAuthAccessCache();
+    return { allowed: false, redirectTo: buildDashboardSignInRedirect(safeReturnTo) };
   }
 }
 
@@ -304,7 +356,7 @@ export function canAccessDashboard(_now = Date.now()): {
   allowed: boolean;
   redirectTo?: string;
 } {
-  return { allowed: false, redirectTo: buildLandingLoginRedirect('/dashboard') };
+  return { allowed: false, redirectTo: buildDashboardSignInRedirect('/dashboard') };
 }
 
 /**
@@ -326,15 +378,35 @@ export async function canAccessDashboardAsync(
 }
 
 export async function logoutAndRedirect(): Promise<string> {
+  const authClient = getSupabaseAuthClient();
+  let signOutError: { message?: string } | null = null;
+
   try {
-    const authClient = getSupabaseAuthClient();
-    await authClient.signOut();
-  } catch {
-    // Ignore errors from Supabase logout
+    const { error } = await authClient.signOut();
+    signOutError = error;
+  } catch (err) {
+    signOutError = { message: (err as Error).message };
   }
 
-  // Clear legacy localStorage data, but never trust it for dashboard access.
-  localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
+  if (signOutError) {
+    try {
+      const { error } = await authClient.signOut({ scope: 'local' });
+      signOutError = error;
+    } catch (err) {
+      signOutError = { message: (err as Error).message };
+    }
+  }
 
-  return buildLandingLoginRedirect('/dashboard');
+  if (signOutError) {
+    throw new Error(signOutError.message || 'Logout failed');
+  }
+
+  resetDashboardAuthAccessCache();
+  localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
+  resetBranchContextSession();
+  invalidateSectionCaches();
+
+  return buildDashboardSignInRedirect('/dashboard');
 }

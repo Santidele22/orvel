@@ -19,8 +19,7 @@ describe('Dashboard contract: cross-theme structure (product aligned)', () => {
     expect(shellHtml).toContain('<app-dashboard-sidebar');
     expect(shellHtml).toContain('<app-dashboard-topbar');
     expect(shellHtml).toContain('<router-outlet');
-    expect(shellHtml).toContain('data-testid="dashboard-shell-global-action"');
-    expect(shellHtml).toContain('aria-label="Crear nuevo registro"');
+    expect(shellHtml).not.toContain('data-testid="dashboard-shell-global-action"');
   });
 
   it('keeps four themed dashboard variants declared in topbar and turnos templates', async () => {

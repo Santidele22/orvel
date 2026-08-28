@@ -37,9 +37,28 @@ import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../../../core/theming/dashboa
           </div>
 
           @if (loading()) {
-            <div class="flex flex-col items-center justify-center py-zen-section gap-zen-lg">
-              <div class="w-zen-control-md h-zen-control-md border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p class="text-sm font-medium text-text-tertiary">Cargando base de datos...</p>
+            <div data-testid="clientes-loading-skeleton" role="status" class="animate-pulse grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-zen-xl">
+              <article data-testid="clientes-skeleton-row" class="rounded-zen-xl border border-border bg-surface p-zen-xl flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                <div class="space-y-2 min-w-0 flex-1">
+                  <div class="h-4 w-32 bg-surface-muted/50 rounded-zen-md"></div>
+                  <div class="h-3 w-24 bg-surface-muted/50 rounded-zen-md"></div>
+                </div>
+              </article>
+              <article data-testid="clientes-skeleton-row" class="rounded-zen-xl border border-border bg-surface p-zen-xl flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                <div class="space-y-2 min-w-0 flex-1">
+                  <div class="h-4 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+                  <div class="h-3 w-20 bg-surface-muted/50 rounded-zen-md"></div>
+                </div>
+              </article>
+              <article data-testid="clientes-skeleton-row" class="rounded-zen-xl border border-border bg-surface p-zen-xl flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-surface-muted/50 shrink-0"></div>
+                <div class="space-y-2 min-w-0 flex-1">
+                  <div class="h-4 w-36 bg-surface-muted/50 rounded-zen-md"></div>
+                  <div class="h-3 w-28 bg-surface-muted/50 rounded-zen-md"></div>
+                </div>
+              </article>
             </div>
           } @else {
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-zen-xl">

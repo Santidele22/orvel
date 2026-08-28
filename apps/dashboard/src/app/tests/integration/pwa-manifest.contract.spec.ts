@@ -26,7 +26,7 @@ describe('PWA: manifest.webmanifest contract', () => {
 
   it('has at least 192x192 and 512x512 icons', async () => {
     const raw = await readFile(fromRoot(MANIFEST_PATH), 'utf-8');
-    const manifest = JSON.parse(raw) as { icons?: Array<{ sizes: string }> };
+    const manifest = JSON.parse(raw) as { icons?: Array<{ sizes: string; src: string }> };
 
     expect(manifest.icons).toBeDefined();
     expect(manifest.icons!.length).toBeGreaterThanOrEqual(2);
@@ -34,6 +34,11 @@ describe('PWA: manifest.webmanifest contract', () => {
     const sizes = manifest.icons!.map((i) => i.sizes);
     expect(sizes).toContain('192x192');
     expect(sizes).toContain('512x512');
+
+    const srcs = manifest.icons!.map((i) => i.src);
+    for (const src of srcs) {
+      expect(src).toMatch(/^\/dashboard\/icons\//);
+    }
   });
 
   it('has at least one maskable icon', async () => {
@@ -97,6 +102,17 @@ describe('PWA: index.html meta tags for iOS', () => {
   it('has theme-color meta tag', async () => {
     const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
     expect(html).toContain('theme-color');
+  });
+
+  it('has a web app manifest link for Chrome Android installability', async () => {
+    const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
+    const manifestLink = html.match(/<link\b[^>]*>/gi)?.find(
+      (tag) =>
+        /\brel=["']manifest["']/i.test(tag) &&
+        /\bhref=["']\/dashboard\/manifest\.webmanifest["']/i.test(tag),
+    );
+
+    expect(manifestLink).toBeDefined();
   });
 
   it('no longer loads Tailwind from CDN', async () => {

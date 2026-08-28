@@ -33,7 +33,7 @@ export interface ListAdminNotificationsInput {
   cursorId?: string;
 }
 
-import { createSupabaseClient } from '../api/supabase-booking/real-gateway';
+import { createSupabaseClient } from '../runtime/supabase-client';
 
 export async function listAdminNotifications(
   input: ListAdminNotificationsInput,
@@ -147,16 +147,13 @@ export async function archiveNotification(notificationId: string): Promise<Dashb
 
 export async function archiveAllNotifications(businessId: string): Promise<void> {
   const supabase = createSupabaseClient();
-  console.log('[API] Archiving all notifications via RPC for business:', businessId);
-  
-  const { data, error } = await supabase.rpc('archive_all_dashboard_notifications', {
-    p_business_id: businessId
-  });
+  const { error } = await supabase
+    .from('dashboard_notifications')
+    .update({ status: 'archived', archived_at: new Date().toISOString() })
+    .eq('business_id', businessId)
+    .in('status', ['unread', 'read']);
 
   if (error) {
-    console.error('[API] RPC Error archiving notifications:', error);
     throw new Error(`Failed to archive all notifications: ${error.message}`);
   }
-  
-  console.log(`[API] RPC Success: ${data || 0} notifications archived.`);
 }

@@ -20,7 +20,7 @@ export type PlanOption = {
   maxRubros: number;
   includedLocalesLabel: string;
   multiBranchAddOnLabel: string;
-  subscriptionProvider: 'mercado_pago';
+  subscriptionProvider: 'manual';
 };
 
 // Storage key per KBN-004.5.4 spec

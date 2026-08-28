@@ -24,9 +24,7 @@ describe('UX hardening final: accessibility contracts (mock mode, RED)', () => {
       readFile(fromRoot(SIDEBAR_HTML), 'utf-8')
     ]);
 
-    // TODO(Aurora): agregar etiquetas accesibles deterministas a controles globales.
-    expect(shellHtml).toMatch(/data-testid=["']dashboard-shell-global-action["']/);
-    expect(shellHtml).toMatch(/aria-label=["'][^"']+["']/);
+    expect(shellHtml).not.toMatch(/data-testid=["']dashboard-shell-global-action["']/);
 
     // TODO(Aurora): migrar icon actions en topbar a botones con nombre accesible.
     expect(topbarHtml).toMatch(/data-testid=["']dashboard-topbar-notifications["']/);

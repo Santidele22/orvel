@@ -7,9 +7,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { AuthService } from '../../services/auth.service';
 import type { ClienteService } from '../../services/cliente.service';
-import type { TurnoService } from '../../features/booking/data-access/turno.service';
 import type { ServicioService } from '../../services/servicio.service';
-import { createMockClienteService, createMockServicioService, createMockTurnoService } from '../helpers/turno-service-testbed';
+import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 /**
  * Integration Tests - Dashboard Layout (US-001)

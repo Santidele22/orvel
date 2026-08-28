@@ -13,13 +13,18 @@ const landingLayout = readFileSync(landingLayoutPath, 'utf8');
 
 const dashboardStyles = dashboardAngular.projects?.['salon-de-belleza']?.architect?.build?.options?.styles ?? [];
 const remixiconPackageCss = 'node_modules/remixicon/fonts/remixicon.css';
+const remixiconSubsetCss = 'src/styles/remixicon-used.css';
 
 if (dashboardIndex.includes('cdn.jsdelivr.net/npm/remixicon') || dashboardIndex.includes('unpkg.com/remixicon')) {
   failures.push('Dashboard index.html still depends on an external Remix Icon CDN link.');
 }
 
-if (!dashboardStyles.includes(remixiconPackageCss)) {
-  failures.push(`Dashboard angular.json styles must include ${remixiconPackageCss} so ri-* icons are bundled from the installed package.`);
+if (dashboardStyles.includes(remixiconPackageCss)) {
+  failures.push('Dashboard angular.json styles must not include the full Remix Icon package stylesheet.');
+}
+
+if (!dashboardStyles.includes(remixiconSubsetCss)) {
+  failures.push(`Dashboard angular.json styles must include ${remixiconSubsetCss} so only used ri-* icons are bundled.`);
 }
 
 if (!landingLayout.includes('import "remixicon/fonts/remixicon.css";')) {
