@@ -11,10 +11,25 @@ export type DashboardBranch = {
   businessId: string;
 };
 
+export type SessionBusinessIdentity = {
+  ownerId: string;
+  businessId: string;
+  slug?: string;
+  name?: string;
+};
+
+type OwnedBusinessRow = {
+  id: string;
+  owner_id?: string;
+  slug?: string;
+  name?: string;
+};
+
 export class BranchContextService {
   private supabaseClient?: SupabaseClient;
   private initialized = false;
   private lastResolvedBusinessId: string | null = null;
+  private sessionIdentity: SessionBusinessIdentity | null = null;
   private inFlight: Promise<void> | null = null;
   private branchesState = signal<DashboardBranch[]>([]);
   private activeBranchIdState = signal<string | null>(null);
@@ -36,6 +51,13 @@ export class BranchContextService {
   }
 
   private async ensureLoadedInternal(): Promise<void> {
+    if (
+      this.initialized
+      && this.sessionIdentity
+      && this.lastResolvedBusinessId === this.sessionIdentity.businessId
+    ) {
+      return;
+    }
     const currentBusinessId = await this.resolveActiveBusinessId(this.getSupabaseClient());
     if (this.initialized && currentBusinessId === this.lastResolvedBusinessId) return;
     this.initialized = true;
@@ -43,9 +65,22 @@ export class BranchContextService {
     await this.refresh();
   }
 
+  peekSessionBusinessIdentity(): SessionBusinessIdentity | null {
+    return this.sessionIdentity;
+  }
+
+  rememberSessionBusinessIdentity(identity: SessionBusinessIdentity): void {
+    this.sessionIdentity = identity;
+  }
+
+  clearSessionBusinessIdentity(): void {
+    this.sessionIdentity = null;
+  }
+
   resetSession(): void {
     this.initialized = false;
     this.lastResolvedBusinessId = null;
+    this.sessionIdentity = null;
     this.inFlight = null;
     this.branchesState.set([]);
     this.activeBranchIdState.set(null);
@@ -180,21 +215,27 @@ export class BranchContextService {
       if (error) return storedBusinessId;
 
       const userId = data.session?.user?.id?.trim() || null;
+      if (userId && this.sessionIdentity?.ownerId === userId) {
+        this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, this.sessionIdentity.businessId);
+        return this.sessionIdentity.businessId;
+      }
+
       const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
       const sessionBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
       const resolvedSessionId = typeof sessionBusinessId === 'string' && sessionBusinessId.trim()
         ? sessionBusinessId.trim()
         : null;
 
-      let ownedBusinessIds: string[] | null = null;
+      let ownedBusinesses: OwnedBusinessRow[] | null = null;
       if (userId) {
         try {
-          ownedBusinessIds = await this.listOwnedBusinessIds(supabase, userId);
+          ownedBusinesses = await this.listOwnedBusinesses(supabase, userId);
         } catch {
-          ownedBusinessIds = null;
+          ownedBusinesses = null;
         }
       }
 
+      const ownedBusinessIds = ownedBusinesses?.map((row) => row.id) ?? null;
       const owned = (candidate: string | null): string | null =>
         candidate && ownedBusinessIds?.includes(candidate) ? candidate : null;
 
@@ -211,6 +252,15 @@ export class BranchContextService {
           this.clearActiveBranch();
         }
         this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, resolved);
+        if (userId && ownedBusinesses) {
+          const row = ownedBusinesses.find((candidate) => candidate.id === resolved);
+          this.sessionIdentity = {
+            ownerId: userId,
+            businessId: resolved,
+            slug: row?.slug,
+            name: row?.name
+          };
+        }
         return resolved;
       }
 
@@ -220,10 +270,10 @@ export class BranchContextService {
     }
   }
 
-  private async listOwnedBusinessIds(supabase: SupabaseClient, ownerId: string): Promise<string[]> {
+  private async listOwnedBusinesses(supabase: SupabaseClient, ownerId: string): Promise<OwnedBusinessRow[]> {
     const { data, error } = await supabase
       .from('businesses')
-      .select('id')
+      .select('id, owner_id, slug, name')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: true });
 
@@ -231,9 +281,14 @@ export class BranchContextService {
       throw error;
     }
 
-    return ((data ?? []) as Array<{ id?: unknown }>)
-      .map((row) => typeof row.id === 'string' ? row.id.trim() : '')
-      .filter((id) => id.length > 0);
+    return ((data ?? []) as Array<{ id?: unknown; owner_id?: unknown; slug?: unknown; name?: unknown }>)
+      .map((row) => ({
+        id: typeof row.id === 'string' ? row.id.trim() : '',
+        owner_id: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+        slug: typeof row.slug === 'string' ? row.slug : undefined,
+        name: typeof row.name === 'string' ? row.name : undefined
+      }))
+      .filter((row) => row.id.length > 0);
   }
 
   private storage(): Storage | null {
