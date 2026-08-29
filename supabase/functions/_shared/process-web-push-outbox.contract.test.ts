@@ -28,10 +28,10 @@ Deno.test("operator payload reuses inbox title/body and opens turnos", () => {
   );
 });
 
-Deno.test("only the three appointment inbox event types are accepted", () => {
+Deno.test("appointment inbox event types include reminder for operator push", () => {
   assertEquals(isOperatorWebPushEventType("appointment.created"), true);
   assertEquals(isOperatorWebPushEventType("appointment.cancelled"), true);
   assertEquals(isOperatorWebPushEventType("appointment.rescheduled"), true);
-  assertEquals(isOperatorWebPushEventType("appointment.reminder"), false);
+  assertEquals(isOperatorWebPushEventType("appointment.reminder"), true);
   assertEquals(isOperatorWebPushEventType("system.welcome"), false);
 });

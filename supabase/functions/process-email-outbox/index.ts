@@ -482,6 +482,14 @@ Deno.serve(async (req) => {
             });
             subject = result.subject;
             html = result.html;
+          } else if (template_key === "premium_activated") {
+            const result = BusinessTemplates.renderPremiumActivatedEmail({
+              ownerName: fullData.owner_name,
+              businessName: fullData.business_name,
+              dashboardUrl,
+            });
+            subject = result.subject;
+            html = result.html;
           } else if (template_key === "welcome_email") {
             subject = "¡Bienvenido a Orvel!";
             html = renderFallbackEmail("¡Bienvenido!", `Hola ${fullData.customer?.name || "usuario"}, gracias por unirte a Orvel.`);

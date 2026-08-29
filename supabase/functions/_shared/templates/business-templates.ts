@@ -26,6 +26,12 @@ export interface TrialUserActivationReminderData {
   bookingUrl: string;
 }
 
+export interface PremiumActivatedEmailData {
+  ownerName?: string;
+  businessName?: string;
+  dashboardUrl: string;
+}
+
 const palette = {
   black: "#0A0A0A",
   panel: "#121212",
@@ -100,6 +106,22 @@ export function renderBusinessWelcomeEmail(data: BusinessWelcomeEmailData): { su
         <a href="${escapeAttribute(ctaUrl)}" style="display:inline-block;background:${palette.violetDark};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">${escapeHtml(ctaLabel)}</a>
       </p>
       <p style="color:${palette.muted};font-size:14px;line-height:1.5;">Si necesitás ayuda, estamos en ${escapeHtml(data.supportContact)}.</p>
+    `),
+  };
+}
+
+export function renderPremiumActivatedEmail(data: PremiumActivatedEmailData): { subject: string; html: string } {
+  const owner = data.ownerName || "";
+  const business = data.businessName || "tu negocio";
+  const title = owner ? `${escapeHtml(owner)}, Premium ya está activo` : "Premium ya está activo";
+  return {
+    subject: "Tu plan Premium de Orvel ya está activo",
+    html: renderShell(title, `
+      <p style="color:${palette.muted};font-size:16px;line-height:1.6;">Confirmamos el pago y activamos Premium para ${escapeHtml(business)}.</p>
+      <p style="margin:28px 0;">
+        <a href="${escapeAttribute(data.dashboardUrl)}" style="display:inline-block;background:${palette.violet};color:${palette.text};padding:14px 20px;border-radius:999px;text-decoration:none;font-weight:700;">Entrar al dashboard</a>
+      </p>
+      <p style="color:${palette.muted};font-size:14px;line-height:1.5;">Si no pediste este cambio, escribinos a orvel2026@gmail.com.</p>
     `),
   };
 }
