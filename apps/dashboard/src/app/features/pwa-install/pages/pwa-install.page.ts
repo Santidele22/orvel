@@ -260,6 +260,7 @@ export class PwaInstallPage implements OnInit {
 
   @HostListener('window:appinstalled')
   protected onAppInstalled(): void {
+    this.alreadyInstalled.set(true);
     this.isInstallSuccessModalOpen.set(true);
   }
 
@@ -291,6 +292,7 @@ export class PwaInstallPage implements OnInit {
     (window as OrvelWindow).__ORVEL_DEFERRED_INSTALL_PROMPT = undefined;
     this.installFeedback.set('');
     if (outcome === 'accepted') {
+      this.alreadyInstalled.set(true);
       this.isInstallSuccessModalOpen.set(true);
     }
   }
