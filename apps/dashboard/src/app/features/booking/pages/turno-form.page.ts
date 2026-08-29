@@ -75,8 +75,6 @@ export class TurnoFormPage implements OnInit {
 
   // Form fields
   protected clienteId = signal<string>('');
-  protected walkInName = signal<string>('');
-  protected walkInMode = signal<boolean>(false);
   protected servicioId = signal<string>('');
   protected fecha = signal<string>(readArgentinaClock(new Date()).dateKey);
   private resolvedBusinessId = signal<string>('');
@@ -101,7 +99,7 @@ export class TurnoFormPage implements OnInit {
       && this.defaultBranchScopeReady()
       && !this.defaultBranchSetupError()
       && !this.conflictError()
-      && (!!this.clienteId() || !!this.walkInName().trim())
+      && !!this.clienteId()
       && !!this.servicioId()
       && !!this.hora()
       && this.disponibles().includes(this.hora());
@@ -284,14 +282,6 @@ export class TurnoFormPage implements OnInit {
 
   protected onClientSelectionChange(clientId: string): void {
     this.clienteId.set(clientId);
-    this.walkInName.set('');
-    this.walkInMode.set(false);
-    this.error.set(null);
-  }
-
-  protected startWalkIn(): void {
-    this.clienteId.set('');
-    this.walkInMode.set(true);
     this.error.set(null);
   }
 
@@ -309,10 +299,8 @@ export class TurnoFormPage implements OnInit {
 
   protected async save() {
     // Validate
-    const walkInName = this.walkInName().trim();
-
-    if (!this.clienteId() && !walkInName) {
-      this.error.set('Elegí un cliente o cargá el nombre para una atención sin ficha.');
+    if (!this.clienteId()) {
+      this.error.set('Seleccioná un cliente');
       return;
     }
     if (!this.servicioId()) {
@@ -353,7 +341,6 @@ export class TurnoFormPage implements OnInit {
         const dto: CreateTurnoDTO = {
           branchId: scope.branchId,
           clienteId: this.clienteId(),
-          walkInName: this.clienteId() ? undefined : walkInName,
           servicioId: this.servicioId(),
           fecha: parseLocalDate(this.fecha()),
           hora: this.hora(),
