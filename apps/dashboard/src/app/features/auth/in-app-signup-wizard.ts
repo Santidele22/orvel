@@ -11,6 +11,7 @@ export type CreateAccountBusinessPayload = {
   email: string;
   password: string;
   nombre: string;
+  apellido: string;
   negocioNombre: string;
   rubro: string;
   selected_business_types: string[];
@@ -22,6 +23,7 @@ const MIN_PASSWORD_LENGTH = 8;
 export class InAppSignupWizard {
   step: SignupWizardStep = 1;
   ownerName = '';
+  ownerLastName = '';
   businessName = '';
   selectedRubros: string[] = [];
   email = '';
@@ -52,7 +54,11 @@ export class InAppSignupWizard {
 
   canContinue(): boolean {
     if (this.step === 1) {
-      return this.ownerName.trim().length > 0 && this.businessName.trim().length > 0;
+      return (
+        this.ownerName.trim().length > 0 &&
+        this.ownerLastName.trim().length > 0 &&
+        this.businessName.trim().length > 0
+      );
     }
     if (this.step === 2) {
       return this.selectedRubros.length >= 1;
@@ -69,6 +75,25 @@ export class InAppSignupWizard {
       this.password.length >= MIN_PASSWORD_LENGTH &&
       this.password === this.confirmPassword
     );
+  }
+
+  accessError(): string {
+    if (!this.email.trim() && !this.password && !this.confirmPassword) {
+      return '';
+    }
+    if (!this.email.trim()) {
+      return 'Ingresá tu email.';
+    }
+    if (this.password.length > 0 && this.password.length < MIN_PASSWORD_LENGTH) {
+      return 'Mínimo 8 caracteres.';
+    }
+    if (this.confirmPassword.length > 0 && this.password !== this.confirmPassword) {
+      return 'Las contraseñas no coinciden.';
+    }
+    if (this.password.length < MIN_PASSWORD_LENGTH || this.confirmPassword.length === 0) {
+      return 'Completá y confirmá la contraseña (mínimo 8).';
+    }
+    return '';
   }
 
   continue(): void {
@@ -97,6 +122,7 @@ export class InAppSignupWizard {
       email: this.email.trim().toLowerCase(),
       password: this.password,
       nombre: this.ownerName.trim(),
+      apellido: this.ownerLastName.trim(),
       negocioNombre: this.businessName.trim(),
       rubro: this.principalRubro() ?? '',
       selected_business_types: [...this.selectedRubros],
