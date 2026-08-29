@@ -29,19 +29,13 @@ type OrvelWindow = Window & {
         <p>Orvel ya está instalada. Abrí el ícono en tu teléfono para usarla.</p>
       } @else {
         <h1>Instalá la app</h1>
-        <p>Tocá Instalar y queda en tu pantalla de inicio. Sin tienda. Cuando abras el ícono, ahí iniciás sesión.</p>
         @if (isIos()) {
-          <ol class="pwa-install__steps">
-            <li>
-              <span>1</span>
-              Tocá <i class="ri-share-line" aria-hidden="true"></i> Compartir
-            </li>
-            <li>
-              <span>2</span>
-              Elegí Agregar a pantalla de inicio
-            </li>
-          </ol>
+          <p>En 3 toques la tenés en tu pantalla de inicio.</p>
+          <button type="button" class="pwa-install__cta" (click)="openIosInstallCoach()">
+            Cómo instalar
+          </button>
         } @else {
+          <p>Tocá Instalar y queda en tu pantalla de inicio. Sin tienda. Cuando abras el ícono, ahí iniciás sesión.</p>
           @if (canPromptNativeInstall()) {
             <button type="button" class="pwa-install__cta" (click)="installApp()">Instalar</button>
           } @else {
@@ -55,6 +49,74 @@ type OrvelWindow = Window & {
         <p class="pwa-install__hint">{{ installFeedback() }}</p>
       }
     </main>
+    @if (isIosInstallCoachOpen()) {
+      <div class="pwa-install-modal">
+        <button
+          type="button"
+          class="pwa-install-modal__overlay"
+          data-testid="pwa-ios-install-coach-overlay"
+          aria-label="Cerrar"
+          (click)="closeIosInstallCoach()"
+        ></button>
+        <div
+          class="pwa-install-modal__dialog"
+          data-testid="pwa-ios-install-coach-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pwa-ios-install-coach-title"
+        >
+          <div class="pwa-install-modal__header">
+            <h3 id="pwa-ios-install-coach-title">Tres toques y entras</h3>
+            <button
+              type="button"
+              class="pwa-install-modal__close"
+              data-testid="pwa-ios-install-coach-close"
+              aria-label="Cerrar"
+              (click)="closeIosInstallCoach()"
+            >
+              <i class="ri-close-line" aria-hidden="true"></i>
+            </button>
+          </div>
+          <ol class="pwa-install__steps pwa-ios-coach__steps">
+            <li>
+              <span class="pwa-ios-coach__icon" aria-hidden="true">
+                <i class="ri-share-line"></i>
+              </span>
+              <div>
+                <strong>PASO 1</strong>
+                <p>Tocá Compartir, abajo</p>
+              </div>
+            </li>
+            <li>
+              <span class="pwa-ios-coach__icon" aria-hidden="true">
+                <i class="ri-add-line"></i>
+              </span>
+              <div>
+                <strong>PASO 2</strong>
+                <p>Agregar a Inicio</p>
+                <p class="pwa-ios-coach__hint">Si no la ves, deslizá la lista</p>
+              </div>
+            </li>
+            <li>
+              <img
+                class="pwa-ios-coach__mark"
+                src="/dashboard/icons/icon-192x192.png"
+                width="44"
+                height="44"
+                alt="Orvel"
+              />
+              <div>
+                <strong>PASO 3</strong>
+                <p>Confirmá "Agregar"</p>
+              </div>
+            </li>
+          </ol>
+          <button type="button" class="pwa-install-modal__done" (click)="confirmIosAdded()">
+            Ya la agregué
+          </button>
+        </div>
+      </div>
+    }
     @if (isInstallSuccessModalOpen()) {
       <div class="pwa-install-modal">
         <button
@@ -116,6 +178,7 @@ type OrvelWindow = Window & {
     h1 { margin: 0 0 16px; font-size: var(--or-font-h2); }
     p { max-width: 28rem; margin: 0 auto 24px; color: var(--or-text-secondary); }
     .pwa-install__cta {
+      min-height: 44px;
       padding: 16px 32px;
       border: 0;
       border-radius: 999px;
@@ -162,6 +225,11 @@ type OrvelWindow = Window & {
       color: var(--or-text-primary);
     }
     .pwa-install-modal__close {
+      display: inline-flex;
+      min-width: 44px;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
       border: 0;
       background: transparent;
       color: var(--or-text-secondary);
@@ -192,6 +260,7 @@ type OrvelWindow = Window & {
     }
     .pwa-install-modal__done {
       width: 100%;
+      min-height: 44px;
       padding: 16px 32px;
       border: 0;
       border-radius: 999px;
@@ -214,16 +283,53 @@ type OrvelWindow = Window & {
       margin-bottom: 12px;
       color: var(--or-text-primary);
     }
-    .pwa-install__steps span {
-      flex: 0 0 1.75rem;
-      height: 1.75rem;
+    .pwa-ios-coach__steps {
+      width: 100%;
+      max-width: none;
+      margin: 0 0 var(--or-space-6);
+    }
+    .pwa-ios-coach__steps li {
+      align-items: flex-start;
+      margin-bottom: var(--or-space-6);
+    }
+    .pwa-ios-coach__steps li:last-child {
+      margin-bottom: 0;
+    }
+    .pwa-ios-coach__steps strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--or-text-secondary);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+    .pwa-ios-coach__steps p {
+      margin: 0;
+      max-width: none;
+      text-align: left;
+      color: var(--or-text-primary);
+    }
+    .pwa-ios-coach__hint {
+      margin-top: 4px;
+      color: var(--or-text-secondary);
+      font-size: 0.875rem;
+    }
+    .pwa-ios-coach__icon {
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
       border-radius: 999px;
       background: var(--or-primary);
       color: #fff;
-      font-weight: 700;
+      font-size: 1.25rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    .pwa-ios-coach__mark {
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
     }
     .pwa-install__hint { margin-top: 24px; }
   `,
@@ -235,6 +341,7 @@ export class PwaInstallPage implements OnInit {
   protected readonly hasNativePrompt = signal(false);
   protected readonly installFeedback = signal('');
   protected readonly isInstallSuccessModalOpen = signal(false);
+  protected readonly isIosInstallCoachOpen = signal(false);
 
   ngOnInit(): void {
     this.alreadyInstalled.set(isStandaloneDisplay());
@@ -266,6 +373,19 @@ export class PwaInstallPage implements OnInit {
 
   protected closeInstallSuccessModal(): void {
     this.isInstallSuccessModalOpen.set(false);
+  }
+
+  protected openIosInstallCoach(): void {
+    this.isIosInstallCoachOpen.set(true);
+  }
+
+  protected closeIosInstallCoach(): void {
+    this.isIosInstallCoachOpen.set(false);
+  }
+
+  protected confirmIosAdded(): void {
+    this.isIosInstallCoachOpen.set(false);
+    this.alreadyInstalled.set(true);
   }
 
   protected canPromptNativeInstall(): boolean {
