@@ -6,9 +6,8 @@ const HERO_PATH = new URL('../components/organisms/Hero.astro', import.meta.url)
 const CTA_PATH = new URL('../components/organisms/CTA.astro', import.meta.url);
 const PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
-const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
+const INDEX_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
 const LOGIN_PATH = new URL('../pages/auth/login.astro', import.meta.url);
-const LOGIN_CONTROLLER_PATH = new URL('../lib/login-page-controller.ts', import.meta.url);
 const AUTH_RETURN_TO_PATH = new URL('../lib/auth-return-to.ts', import.meta.url);
 
 type AuthReturnToModule = {
@@ -99,7 +98,6 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
 
   it('preserves paid plan subscription returnTo through email/password login sanitization', async () => {
     const login = await source(LOGIN_PATH);
-    const loginController = await source(LOGIN_CONTROLLER_PATH);
     const { sanitizeLandingAuthReturnTo } = await loadAuthReturnTo();
 
     const paidPlanReturnTo = '/billing/subscription?plan=PREMIUM';
@@ -114,9 +112,9 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/turnos?view=week');
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/turnos?view=week');
 
-    expect(login).toContain("import { initLoginPage } from '../../lib/login-page-controller'");
-    expect(login).toContain('initLoginPage(import.meta.env)');
-    expect(loginController).toContain('sanitizeLandingAuthReturnTo');
-    expect(loginController).toContain('attempt: { email, password, returnTo }');
+    expect(login).toContain("import { buildInAppAuthRedirect } from '../../lib/in-app-auth-redirect'");
+    expect(login).toContain("buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL)");
+    expect(login).toMatch(/Astro\.redirect\([\s\S]*302/);
+    expect(login).not.toContain('initLoginPage');
   });
 });

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const CREDENTIALS_CONTROLLER_PATH = new URL('../lib/signup-access-page-controller.ts', import.meta.url);
 const COMPLETE_PAGE_PATH = new URL('../pages/auth/signup/complete.astro', import.meta.url);
 const SUBSCRIPTION_PAGE_PATH = new URL('../pages/billing/subscription.astro', import.meta.url);
 
@@ -18,27 +17,13 @@ function sliceBetween(source: string, startMarker: string, endMarker?: string): 
 }
 
 describe('RED contract: landing owns signup onboarding boundary', () => {
-  it('FREE access signup creates immediately and never redirects to dashboard /auth/onboarding', async () => {
-    const controllerSource = await loadSource(CREDENTIALS_CONTROLLER_PATH);
-    const freeBranch = sliceBetween(controllerSource, 'if (!isPaidPlan) {', 'return;\n    }');
-
-    expect(freeBranch).not.toContain("new URL('/auth/onboarding'");
-    expect(freeBranch).not.toContain('/auth/onboarding');
-    expect(freeBranch).not.toContain('PUBLIC_DASHBOARD_URL');
-    expect(freeBranch).not.toContain('dashboardOrigin');
-    expect(freeBranch).toMatch(/createAndfinalizeFreeSignup|finalizeFreeSignup/i);
-    expect(freeBranch).not.toMatch(/showFreeRubroStep|attachFreeRubroFinalizer/i);
-    expect(controllerSource).toMatch(/freeSignupWelcomeModal|welcome|auth\/login/i);
-    expect(freeBranch).not.toMatch(/window\.location\.href|location\.assign/);
-  });
-
-  it('FREE signup completion page does not build dashboard onboarding as a fallback route', async () => {
+  it('FREE signup completion page 302s into dashboard in-app signup instead of dashboard /auth/onboarding', async () => {
     const completeSource = await loadSource(COMPLETE_PAGE_PATH);
 
+    expect(completeSource).toMatch(/buildInAppAuthRedirect/);
+    expect(completeSource).toMatch(/Astro\.redirect/);
     expect(completeSource).not.toContain('buildDashboardOnboardingUrl');
     expect(completeSource).not.toContain('/auth/onboarding');
-    expect(completeSource).not.toContain('PUBLIC_DASHBOARD_URL');
-    expect(completeSource).toMatch(/\/auth\/signup\/credentials|\/auth\/login/i);
   });
 
   it('Mercado Pago return params are UX hints only and cannot complete onboarding/payment without backend state', async () => {

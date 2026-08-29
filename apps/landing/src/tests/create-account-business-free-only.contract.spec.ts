@@ -9,7 +9,6 @@ vi.mock('@supabase/supabase-js', () => ({
 
 const { POST } = await import('../pages/api/signup/create-account-business');
 
-const ACCOUNT_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_AUTH_HELPER_PATH = new URL('../../../../supabase/functions/_shared/create-subscription-auth.ts', import.meta.url);
 
 function validPayload(plan = 'FREE') {
@@ -231,17 +230,26 @@ describe('legacy create-account-business boundary', () => {
     expect(supabase.tableCalls).toEqual([]);
   });
 
-  it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {
-    const source = await readFile(ACCOUNT_CONTROLLER_PATH, 'utf8');
-    const paidBranch = source.slice(source.indexOf('try {', source.indexOf('if (!isPaidPlan)')), source.lastIndexOf('});'));
+  it('accepts in-app Free signup without apellido or phone', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    createClientMock.mockReturnValue(supabase.client);
 
-    expect(source).toContain('/api/signup/create-account-business');
-    expect(source).toContain('/api/signup/pending-intent/protect');
-    expect(paidBranch).toContain('createProtectedPendingSignupIntent({');
-    expect(paidBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
-    expect(paidBranch).not.toContain('createAccountAndBusiness(accountBusinessPayload)');
-    expect(paidBranch).not.toContain('account_first_intent_id');
-    expect(paidBranch).not.toContain('account_first_session');
+    const { apellido: _apellido, telefono: _telefono, ...withoutApellido } = validPayload('FREE');
+    const response = await postCreateAccountBusiness(withoutApellido);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, status: 'signup_ready' });
+    expect(supabase.authCreateUser).toHaveBeenCalled();
+  });
+
+  it('allows CORS preflight and POST from dashboard origins', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/export const OPTIONS/);
+    expect(source).toContain('https://dashboard.orvel.pro');
+    expect(source).toContain('Access-Control-Allow-Origin');
+    expect(source).toMatch(/localhost:4200|localhost:3000/);
   });
 
   it('subscription auth helper no longer treats legacy account-first signup as a payment-first path', async () => {

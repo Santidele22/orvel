@@ -23,41 +23,42 @@ describe('RED: auth unification contract', () => {
     expect(dashboardShell).toContain('canActivateChild: [dashboardAuthChildGuard]');
   });
 
-  it('mounts public dashboard/login before the guarded dashboard and does not remount landing auth pages', () => {
+  it('mounts public auth/login and auth/signup before the guarded dashboard', () => {
     const appRoutes = source('src/app/app.routes.ts');
-    const signIn = routeBlock(appRoutes, 'dashboard/login');
-    const signInIndex = appRoutes.search(/path:\s*'dashboard\/login'/);
+    const login = routeBlock(appRoutes, 'auth/login');
+    const signup = routeBlock(appRoutes, 'auth/signup');
+    const loginIndex = appRoutes.search(/path:\s*'auth\/login'/);
+    const signupIndex = appRoutes.search(/path:\s*'auth\/signup'/);
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
-    expect(signIn).toContain('loadComponent');
-    expect(signIn).not.toContain('canActivate');
-    expect(signInIndex).toBeGreaterThan(-1);
-    expect(signInIndex).toBeLessThan(dashboardIndex);
-    expect(appRoutes).not.toMatch(/path:\s*['"]auth(?:\/login)?['"]/);
-    expect(appRoutes).not.toMatch(/path:\s*['"]login['"]/);
-    expect(appRoutes).not.toMatch(/['"]\.\/pages\/auth/);
+    expect(login).toContain('loadComponent');
+    expect(login).not.toContain('canActivate');
+    expect(signup).toContain('loadComponent');
+    expect(signup).not.toContain('canActivate');
+    expect(loginIndex).toBeGreaterThan(-1);
+    expect(signupIndex).toBeGreaterThan(-1);
+    expect(loginIndex).toBeLessThan(dashboardIndex);
+    expect(signupIndex).toBeLessThan(dashboardIndex);
     expect(appRoutes).not.toMatch(/SignupCredentialsPage(?:Component)?/);
   });
 
-  it('keeps landing login helpers for signup/onboarding/web while dashboard guards sign in in-app', () => {
+  it('keeps landing origin helpers for waitlist/web while dashboard guards sign in in-app', () => {
     const routeProtection = source('src/app/core/auth/route-protection.ts');
     const guard = source('src/app/core/auth/dashboard-auth.guard.ts');
 
-    expect(routeProtection).toMatch(/buildLandingLoginRedirect/);
     expect(routeProtection).toMatch(/buildDashboardSignInRedirect/);
     expect(routeProtection).toMatch(/CANONICAL_LANDING_ORIGIN\s*=\s*['"]https:\/\/orvel\.pro['"]/);
     expect(routeProtection).not.toMatch(/signInWithPassword|signUp|generateToken|getMockUser/);
     expect(guard).toMatch(/buildDashboardSignInRedirect/);
   });
 
-  it('redirects unauthenticated protected dashboard access to /dashboard/login with sanitized returnTo', () => {
+  it('redirects unauthenticated protected dashboard access to in-app /auth/login with sanitized returnTo', () => {
     const routeProtection = source('src/app/core/auth/route-protection.ts');
 
-    expect(routeProtection).toMatch(/LOGIN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
-    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
+    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
     expect(routeProtection).toMatch(/PARAM_BLOCKLIST|access_token|refresh_token|id_token/);
     expect(routeProtection).toMatch(/encodeURIComponent\(safeReturnTo\)/);
-    expect(routeProtection).not.toMatch(/LOGIN_ROUTE\s*=\s*['"]\/login['"]/);
+    expect(routeProtection).not.toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/login['"]/);
   });
 
   it('fails closed for legacy dashboard local/mock auth paths', () => {
@@ -87,10 +88,10 @@ describe('RED: auth unification contract', () => {
 
   it('uses the same explicit Supabase auth storage key as landing for same-origin local flow', () => {
     const supabaseConfig = source('src/app/core/auth/supabase-config.ts');
-    const supabaseAuthClient = source('src/app/core/auth/supabase-auth.client.ts');
+    const supabaseClientFactory = source('src/app/core/runtime/supabase-client.factory.ts');
 
     expect(supabaseConfig).toMatch(/ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
     expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain('orvel.supabase.auth');
-    expect(supabaseAuthClient).toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
+    expect(supabaseClientFactory).toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
   });
 });
