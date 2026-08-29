@@ -71,6 +71,7 @@ Orvel uses a strict 3-branch promotion: `feature → dev → qa → main`. Never
 
 - `apps/dashboard/`: Angular dashboard. Read `apps/dashboard/AGENTS.md` before app-specific changes.
 - `apps/landing/`: Astro landing site. Read `apps/landing/AGENTS.md` before app-specific changes.
+- `apps/backoffices/`: Orvel staff operator Vite app at `/ops`. Read `apps/backoffices/AGENTS.md` before app-specific changes. Never import salon dashboard feature modules.
 - `supabase/`: Supabase functions and migrations. Follow the Supabase safety rules below and `infra/context/supabase.md`.
 - `infra/` and `docs/`: project context, operational notes, ADRs, and runbooks. Keep them concise, current, and evidence-based.
 - Root tooling is orchestration only unless Santi approves broader package-manager or architecture changes.

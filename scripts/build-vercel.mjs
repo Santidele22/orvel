@@ -11,6 +11,9 @@ const landingOutputDir = join(landingDir, '.vercel', 'output');
 const rootOutputDir = join(rootDir, '.vercel', 'output');
 const dashboardBrowserDir = join(dashboardDir, 'dist', 'salon-de-belleza', 'browser');
 const dashboardStaticDir = join(landingOutputDir, 'static', 'dashboard');
+const backofficesDir = join(rootDir, 'apps', 'backoffices');
+const backofficesDistDir = join(backofficesDir, 'dist');
+const opsStaticDir = join(landingOutputDir, 'static', 'ops');
 const outputConfigPath = join(landingOutputDir, 'config.json');
 
 function run(command, args, options = {}) {
@@ -64,7 +67,8 @@ async function patchVercelOutputConfig() {
   const config = JSON.parse(rawConfig);
   const dashboardRewrite = { src: '/dashboard(?:/.*)?', dest: '/dashboard/index.html' };
   const bookingRewrite = { src: '/booking(?:/.*)?', dest: '/dashboard/index.html' };
-  const dashboardSpaRewrites = [dashboardRewrite, bookingRewrite];
+  const opsRewrite = { src: '/ops(?:/.*)?', dest: '/ops/index.html' };
+  const dashboardSpaRewrites = [dashboardRewrite, bookingRewrite, opsRewrite];
   const existingRoutes = Array.isArray(config.routes) ? config.routes : [];
   const withoutDashboardRewrite = existingRoutes.filter(
     (route) => !dashboardSpaRewrites.some(
@@ -96,10 +100,19 @@ async function main() {
   await writeDashboardRuntimeEnv(dashboardBrowserDir);
 
   await run('pnpm', ['--dir', 'apps/landing', 'run', 'build']);
+  await run('pnpm', ['--dir', 'apps/backoffices', 'run', 'build']);
+
+  if (!existsSync(backofficesDistDir)) {
+    throw new Error(`Backoffice output not found at ${backofficesDistDir}`);
+  }
 
   await rm(dashboardStaticDir, { recursive: true, force: true });
   await mkdir(dashboardStaticDir, { recursive: true });
   await cp(dashboardBrowserDir, dashboardStaticDir, { recursive: true });
+
+  await rm(opsStaticDir, { recursive: true, force: true });
+  await mkdir(opsStaticDir, { recursive: true });
+  await cp(backofficesDistDir, opsStaticDir, { recursive: true });
   await patchVercelOutputConfig();
 
   await rm(rootOutputDir, { recursive: true, force: true });
