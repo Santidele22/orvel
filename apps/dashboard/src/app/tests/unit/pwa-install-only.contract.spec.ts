@@ -141,10 +141,13 @@ describe('Contract: public PWA install-only page', () => {
   it('does not render a fake Safari share sheet', () => {
     const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
     const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const coachModal = template.match(
+      /data-testid=["']pwa-ios-install-coach-modal["'][\s\S]*?(?=@if\s*\(\s*isInstallSuccessModalOpen|$)/,
+    )?.[0] ?? '';
 
     expect(page).not.toContain('navigator.share');
     expect(template).not.toMatch(/Agregar a Favoritos/);
-    expect(template).not.toMatch(/Copiar/);
+    expect(coachModal).not.toMatch(/Copiar/);
     expect(template).not.toMatch(/share-sheet|safari-share/i);
   });
 
@@ -240,5 +243,103 @@ describe('Contract: public PWA install-only page', () => {
     expect(homeHtml).toContain('routerLink="/dashboard/installar"');
     expect(coachHits).toBeGreaterThanOrEqual(2);
     expect(homeHtml).toMatch(/@if\s*\(\s*!isPwaStandalone\(\)\s*\)/);
+  });
+
+  it('detects real iPhone Safari only when Version/ and Safari/ are present without known non-Safari tokens', async () => {
+    const helper = source('src/app/features/pwa-install/pwa-display.ts');
+    const safariFn = helper.match(/export function isIosSafari\s*\([\s\S]*?\n\}/)?.[0] ?? '';
+    const { isIosSafari } = await import('../../features/pwa-install/pwa-display');
+    const realSafari =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+    const chromeIos =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/118.0.5993.69 Mobile/15E148 Safari/604.1';
+    const instagramIos =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari/604.1 Instagram 302.0.0.0.0';
+    const android =
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36';
+    const iphoneWithoutVersion =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+
+    expect(helper).toMatch(/export function isIosSafari\(userAgent: string/);
+    expect(safariFn).not.toMatch(/\bwindow\b|\bnavigator\b/);
+    expect(isIosSafari(realSafari)).toBe(true);
+    expect(isIosSafari(chromeIos)).toBe(false);
+    expect(isIosSafari(instagramIos)).toBe(false);
+    expect(isIosSafari(android)).toBe(false);
+    expect(isIosSafari(iphoneWithoutVersion)).toBe(false);
+  });
+
+  it('maps non-Safari iOS surfaces to short Spanish names', async () => {
+    const helper = source('src/app/features/pwa-install/pwa-display.ts');
+    const nameFn = helper.match(/export function iosNonSafariSurfaceName\s*\([\s\S]*?\n\}/)?.[0] ?? '';
+    const { iosNonSafariSurfaceName } = await import('../../features/pwa-install/pwa-display');
+
+    expect(helper).toMatch(/export function iosNonSafariSurfaceName\(userAgent: string/);
+    expect(nameFn).not.toMatch(/\bwindow\b|\bnavigator\b/);
+    expect(iosNonSafariSurfaceName('CriOS/118.0')).toBe('Chrome');
+    expect(iosNonSafariSurfaceName('FxiOS/120.0')).toBe('Firefox');
+    expect(iosNonSafariSurfaceName('EdgiOS/118.0')).toBe('Edge');
+    expect(iosNonSafariSurfaceName('Instagram 302.0')).toBe('Instagram');
+    expect(iosNonSafariSurfaceName('FBAN/FBIOS')).toBe('Facebook');
+    expect(iosNonSafariSurfaceName('FBAV/192.0')).toBe('Facebook');
+    expect(iosNonSafariSurfaceName('WhatsApp/2.0')).toBe('WhatsApp');
+    expect(iosNonSafariSurfaceName('TikTok 33.0')).toBe('TikTok');
+    expect(iosNonSafariSurfaceName('Musically/1.0')).toBe('TikTok');
+    expect(iosNonSafariSurfaceName('Twitter/10.0')).toBe('X');
+    expect(iosNonSafariSurfaceName('GSA/142.0')).toBe('Google');
+    expect(iosNonSafariSurfaceName('Mozilla/5.0 (iPhone) Line/13.0')).toBe('esta app');
+  });
+
+  it('shows a copy-link Safari coach when needsSafari, without private schemes or auto-copy', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const safariCoach =
+      template.match(/data-testid=["']pwa-ios-open-safari["'][\s\S]*?(?=@else|@if\s*\(\s*isIosInstallCoachOpen)/)?.[0] ??
+      template.match(/@if\s*\(\s*needsSafari\(\)\s*\)\s*\{([\s\S]*?)\}\s*@else/)?.[1] ??
+      '';
+    const ngOnInit = page.match(/ngOnInit\s*\(\s*\)\s*:\s*void\s*\{[\s\S]*?\n  \}/)?.[0] ?? '';
+    const copyMethod =
+      page.match(/protected async copyInstallLink\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
+
+    expect(page).toContain('isIosSafari');
+    expect(page).toContain('needsSafari');
+    expect(template).toMatch(/@if\s*\(\s*needsSafari\(\)\s*\)/);
+    expect(template).toContain('data-testid="pwa-ios-open-safari"');
+    expect(template).toContain('data-testid="pwa-ios-copy-link"');
+    expect(safariCoach).toContain('Usá Safari');
+    expect(safariCoach).toContain('Acá no se puede instalar. Safari es el cuadradito con una brújula.');
+    expect(safariCoach).toContain('Estás en');
+    expect(safariCoach).toContain('Safari es otro.');
+    expect(safariCoach).toContain('Tocá Copiar link');
+    expect(safariCoach).toContain('Cerrá esto');
+    expect(safariCoach).toContain('brújula');
+    expect(safariCoach).toContain('pegá');
+    expect(safariCoach).toContain('Copiar link');
+    expect(page).not.toMatch(/safari:\/\/|x-safari-https|com-apple-mobilesafari-tab/);
+    expect(page).not.toMatch(/window\.open|location\.assign/);
+    expect(ngOnInit).not.toMatch(/clipboard|writeText|execCommand/);
+    expect(template).toMatch(/\(click\)="copyInstallLink\(\)"/);
+    expect(copyMethod).toMatch(/clipboard[\s\S]*writeText|writeText/);
+    expect(copyMethod).toContain("execCommand('copy')");
+    expect(copyMethod).toContain('window.location.href');
+    expect(copyMethod).toContain('Listo, ya está copiado. Ahora abrí Safari.');
+    expect(copyMethod).toContain('No se pudo copiar. Anotá la dirección de arriba y abrila en Safari.');
+  });
+
+  it('keeps Cómo instalar and Tres toques y entras off the needsSafari branch', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const safariCoach =
+      template.match(/@if\s*\(\s*needsSafari\(\)\s*\)\s*\{([\s\S]*?)\}\s*@else/)?.[1] ?? '';
+    const iosSafariBranch =
+      template.match(/@if\s*\(\s*needsSafari\(\)\s*\)\s*\{[\s\S]*?\}\s*@else\s*\{([\s\S]*?)\}\s*\}\s*@if\s*\(\s*installFeedback/)?.[1] ??
+      '';
+
+    expect(safariCoach.length).toBeGreaterThan(40);
+    expect(safariCoach).not.toContain('Cómo instalar');
+    expect(safariCoach).not.toContain('Tres toques y entras');
+    expect(iosSafariBranch).toContain('Cómo instalar');
+    expect(template).toContain('Tres toques y entras');
+    expect(template).toMatch(/@if\s*\(\s*isIosInstallCoachOpen\(\)\s*\)/);
   });
 });
