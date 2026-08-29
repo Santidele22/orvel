@@ -8,7 +8,7 @@ type AssetGroup = {
   name: string;
   installMode?: string;
   updateMode?: string;
-  resources?: { files?: string[] };
+  resources?: { files?: string[]; urls?: string[] };
 };
 
 describe('Contract: PWA first-open SW install', () => {
@@ -30,6 +30,11 @@ describe('Contract: PWA first-open SW install', () => {
     expect(shell).toBeDefined();
     expect(shellFiles.some((file) => file.includes('index.html'))).toBe(true);
     expect(shellFiles.some((file) => file.includes('manifest'))).toBe(true);
+    expect(shellFiles).not.toContain('/icons/*.png');
+    expect(shell?.resources?.urls).toEqual([
+      '/dashboard/icons/icon-192x192.png',
+      '/dashboard/icons/icon-512x512.png'
+    ]);
     expect(shellFiles).not.toContain('/**/*.js');
     expect(shellFiles).not.toContain('/**/*.css');
 
