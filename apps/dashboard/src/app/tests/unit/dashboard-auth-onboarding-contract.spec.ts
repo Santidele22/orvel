@@ -196,7 +196,7 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      '/dashboard/login?returnTo=%2Fdashboard%2Finicio'
+      '/auth/login?returnTo=%2Fdashboard%2Finicio'
     );
   });
 
@@ -209,7 +209,7 @@ describe('dashboard auth onboarding contract', () => {
 
     expect(result).toBe(false);
     expect(window.location.assign).toHaveBeenCalledWith(
-      '/dashboard/login?returnTo=%2Finicio'
+      '/auth/login?returnTo=%2Finicio'
     );
   });
 

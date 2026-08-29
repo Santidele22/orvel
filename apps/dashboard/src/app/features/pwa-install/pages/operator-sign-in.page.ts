@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { buildLandingSignupRedirect, sanitizeReturnTo } from '../../../core/auth/route-protection';
+import { sanitizeReturnTo } from '../../../core/auth/route-protection';
 import { AuthService } from '../../../services/auth.service';
 
 const DEFAULT_RETURN_TO = '/dashboard/turnos';
@@ -50,7 +50,7 @@ const DEFAULT_RETURN_TO = '/dashboard/turnos';
           Ingresar
         </button>
       </form>
-      <a class="operator-sign-in__signup" [href]="signupHref">Crear cuenta</a>
+      <a class="operator-sign-in__signup" href="/auth/signup">Crear cuenta</a>
     </main>
   `,
   styles: `
@@ -129,8 +129,6 @@ export class OperatorSignInPage implements OnInit {
   protected password = '';
   protected readonly errorMessage = signal('');
   protected readonly submitting = signal(false);
-  protected readonly signupHref = buildLandingSignupRedirect();
-
   ngOnInit(): void {
     if (this.auth.authenticated() || this.auth.isLogged()) {
       void this.router.navigateByUrl(this.resolveReturnTo());

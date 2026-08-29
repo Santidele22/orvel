@@ -20,7 +20,7 @@ export function buildDashboardAuthUrl(input: {
   source?: BillingSource;
   returnTo?: string | null;
 }): string {
-  const authPath = input.mode === 'signup' ? '/auth/signup/plan' : '/auth/login';
+  const authPath = input.mode === 'signup' ? '/auth/signup' : '/auth/login';
   const authUrl = new URL(authPath, normalizeDashboardBaseUrl(input.dashboardOrigin));
   authUrl.searchParams.set('mode', input.mode === 'signup' ? 'signup' : 'login');
   if (input.source === 'subscription') {
@@ -34,7 +34,7 @@ function normalizeDashboardBaseUrl(dashboardOrigin: string): string {
   const candidate = dashboardOrigin.trim() || DEFAULT_DASHBOARD_ORIGIN;
   try {
     const url = new URL(candidate);
-    if (isLandingRootUrl(url)) return `${url.origin}/`;
+    if (LANDING_ROOT_ORIGINS.has(url.origin) || isLandingRootUrl(url)) return `${DEFAULT_DASHBOARD_ORIGIN}/`;
     url.pathname = '/';
     url.search = '';
     url.hash = '';
