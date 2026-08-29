@@ -1,6 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, signal } from '@angular/core';
-import { isIosDevice, isStandaloneDisplay } from '../pwa-display';
+import {
+  iosNonSafariSurfaceName,
+  isIosDevice,
+  isIosSafari,
+  isStandaloneDisplay,
+} from '../pwa-display';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -28,20 +33,44 @@ type OrvelWindow = Window & {
         <h1>Listo</h1>
         <p>Orvel ya está instalada. Abrí el ícono en tu teléfono para usarla.</p>
       } @else {
-        <h1>Instalá la app</h1>
-        @if (isIos()) {
-          <p>En 3 toques la tenés en tu pantalla de inicio.</p>
-          <button type="button" class="pwa-install__cta" (click)="openIosInstallCoach()">
-            Cómo instalar
-          </button>
+        @if (needsSafari()) {
+          <div data-testid="pwa-ios-open-safari">
+            <h1>Usá Safari</h1>
+            <p>Acá no se puede instalar. Safari es el cuadradito con una brújula.</p>
+            @if (safariSurfaceName() !== 'esta app') {
+              <p>Estás en {{ safariSurfaceName() }}. Safari es otro.</p>
+            }
+            <ol class="pwa-install__steps">
+              <li><span>1</span>Tocá Copiar link</li>
+              <li><span>2</span>Cerrá esto</li>
+              <li><span>3</span>Abrí Safari, el de la brújula</li>
+              <li><span>4</span>Tocá arriba, pegá el link, y andá</li>
+            </ol>
+            <button
+              type="button"
+              class="pwa-install__cta"
+              data-testid="pwa-ios-copy-link"
+              (click)="copyInstallLink()"
+            >
+              Copiar link
+            </button>
+          </div>
         } @else {
-          <p>Tocá Instalar y queda en tu pantalla de inicio. Sin tienda. Cuando abras el ícono, ahí iniciás sesión.</p>
-          @if (canPromptNativeInstall()) {
-            <button type="button" class="pwa-install__cta" (click)="installApp()">Instalar</button>
+          <h1>Instalá la app</h1>
+          @if (isIos()) {
+            <p>En 3 toques la tenés en tu pantalla de inicio.</p>
+            <button type="button" class="pwa-install__cta" (click)="openIosInstallCoach()">
+              Cómo instalar
+            </button>
           } @else {
-            <p>
-              Abrí esta página en Chrome del celular. En Android, tocá Instalar.
-            </p>
+            <p>Tocá Instalar y queda en tu pantalla de inicio. Sin tienda. Cuando abras el ícono, ahí iniciás sesión.</p>
+            @if (canPromptNativeInstall()) {
+              <button type="button" class="pwa-install__cta" (click)="installApp()">Instalar</button>
+            } @else {
+              <p>
+                Abrí esta página en Chrome del celular. En Android, tocá Instalar.
+              </p>
+            }
           }
         }
       }
@@ -283,6 +312,24 @@ type OrvelWindow = Window & {
       margin-bottom: 12px;
       color: var(--or-text-primary);
     }
+    .pwa-install__steps:not(.pwa-ios-coach__steps) {
+      counter-reset: pwa-open-safari;
+    }
+    .pwa-install__steps:not(.pwa-ios-coach__steps) li::before {
+      counter-increment: pwa-open-safari;
+      content: counter(pwa-open-safari);
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: var(--or-primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
     .pwa-ios-coach__steps {
       width: 100%;
       max-width: none;
@@ -338,6 +385,8 @@ export class PwaInstallPage implements OnInit {
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
   protected readonly alreadyInstalled = signal(false);
   protected readonly isIos = signal(false);
+  protected readonly isIosSafari = signal(false);
+  protected readonly safariSurfaceName = signal('esta app');
   protected readonly hasNativePrompt = signal(false);
   protected readonly installFeedback = signal('');
   protected readonly isInstallSuccessModalOpen = signal(false);
@@ -345,12 +394,11 @@ export class PwaInstallPage implements OnInit {
 
   ngOnInit(): void {
     this.alreadyInstalled.set(isStandaloneDisplay());
-    this.isIos.set(
-      isIosDevice(
-        navigator.userAgent,
-        Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
-      ),
-    );
+    const userAgent = navigator.userAgent;
+    const standalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    this.isIos.set(isIosDevice(userAgent, standalone));
+    this.isIosSafari.set(isIosSafari(userAgent, standalone));
+    this.safariSurfaceName.set(iosNonSafariSurfaceName(userAgent));
     const stashed = (window as OrvelWindow).__ORVEL_DEFERRED_INSTALL_PROMPT;
     if (stashed) {
       this.deferredPrompt = stashed;
@@ -375,8 +423,45 @@ export class PwaInstallPage implements OnInit {
     this.isInstallSuccessModalOpen.set(false);
   }
 
+  protected needsSafari(): boolean {
+    return this.isIos() && !this.isIosSafari() && !this.alreadyInstalled();
+  }
+
   protected openIosInstallCoach(): void {
+    if (!this.isIosSafari()) {
+      return;
+    }
     this.isIosInstallCoachOpen.set(true);
+  }
+
+  protected async copyInstallLink(): Promise<void> {
+    const url = window.location.href;
+    const copiedHint = 'Listo, ya está copiado. Ahora abrí Safari.';
+    const failedHint = 'No se pudo copiar. Anotá la dirección de arriba y abrila en Safari.';
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        this.installFeedback.set(copiedHint);
+        return;
+      }
+    } catch {
+      // Fall through to the hidden-input copy.
+    }
+    try {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = url;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.left = '-9999px';
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      this.installFeedback.set(copied ? copiedHint : failedHint);
+    } catch {
+      this.installFeedback.set(failedHint);
+    }
   }
 
   protected closeIosInstallCoach(): void {
