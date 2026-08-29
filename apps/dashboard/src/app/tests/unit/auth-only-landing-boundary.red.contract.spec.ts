@@ -36,18 +36,32 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
     const routesSource = await readFile(APP_ROUTES, 'utf8');
     const loginIndex = routesSource.search(/path:\s*'auth\/login'/);
     const signupIndex = routesSource.search(/path:\s*'auth\/signup'/);
+    const dashboardLoginIndex = routesSource.search(/path:\s*'dashboard\/auth\/login'/);
+    const dashboardSignupIndex = routesSource.search(/path:\s*'dashboard\/auth\/signup'/);
     const dashboardIndex = routesSource.search(/path:\s*'dashboard'\s*,/);
     const loginBlock = routesSource.match(/\{\s*path:\s*'auth\/login',[\s\S]*?\n\s*\}/)?.[0] ?? '';
     const signupBlock = routesSource.match(/\{\s*path:\s*'auth\/signup',[\s\S]*?\n\s*\}/)?.[0] ?? '';
+    const dashboardLoginBlock =
+      routesSource.match(/\{\s*path:\s*'dashboard\/auth\/login',[\s\S]*?\n\s*\}/)?.[0] ?? '';
+    const dashboardSignupBlock =
+      routesSource.match(/\{\s*path:\s*'dashboard\/auth\/signup',[\s\S]*?\n\s*\}/)?.[0] ?? '';
 
     expect(loginIndex).toBeGreaterThan(-1);
     expect(signupIndex).toBeGreaterThan(-1);
+    expect(dashboardLoginIndex).toBeGreaterThan(-1);
+    expect(dashboardSignupIndex).toBeGreaterThan(-1);
     expect(loginIndex).toBeLessThan(dashboardIndex);
     expect(signupIndex).toBeLessThan(dashboardIndex);
+    expect(dashboardLoginIndex).toBeLessThan(dashboardIndex);
+    expect(dashboardSignupIndex).toBeLessThan(dashboardIndex);
     expect(loginBlock).toContain('loadComponent');
     expect(loginBlock).not.toContain('canActivate');
     expect(signupBlock).toContain('loadComponent');
     expect(signupBlock).not.toContain('canActivate');
+    expect(dashboardLoginBlock).toContain('loadComponent');
+    expect(dashboardLoginBlock).not.toContain('canActivate');
+    expect(dashboardSignupBlock).toContain('loadComponent');
+    expect(dashboardSignupBlock).not.toContain('canActivate');
     expect(routesSource).not.toMatch(/SignupCredentialsPage(?:Component)?/);
   });
 
@@ -64,7 +78,7 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
 
     expect(access.allowed).toBe(false);
     expect(access.redirectTo).not.toContain('https://orvel.pro/auth/login');
-    expect(redirect.pathname).toBe('/auth/login');
+    expect(redirect.pathname).toBe('/dashboard/auth/login');
     expect(redirect.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 });
