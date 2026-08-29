@@ -61,6 +61,18 @@ describe('Contract: in-app signup wizard (#562)', () => {
 
     wizard.confirmPassword = '12345678';
     expect(wizard.canContinue()).toBe(true);
+    expect(wizard.accessError()).toBe('');
+
+    wizard.password = '1234567';
+    wizard.confirmPassword = '1234567';
+    expect(wizard.accessError()).toBe('Mínimo 8 caracteres.');
+
+    wizard.password = '12345678';
+    wizard.confirmPassword = '12345679';
+    expect(wizard.accessError()).toBe('Las contraseñas no coinciden.');
+
+    wizard.confirmPassword = '12345678';
+    expect(wizard.canContinue()).toBe(true);
 
     const payload = wizard.buildCreateAccountPayload();
     expect(payload.plan).toBe('FREE');
@@ -156,6 +168,8 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('Ya estás adentro');
     expect(page).toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Crear cuenta');
+    expect(page).toContain('accessError()');
+    expect(page).toContain('syncAccessField');
     expect(page).toContain('Empezar gratis');
     expect(page).toContain('Pedir Premium y entrar');
     expect(page).toContain('Entrar a la agenda');

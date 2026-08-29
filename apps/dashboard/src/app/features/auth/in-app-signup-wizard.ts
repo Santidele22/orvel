@@ -71,6 +71,25 @@ export class InAppSignupWizard {
     );
   }
 
+  accessError(): string {
+    if (!this.email.trim() && !this.password && !this.confirmPassword) {
+      return '';
+    }
+    if (!this.email.trim()) {
+      return 'Ingresá tu email.';
+    }
+    if (this.password.length > 0 && this.password.length < MIN_PASSWORD_LENGTH) {
+      return 'Mínimo 8 caracteres.';
+    }
+    if (this.confirmPassword.length > 0 && this.password !== this.confirmPassword) {
+      return 'Las contraseñas no coinciden.';
+    }
+    if (this.password.length < MIN_PASSWORD_LENGTH || this.confirmPassword.length === 0) {
+      return 'Completá y confirmá la contraseña (mínimo 8).';
+    }
+    return '';
+  }
+
   continue(): void {
     if (!this.canContinue()) return;
     if (this.step === 1) this.step = 2;

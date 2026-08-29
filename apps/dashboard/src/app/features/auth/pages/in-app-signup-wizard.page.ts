@@ -77,18 +77,38 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           <h1>Creá tu acceso</h1>
           <label class="in-app-auth__field">
             Email
-            <input type="email" name="email" autocomplete="username" [(ngModel)]="wizard.email" />
+            <input
+              type="email"
+              name="email"
+              autocomplete="username"
+              [(ngModel)]="wizard.email"
+              (input)="syncAccessField('email', $event)"
+            />
           </label>
           <label class="in-app-auth__field">
             Contraseña
-            <input type="password" name="password" autocomplete="new-password" [(ngModel)]="wizard.password" />
+            <input
+              type="password"
+              name="password"
+              autocomplete="new-password"
+              [(ngModel)]="wizard.password"
+              (input)="syncAccessField('password', $event)"
+            />
           </label>
           <label class="in-app-auth__field">
             Confirmá la contraseña
-            <input type="password" name="confirmPassword" autocomplete="new-password" [(ngModel)]="wizard.confirmPassword" />
+            <input
+              type="password"
+              name="confirmPassword"
+              autocomplete="new-password"
+              [(ngModel)]="wizard.confirmPassword"
+              (input)="syncAccessField('confirmPassword', $event)"
+            />
           </label>
           @if (errorMessage()) {
             <p class="in-app-auth__error" role="alert">{{ errorMessage() }}</p>
+          } @else if (wizard.accessError()) {
+            <p class="in-app-auth__error" role="alert">{{ wizard.accessError() }}</p>
           }
           <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue() || submitting()" (click)="createAccount()">
             Crear cuenta
@@ -368,6 +388,11 @@ export class InAppSignupWizardPage {
   protected readonly wizard = new InAppSignupWizard();
   protected readonly errorMessage = signal('');
   protected readonly submitting = signal(false);
+
+  protected syncAccessField(field: 'email' | 'password' | 'confirmPassword', event: Event): void {
+    const value = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.wizard[field] = value;
+  }
 
   protected async createAccount(): Promise<void> {
     if (!this.wizard.canContinue() || this.submitting()) return;
