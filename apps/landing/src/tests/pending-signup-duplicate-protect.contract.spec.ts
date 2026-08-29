@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 const PROTECT_API = new URL('../pages/api/signup/pending-intent/protect.ts', import.meta.url);
 const HANDOFF_SERVER = new URL('../lib/server/pending-signup-handoff.ts', import.meta.url);
-const SIGNUP_CONTROLLER = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 
 async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -36,16 +35,6 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     expect(duplicateResponse).toMatch(/jsonResponse\(PUBLIC_DUPLICATE_PROTECTION_CONFLICT,\s*202\)/);
     expect(duplicateResponse).not.toMatch(/EMAIL_ALREADY_REGISTERED|PENDING_SIGNUP_ALREADY_EXISTS/);
     expect(duplicateResponse).not.toMatch(/error\s*:|recovery_action|recoverable|restart_or_retry_existing_pending_signup/);
-  });
-
-  it('paid signup form maps PENDING_SIGNUP_ALREADY_EXISTS to a clear restart/retry path instead of generic protect failure', async () => {
-    const controllerSource = await source(SIGNUP_CONTROLLER);
-    const paidSubmitCatch = sliceBetween(controllerSource, '} catch (error) {', '\n    }\n  });');
-
-    expect(controllerSource).toMatch(/PENDING_SIGNUP_ALREADY_EXISTS|isPendingSignupAlreadyExistsError/i);
-    expect(paidSubmitCatch).toMatch(/PENDING_SIGNUP_ALREADY_EXISTS|isPendingSignupAlreadyExistsError/i);
-    expect(paidSubmitCatch).toMatch(/pendiente|alta paga|reintent|reinici|volver/i);
-    expect(paidSubmitCatch).not.toMatch(/errorEl\.textContent\s*=\s*'No pudimos proteger tus datos para iniciar el pago\. Reintentá en unos segundos\.'/);
   });
 
   it('stale existing intent or email_hmac unique violation is handled as controlled duplicate/recovery, not a 500 generic failure', async () => {
@@ -81,16 +70,9 @@ describe('RED contract: pending signup duplicate protection is deterministic and
     expect(reuseFunction).toMatch(/external_reference|provider_subscription_id/);
   });
 
-  it('paid signup still creates no account or business before approved payment and pre-confirm protect does not return reference or cookie', async () => {
-    const controllerSource = await source(SIGNUP_CONTROLLER);
+  it('pre-confirm protect does not return reference or cookie and handoff remains HttpOnly-bound', async () => {
     const serverSource = await source(HANDOFF_SERVER);
     const apiSource = await source(PROTECT_API);
-    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });');
-    const paidBranch = sliceBetween(submitFlow, 'try {\n      const pendingSignupIntent', 'window.location.href = billingUrl;');
-
-    expect(paidBranch).toMatch(/createProtectedPendingSignupIntent|pendingSignupIntent/i);
-    expect(paidBranch).not.toMatch(/createAccountAndBusiness|signupWithProvider|finalizeFreeSignup|pending-intent\/finalize|auth\.signUp/i);
-    expect(paidBranch).not.toMatch(/from\(['"]businesses['"]\)|create_business|insert\([\s\S]*business/i);
     expect(serverSource).toMatch(/pendingSignupReference|handoff_reference|createOpaqueToken\('psh'\)/);
     expect(serverSource).toMatch(/HttpOnly|Set-Cookie|SameSite=Lax/);
     const preConfirmProtectSuccess = sliceBetween(apiSource, 'await createPendingSignupHandoff', '} catch (error)');

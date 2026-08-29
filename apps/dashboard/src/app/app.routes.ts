@@ -56,8 +56,8 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard/login',
-    loadComponent: () =>
-      import('./features/pwa-install/pages/operator-sign-in.page').then(m => m.OperatorSignInPage)
+    redirectTo: '/auth/login',
+    pathMatch: 'full'
   },
   {
     path: 'dashboard',
