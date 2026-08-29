@@ -10,10 +10,36 @@ const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "PREMIUM"]);
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const FREE_CONFIRMATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
+const ALLOWED_DASHBOARD_ORIGINS = new Set([
+  "https://dashboard.orvel.pro",
+  "http://localhost:4200",
+  "http://127.0.0.1:4200",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+]);
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function corsHeaders(request: Request): HeadersInit {
+  const origin = request.headers.get("origin") ?? "";
+  if (!ALLOWED_DASHBOARD_ORIGINS.has(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
 }
+
+function jsonResponse(body: unknown, status = 200, request?: Request): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...(request ? corsHeaders(request) : {}) },
+  });
+}
+
+export const OPTIONS: APIRoute = async ({ request }) => {
+  return new Response(null, { status: 204, headers: corsHeaders(request) });
+};
 
 function cleanText(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
@@ -104,12 +130,12 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     body = await request.json();
   } catch {
-    return jsonResponse({ error: "invalid_json", message: "El pedido de alta no tiene un JSON válido." }, 400);
+    return jsonResponse({ error: "invalid_json", message: "El pedido de alta no tiene un JSON válido." }, 400, request);
   }
 
   const email = cleanText(body.email, 320)?.toLowerCase();
   const firstName = cleanText(body.nombre ?? body.first_name, 80);
-  const lastName = cleanText(body.apellido ?? body.last_name, 80);
+  const lastName = cleanText(body.apellido ?? body.last_name, 80) ?? firstName;
   const businessName = cleanText(body.negocioNombre ?? body.business_name, 120);
   const businessType = normalizeBusinessType(body.rubro ?? body.business_type ?? body.tipoNegocio);
   const phone = cleanText(body.telefono ?? body.phone, 40);
@@ -117,24 +143,24 @@ export const POST: APIRoute = async ({ request }) => {
   const password = cleanPassword(body.password);
   const selectedBusinessTypes = businessType ? normalizeSelectedBusinessTypes(body, businessType) : [];
 
-  if (!email || !firstName || !lastName || !businessName || !businessType || !plan || !password) {
-    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
+  if (!email || !firstName || !businessName || !businessType || !plan || !password) {
+    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400, request);
   }
 
   const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
   const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "signup_config_error", message: "La configuración de alta no está disponible." }, 500);
+    return jsonResponse({ error: "signup_config_error", message: "La configuración de alta no está disponible." }, 500, request);
   }
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const protectedFields = await protectPendingSignupPii({ email, first_name: firstName, last_name: lastName, business_name: businessName, phone });
   if (!protectedFields.email_hmac || !protectedFields.email_encrypted) {
-    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400);
+    return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400, request);
   }
 
   if (await isRateLimited(supabaseAdmin, request, email, protectedFields.email_hmac)) {
-    return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+    return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202, request);
   }
 
   const { error: expireError } = await supabaseAdmin.rpc("expire_signup_email_confirmation", {
@@ -142,7 +168,7 @@ export const POST: APIRoute = async ({ request }) => {
     p_purpose: "free_signup",
   });
   if (expireError) {
-    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
 
   const activeConfirmation = await supabaseAdmin
@@ -165,9 +191,9 @@ export const POST: APIRoute = async ({ request }) => {
       .limit(1)
       .maybeSingle();
     if (!existingOutboxError && existingOutbox) {
-      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202, request);
     }
-    return jsonResponse({ error: "signup_confirmation_retry", message: "Si los datos son válidos, reintentá pedir la confirmación en unos segundos." }, 503);
+    return jsonResponse({ error: "signup_confirmation_retry", message: "Si los datos son válidos, reintentá pedir la confirmación en unos segundos." }, 503, request);
   }
 
   const token = createOpaqueToken();
@@ -183,9 +209,9 @@ export const POST: APIRoute = async ({ request }) => {
   });
   if (createUserError || !createdAuthUser.user?.id) {
     if (isDuplicateUserError(createUserError)) {
-      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202);
+      return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202, request);
     }
-    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
 
   const authUserId = createdAuthUser.user.id;
@@ -204,7 +230,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch {
     await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
-    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
 
   const confirmationPayload = {
@@ -261,8 +287,8 @@ export const POST: APIRoute = async ({ request }) => {
       throw outboxError || new Error("outbox_insert_missing_row");
     }
   } catch {
-    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503);
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
 
-  return jsonResponse({ ok: true, status: "signup_ready" }, 200);
+  return jsonResponse({ ok: true, status: "signup_ready" }, 200, request);
 };

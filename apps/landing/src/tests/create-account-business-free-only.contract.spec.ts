@@ -244,6 +244,28 @@ describe('legacy create-account-business boundary', () => {
     expect(paidBranch).not.toContain('account_first_session');
   });
 
+  it('accepts in-app Free signup without apellido or phone', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    createClientMock.mockReturnValue(supabase.client);
+
+    const { apellido: _apellido, telefono: _telefono, ...withoutApellido } = validPayload('FREE');
+    const response = await postCreateAccountBusiness(withoutApellido);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, status: 'signup_ready' });
+    expect(supabase.authCreateUser).toHaveBeenCalled();
+  });
+
+  it('allows CORS preflight and POST from dashboard origins', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/export const OPTIONS/);
+    expect(source).toContain('https://dashboard.orvel.pro');
+    expect(source).toContain('Access-Control-Allow-Origin');
+    expect(source).toMatch(/localhost:4200|localhost:3000/);
+  });
+
   it('subscription auth helper no longer treats legacy account-first signup as a payment-first path', async () => {
     const source = await readFile(CREATE_SUBSCRIPTION_AUTH_HELPER_PATH, 'utf8');
 

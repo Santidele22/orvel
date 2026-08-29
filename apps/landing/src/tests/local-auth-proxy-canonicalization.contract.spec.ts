@@ -42,28 +42,22 @@ describe('Contract: local landing auth login canonicalizes to dev proxy', () => 
     expect(buildLocalProxyAuthCanonicalUrl('https://orvel.example/auth/login?returnTo=%2Finicio')).toBeNull();
   });
 
-  it('initializes login through the controller and runs canonical redirect before Supabase auth handlers', () => {
+  it('landing /auth/login 302-redirects into dashboard in-app login instead of local proxy canonicalization on the page', () => {
     const loginPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/login.astro'), 'utf8');
-    const loginController = readFileSync(resolve(process.cwd(), 'src/lib/login-page-controller.ts'), 'utf8');
 
-    expect(loginPage).toContain("import { initLoginPage } from '../../lib/login-page-controller'");
-    expect(loginPage).toContain('initLoginPage(import.meta.env)');
-
-    const canonicalRedirectIndex = loginController.indexOf('buildLocalProxyAuthCanonicalUrl(window.location.href)');
-    const supabaseAdapterIndex = loginController.indexOf('const supabaseLogin = createSupabaseLoginAdapterFromEnv');
-
-    expect(canonicalRedirectIndex).toBeGreaterThan(-1);
-    expect(supabaseAdapterIndex).toBeGreaterThan(-1);
-    expect(canonicalRedirectIndex).toBeLessThan(supabaseAdapterIndex);
-    expect(loginController).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
+    expect(loginPage).toContain("import { buildInAppAuthRedirect } from '../../lib/in-app-auth-redirect'");
+    expect(loginPage).toContain("buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL)");
+    expect(loginPage).toMatch(/Astro\.redirect\([\s\S]*302/);
+    expect(loginPage).not.toContain('initLoginPage');
+    expect(loginPage).not.toContain('buildLocalProxyAuthCanonicalUrl');
   });
 
-  it('runs the canonical redirect on the plan-selection page before plan-card click handlers initialize', () => {
+  it('landing /auth/signup/plan 302-redirects into dashboard in-app signup instead of local proxy canonicalization on the page', () => {
     const planPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/signup/plan.astro'), 'utf8');
-    const planCards = readFileSync(resolve(process.cwd(), 'src/components/organisms/SignupPlanCards.astro'), 'utf8');
 
-    expect(planPage).toContain("buildLocalProxyAuthCanonicalUrl(window.location.href)");
-    expect(planPage).toMatch(/window\.location\.replace\(canonicalRedirectTo\)/);
-    expect(planCards).toContain('isCreateAccountRedirectNoticeIntent');
+    expect(planPage).toContain("import { buildInAppAuthRedirect } from '../../../lib/in-app-auth-redirect'");
+    expect(planPage).toContain("buildInAppAuthRedirect(Astro.url, 'signup', import.meta.env.PUBLIC_DASHBOARD_URL)");
+    expect(planPage).toMatch(/Astro\.redirect\([\s\S]*302/);
+    expect(planPage).not.toContain('buildLocalProxyAuthCanonicalUrl');
   });
 });

@@ -69,7 +69,7 @@ describe('dashboard logout signOut contract', () => {
     expect(supabaseAuthClientMock.signOut).toHaveBeenNthCalledWith(1);
     expect(supabaseAuthClientMock.signOut).toHaveBeenNthCalledWith(2, { scope: 'local' });
     expect(supabaseAuthClientMock.signOut).toHaveBeenCalledTimes(2);
-    expect(redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
+    expect(redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
   });
 
   it('does not treat a signOut { error } as success and does not navigate when both attempts fail', async () => {
@@ -105,7 +105,7 @@ describe('dashboard logout signOut contract', () => {
     await logoutAndRedirect();
     await expect(canAccessDashboardAsync()).resolves.toEqual({
       allowed: false,
-      redirectTo: '/dashboard/login?returnTo=%2Fdashboard'
+      redirectTo: '/auth/login?returnTo=%2Fdashboard'
     });
 
     expect(supabaseAuthClientMock.signOut).toHaveBeenCalledWith({ scope: 'local' });
