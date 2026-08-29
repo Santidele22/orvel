@@ -73,6 +73,22 @@ describe('Contract: PWA first-open boot splash', () => {
     expect(beforeAppRoot).toContain('__ORVEL_DEFERRED_INSTALL_PROMPT');
   });
 
+  it('reloads once if Angular never marks boot on standalone or mobile-first', () => {
+    const html = source('src/index.html');
+    const appRootIndex = html.indexOf('<app-root>');
+    const beforeAppRoot = html.slice(0, appRootIndex);
+
+    expect(appRootIndex).toBeGreaterThan(-1);
+    expect(beforeAppRoot).toContain('__ORVEL_BOOTED');
+    expect(beforeAppRoot).toContain('orvel-boot-retry');
+    expect(beforeAppRoot).toContain('8000');
+    expect(beforeAppRoot).toContain('location.reload');
+    expect(beforeAppRoot).toMatch(/matchMedia\(['"]\(display-mode: standalone\)['"]\)/);
+    expect(beforeAppRoot).toContain('navigator.standalone');
+    expect(beforeAppRoot).toMatch(/pointer:\s*coarse/);
+    expect(beforeAppRoot).toMatch(/max-width:\s*1024px/);
+  });
+
   it('keeps the Angular boot splash until router-outlet activate', () => {
     const template = source('src/app/app.html');
     const appTs = source('src/app/app.ts');
@@ -87,6 +103,11 @@ describe('Contract: PWA first-open boot splash', () => {
     expect(appTs).not.toMatch(/bootSplashVisible\s*=\s*signal\(\s*isStandaloneDisplay\(\)\s*\)/);
     expect(appTs).not.toContain('signal(true)');
     expect(appTs).toContain('.set(false)');
+    expect(appTs).toContain('__ORVEL_BOOTED');
+    expect(appTs).toContain('orvel-boot-retry');
+    expect(appTs).toMatch(/8000/);
+    expect(appTs).toMatch(/bootSplashVisible[\s\S]*\.set\(\s*false\s*\)/);
+    expect(appTs).toContain('clearTimeout');
   });
 
   it('keeps the PWA start_url and immediate service-worker registration', () => {

@@ -6,7 +6,28 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: false }).then((controlled) => {
+      const controlledIds = new Set(controlled.map((client) => client.id));
+      return self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((windows) =>
+          self.clients.claim().then(() =>
+            Promise.all(
+              windows.map((client) => {
+                if (controlledIds.has(client.id)) {
+                  return undefined;
+                }
+                if (typeof client.navigate !== 'function') {
+                  return undefined;
+                }
+                return client.navigate(client.url);
+              }),
+            ),
+          ),
+        );
+    }),
+  );
 });
 
 const DEFAULT_CLICK_URL = '/dashboard/turnos';
