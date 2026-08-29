@@ -39,6 +39,10 @@ describe('Zen topbar notifications panel contract', () => {
   const itemRowOpenTag = firstOpenTagAfter(topbarTs, '@for (notif of notificationList(); track notif.id)');
   const itemRowClass = classAttr(itemRowOpenTag);
 
+  it('force-refreshes admin notifications when opening the bell', () => {
+    expect(topbarTs).toMatch(/refreshForAdmin\s*\(\s*undefined\s*,\s*\{\s*force:\s*true\s*\}\s*\)/);
+  });
+
   it('renders the notifications panel with a stable testid when the list is open', () => {
     expect(topbarTs).toMatch(/@if \(showNotificationList\(\)\)/);
     expect(panelOpenTag).toMatch(/data-testid=["']dashboard-topbar-notifications-panel["']/);

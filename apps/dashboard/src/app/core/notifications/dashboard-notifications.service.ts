@@ -40,13 +40,21 @@ export class DashboardNotificationsService implements OnDestroy {
 
   constructor() {
     registerSectionCacheInvalidator(() => this.clearCache());
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     void this.init();
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.stopSubscription();
     this.clearRealtimeRefreshTimer();
   }
+
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible') {
+      void this.refreshForAdmin(undefined, { force: true });
+    }
+  };
 
   private async init() {
     const businessId = await this.resolveBusinessId();
@@ -87,6 +95,7 @@ export class DashboardNotificationsService implements OnDestroy {
     this.realtimeRefreshTimer = setTimeout(() => {
       this.realtimeRefreshTimer = null;
       void this.refreshForAdmin(undefined, { force: true });
+      window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
     }, REALTIME_REFRESH_DEBOUNCE_MS);
   }
 

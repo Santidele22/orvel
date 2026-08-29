@@ -186,6 +186,10 @@ describe('Dashboard notifications once per shell', () => {
       notification({ id: 'live', status: 'unread' })
     ]);
 
+    const agendaSync: string[] = [];
+    const onAgendaSync = (event: Event) => agendaSync.push(event.type);
+    window.addEventListener('operator.agenda.sync', onAgendaSync);
+
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     handler();
     handler();
@@ -193,12 +197,28 @@ describe('Dashboard notifications once per shell', () => {
     handler();
     handler();
     expect(mocks.listAdminNotifications).not.toHaveBeenCalled();
+    expect(agendaSync).toHaveLength(0);
 
     await vi.advanceTimersByTimeAsync(500);
 
     expect(mocks.listAdminNotifications).toHaveBeenCalledTimes(1);
     expect(mocks.getUnreadNotificationCount).not.toHaveBeenCalled();
     expect(service.unreadNotificationCount()).toBe(1);
+    expect(agendaSync).toEqual(['operator.agenda.sync']);
+    window.removeEventListener('operator.agenda.sync', onAgendaSync);
+  });
+
+  it('force-refetches the list when the document becomes visible', async () => {
+    await createService();
+    await vi.waitFor(() => expect(mocks.listAdminNotifications).toHaveBeenCalledTimes(1));
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible'
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await vi.waitFor(() => expect(mocks.listAdminNotifications).toHaveBeenCalledTimes(2));
   });
 
   it('archiveAdminNotification drops that id from the visible list and unread count', async () => {
