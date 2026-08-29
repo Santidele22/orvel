@@ -19,8 +19,32 @@ import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '../../../core/time/arge
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './dashboard-home.page.html',
+  host: {
+    '[class.mobile-inicio-bleed]': 'isMobile()',
+  },
   styles: [`
     :host { display: block; }
+
+    :host.mobile-inicio-bleed {
+      background:
+        radial-gradient(120% 60% at 15% -5%, rgba(124, 92, 255, 0.16), transparent 55%),
+        radial-gradient(90% 40% at 100% 0%, rgba(124, 92, 255, 0.08), transparent 50%),
+        #0A0E1B;
+    }
+
+    :host.mobile-inicio-bleed::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: inherit;
+    }
+
+    :host.mobile-inicio-bleed > * {
+      position: relative;
+      z-index: 1;
+    }
 
     .mobile-inicio {
       font-family: 'Manrope', sans-serif;
