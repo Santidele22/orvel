@@ -121,7 +121,6 @@ describe('M2 real admin new turno UX RED contract', () => {
   it('uses styled dashboard controls and deterministic selectors for required fields plus the create submit action', () => {
     const requiredSelectors = [
       'turno-admin-client-select',
-      'turno-admin-walk-in-name',
       'turno-admin-service-select',
       'turno-admin-date',
       'turno-admin-available-slot-select',
@@ -198,7 +197,6 @@ describe('M2 real admin new turno UX RED contract', () => {
     const darkModalControlClass = /class=["'][^"']*(?:bg-\[#182033\]|bg-bg-primary|bg-surface|border-white\/10|text-white|text-text-primary|rounded-xl|rounded-zen-md)/i;
     const requiredDarkControls = [
       'turno-admin-client-select',
-      'turno-admin-walk-in-name',
       'turno-admin-service-select',
       'turno-admin-date',
       'turno-admin-available-slot-select',
@@ -240,12 +238,12 @@ describe('M2 real admin new turno UX RED contract', () => {
     );
   });
 
-  it('collects client or walk-in, service, date, backend slot, duration, and notes in the real new turno form', () => {
+  it('collects an existing client, service, date, backend slot, duration, and notes in the real new turno form', () => {
     expect(turnoFormTemplate, 'form must expose explicit existing-client selection for admin create').toMatch(
       /data-testid=["']turno-admin-client-select["']|name=["']cliente(?:Id)?["']/i
     );
-    expect(turnoFormTemplate + turnoFormSource, 'form must support a walk-in customer path without relying on fake placeholder clients').toMatch(
-      /data-testid=["']turno-admin-walk-in-name["']|walkInName|walk-in|sin cita/i
+    expect(turnoFormTemplate, 'form must not expose a walk-in customer path').not.toMatch(
+      /data-testid=["']turno-admin-walk-in-name["']|data-testid=["']turno-admin-start-walk-in["']/i
     );
     expect(turnoFormTemplate, 'form must expose service selection').toMatch(/data-testid=["']turno-admin-service-select["']|name=["']servicio(?:Id)?["']/i);
     expect(turnoFormTemplate, 'form must expose date selection').toMatch(/data-testid=["']turno-admin-date["']|type=["']date["']/i);
