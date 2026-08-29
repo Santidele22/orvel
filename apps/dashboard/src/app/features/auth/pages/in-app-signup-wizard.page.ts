@@ -37,7 +37,11 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           <h1>¿Cómo te llamás?</h1>
           <label class="in-app-auth__field">
             Tu nombre
-            <input name="ownerName" [(ngModel)]="wizard.ownerName" />
+            <input name="ownerName" autocomplete="given-name" [(ngModel)]="wizard.ownerName" />
+          </label>
+          <label class="in-app-auth__field">
+            Apellido
+            <input name="ownerLastName" autocomplete="family-name" [(ngModel)]="wizard.ownerLastName" />
           </label>
           <label class="in-app-auth__field">
             Nombre del negocio
