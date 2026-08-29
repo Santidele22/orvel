@@ -38,6 +38,20 @@ function mobileSummaryBlock(source: string): string {
   return source.slice(start);
 }
 
+function mobileSummaryClass(source: string): string {
+  const tagged = source.match(
+    /data-testid=["']dashboard-home-mobile-summary["'][^>]*class=["']([^"']+)["']/,
+  );
+  if (tagged?.[1]) {
+    return tagged[1];
+  }
+
+  const classFirst = source.match(
+    /class=["']([^"']+)["'][^>]*data-testid=["']dashboard-home-mobile-summary["']/,
+  );
+  return classFirst?.[1] ?? '';
+}
+
 describe('DashboardHomePage mobile summary visual contract', () => {
   it('binds a live Spanish eyebrow date instead of a hardcoded fixture', () => {
     const mobile = mobileSummaryBlock(templateSource);
@@ -116,5 +130,29 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(indexHtml).toMatch(/Plus\+Jakarta\+Sans|Plus Jakarta Sans/);
     expect(indexHtml).toMatch(/Manrope/);
     expect(indexHtml).toMatch(/Inter/);
+  });
+
+  it('makes the mobile Inicio surface claim the visual viewport, not only min-h-full', () => {
+    const classes = mobileSummaryClass(templateSource);
+    expect(classes).toMatch(/min-h-(?:dvh|svh)|min-h-\[100(?:dvh|svh|vh)\]|100dvh|100svh/);
+    expect(classes.split(/\s+/)).not.toContain('min-h-full');
+  });
+
+  it('cancels page-root padding on all four sides for the mobile block', () => {
+    const classes = mobileSummaryClass(templateSource);
+    expect(classes.split(/\s+/)).toEqual(expect.arrayContaining(['-mx-4', '-mt-6', '-mb-10']));
+  });
+
+  it('paints the existing radial violet wash on #0A0E1B for the mobile home surface', () => {
+    expect(componentSource).toContain('#0A0E1B');
+    expect(componentSource).toMatch(/radial-gradient\(/);
+    expect(componentSource).toContain('rgba(124, 92, 255');
+    expect(componentSource).toMatch(/\.mobile-inicio\s*\{[\s\S]*#0A0E1B/);
+  });
+
+  it('paints a home-scoped viewport layer so shell chrome does not show unthemed slate on Inicio', () => {
+    expect(componentSource).toMatch(/mobile-inicio-bleed/);
+    expect(componentSource).toMatch(/position:\s*fixed/);
+    expect(componentSource).toMatch(/inset:\s*0/);
   });
 });
