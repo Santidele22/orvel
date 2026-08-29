@@ -10,7 +10,7 @@ describe('NotificacionesPage contract', () => {
   });
 
   it('refreshes for an authenticated user', () => {
-    expect(source).toMatch(/refreshForAdmin\s*\(/);
+    expect(source).toMatch(/refreshForAdmin\s*\(\s*undefined\s*,\s*\{\s*force:\s*true\s*\}\s*\)/);
     expect(source).toMatch(/authenticated\s*\(/);
   });
 

@@ -36,4 +36,19 @@ describe('TurnosListPage section cache', () => {
     expect(ngOnInit).toMatch(/isAdminBookingsWarm/);
     expect(ngOnInit).toMatch(/await this\.loadBookings\s*\(/);
   });
+
+  it('adds and removes operator.agenda.sync with the booking.created handler', () => {
+    expect(source).toMatch(
+      /addEventListener\(\s*['"]operator\.agenda\.sync['"]\s*,\s*this\.onBookingCreated/
+    );
+    expect(source).toMatch(
+      /removeEventListener\(\s*['"]operator\.agenda\.sync['"]\s*,\s*this\.onBookingCreated/
+    );
+    expect(source).toMatch(
+      /addEventListener\(\s*['"]booking\.created['"]\s*,\s*this\.onBookingCreated/
+    );
+    expect(source).toMatch(
+      /removeEventListener\(\s*['"]booking\.created['"]\s*,\s*this\.onBookingCreated/
+    );
+  });
 });
