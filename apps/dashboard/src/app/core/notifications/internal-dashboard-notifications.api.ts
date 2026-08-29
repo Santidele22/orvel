@@ -7,7 +7,8 @@ export type DashboardNotificationStatus = (typeof DASHBOARD_NOTIFICATION_STATUSE
 export type DashboardNotificationEventType =
   | 'appointment.created'
   | 'appointment.cancelled'
-  | 'appointment.rescheduled';
+  | 'appointment.rescheduled'
+  | 'appointment.reminder';
 
 export interface DashboardNotification {
   id: string;
