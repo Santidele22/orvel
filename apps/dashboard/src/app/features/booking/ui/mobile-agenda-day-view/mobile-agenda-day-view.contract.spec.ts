@@ -150,9 +150,9 @@ describe('MobileAgendaDayView contract', () => {
     expect(templateSource).toMatch(/data-testid="mobile-agenda-pending-cta-hint"/);
   });
 
-  it('walk-in button has disabled attribute', () => {
-    // disabled and button text may be on different lines — search in proximity
-    expect(templateSource).toMatch(/disabled[\s\S]{0,200}Agregar walk-in/);
+  it('does not render an Agregar walk-in action', () => {
+    expect(templateSource).not.toMatch(/Agregar walk-in/i);
+    expect(templateSource).not.toMatch(/walk-in/i);
   });
 
   it('compartir button has disabled attribute', () => {
