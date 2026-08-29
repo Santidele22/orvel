@@ -11,13 +11,16 @@ const LOGIN_PAGE = new URL('../../features/auth/pages/in-app-login.page.ts', imp
 describe('Contract: in-app signup wizard (#562)', () => {
   initializeRuntimeReferenceCatalogSnapshot(DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE);
 
-  it('disables identity continue until owner name and business name are both non-empty', () => {
+  it('disables identity continue until name, last name, and business name are all non-empty', () => {
     const wizard = new InAppSignupWizard();
 
     expect(wizard.step).toBe(1);
     expect(wizard.canContinue()).toBe(false);
 
     wizard.ownerName = 'Santi';
+    expect(wizard.canContinue()).toBe(false);
+
+    wizard.ownerLastName = 'Delebeq';
     expect(wizard.canContinue()).toBe(false);
 
     wizard.businessName = 'Studio Norte';
@@ -30,6 +33,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
   it('requires at least one rubro and treats the first selected as principal', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
+    wizard.ownerLastName = 'Delebeq';
     wizard.businessName = 'Studio Norte';
     wizard.continue();
 
@@ -45,6 +49,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
   it('rejects password shorter than 8 characters or a mismatch before creating the Free account', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
+    wizard.ownerLastName = 'Delebeq';
     wizard.businessName = 'Studio Norte';
     wizard.continue();
     wizard.toggleRubro('peluqueria');
@@ -61,19 +66,32 @@ describe('Contract: in-app signup wizard (#562)', () => {
 
     wizard.confirmPassword = '12345678';
     expect(wizard.canContinue()).toBe(true);
+    expect(wizard.accessError()).toBe('');
+
+    wizard.password = '1234567';
+    wizard.confirmPassword = '1234567';
+    expect(wizard.accessError()).toBe('Mínimo 8 caracteres.');
+
+    wizard.password = '12345678';
+    wizard.confirmPassword = '12345679';
+    expect(wizard.accessError()).toBe('Las contraseñas no coinciden.');
+
+    wizard.confirmPassword = '12345678';
+    expect(wizard.canContinue()).toBe(true);
 
     const payload = wizard.buildCreateAccountPayload();
     expect(payload.plan).toBe('FREE');
     expect(payload.nombre).toBe('Santi');
+    expect(payload.apellido).toBe('Delebeq');
     expect(payload.negocioNombre).toBe('Studio Norte');
     expect(payload.rubro).toBe('peluqueria');
     expect(payload).not.toHaveProperty('telefono');
-    expect(payload).not.toHaveProperty('apellido');
   });
 
   it('creates Free then lets Premium request keep the account Free', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
+    wizard.ownerLastName = 'Delebeq';
     wizard.businessName = 'Studio Norte';
     wizard.continue();
     wizard.toggleRubro('peluqueria');
@@ -112,6 +130,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
   it('backs from steps 2-4 and hides step chrome on success', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
+    wizard.ownerLastName = 'Delebeq';
     wizard.businessName = 'Studio Norte';
     wizard.continue();
     wizard.toggleRubro('peluqueria');
@@ -139,7 +158,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(codes).toContain('otro');
   });
 
-  it('renders Rioplatense desktop wizard copy without phone chrome, apellido, or phone fields', async () => {
+  it('renders Rioplatense desktop wizard copy with apellido and without phone chrome', async () => {
     const page = await readFile(WIZARD_PAGE, 'utf8');
 
     expect(page).toContain('¿Cómo te llamás?');
@@ -156,13 +175,17 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('Ya estás adentro');
     expect(page).toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Crear cuenta');
+    expect(page).toContain('Apellido');
+    expect(page).toContain('ownerLastName');
+    expect(page).toContain('accessError()');
+    expect(page).toContain('syncAccessField');
     expect(page).toContain('Empezar gratis');
     expect(page).toContain('Pedir Premium y entrar');
     expect(page).toContain('Entrar a la agenda');
     expect(page).not.toContain('Premium pedido · Free activo');
     expect(page).toMatch(/import\('canvas-confetti'\)/);
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);
-    expect(page).not.toMatch(/apellido|teléfono|telefono|notch|home indicator|phone-frame/i);
+    expect(page).not.toMatch(/teléfono|telefono|notch|home indicator|phone-frame/i);
     expect(page).toMatch(/prefers-reduced-motion/);
   });
 
