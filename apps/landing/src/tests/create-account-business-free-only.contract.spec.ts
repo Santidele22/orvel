@@ -261,6 +261,34 @@ describe('legacy create-account-business boundary', () => {
     expect(source).not.toContain('account_first_session');
   });
 
+  it('latest expire_signup_email_confirmation expires all pending unused rows without a TTL filter', async () => {
+    const { readdir, readFile } = await import('node:fs/promises');
+    const migrationsDir = new URL('../../../../supabase/migrations/', import.meta.url);
+    const entries = await readdir(migrationsDir, { withFileTypes: true });
+    const sqlFiles = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
+      .map((entry) => entry.name)
+      .sort();
+
+    let latestBody = '';
+    for (const fileName of sqlFiles) {
+      const source = await readFile(new URL(fileName, migrationsDir), 'utf8');
+      const match = source.match(
+        /CREATE OR REPLACE FUNCTION public\.expire_signup_email_confirmation\s*\([\s\S]*?\$\$;/i,
+      );
+      if (match) {
+        latestBody = match[0];
+      }
+    }
+
+    expect(latestBody, 'latest expire_signup_email_confirmation body must exist').toMatch(
+      /expire_signup_email_confirmation/,
+    );
+    expect(latestBody).toMatch(/status\s*=\s*'pending'/);
+    expect(latestBody).toMatch(/consumed_at IS NULL/);
+    expect(latestBody).not.toMatch(/expires_at\s*<=\s*now\(\)/i);
+  });
+
   it('rate-limit RPC errors return 503 signup_confirmation_retry, while data true still returns 202', async () => {
     const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
     const rateLimitFunction = /async\s+function\s+isRateLimited[\s\S]*?^}/m.exec(source)?.[0] ?? '';
