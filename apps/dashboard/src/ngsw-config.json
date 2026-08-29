@@ -9,8 +9,11 @@
       "resources": {
         "files": [
           "/index.html",
-          "/icons/*.png",
           "/manifest.webmanifest"
+        ],
+        "urls": [
+          "/dashboard/icons/icon-192x192.png",
+          "/dashboard/icons/icon-512x512.png"
         ]
       }
     },
