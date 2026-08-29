@@ -2,6 +2,7 @@ export const OPERATOR_WEB_PUSH_EVENT_TYPES = [
   "appointment.created",
   "appointment.cancelled",
   "appointment.rescheduled",
+  "appointment.reminder",
 ] as const;
 
 export type VapidEnv = {
