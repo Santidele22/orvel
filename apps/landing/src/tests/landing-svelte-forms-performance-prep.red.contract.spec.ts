@@ -24,16 +24,12 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
     expect(astroConfig).toMatch(/integrations\s*:\s*\[[\s\S]*svelte\s*\(/);
   });
 
-  it('keeps signup credentials validation Zod-backed and framework-agnostic', () => {
-    const validationModule = source('src/lib/signup-account-validation.ts');
+  it('does not keep landing-owned signup validation on auth redirect pages', () => {
     const credentialsPage = source('src/pages/auth/signup/account.astro');
 
-    expect(validationModule).toMatch(/from ['"]zod['"]/);
-    expect(validationModule).toMatch(/z\.object\(/);
-    expect(validationModule).toMatch(/safeParse\(/);
-    expect(credentialsPage).toContain("signup-account-validation");
-    expect(validationModule).not.toMatch(/\b(window|document|HTMLElement|HTMLFormElement|Astro)\b/);
-    expect(validationModule).not.toMatch(/\.astro['"]/);
+    expect(credentialsPage).toMatch(/buildInAppAuthRedirect/);
+    expect(credentialsPage).not.toContain('signup-account-validation');
+    expect(credentialsPage).not.toContain('signup-credentials-validation');
   });
 
   it('does not mount the global preloader on auth pages where it can block credentials/auth work', () => {
@@ -50,7 +46,9 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
     expect(layout).toMatch(/\{\s*showPreloader\s*&&\s*<Preloader\s*\/?>\s*\}/);
 
     for (const authPage of authPages) {
-      expect(authPage).toMatch(/<Layout\b[^>]*showPreloader=\{false\}/);
+      expect(authPage).toMatch(/buildInAppAuthRedirect/);
+      expect(authPage).not.toMatch(/<Layout\b/);
+      expect(authPage).not.toContain('Preloader');
     }
   });
 
@@ -68,16 +66,17 @@ describe('RED contract: landing Svelte/forms/performance preparation', () => {
     expect(preloaderScripts.length).toBeLessThan(500);
   });
 
-  it('keeps auth page inline scripts thin by delegating page behavior to testable modules', () => {
+  it('keeps auth pages as thin redirects without legacy form controllers', () => {
     const loginPage = source('src/pages/auth/login.astro');
     const credentialsPage = source('src/pages/auth/signup/account.astro');
     const loginScripts = inlineScriptBlocks(loginPage).join('\n');
     const credentialsScripts = inlineScriptBlocks(credentialsPage).join('\n');
 
-    expect(loginPage).toContain("from '../../lib/login-page-controller'");
-    expect(credentialsPage).toContain("from '../../../lib/signup-account-page-controller'");
-    expect(loginScripts.length).toBeLessThan(2500);
-    expect(credentialsScripts.length).toBeLessThan(5000);
-    expect(credentialsScripts).not.toMatch(/const\s+createProtectedPendingSignupIntent\s*=|form\.addEventListener\(['"]submit['"]/);
+    expect(loginPage).toMatch(/buildInAppAuthRedirect/);
+    expect(credentialsPage).toMatch(/buildInAppAuthRedirect/);
+    expect(loginPage).not.toContain('login-page-controller');
+    expect(credentialsPage).not.toContain('signup-account-page-controller');
+    expect(loginScripts.length).toBe(0);
+    expect(credentialsScripts.length).toBe(0);
   });
 });
