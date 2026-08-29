@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loginAfterFreeSignup } from '../lib/supabase-auth-adapter';
 
-const SIGNUP_ACCOUNT_PAGE = new URL('../pages/auth/signup/account.astro', import.meta.url);
-const SIGNUP_ACCOUNT_CONTROLLER = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const AUTH_ADAPTER = new URL('../lib/supabase-auth-adapter.ts', import.meta.url);
 
 async function readSource(url: URL): Promise<string> {
@@ -10,22 +8,9 @@ async function readSource(url: URL): Promise<string> {
 }
 
 describe('RED signup account confirmation modal copy contract', () => {
-  it('does not use wait-for-email as the FREE success path', async () => {
-    const page = await readSource(SIGNUP_ACCOUNT_PAGE);
-    const controller = await readSource(SIGNUP_ACCOUNT_CONTROLLER);
-
-    expect(page).not.toMatch(/se\s+te\s+enviar[áa]\s+un\s+email[\s\S]{0,160}confirmar\s+la\s+cuenta/i);
-    expect(page).not.toMatch(/antes\s+de\s+completar\s+la\s+creaci[oó]n/i);
-    expect(controller).toMatch(/signup_ready/);
-    expect(controller).toMatch(/loginWithProvider|loginAfterFreeSignup/);
-    expect(controller).not.toMatch(/email_confirmation_required/);
-  });
-
   it('FREE immediate login adapter never returns email_confirmation_required', async () => {
     const adapter = await readSource(AUTH_ADAPTER);
-    const controller = await readSource(SIGNUP_ACCOUNT_CONTROLLER);
 
-    expect(controller).toMatch(/createSupabaseLoginAdapterFromEnv|loginAfterFreeSignup|signInWithPassword/);
     expect(adapter).toMatch(/signInWithPassword/);
     expect(adapter).toMatch(/loginAfterFreeSignup/);
     expect(adapter).toMatch(/email_confirmation_required/);

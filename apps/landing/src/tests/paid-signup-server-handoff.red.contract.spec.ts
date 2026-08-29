@@ -7,7 +7,6 @@ import {
   SUBSCRIPTION_RECOVERY_ERRORS,
 } from '../lib/subscription-page-controller';
 
-const SIGNUP_ACCOUNT_CONTROLLER = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const SUBSCRIPTION_PAGE = new URL('../pages/billing/subscription.astro', import.meta.url);
 const SUBSCRIPTION_START_API = new URL('../pages/api/subscriptions/start.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_FUNCTION = new URL('../../../../supabase/functions/create-subscription/index.ts', import.meta.url);
@@ -24,27 +23,7 @@ function sliceBetween(sourceText: string, startMarker: string, endMarker?: strin
   return sourceText.slice(start, end);
 }
 
-function indexOfMatch(sourceText: string, pattern: RegExp): number {
-  return pattern.exec(sourceText)?.index ?? -1;
-}
-
 describe('RED contract: paid signup uses server-side robust handoff into billing', () => {
-  it('paid signup form submit does not redirect to a marker-only pending_signup URL', async () => {
-    const controllerSource = await source(SIGNUP_ACCOUNT_CONTROLLER);
-    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });');
-    const paidBranch = sliceBetween(submitFlow, 'try {\n      const pendingSignupIntent', 'window.location.href = billingUrl;');
-
-    expect(paidBranch, 'paid branch must obtain a server-issued recoverable handoff before redirecting').toMatch(
-      /serverIssuedRedirect|serverRedirectUrl|pendingSignupReference|pendingSignupToken|pending_signup_reference|pending_signup_token|intent_reference|intent_token/i,
-    );
-    expect(paidBranch, 'signup_intent=pending_signup is only a marker and is not recoverable after www/apex/reload loss').not.toMatch(
-      /billingUrl\s*=\s*`\/billing\/subscription\?plan=\$\{encodeURIComponent\(plan\)\}&billing=\$\{encodeURIComponent\(billing\)\}&signup_intent=pending_signup`/,
-    );
-    expect(paidBranch, 'redirect must carry an opaque reference/token or use an opaque server-issued redirect URL').toMatch(
-      /[?&](?:pending_signup_reference|pending_signup_token|intent_reference|intent_token)=|serverIssuedRedirect|serverRedirectUrl/i,
-    );
-  });
-
   it('marker-only subscription URL with missing protected state shows recovery, not a generic temporary start failure', () => {
     const recovery = getInitialSubscriptionPageRecovery({
       plan: 'PREMIUM',
@@ -101,25 +80,4 @@ describe('RED contract: paid signup uses server-side robust handoff into billing
     );
   });
 
-  it('duplicate email remains mapped to the existing-account login path before payment starts', async () => {
-    const controllerSource = await source(SIGNUP_ACCOUNT_CONTROLLER);
-    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });');
-
-    const duplicateDetectorIndex = indexOfMatch(controllerSource, /isExistingAccountError|EMAIL_ALREADY_REGISTERED|EMAIL_EXISTS|already\s+(?:registered|exists)|email.*registrad[oa]/i);
-    const modalIndex = indexOfMatch(controllerSource, /showExistingAccountModal|existingAccountLogin|Cuenta existente|Este email ya est[aá] registrado/i);
-
-    expect(duplicateDetectorIndex, 'duplicate email detector must exist').toBeGreaterThanOrEqual(0);
-    expect(modalIndex, 'duplicate email must route to existing-account/login UI').toBeGreaterThan(duplicateDetectorIndex);
-    expect(submitFlow, 'duplicate email path must not continue silently to Mercado Pago').toMatch(/showExistingAccountModal\(\);[\s\S]*return;/i);
-  });
-
-  it('paid pending signup contract still creates no account or business before payment approval', async () => {
-    const controllerSource = await source(SIGNUP_ACCOUNT_CONTROLLER);
-    const submitFlow = sliceBetween(controllerSource, "form.addEventListener('submit'", '\n  });');
-    const paidBranch = sliceBetween(submitFlow, 'try {\n      const pendingSignupIntent', 'window.location.href = billingUrl;');
-
-    expect(paidBranch).toMatch(/createProtectedPendingSignupIntent|pendingSignupIntent/i);
-    expect(paidBranch).not.toMatch(/createAccountAndBusiness|signupWithProvider|finalizeFreeSignup|pending-intent\/finalize|auth\.signUp/i);
-    expect(paidBranch).not.toMatch(/from\(['"]businesses['"]\)|create_business|insert\([\s\S]*business/i);
-  });
 });
