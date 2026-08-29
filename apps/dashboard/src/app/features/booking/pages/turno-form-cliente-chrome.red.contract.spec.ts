@@ -27,7 +27,6 @@ describe('Turno form matches Nuevo Cliente chrome', () => {
       'turno-admin-new-modal-section-client',
       'turno-admin-new-modal-section-schedule',
       'turno-admin-client-select',
-      'turno-admin-walk-in-name',
       'turno-admin-service-select',
       'turno-admin-date',
       'turno-admin-available-slot-select',
@@ -36,6 +35,7 @@ describe('Turno form matches Nuevo Cliente chrome', () => {
     ]) {
       expect(html, `missing testid ${testId}`).toContain(`data-testid="${testId}"`);
     }
+    expect(html, 'walk-in name control must be absent').not.toContain('data-testid="turno-admin-walk-in-name"');
   });
 
   it('centers the overlay like Nuevo Cliente instead of a full-viewport sheet', () => {
@@ -65,7 +65,6 @@ describe('Turno form matches Nuevo Cliente chrome', () => {
   it('styles field controls with the Nuevo Cliente input fill', () => {
     for (const testId of [
       'turno-admin-client-select',
-      'turno-admin-walk-in-name',
       'turno-admin-service-select',
       'turno-admin-date',
       'turno-admin-available-slot-select',
