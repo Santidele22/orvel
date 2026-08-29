@@ -253,14 +253,24 @@ export class DashboardService {
     registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
-    const onBookingCreated = () => {
+    const onAgendaSync = () => {
       this.invalidate();
       this.refreshData();
     };
-    window.addEventListener('booking.created', onBookingCreated);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        this.invalidate();
+        this.refreshData();
+      }
+    };
+    window.addEventListener('booking.created', onAgendaSync);
+    window.addEventListener('operator.agenda.sync', onAgendaSync);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     this.destroyRef.onDestroy(() => {
-      window.removeEventListener('booking.created', onBookingCreated);
+      window.removeEventListener('booking.created', onAgendaSync);
+      window.removeEventListener('operator.agenda.sync', onAgendaSync);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     });
   }
 
