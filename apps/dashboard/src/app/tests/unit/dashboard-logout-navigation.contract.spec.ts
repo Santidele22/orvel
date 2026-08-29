@@ -28,16 +28,16 @@ describe('dashboard logout navigation', () => {
     const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
     const location = { assign: vi.fn() };
 
-    await navigateAfterLogout('/auth/login?returnTo=%2Fdashboard', router, location);
+    await navigateAfterLogout('/dashboard/auth/login?returnTo=%2Fdashboard', router, location);
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/login?returnTo=%2Fdashboard');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard/auth/login?returnTo=%2Fdashboard');
     expect(location.assign).not.toHaveBeenCalled();
   });
 
   it('keeps relative in-app dashboard sign-in on Angular router', async () => {
     const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
     const location = { assign: vi.fn() };
-    const inAppSignIn = '/auth/login?returnTo=%2Fdashboard';
+    const inAppSignIn = '/dashboard/auth/login?returnTo=%2Fdashboard';
 
     await navigateAfterLogout(inAppSignIn, router, location);
 

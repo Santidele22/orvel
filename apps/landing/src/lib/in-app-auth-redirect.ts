@@ -10,7 +10,10 @@ export function buildInAppAuthRedirect(
   const base =
     resolveLandingDashboardBaseUrl(dashboardBaseUrl, currentUrl.origin) ??
     new URL(`${DEFAULT_DASHBOARD_ORIGIN}/`);
-  const target = new URL(mode === 'login' ? '/auth/login' : '/auth/signup', base.origin);
+  const target = new URL(
+    mode === 'login' ? '/dashboard/auth/login' : '/dashboard/auth/signup',
+    base.origin
+  );
   const returnTo = currentUrl.searchParams.get('returnTo');
   if (returnTo) {
     target.searchParams.set('returnTo', returnTo);

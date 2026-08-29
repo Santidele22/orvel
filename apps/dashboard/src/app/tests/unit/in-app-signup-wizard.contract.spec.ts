@@ -163,7 +163,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toMatch(/\.login\(/);
     expect(page).toContain('name="email"');
     expect(page).toContain('name="password"');
-    expect(page).toContain('/auth/signup');
+    expect(page).toContain('/dashboard/auth/signup');
     expect(page).not.toContain('buildLandingSignupRedirect');
   });
 });
