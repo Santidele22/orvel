@@ -166,4 +166,25 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('/auth/signup');
     expect(page).not.toContain('buildLandingSignupRedirect');
   });
+
+  it('auth pages fill the viewport with 100dvh instead of collapsing against an auto-height parent', async () => {
+    const wizard = await readFile(WIZARD_PAGE, 'utf8');
+    const login = await readFile(LOGIN_PAGE, 'utf8');
+
+    for (const page of [wizard, login]) {
+      expect(page).toMatch(/:host[\s\S]{0,240}100dvh/);
+      expect(page).toMatch(/\.in-app-auth[\s\S]{0,240}100dvh/);
+      expect(page).not.toMatch(/:host \{ display: block; height: 100%; overflow: auto; \}/);
+      expect(page).not.toMatch(/min-height: 100%;/);
+    }
+  });
+
+  it('marks Principal as a chip badge, not concatenated inline text', async () => {
+    const page = await readFile(WIZARD_PAGE, 'utf8');
+
+    expect(page).toContain('{{ rubro.label }}');
+    expect(page).toMatch(/in-app-auth__chip-badge/);
+    expect(page).not.toMatch(/<span>Principal<\/span>/);
+  });
 });
+

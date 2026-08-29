@@ -45,10 +45,16 @@ const DEFAULT_RETURN_TO = '/dashboard/turnos';
     </main>
   `,
   styles: `
-    :host { display: block; height: 100%; overflow: auto; }
+    :host {
+      display: block;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: auto;
+    }
     .in-app-auth {
       box-sizing: border-box;
-      min-height: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
