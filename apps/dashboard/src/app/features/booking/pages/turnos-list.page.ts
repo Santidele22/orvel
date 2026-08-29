@@ -288,6 +288,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   async ngOnInit() {
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
+    window.addEventListener('operator.agenda.sync', this.onBookingCreated as EventListener);
     
     try {
       await this.branchContext.ensureLoaded();
@@ -332,6 +333,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     window.removeEventListener('booking.created', this.onBookingCreated as EventListener);
+    window.removeEventListener('operator.agenda.sync', this.onBookingCreated as EventListener);
   }
 
   private async refreshTurnosFromSource() {
