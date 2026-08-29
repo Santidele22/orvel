@@ -16,7 +16,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <main class="in-app-auth">
-      <section class="in-app-auth__card">
+      <section class="in-app-auth__card" [class.in-app-auth__card--success]="wizard.step === 5">
         @if (wizard.showsStepChrome()) {
           <header class="in-app-auth__header">
             @if (wizard.canGoBack()) {
@@ -96,30 +96,43 @@ const AGENDA_ROUTE = '/dashboard/turnos';
         }
 
         @if (wizard.step === 4) {
-          <p class="in-app-auth__eyebrow">Paso 4</p>
+          <p class="in-app-auth__step-pill">Paso 4 de 4</p>
           <h1>¿Qué plan querés?</h1>
+          <p class="in-app-auth__lede">Arrancás gratis igual. Vos decidís cuándo sumar más.</p>
           <div class="in-app-auth__plans">
             <article class="in-app-auth__plan">
-              <p class="in-app-auth__eyebrow">Free</p>
-              <p>Activo ya</p>
-              <p class="in-app-auth__lede">1 local, 1 rubro, sin pago.</p>
-              <button type="button" class="in-app-auth__cta" (click)="chooseFree()">Empezar gratis</button>
+              <header class="in-app-auth__plan-head">
+                <h2 class="in-app-auth__plan-title">Free</h2>
+                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--free">Activo ya</span>
+              </header>
+              <p class="in-app-auth__lede">Entrás ahora, sin pagar nada.</p>
+              <ul class="in-app-auth__plan-list">
+                <li>1 local</li>
+                <li>1 rubro</li>
+                <li>Sin pago, sin tarjeta</li>
+              </ul>
+              <button type="button" class="in-app-auth__cta in-app-auth__cta--light" (click)="chooseFree()">Empezar gratis</button>
             </article>
-            <article class="in-app-auth__plan">
-              <p class="in-app-auth__eyebrow">Premium</p>
-              <p>Pendiente</p>
-              <p class="in-app-auth__lede">Más rubros y agenda ilimitada. No hay checkout ni precio acá.</p>
+            <article class="in-app-auth__plan in-app-auth__plan--premium">
+              <header class="in-app-auth__plan-head">
+                <h2 class="in-app-auth__plan-title">Premium</h2>
+                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">Pendiente</span>
+              </header>
+              <p class="in-app-auth__lede">Lo pedís, lo activamos nosotros.</p>
+              <ul class="in-app-auth__plan-list">
+                <li>Más rubros</li>
+                <li>Agenda sin límites</li>
+                <li>No se cobra ni se activa solo</li>
+              </ul>
               <button type="button" class="in-app-auth__cta" (click)="requestPremium()">Pedir Premium y entrar</button>
             </article>
           </div>
         }
 
         @if (wizard.step === 5) {
-          <p class="in-app-auth__check" aria-hidden="true">✓</p>
+          <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          @if (wizard.premiumRequested) {
-            <p class="in-app-auth__chip is-selected">Premium pedido · Free activo</p>
-          }
+          <p class="in-app-auth__lede">Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.</p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
         }
       </section>
@@ -151,6 +164,12 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       border-radius: 24px;
       background: #121212;
     }
+    .in-app-auth__card--success {
+      border: 0;
+      background: transparent;
+      padding: 24px 8px;
+      text-align: center;
+    }
     .in-app-auth__header {
       display: flex;
       align-items: center;
@@ -181,6 +200,17 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       text-transform: uppercase;
       color: #A78BFA;
     }
+    .in-app-auth__step-pill {
+      display: inline-flex;
+      align-items: center;
+      margin: 0 0 16px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #1e1b4b;
+      color: #A78BFA;
+      font-size: 12px;
+      font-weight: 700;
+    }
     h1 { margin: 0 0 16px; font-size: 28px; }
     .in-app-auth__lede { margin: 0 0 16px; color: #94A3B8; }
     .in-app-auth__field {
@@ -205,11 +235,16 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       letter-spacing: normal;
       text-transform: none;
     }
-    .in-app-auth__chips, .in-app-auth__plans {
+    .in-app-auth__chips {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-bottom: 24px;
+    }
+    .in-app-auth__plans {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
     }
     .in-app-auth__chip, .in-app-auth__plan {
       padding: 12px 16px;
@@ -219,6 +254,48 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       color: #F1F5F9;
       text-align: left;
     }
+    .in-app-auth__plan {
+      padding: 24px;
+      border-radius: 24px;
+      background: #0A0A0A;
+    }
+    .in-app-auth__plan--premium {
+      border-color: #4c1d95;
+    }
+    .in-app-auth__plan-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .in-app-auth__plan-title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .in-app-auth__plan-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .in-app-auth__plan-badge--free {
+      background: #065f46;
+      color: #6ee7b7;
+    }
+    .in-app-auth__plan-badge--premium {
+      background: #2e1065;
+      color: #A78BFA;
+    }
+    .in-app-auth__plan-list {
+      margin: 0 0 20px;
+      padding-left: 18px;
+      color: #94A3B8;
+    }
+    .in-app-auth__plan-list li { margin-bottom: 6px; }
     .in-app-auth__chip {
       display: flex;
       align-items: center;
@@ -237,14 +314,23 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
-    .in-app-auth__chip.is-selected, .in-app-auth__plan {
+    .in-app-auth__chip.is-selected {
       border-color: #7C3AED;
     }
     .in-app-auth__error { margin: 0 0 12px; color: #EF4444; font-weight: 600; }
-    .in-app-auth__check {
-      margin: 0 0 12px;
-      color: #A78BFA;
+    .in-app-auth__success-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      border-radius: 999px;
+      background: #7C3AED;
+      box-shadow: 0 0 0 8px rgba(167, 139, 250, 0.22);
+      color: #F8F7FF;
       font-size: 32px;
+      font-weight: 700;
     }
     .in-app-auth__cta {
       width: 100%;
@@ -261,8 +347,13 @@ const AGENDA_ROUTE = '/dashboard/turnos';
     }
     .in-app-auth__cta:hover { background: #6D28D9; }
     .in-app-auth__cta:disabled { opacity: 0.45; cursor: not-allowed; }
+    .in-app-auth__cta--light {
+      background: #F1F5F9;
+      color: #0A0A0A;
+    }
+    .in-app-auth__cta--light:hover { background: #E2E8F0; }
     @media (max-width: 640px) {
-      .in-app-auth__chips, .in-app-auth__plans { grid-template-columns: 1fr; }
+      .in-app-auth__chips { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
       .in-app-auth__cta, .in-app-auth__chip, .in-app-auth__dot { transition: none; }
@@ -299,11 +390,41 @@ export class InAppSignupWizardPage {
 
   protected chooseFree(): void {
     this.wizard.chooseFree();
+    this.triggerSignupSuccessConfetti();
   }
 
   protected async requestPremium(): Promise<void> {
     this.wizard.requestPremium();
+    this.triggerSignupSuccessConfetti();
     await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+  }
+
+  private triggerSignupSuccessConfetti(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reducedMotion) {
+      return;
+    }
+
+    void import('canvas-confetti')
+      .then(({ default: confetti }) => {
+        try {
+          confetti({
+            particleCount: 130,
+            spread: 72,
+            origin: { y: 0.64 },
+            colors: ['#8b5cf6', '#a855f7', '#34d399', '#f8f7ff']
+          });
+        } catch {
+          // Confetti is decorative only; signup success must never block on canvas support.
+        }
+      })
+      .catch(() => {
+        // Ignore loading issues for the optional celebration effect.
+      });
   }
 
   protected enterAgenda(): void {
