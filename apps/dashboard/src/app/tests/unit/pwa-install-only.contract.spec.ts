@@ -54,21 +54,98 @@ describe('Contract: public PWA install-only page', () => {
     expect(beforeAppRoot).toContain('__ORVEL_DEFERRED_INSTALL_PROMPT');
   });
 
-  it('shows numbered iOS steps and an honest Android next step without requiring a click', () => {
+  it('keeps an honest Android next step without requiring a click', () => {
     const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
     const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
-    const withoutGatedHint = template.replace(
-      /@if\s*\(\s*showManualInstructions\(\)\s*\)\s*\{[\s\S]*?\}/g,
-      '',
-    );
+    const howToCopy = template.match(/@else\s*\{([\s\S]*?)\}\s*@if\s*\(\s*installFeedback/)?.[1] ?? '';
 
-    expect(withoutGatedHint).toMatch(/ri-share-line/);
-    expect(withoutGatedHint).toMatch(/Compartir/);
-    expect(withoutGatedHint).toMatch(/pantalla de inicio/i);
-    expect(withoutGatedHint).toMatch(/<ol[\s\S]*<li[\s\S]*<li/i);
-    expect(withoutGatedHint).toMatch(/Android/i);
-    expect(withoutGatedHint).toMatch(/Chrome del celular/i);
+    expect(howToCopy).toMatch(/Android/i);
+    expect(howToCopy).toMatch(/Chrome del celular/i);
+    expect(howToCopy).toContain('Tocá Instalar');
     expect(page).not.toContain('Este navegador no ofrece el diálogo de instalación.');
+  });
+
+  it('shows iOS uninstalled entry copy and Cómo instalar without listing steps until the coach modal opens', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const howToCopy = template.match(/@else\s*\{([\s\S]*?)\}\s*@if\s*\(\s*installFeedback/)?.[1] ?? '';
+    const iosBranch = howToCopy.match(/@if\s*\(\s*isIos\(\)\s*\)\s*\{([\s\S]*?)\}\s*@else/)?.[1] ?? '';
+    const coachModal = template.match(
+      /@if\s*\(\s*isIosInstallCoachOpen\(\)\s*\)\s*\{([\s\S]*?)\}\s*(?:@if\s*\(\s*isInstallSuccessModalOpen|$)/,
+    )?.[1] ?? '';
+
+    expect(howToCopy).toContain('Instalá la app');
+    expect(iosBranch).toContain('En 3 toques la tenés en tu pantalla de inicio.');
+    expect(iosBranch).toContain('Cómo instalar');
+    expect(iosBranch).not.toMatch(/pwa-install__steps|<ol/i);
+    expect(iosBranch).not.toMatch(/>\s*Instalar\s*</);
+    expect(template).toMatch(/@if\s*\(\s*isIosInstallCoachOpen\(\)\s*\)/);
+    expect(coachModal).toMatch(/<ol[\s\S]*<li[\s\S]*<li[\s\S]*<li/i);
+  });
+
+  it('never offers a native Instalar CTA or prompt() on the iOS coaching path', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const openCoach = page.match(/openIosInstallCoach\s*\(\s*\)\s*:\s*void\s*\{[\s\S]*?\n  \}/)?.[0] ?? '';
+    const promptAfterIos = page.match(/isIos[\s\S]{0,240}?prompt\(/)?.[0] ?? '';
+
+    expect(openCoach).toMatch(/isIosInstallCoachOpen\.set\(true\)/);
+    expect(openCoach).not.toMatch(/prompt\(|navigator\.share|installApp\(/);
+    expect(promptAfterIos).toBe('');
+    expect(page).toMatch(/canPromptNativeInstall\(\)[\s\S]{0,80}!this\.isIos\(\)/);
+  });
+
+  it('renders the iOS instructions coach as a dialog with three honest Safari steps', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const coachModal = template.match(
+      /data-testid=["']pwa-ios-install-coach-modal["'][\s\S]*?(?=@if\s*\(\s*isInstallSuccessModalOpen|$)/,
+    )?.[0] ?? '';
+
+    expect(template).toMatch(/data-testid=["']pwa-ios-install-coach-modal["']/);
+    expect(coachModal).toMatch(/role=["']dialog["']/);
+    expect(coachModal).toMatch(/aria-modal=["']true["']/);
+    expect(coachModal).toContain('Tres toques y entras');
+    expect(coachModal).toContain('Tocá Compartir, abajo');
+    expect(coachModal).toContain('Agregar a Inicio');
+    expect(coachModal).toMatch(/deslizá/);
+    expect(coachModal).toContain('Confirmá "Agregar"');
+    expect(coachModal).toContain('Ya la agregué');
+    expect(coachModal).toMatch(/ri-share-line/);
+    expect(coachModal).toMatch(/ri-add-line/);
+    expect(coachModal).toMatch(/ri-close-line/);
+    expect(coachModal).toContain('src="/dashboard/icons/icon-192x192.png"');
+    expect(coachModal).toMatch(/\(click\)="closeIosInstallCoach\(\)"/);
+    expect(template).toMatch(/data-testid=["']pwa-ios-install-coach-overlay["']/);
+    expect(template).toMatch(/data-testid=["']pwa-ios-install-coach-close["']/);
+  });
+
+  it('marks iOS self-confirm as already installed for this session without the Android success modal', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const confirm = page.match(/confirmIosAdded\s*\(\s*\)\s*:\s*void\s*\{[\s\S]*?\n  \}/)?.[0] ?? '';
+
+    expect(confirm).toMatch(/alreadyInstalled\.set\(true\)/);
+    expect(confirm).toMatch(/isIosInstallCoachOpen\.set\(false\)/);
+    expect(confirm).not.toMatch(/isInstallSuccessModalOpen\.set\(true\)/);
+    expect(confirm).not.toMatch(/localStorage/);
+    expect(page).not.toMatch(/alreadyInstalled[\s\S]{0,200}localStorage/);
+  });
+
+  it('dismisses the iOS coach without marking the app installed', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const closeCoach = page.match(/closeIosInstallCoach\s*\(\s*\)\s*:\s*void\s*\{[\s\S]*?\n  \}/)?.[0] ?? '';
+
+    expect(closeCoach).toMatch(/isIosInstallCoachOpen\.set\(false\)/);
+    expect(closeCoach).not.toMatch(/alreadyInstalled\.set\(true\)/);
+  });
+
+  it('does not render a fake Safari share sheet', () => {
+    const page = source('src/app/features/pwa-install/pages/pwa-install.page.ts');
+    const template = page.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+
+    expect(page).not.toContain('navigator.share');
+    expect(template).not.toMatch(/Agregar a Favoritos/);
+    expect(template).not.toMatch(/Copiar/);
+    expect(template).not.toMatch(/share-sheet|safari-share/i);
   });
 
   it('keeps the PWA manifest start_url and scope unchanged', () => {
