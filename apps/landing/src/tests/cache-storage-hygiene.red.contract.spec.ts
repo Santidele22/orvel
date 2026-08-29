@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 const SRC_ROOT = resolve(process.cwd(), 'src');
 const STORAGE_KEYS_PATH = resolve(SRC_ROOT, 'lib/browser-storage-keys.ts');
 const CREDENTIALS_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/credentials.astro');
-const CREDENTIALS_CONTROLLER = resolve(SRC_ROOT, 'lib/signup-access-page-controller.ts');
 const COMPLETE_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/complete.astro');
 const SUBSCRIPTION_PAGE = resolve(SRC_ROOT, 'pages/billing/subscription.astro');
 
@@ -63,15 +62,13 @@ describe('RED contract: landing signup/subscription browser storage hygiene', ()
     expect(source).toContain('orvel.subscription.attempt.');
   });
 
-  it('manual signup persists only non-sensitive temporary fields and never stores passwords', async () => {
+  it('auth redirect pages never persist passwords in browser storage', async () => {
     const credentialsSource = await readFile(CREDENTIALS_PAGE, 'utf8');
-    const credentialsControllerSource = await readFile(CREDENTIALS_CONTROLLER, 'utf8');
     const completeSource = await readFile(COMPLETE_PAGE, 'utf8');
-    const signupSources = `${credentialsSource}\n${credentialsControllerSource}\n${completeSource}`;
+    const signupSources = `${credentialsSource}\n${completeSource}`;
 
-    expect(signupSources).toMatch(/password|contraseña/i);
-    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.setItem\([^)]*password/i);
-    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.getItem\([^)]*password/i);
+    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.setItem/);
+    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.getItem/);
     expect(signupSources).not.toContain('orvel.signup.password');
   });
 

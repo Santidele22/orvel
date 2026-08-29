@@ -8,7 +8,6 @@ const PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.met
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
 const INDEX_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
 const LOGIN_PATH = new URL('../pages/auth/login.astro', import.meta.url);
-const LOGIN_CONTROLLER_PATH = new URL('../lib/login-page-controller.ts', import.meta.url);
 const AUTH_RETURN_TO_PATH = new URL('../lib/auth-return-to.ts', import.meta.url);
 
 type AuthReturnToModule = {
@@ -99,7 +98,6 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
 
   it('preserves paid plan subscription returnTo through email/password login sanitization', async () => {
     const login = await source(LOGIN_PATH);
-    const loginController = await source(LOGIN_CONTROLLER_PATH);
     const { sanitizeLandingAuthReturnTo } = await loadAuthReturnTo();
 
     const paidPlanReturnTo = '/billing/subscription?plan=PREMIUM';
@@ -118,7 +116,5 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(login).toContain("buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL)");
     expect(login).toMatch(/Astro\.redirect\([\s\S]*302/);
     expect(login).not.toContain('initLoginPage');
-    expect(loginController).toContain('sanitizeLandingAuthReturnTo');
-    expect(loginController).toContain('attempt: { email, password, returnTo }');
   });
 });

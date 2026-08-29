@@ -9,7 +9,6 @@ vi.mock('@supabase/supabase-js', () => ({
 
 const { POST } = await import('../pages/api/signup/create-account-business');
 
-const ACCOUNT_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_AUTH_HELPER_PATH = new URL('../../../../supabase/functions/_shared/create-subscription-auth.ts', import.meta.url);
 
 function validPayload(plan = 'FREE') {
@@ -229,19 +228,6 @@ describe('legacy create-account-business boundary', () => {
     expect(createClientMock).not.toHaveBeenCalled();
     expect(supabase.authCreateUser).not.toHaveBeenCalled();
     expect(supabase.tableCalls).toEqual([]);
-  });
-
-  it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {
-    const source = await readFile(ACCOUNT_CONTROLLER_PATH, 'utf8');
-    const paidBranch = source.slice(source.indexOf('try {', source.indexOf('if (!isPaidPlan)')), source.lastIndexOf('});'));
-
-    expect(source).toContain('/api/signup/create-account-business');
-    expect(source).toContain('/api/signup/pending-intent/protect');
-    expect(paidBranch).toContain('createProtectedPendingSignupIntent({');
-    expect(paidBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
-    expect(paidBranch).not.toContain('createAccountAndBusiness(accountBusinessPayload)');
-    expect(paidBranch).not.toContain('account_first_intent_id');
-    expect(paidBranch).not.toContain('account_first_session');
   });
 
   it('accepts in-app Free signup without apellido or phone', async () => {
