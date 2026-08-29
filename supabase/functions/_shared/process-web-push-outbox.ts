@@ -29,6 +29,56 @@ export function shouldSkipWebPush(env: VapidEnv): boolean {
   return !env.VAPID_PRIVATE_KEY?.trim() || !env.VAPID_PUBLIC_KEY?.trim();
 }
 
+function timingSafeEqualString(left: string, right: string): boolean {
+  let difference = left.length ^ right.length;
+  const maxLength = Math.max(left.length, right.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  }
+  return difference === 0;
+}
+
+export function getBearerToken(authorizationHeader: string | null): string | null {
+  if (!authorizationHeader?.startsWith("Bearer ")) return null;
+  const token = authorizationHeader.slice("Bearer ".length).trim();
+  return token || null;
+}
+
+function decodeJwtRole(bearerToken: string): string | null {
+  const parts = bearerToken.split(".");
+  if (parts.length !== 3 || !parts[1]) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=");
+    const json = new TextDecoder().decode(Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)));
+    const claims = JSON.parse(json) as { role?: unknown };
+    return typeof claims.role === "string" ? claims.role : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isPrivilegedWebPushAuthorization(input: {
+  authorizationHeader: string | null;
+  cronKeyHeader: string | null;
+  expectedCronKey?: string;
+  serviceRoleKey?: string;
+}): boolean {
+  const expectedCronKey = input.expectedCronKey?.trim() || "";
+  const serviceRoleKey = input.serviceRoleKey?.trim() || "";
+  const cronHeader = input.cronKeyHeader?.trim() || "";
+  if (expectedCronKey && cronHeader && timingSafeEqualString(cronHeader, expectedCronKey)) {
+    return true;
+  }
+
+  const bearer = getBearerToken(input.authorizationHeader);
+  if (!bearer) return false;
+  if (expectedCronKey && timingSafeEqualString(bearer, expectedCronKey)) return true;
+  if (serviceRoleKey && timingSafeEqualString(bearer, serviceRoleKey)) return true;
+  // Safe only with verify_jwt=true on process-web-push-outbox (gateway verifies the JWT).
+  return decodeJwtRole(bearer) === "service_role";
+}
+
 export function isOperatorWebPushEventType(eventType: string): boolean {
   return (OPERATOR_WEB_PUSH_EVENT_TYPES as readonly string[]).includes(eventType);
 }

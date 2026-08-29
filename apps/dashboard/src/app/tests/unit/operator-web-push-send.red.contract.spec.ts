@@ -58,7 +58,7 @@ describe('Issue #344 slice 2 — operator web push send', () => {
     const edge = readIfPresent(edgeFnPath);
     expect(edge).toMatch(/CRON_KEY|x-cron-key/);
     expect(config).toMatch(/\[functions\.process-web-push-outbox\]/);
-    expect(config).toMatch(/\[functions\.process-web-push-outbox\]\s*\nverify_jwt\s*=\s*false/);
+    expect(config).toMatch(/\[functions\.process-web-push-outbox\]\s*\nverify_jwt\s*=\s*true/);
   });
 
   it('helper skips when VAPID keys are missing and reuses inbox title/body plus /dashboard/turnos', () => {

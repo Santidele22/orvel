@@ -3,6 +3,7 @@ import { assertEquals } from "jsr:@std/assert";
 import {
   buildOperatorWebPushPayload,
   isOperatorWebPushEventType,
+  isPrivilegedWebPushAuthorization,
   shouldSkipWebPush,
 } from "./process-web-push-outbox.ts";
 
@@ -25,6 +26,44 @@ Deno.test("operator payload reuses inbox title/body and opens turnos", () => {
   assertEquals(
     buildOperatorWebPushPayload({ title: "Nuevo turno", body: "Ana reservó Corte." }),
     { title: "Nuevo turno", body: "Ana reservó Corte.", url: "/dashboard/turnos" },
+  );
+});
+
+function unsignedServiceRoleJwt(): string {
+  const payload = btoa(JSON.stringify({ role: "service_role" }))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  return `eyJhbGciOiJub25lIn0.${payload}.sig`;
+}
+
+Deno.test("authorizes database-webhook service_role JWT when the raw key does not match", () => {
+  assertEquals(
+    isPrivilegedWebPushAuthorization({
+      authorizationHeader: `Bearer ${unsignedServiceRoleJwt()}`,
+      cronKeyHeader: null,
+      expectedCronKey: "cron",
+      serviceRoleKey: "other-service-role-material",
+    }),
+    true,
+  );
+  assertEquals(
+    isPrivilegedWebPushAuthorization({
+      authorizationHeader: "Bearer not-a-jwt",
+      cronKeyHeader: null,
+      expectedCronKey: "cron",
+      serviceRoleKey: "svc",
+    }),
+    false,
+  );
+  assertEquals(
+    isPrivilegedWebPushAuthorization({
+      authorizationHeader: null,
+      cronKeyHeader: "cron",
+      expectedCronKey: "cron",
+      serviceRoleKey: "svc",
+    }),
+    true,
   );
 });
 

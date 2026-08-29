@@ -447,6 +447,6 @@ verify_jwt = false
 [functions.signup-email-verification-lifecycle]
 verify_jwt = false
 
-# Authenticate with CRON_KEY like appointment-reminders-24h.
+# Database webhook sends a service_role JWT. verify_jwt=true matches process-email-outbox.
 [functions.process-web-push-outbox]
-verify_jwt = false
+verify_jwt = true
