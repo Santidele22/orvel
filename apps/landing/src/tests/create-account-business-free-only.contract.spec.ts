@@ -260,4 +260,53 @@ describe('legacy create-account-business boundary', () => {
     expect(source).not.toContain('account_first_intent_id');
     expect(source).not.toContain('account_first_session');
   });
+
+  it('rate-limit RPC errors return 503 signup_confirmation_retry, while data true still returns 202', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+    const rateLimitFunction = /async\s+function\s+isRateLimited[\s\S]*?^}/m.exec(source)?.[0] ?? '';
+
+    expect(rateLimitFunction, 'rate guard helper must be inspectable').toMatch(/isRateLimited/);
+    expect(rateLimitFunction).not.toMatch(/if\s*\(\s*error\s*\)\s*return\s+true/);
+    expect(rateLimitFunction).toMatch(/data\s*===\s*true/);
+    expect(source).toMatch(/guard_signup_request_rate_limit[\s\S]{0,1200}signup_confirmation_retry/);
+    expect(source).toMatch(/status:\s*["']signup_confirmation_requested["'][\s\S]{0,80}202/);
+
+    const rpcError = createFreeSignupSupabaseMock();
+    rpcError.rpc.mockImplementation(async (name: string) => {
+      if (name === 'guard_signup_request_rate_limit') {
+        return { data: null, error: { message: 'rpc failed' } };
+      }
+      if (name === 'provision_default_services_for_business') {
+        return { data: 1, error: null };
+      }
+      return { data: false, error: null };
+    });
+    createClientMock.mockReturnValue(rpcError.client);
+
+    const retryResponse = await postCreateAccountBusiness(validPayload('FREE'));
+    const retryBody = await retryResponse.json();
+
+    expect(retryResponse.status).toBe(503);
+    expect(retryBody).toEqual({
+      error: 'signup_confirmation_retry',
+      message: 'No pudimos preparar la confirmación. Reintentá en unos segundos.',
+    });
+    expect(rpcError.authCreateUser).not.toHaveBeenCalled();
+
+    const limited = createFreeSignupSupabaseMock();
+    limited.rpc.mockImplementation(async (name: string) => {
+      if (name === 'guard_signup_request_rate_limit') {
+        return { data: true, error: null };
+      }
+      return { data: false, error: null };
+    });
+    createClientMock.mockReturnValue(limited.client);
+
+    const limitedResponse = await postCreateAccountBusiness(validPayload('FREE'));
+    const limitedBody = await limitedResponse.json();
+
+    expect(limitedResponse.status).toBe(202);
+    expect(limitedBody).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+    expect(limited.authCreateUser).not.toHaveBeenCalled();
+  });
 });

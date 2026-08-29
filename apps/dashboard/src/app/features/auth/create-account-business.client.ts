@@ -24,13 +24,13 @@ export async function createFreeAccountBusiness(
     body = {};
   }
 
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: body.status,
-      message: body.message || 'No pudimos crear la cuenta. Reintentá en unos segundos.'
-    };
+  if (response.status === 200 && body.status === 'signup_ready') {
+    return { ok: true, status: body.status, message: body.message };
   }
 
-  return { ok: true, status: body.status, message: body.message };
+  return {
+    ok: false,
+    status: body.status,
+    message: body.message || 'No pudimos crear la cuenta. Reintentá en unos segundos.'
+  };
 }

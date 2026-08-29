@@ -62,7 +62,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               >
                 {{ rubro.label }}
                 @if (wizard.principalRubro() === rubro.code) {
-                  <span>Principal</span>
+                  <span class="in-app-auth__chip-badge">Principal</span>
                 }
               </button>
             }
@@ -126,10 +126,16 @@ const AGENDA_ROUTE = '/dashboard/turnos';
     </main>
   `,
   styles: `
-    :host { display: block; height: 100%; overflow: auto; }
+    :host {
+      display: block;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: auto;
+    }
     .in-app-auth {
       box-sizing: border-box;
-      min-height: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -213,7 +219,24 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       color: #F1F5F9;
       text-align: left;
     }
-    .in-app-auth__chip { cursor: pointer; }
+    .in-app-auth__chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .in-app-auth__chip-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #7C3AED;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
     .in-app-auth__chip.is-selected, .in-app-auth__plan {
       border-color: #7C3AED;
     }

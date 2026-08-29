@@ -107,7 +107,9 @@ async function isRateLimited(supabase: ReturnType<typeof createClient>, request:
     p_email_hmac: emailHmac,
     p_max_requests: RATE_LIMIT_MAX_REQUESTS,
   });
-  if (error) return true;
+  if (error) {
+    throw new Error("signup_confirmation_retry");
+  }
   return data === true;
 }
 
@@ -159,7 +161,13 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ error: "signup_required_fields", message: "Faltan datos obligatorios para preparar el alta." }, 400, request);
   }
 
-  if (await isRateLimited(supabaseAdmin, request, email, protectedFields.email_hmac)) {
+  let rateLimited = false;
+  try {
+    rateLimited = await isRateLimited(supabaseAdmin, request, email, protectedFields.email_hmac);
+  } catch {
+    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
+  }
+  if (rateLimited) {
     return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202, request);
   }
 
