@@ -54,9 +54,18 @@ describe('Contract: PWA first-open SW install', () => {
 
   it('activates the push SW immediately with skipWaiting and clients.claim', () => {
     const pushSw = source('src/orvel-push-sw.js');
+    const activateStart = pushSw.indexOf("addEventListener('activate'");
+    const activateEnd = pushSw.indexOf('const DEFAULT_CLICK_URL');
+    const activateHandler = pushSw.slice(activateStart, activateEnd);
 
     expect(pushSw).toContain("importScripts('./ngsw-worker.js')");
     expect(pushSw).toContain('skipWaiting');
-    expect(pushSw).toContain('clients.claim');
+    expect(activateStart).toBeGreaterThan(-1);
+    expect(activateHandler).toContain('clients.claim');
+    expect(activateHandler).toMatch(/matchAll\(\s*\{\s*type:\s*['"]window['"]\s*,\s*includeUncontrolled:\s*false/);
+    expect(activateHandler).toMatch(/matchAll\(\s*\{\s*type:\s*['"]window['"]\s*,\s*includeUncontrolled:\s*true/);
+    expect(activateHandler).toContain('includeUncontrolled');
+    expect(activateHandler).toMatch(/navigate\s*\(\s*client\.url\s*\)/);
+    expect(activateHandler).toContain('client.id');
   });
 });

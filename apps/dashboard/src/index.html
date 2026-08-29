@@ -109,6 +109,36 @@
       window.__ORVEL_DEFERRED_INSTALL_PROMPT = event;
     });
   </script>
+  <script>
+    (function () {
+      var standaloneMq = window.matchMedia && window.matchMedia('(display-mode: standalone)');
+      function isStandalone() {
+        return (standaloneMq && standaloneMq.matches) || navigator.standalone === true;
+      }
+      function isMobileFirst() {
+        var coarse = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        var compact = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+        return Boolean(coarse || compact);
+      }
+      if (!(isStandalone() || isMobileFirst())) {
+        return;
+      }
+      setTimeout(function () {
+        if (window.__ORVEL_BOOTED) {
+          return;
+        }
+        try {
+          if (sessionStorage['orvel-boot-retry'] === '1') {
+            return;
+          }
+          sessionStorage['orvel-boot-retry'] = '1';
+        } catch (err) {
+          return;
+        }
+        location.reload();
+      }, 8000);
+    })();
+  </script>
   <app-root>
     <div class="pwa-boot-splash" data-testid="pwa-boot-splash">
       <img src="/dashboard/icons/icon-192x192.png" alt="Orvel" width="96" height="96">
