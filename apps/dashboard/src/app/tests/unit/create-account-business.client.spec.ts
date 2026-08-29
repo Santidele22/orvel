@@ -9,6 +9,7 @@ const payload: CreateAccountBusinessPayload = {
   email: 'ada@example.test',
   password: 'correct-horse-battery-staple',
   nombre: 'Ada',
+  apellido: 'Lovelace',
   negocioNombre: 'Ada Studio',
   rubro: 'peluqueria',
   selected_business_types: ['peluqueria'],
