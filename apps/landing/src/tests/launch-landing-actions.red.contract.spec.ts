@@ -114,8 +114,10 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'http://localhost:4321' })).toBe('http://localhost:4200/dashboard/turnos?view=week');
     expect(sanitizeLandingAuthReturnTo('/dashboard/turnos?view=week', { currentOrigin: 'https://orvel.pro', dashboardBaseUrl: 'https://app.orvel.pro/dashboard' })).toBe('https://app.orvel.pro/dashboard/turnos?view=week');
 
-    expect(login).toContain("import { initLoginPage } from '../../lib/login-page-controller'");
-    expect(login).toContain('initLoginPage(import.meta.env)');
+    expect(login).toContain("import { buildInAppAuthRedirect } from '../../lib/in-app-auth-redirect'");
+    expect(login).toContain("buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL)");
+    expect(login).toMatch(/Astro\.redirect\([\s\S]*302/);
+    expect(login).not.toContain('initLoginPage');
     expect(loginController).toContain('sanitizeLandingAuthReturnTo');
     expect(loginController).toContain('attempt: { email, password, returnTo }');
   });
