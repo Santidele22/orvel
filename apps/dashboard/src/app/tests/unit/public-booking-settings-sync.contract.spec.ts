@@ -250,7 +250,7 @@ describe('public booking settings synchronization', () => {
     expect(civilDate).toBe('2026-06-29');
   });
 
-  it('keeps working day buttons disabled when backend availability checks fail', async () => {
+  it('hides unbookable days when backend availability checks fail', async () => {
     // Arrange
     const workingHours = createWorkingHours(['monday']);
     const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
@@ -310,11 +310,7 @@ describe('public booking settings synchronization', () => {
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
     const slotSelect = fixture.nativeElement.querySelector('select[name="selectedSlot"]') as HTMLSelectElement | null;
-    expect(dayButtons.slice(0, 3).map(button => button.disabled)).toEqual([
-      true,
-      true,
-      true
-    ]);
+    expect(dayButtons).toHaveLength(0);
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).toContain('Reintentar');
     expect(slotSelect?.textContent).not.toContain('No hay turnos disponibles para este día');
@@ -983,7 +979,7 @@ describe('public booking settings synchronization', () => {
     );
   });
 
-  it('keeps day buttons disabled when background availability resolves with ApiResponse error', async () => {
+  it('hides day chips when background availability resolves with ApiResponse error', async () => {
     // Arrange
     const workingHours = createWorkingHours(['monday']);
     const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
@@ -1061,11 +1057,7 @@ describe('public booking settings synchronization', () => {
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
     const slotOptions = fixture.nativeElement.querySelectorAll('[data-testid="booking-availability-slot"]');
-    expect(dayButtons.slice(0, 3).map(button => button.disabled)).toEqual([
-      true,
-      true,
-      true
-    ]);
+    expect(dayButtons).toHaveLength(0);
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).not.toContain('provider stack trace');
     expect(slotOptions.length).toBe(0);
@@ -1174,7 +1166,7 @@ describe('public booking settings synchronization', () => {
     expect(fixture.nativeElement.textContent).not.toContain('provider stack trace');
   });
 
-  it('keeps days disabled when RPC workingHours disables them even if backend returns slots', async () => {
+  it('hides days when RPC workingHours disables them even if backend returns slots', async () => {
     // Arrange
     const workingHours = createWorkingHours(['monday']);
     const businessService = Object.create((await loadBusinessServiceModule()).BusinessService.prototype) as BusinessServicePublicResolver & {
@@ -1238,7 +1230,9 @@ describe('public booking settings synchronization', () => {
 
     // Assert
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
-    expect(dayButtons.slice(0, 3).map(button => button.disabled)).toEqual([false, true, true]);
+    expect(dayButtons).toHaveLength(1);
+    expect(dayButtons[0]?.disabled).toBe(false);
+    expect(dayButtons[0]?.textContent).toContain('29');
     expect(publicBookingService.queryPublicSlotAvailability).toHaveBeenCalledWith(expect.objectContaining({
       dateIso: '2026-06-30'
     }));
@@ -1597,5 +1591,204 @@ describe('public booking settings synchronization', () => {
       .map(([event]) => event)
       .find((event): event is CustomEvent<{ status: string }> => event instanceof CustomEvent && event.type === 'booking.created');
     expect(successEvent?.detail.status).toBe('pending');
+  });
+
+  it('iterates only remaining-capacity working days in the public day-chip template', () => {
+    const template = readFileSync(
+      join(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.html'),
+      'utf-8'
+    );
+
+    expect(template).not.toMatch(/@for \(day of availableDays\(\)/);
+    expect(template).toMatch(/@for \(day of bookableDays\(\)/);
+    expect(template).not.toMatch(/bg-red-500\/5 border-red-500\/20 text-red-400 cursor-not-allowed/);
+  });
+
+  it('does not render booking-day-option chips for closed or full days', async () => {
+    const workingHours = createWorkingHours(['monday']);
+    const businessService = {
+      resolveBusinessBySlug: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          displayName: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: {
+            bufferMinutes: 0,
+            minNoticeMinutes: 0,
+            slotIntervalMinutes: 30,
+            workingHours
+          },
+          bookingPolicy: {
+            autoConfirm: true,
+            cancellationWindowMinutes: 60,
+            allowClientProfessionalSelection: false
+          }
+        }
+      })),
+      getDefaultWorkingHours: vi.fn()
+    };
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(({ dateIso }: { dateIso: string }) => Promise.resolve({
+        status: 200,
+        data: {
+          slots: dateIso === '2026-06-29'
+            ? [{ startsAtIso: `${dateIso}T13:00:00.000Z`, remainingCapacity: 1 }]
+            : []
+        }
+      })),
+      createPublicBooking: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn(() => of([{ id: 'service-1', nombre: 'Corte', precio: 1000, duration_minutes: 30 }]))
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    fixture.detectChanges();
+
+    const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
+    expect(dayButtons).toHaveLength(1);
+    expect(dayButtons[0]?.disabled).toBe(false);
+    expect(dayButtons.some(button => button.disabled)).toBe(false);
+  });
+
+  it('does not flash closed or full days while day availability is loading', async () => {
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: BusinessService,
+          useValue: {
+            resolveBusinessBySlug: vi.fn(() => new Promise(() => undefined)),
+            getDefaultWorkingHours: vi.fn()
+          }
+        },
+        {
+          provide: ServicioService,
+          useValue: { getByBusinessId: vi.fn() }
+        },
+        {
+          provide: PublicBookingService,
+          useValue: { queryPublicSlotAvailability: vi.fn(), createPublicBooking: vi.fn() }
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    const component = fixture.componentInstance as unknown as {
+      loading: { set: (value: boolean) => void };
+      loadingAvailability: { set: (value: boolean) => void };
+      availableDays: { set: (days: Array<{ date: string; label: string; weekday: string; isWorkingDay: boolean; hasAvailability: boolean }>) => void };
+    };
+    fixture.detectChanges();
+    component.loading.set(false);
+    component.loadingAvailability.set(true);
+    component.availableDays.set([
+      { date: '2026-06-29', label: '29', weekday: 'LUN', isWorkingDay: true, hasAvailability: false },
+      { date: '2026-06-30', label: '30', weekday: 'MAR', isWorkingDay: false, hasAvailability: false }
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]').length).toBe(0);
+  });
+
+  it('moves selected date to the first remaining-capacity day when the initial working day is full or closed', async () => {
+    const workingHours = createWorkingHours(['monday', 'tuesday']);
+    const businessService = {
+      resolveBusinessBySlug: vi.fn(() => Promise.resolve({
+        status: 200,
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          displayName: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: {
+            bufferMinutes: 0,
+            minNoticeMinutes: 0,
+            slotIntervalMinutes: 30,
+            workingHours
+          },
+          bookingPolicy: {
+            autoConfirm: true,
+            cancellationWindowMinutes: 60,
+            allowClientProfessionalSelection: false
+          }
+        }
+      })),
+      getDefaultWorkingHours: vi.fn()
+    };
+    const publicBookingService = {
+      queryPublicSlotAvailability: vi.fn(({ dateIso }: { dateIso: string }) => Promise.resolve({
+        status: 200,
+        data: {
+          slots: dateIso === '2026-06-30'
+            ? [{ startsAtIso: '2026-06-30T13:00:00.000Z', remainingCapacity: 2 }]
+            : []
+        }
+      })),
+      createPublicBooking: vi.fn()
+    };
+
+    TestBed.configureTestingModule({
+      imports: [PublicBookingPage],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: BusinessService, useValue: businessService },
+        {
+          provide: ServicioService,
+          useValue: {
+            getByBusinessId: vi.fn(() => of([{ id: 'service-1', nombre: 'Corte', precio: 1000, duration_minutes: 30 }]))
+          }
+        },
+        { provide: PublicBookingService, useValue: publicBookingService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn(() => 'studio-roma') } } }
+        }
+      ]
+    });
+
+    const fixture = TestBed.createComponent(PublicBookingPage as Type<PublicBookingPage>);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.runAllTimersAsync();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      selectedDate: () => string;
+      availabilitySlots: () => Array<{ startsAtIso: string; remainingCapacity: number }>;
+    };
+    expect(component.selectedDate()).toBe('2026-06-30');
+    expect(component.availabilitySlots()).toEqual([
+      { startsAtIso: '2026-06-30T13:00:00.000Z', remainingCapacity: 2 }
+    ]);
+    const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
+    expect(dayButtons).toHaveLength(1);
+    expect(dayButtons[0]?.textContent).toContain('30');
   });
 });
