@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -9,7 +9,7 @@ import { ServicioService } from '../../../servicios/data-access/servicio.service
 import { validatePublicBookingForm } from './public-booking.validation';
 import type { PublicSlot } from '@orvel/booking';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
-import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
+import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublicDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
@@ -50,6 +50,10 @@ export class PublicBookingPage implements OnInit {
   protected readonly businessTimezone = signal<string>(DEFAULT_BUSINESS_TIMEZONE);
 
   protected readonly availableDays = signal<DayAvailability[]>([]);
+  protected readonly bookableDays = computed(() => {
+    if (this.loadingAvailability()) return [];
+    return filterBookablePublicDays(this.availableDays());
+  });
   protected readonly selectedDate = signal<string>(toLocalCivilDate(new Date(), DEFAULT_BUSINESS_TIMEZONE));
   protected readonly resolvedBusinessId = signal<string | null>(null);
   protected readonly rescheduleMode = signal(false);
@@ -184,6 +188,7 @@ export class PublicBookingPage implements OnInit {
   }
 
   async onServiceChange() {
+    this.loadingAvailability.set(true);
     await this.loadAvailability();
   }
 
@@ -369,6 +374,7 @@ export class PublicBookingPage implements OnInit {
   private initAvailableDays() {
     const days = buildPublicBookingDays(this.workingHours(), new Date(), this.businessTimezone());
     this.availableDays.set(days);
+    this.loadingAvailability.set(true);
     const firstWorkingDay = days.find(day => day.isWorkingDay);
     if (firstWorkingDay) {
       this.selectedDate.set(firstWorkingDay.date);
@@ -455,7 +461,74 @@ export class PublicBookingPage implements OnInit {
     if (failedAvailabilityChecks) {
       this.availabilityErrorMessage.set('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     }
+
+    const bookable = filterBookablePublicDays(days);
+    const selectedIsBookable = bookable.some(day => day.date === this.selectedDate());
+    if (!selectedIsBookable) {
+      const nextBookable = bookable[0];
+      if (nextBookable) {
+        this.selectedDate.set(nextBookable.date);
+        this.loadingAvailability.set(false);
+        await this.loadAvailabilityForSelectedDate();
+        return;
+      }
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+    }
+
     this.loadingAvailability.set(false);
+  }
+
+  private async loadAvailabilityForSelectedDate(): Promise<void> {
+    const slug = (this.resolvedSlug() || this.route.snapshot.paramMap.get('slug')) ?? '';
+    const serviceId = this.selectedServiceId();
+    const date = this.selectedDate();
+    if (!slug || !serviceId || !this.hasSelectedPublicService(serviceId)) {
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+      return;
+    }
+
+    this.loadingSlots.set(true);
+    try {
+      const response = await this.publicBookingService.queryPublicSlotAvailability({
+        businessSlug: slug,
+        serviceId,
+        dateIso: date
+      });
+
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
+
+      if (response.error || response.status < 200 || response.status >= 300) {
+        this.availabilitySlots.set([]);
+        this.selectedSlot = '';
+        return;
+      }
+
+      if (response.data?.slots && response.data.slots.length > 0 && this.isConfiguredWorkingDate(date)) {
+        const slots = response.data.slots.map(s => ({
+          startsAtIso: s.startsAtIso,
+          remainingCapacity: s.remainingCapacity ?? 0
+        }));
+        this.availabilitySlots.set(slots);
+        this.updateDayAvailability(date, true);
+        this.selectedSlot = slots[0]?.startsAtIso || '';
+      } else {
+        this.availabilitySlots.set([]);
+        this.updateDayAvailability(date, false);
+        this.selectedSlot = '';
+      }
+    } catch {
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+    } finally {
+      this.loadingSlots.set(false);
+    }
   }
 
   protected async selectDate(date: string) {
