@@ -14,6 +14,7 @@ export interface WorkingDayHours {
   enabled: boolean;
   start: string;
   end: string;
+  intervals?: { start: string; end: string }[];
 }
 
 export interface BusinessSettings {
