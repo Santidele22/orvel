@@ -368,6 +368,27 @@
       </div>
     </header>
 
+    @if (showPremiumReviewBanner()) {
+      <article data-testid="premium-review-banner" class="mb-[18px] rounded-[16px] border border-[rgba(251,191,36,0.22)] bg-[rgba(251,191,36,0.08)] px-4 py-4">
+        <div class="mb-3 flex items-start gap-3">
+          <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#FBBF24]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="text-[14px] font-bold leading-5 text-[#F3F1FA]">Premium en revisión — seguís en Gratis hasta que validemos el comprobante.</p>
+        </div>
+        <div class="mb-3 flex flex-wrap gap-3 text-[13px] font-semibold">
+          <button type="button" class="text-[#9B7BFF] underline-offset-2 hover:underline" (click)="markReceiptSent()">Ya envié el comprobante</button>
+          <a class="text-[#9B7BFF] underline-offset-2 hover:underline" [href]="premiumWhatsAppUrl()" target="_blank" rel="noopener noreferrer">Volver a WhatsApp</a>
+        </div>
+        <div class="rounded-[12px] border border-[rgba(255,255,255,0.045)] bg-[#141A2C] px-3 py-3">
+          <p class="text-[11px] font-bold uppercase tracking-[0.9px] text-[#5D6280]">Turnos este mes</p>
+          <p class="mt-1 text-[22px] font-extrabold text-[#F3F1FA]">{{ monthlyBookingCount() }}/{{ maxMonthlyBookings }}</p>
+          <p class="mt-1 text-[12px] font-medium text-[#9096AE]">Con Premium vas a tener turnos ilimitados.</p>
+        </div>
+      </article>
+    }
+
     <button (click)="copyBookingUrl()"
       [attr.disabled]="hasBookingUrl() ? null : true"
       [attr.aria-disabled]="hasBookingUrl() ? null : true"

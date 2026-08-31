@@ -34,10 +34,9 @@ describe('Contract: MVP landing pricing catalog', () => {
     const subscriptionPage = source('src/pages/billing/subscription.astro');
 
     expect(subscriptionPage).toContain('PREMIUM');
-    expect(subscriptionPage).toContain('$25.000 / mes');
-    expect(subscriptionPage).toContain('Hasta 30 turnos por mes para empezar.');
+    expect(subscriptionPage).toContain('$25.000/mes');
+    expect(subscriptionPage).toContain('orvel.pagos');
     expect(subscriptionPage).not.toMatch(/Hasta 15 turnos/i);
-    expect(subscriptionPage).toContain('normalizeSubscriptionPlan');
     expect(subscriptionPage).not.toMatch(/\$12\s*\/\s*mes|\$22\s*\/\s*mes|\$39\s*\/\s*mes/);
     expect(subscriptionPage).not.toMatch(/quarterly|annual/);
   });

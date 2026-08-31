@@ -5,48 +5,46 @@ import { resolve } from 'node:path';
 import {
   BillingSubscriptionPage,
   BILLING_SUBSCRIPTION_CANCELLATION_READY_MESSAGE,
-  BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE,
-  BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
+  BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE
 } from '../../features/billing/pages/billing-subscription.page';
-import { CreateSubscriptionError } from '../../features/billing/data-access/payments/subscriptions/create-subscription.api';
 import { requestSubscriptionCancellation } from '../../features/billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
 
-describe('BillingSubscriptionPage safe payment unavailable state', () => {
-  it('surfaces a user-safe support message when subscription creation fails closed', async () => {
-    const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'PREMIUM' },
-      createSubscription: vi.fn(async () => {
-        throw new CreateSubscriptionError('SERVER_CONFIG_ERROR', 'internal server config details');
-      }),
-      redirectTo: vi.fn()
-    });
-
-    await page.startSubscription();
-
-    expect(page.state()).toEqual({
-      status: 'unavailable',
-      message: BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
-    });
-  });
-
-  it('does not redirect when the payment boundary returns no init point', async () => {
+describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
+  it('marks premium review pending and does not call createSubscription or redirect to init_point', async () => {
+    const createSubscription = vi.fn();
     const redirectTo = vi.fn();
+    const storage = {
+      getItem: vi.fn((key: string) => (key === 'orvel.signup.plan' ? 'PREMIUM' : null)),
+      setItem: vi.fn()
+    };
+
     const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'PREMIUM' },
-      createSubscription: vi.fn(async () => ({
-        ok: false,
-        initPoint: null,
-        subscriptionId: '',
-        status: 'pending',
-        message: 'unavailable'
-      })),
+      storage,
+      createSubscription,
       redirectTo
     });
 
     await page.startSubscription();
 
+    expect(createSubscription).not.toHaveBeenCalled();
     expect(redirectTo).not.toHaveBeenCalled();
-    expect(page.state().status).toBe('unavailable');
+    expect(storage.setItem).toHaveBeenCalledWith('orvel.premium_review', 'pending');
+    expect(page.state().status).toBe('alias_ready');
+    expect(page.whatsAppUrl()).toContain('https://wa.me/5492944667161');
+  });
+
+  it('does not auto-start Mercado Pago checkout on activation initialize', async () => {
+    const createSubscription = vi.fn();
+    const page = new BillingSubscriptionPage({
+      storage: { getItem: () => 'PREMIUM', setItem: vi.fn() },
+      createSubscription,
+      redirectTo: vi.fn()
+    });
+
+    await page.initialize();
+
+    expect(createSubscription).not.toHaveBeenCalled();
+    expect(page.state().status).toBe('alias_ready');
   });
 
   it('does not expose a hidden multi-branch add-on activation prompt from billing', () => {
