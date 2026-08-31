@@ -4,6 +4,9 @@ type ConfiguracionWorkingDay = {
   enabled: boolean;
   start: string;
   end: string;
+  start2?: string;
+  end2?: string;
+  intervals?: Array<{ start: string; end: string }>;
 };
 
 type ConfiguracionValidationInput = {
@@ -228,5 +231,63 @@ describe('K02 - Configuración Zod validation RED contract', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors.workingHours).toBe('El horario de apertura debe ser anterior al cierre');
+  });
+
+  it('accepts two non-overlapping ordered intervals on an enabled day', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      workingHours: {
+        ...validWorkingHours,
+        tuesday: { enabled: true, start: '09:00', end: '13:30', start2: '16:00', end2: '20:00' }
+      }
+    });
+
+    expect(result.isValid).toBe(true);
+    expect(result.fieldErrors.workingHours).toBeUndefined();
+  });
+
+  it('rejects overlapping intervals on an enabled day', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      workingHours: {
+        ...validWorkingHours,
+        tuesday: { enabled: true, start: '09:00', end: '16:00', start2: '15:00', end2: '20:00' }
+      }
+    });
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors.workingHours).toBeTypeOf('string');
+  });
+
+  it('still accepts a single start/end window without a second interval', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm(validBaseInput);
+
+    expect(result.isValid).toBe(true);
+    expect(result.fieldErrors.workingHours).toBeUndefined();
+  });
+
+  it('strips extra settings-form keys instead of rejecting the save', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      autoConfirm: true,
+      plan: 'zen',
+      businessType: 'peluqueria',
+      weekStartDay: 'monday',
+      timeFormat: '12h',
+      workingHours: {
+        ...validWorkingHours,
+        tuesday: { enabled: true, start: '09:00', end: '13:30', start2: '16:00', end2: '20:00' }
+      }
+    });
+
+    expect(result.isValid).toBe(true);
   });
 });

@@ -57,10 +57,26 @@ function isValidArgentinaPhone(value: string): boolean {
   return false;
 }
 
+function timeToMinutes(value: string): number {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+const optionalTimeSchema = z.union([
+  z.literal(''),
+  z.string().regex(timeRegex, 'Formato de hora inválido')
+]).optional();
+
 const workingDaySchema = z.object({
   enabled: z.boolean(),
   start: z.string().regex(timeRegex, 'Formato de hora inválido'),
-  end: z.string().regex(timeRegex, 'Formato de hora inválido')
+  end: z.string().regex(timeRegex, 'Formato de hora inválido'),
+  start2: optionalTimeSchema,
+  end2: optionalTimeSchema,
+  intervals: z.array(z.object({
+    start: z.string().regex(timeRegex, 'Formato de hora inválido'),
+    end: z.string().regex(timeRegex, 'Formato de hora inválido')
+  })).max(2).optional()
 });
 
 const configuracionSchema = z.object({
@@ -91,10 +107,17 @@ const configuracionSchema = z.object({
   workingHours: z.record(z.string(), workingDaySchema)
     .refine((days) => Object.values(days).every((day) => {
       if (!day.enabled) return true;
-      const [startHour, startMinute] = day.start.split(':').map(Number);
-      const [endHour, endMinute] = day.end.split(':').map(Number);
-      return startHour * 60 + startMinute < endHour * 60 + endMinute;
+      return timeToMinutes(day.start) < timeToMinutes(day.end);
     }), { message: 'El horario de apertura debe ser anterior al cierre' })
+    .refine((days) => Object.values(days).every((day) => {
+      if (!day.enabled) return true;
+      const start2 = day.start2?.trim() ?? '';
+      const end2 = day.end2?.trim() ?? '';
+      if (!start2 && !end2) return true;
+      if (!start2 || !end2) return false;
+      return timeToMinutes(start2) < timeToMinutes(end2)
+        && timeToMinutes(start2) >= timeToMinutes(day.end);
+    }), { message: 'El segundo intervalo debe ser posterior y no superponerse' })
 });
 
 export type ConfiguracionValidationResult = {

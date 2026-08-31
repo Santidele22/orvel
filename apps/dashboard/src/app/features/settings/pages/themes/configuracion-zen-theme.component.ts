@@ -38,9 +38,14 @@ export class ConfiguracionZenThemeComponent {
   retryLoadSettings(): void { this.ctx.retryLoadSettings(); }
   onSubmit(): void { this.ctx.onSubmit(); }
   onSelectedBusinessChange(value: string): void { this.ctx.onSelectedBusinessChange(value); }
-  openTimePicker(dayKey: any, field: 'start' | 'end'): void { this.ctx.openTimePicker(dayKey, field); }
+  openTimePicker(dayKey: any, field: 'start' | 'end' | 'start2' | 'end2'): void { this.ctx.openTimePicker(dayKey, field); }
   formatTo12h(time: string): string { return this.ctx.formatTo12h(time); }
   hasInvalidWorkingHoursRange(dayKey: any): boolean { return this.ctx.hasInvalidWorkingHoursRange(dayKey); }
+  hasWorkingDayCut(dayKey: any): boolean { return this.ctx.hasWorkingDayCut(dayKey); }
+  addWorkingDayCut(dayKey: any): void { this.ctx.addWorkingDayCut(dayKey); }
+  removeWorkingDayCut(dayKey: any): void { this.ctx.removeWorkingDayCut(dayKey); }
+  removeWorkingDayInterval(dayKey: any, slot: 1 | 2): void { this.ctx.removeWorkingDayInterval(dayKey, slot); }
+  copyHoursToAllDays(): void { this.ctx.copyHoursToAllDays(); }
   setSettingsTab(tab: 'perfil' | 'negocio'): void { this.ctx.setSettingsTab(tab); }
   openAccountSettingsModal(): void { this.ctx.openAccountSettingsModal(); }
   openAccountCancellationModal(): void { this.ctx.openAccountCancellationModal(); }
