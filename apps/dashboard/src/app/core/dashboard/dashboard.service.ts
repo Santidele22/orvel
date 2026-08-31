@@ -162,6 +162,10 @@ export class DashboardService {
   /**
    * Returns a prioritized list of appointments for the home roadmap.
    */
+  loadedBookings(): BookingRecord[] {
+    return [...this.bookings(), ...this.adminBookings()];
+  }
+
   readonly featuredAppointments = computed(() => {
     const turnos = this.bookings();
     const services = this.servicioService.items();
