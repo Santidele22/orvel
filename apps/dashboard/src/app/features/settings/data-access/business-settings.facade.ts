@@ -20,6 +20,7 @@ export type WorkingDayHours = {
   enabled: boolean;
   start: string;
   end: string;
+  intervals?: { start: string; end: string }[];
 };
 
 export type BusinessSettingsState = {

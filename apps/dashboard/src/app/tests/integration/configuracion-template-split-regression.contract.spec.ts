@@ -76,7 +76,9 @@ describe('Configuracion template split safety net - regression contract', () => 
     const { tsSource } = await readConfiguracionSources();
 
     expect(tsSource).toMatch(/onSelectedBusinessChange\s*\(businessId:\s*string\)\s*:\s*void/);
-    expect(tsSource).toMatch(/openTimePicker\s*\(dayKey:\s*WeekdayKey,\s*field:\s*'start'\s*\|\s*'end'\)\s*:\s*void/);
+    expect(tsSource).toMatch(
+      /openTimePicker\s*\(dayKey:\s*WeekdayKey,\s*field:\s*'start'\s*\|\s*'end'\s*\|\s*'start2'\s*\|\s*'end2'\)\s*:\s*void/
+    );
     expect(tsSource).toMatch(/confirmTimeChange\s*\(\)\s*:\s*void/);
     expect(tsSource).toMatch(/closeTimePicker\s*\(\)\s*:\s*void/);
     expect(tsSource).toMatch(/settingsForm\.get\(`workingHours\.\$\{day\}\.\$\{field\}`\)\?\.setValue\(formattedTime\)/);

@@ -393,6 +393,37 @@
                 </button>
                 }
               </div>
+              @if (settingsForm.get('workingHours.' + day.key + '.enabled')?.value) {
+              @if (!hasWorkingDayCut(day.key)) {
+              <div class="col-span-12 md:col-start-7 md:col-span-6">
+                <button type="button" [class]="ui.subtleAction + ' h-zen-control-sm font-medium'"
+                  (click)="addWorkingDayCut($any(day.key))">
+                  Agregar corte
+                </button>
+              </div>
+              } @else {
+              <div class="col-span-6 md:col-span-3 md:col-start-7">
+                <button type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker($any(day.key), 'start2')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start2')?.value) }}
+                </button>
+              </div>
+              <div class="col-span-6 md:col-span-3">
+                <button type="button"
+                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
+                  (click)="openTimePicker($any(day.key), 'end2')">
+                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end2')?.value) }}
+                </button>
+              </div>
+              <div class="col-span-12 md:col-start-7 md:col-span-6">
+                <button type="button" [class]="ui.subtleAction + ' h-zen-control-sm font-medium'"
+                  (click)="removeWorkingDayCut($any(day.key))">
+                  Quitar corte
+                </button>
+              </div>
+              }
+              }
               @if (hasInvalidWorkingHoursRange(day.key)) {
               <p class="col-span-12" [class]="ui.fieldError" data-testid="config-field-error-workingHours">invalidRange: el horario de apertura debe ser anterior al cierre.</p>
               }
