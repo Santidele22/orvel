@@ -18,6 +18,12 @@ import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-prim
 import { AuthService } from '../../../services/auth.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
+import {
+  addClockMinutes,
+  persistWorkingHoursRecord,
+  workingDayHoursToFormValue,
+  workingHoursToFormValue
+} from '../data-access/resolve-working-day-intervals';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import {
   requestSubscriptionCancellation,
@@ -28,6 +34,8 @@ type WeekdayRow = {
   key: WeekdayKey;
   label: string;
 };
+
+type WorkingHoursTimeField = 'start' | 'end' | 'start2' | 'end2';
 
 @Component({
   selector: 'app-configuracion-page',
@@ -197,7 +205,7 @@ export class ConfiguracionPage {
   // Time Picker Modal State
   readonly isTimePickerOpen = signal(false);
   readonly editingDay = signal<WeekdayKey | null>(null);
-  protected editingField = signal<'start' | 'end' | null>(null);
+  protected editingField = signal<WorkingHoursTimeField | null>(null);
   readonly selectedAmPm = signal<'AM' | 'PM'>('AM');
   readonly selectedHour = signal<number>(9);
   readonly selectedMinute = signal<number>(0);
@@ -378,7 +386,7 @@ export class ConfiguracionPage {
       bufferMinutes: saved.bufferMinutes,
       minNoticeMinutes: saved.minNoticeMinutes,
       slotIntervalMinutes: saved.slotIntervalMinutes,
-      workingHours: saved.workingHours,
+      workingHours: workingHoursToFormValue(saved.workingHours),
       firstName: saved.firstName,
       lastName: saved.lastName,
       phone: saved.phone,
@@ -394,7 +402,7 @@ export class ConfiguracionPage {
     this.restoreSavedAccountSettings();
   }
 
-  openTimePicker(dayKey: WeekdayKey, field: 'start' | 'end'): void {
+  openTimePicker(dayKey: WeekdayKey, field: 'start' | 'end' | 'start2' | 'end2'): void {
     const currentVal = this.settingsForm.get(`workingHours.${dayKey}.${field}`)?.value as string;
     if (currentVal) {
       const [h, m] = currentVal.split(':').map(Number);
@@ -516,7 +524,7 @@ export class ConfiguracionPage {
         bufferMinutes: values.bufferMinutes,
         minNoticeMinutes: values.minNoticeMinutes,
         slotIntervalMinutes: values.slotIntervalMinutes,
-        workingHours: values.workingHours,
+        workingHours: persistWorkingHoursRecord(values.workingHours),
         supportEmail: values.supportEmail,
         businessType: values.businessType,
         plan: values.plan,
@@ -545,11 +553,44 @@ export class ConfiguracionPage {
     }
   }
 
+  hasWorkingDayCut(dayKey: WeekdayKey): boolean {
+    const start2 = this.settingsForm.get(`workingHours.${dayKey}.start2`)?.value as string | undefined;
+    const end2 = this.settingsForm.get(`workingHours.${dayKey}.end2`)?.value as string | undefined;
+    return Boolean(start2 && end2);
+  }
+
+  addWorkingDayCut(dayKey: WeekdayKey): void {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group || this.hasWorkingDayCut(dayKey) || !group.get('enabled')?.value) {
+      return;
+    }
+
+    const end = String(group.get('end')?.value ?? '18:00');
+    group.patchValue({
+      start2: end,
+      end2: addClockMinutes(end, 240)
+    });
+    this.markWorkingDayInteracted(dayKey);
+  }
+
+  removeWorkingDayCut(dayKey: WeekdayKey): void {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group) {
+      return;
+    }
+
+    group.patchValue({ start2: '', end2: '' });
+    this.markWorkingDayInteracted(dayKey);
+  }
+
   private createDayGroup(day: WorkingDayHours) {
+    const formDay = workingDayHoursToFormValue(day);
     const group = this.formBuilder.nonNullable.group({
-      enabled: [day.enabled],
-      start: [day.start, [Validators.required]],
-      end: [day.end, [Validators.required]]
+      enabled: [formDay.enabled],
+      start: [formDay.start, [Validators.required]],
+      end: [formDay.end, [Validators.required]],
+      start2: [formDay.start2],
+      end2: [formDay.end2]
     });
 
     // Add cross-field validator for start < end
@@ -569,8 +610,23 @@ export class ConfiguracionPage {
       const [eh, em] = end.split(':').map(Number);
       const startMinutes = sh * 60 + sm;
       const endMinutes = eh * 60 + em;
-      
-      return startMinutes < endMinutes ? null : { invalidRange: true };
+      const start2 = g.get('start2')?.value as string | undefined;
+      const end2 = g.get('end2')?.value as string | undefined;
+
+      if (!start2 || !end2) {
+        return startMinutes < endMinutes ? null : { invalidRange: true };
+      }
+
+      const [sh2, sm2] = start2.split(':').map(Number);
+      const [eh2, em2] = end2.split(':').map(Number);
+      const start2Minutes = sh2 * 60 + sm2;
+      const end2Minutes = eh2 * 60 + em2;
+
+      if (!(startMinutes < endMinutes) || !(start2Minutes < end2Minutes) || start2Minutes < endMinutes) {
+        return { invalidRange: true };
+      }
+
+      return null;
     });
 
     return group;
@@ -608,7 +664,7 @@ export class ConfiguracionPage {
     if (this.facade.hasHydratedSnapshot(userId) && !this.loadError()) {
       const cached = this.facade.getSnapshot();
       if (cached) {
-        this.settingsForm.patchValue(cached);
+        this.patchHydratedSettings(cached);
         this.savedState.set(cached);
       }
       this.loading.set(false);
@@ -643,7 +699,7 @@ export class ConfiguracionPage {
     const saved = this.facade.getSnapshot();
 
     if (saved) {
-      this.settingsForm.patchValue(saved);
+      this.patchHydratedSettings(saved);
       this.savedState.set(saved);
     } else {
       this.loadError.set('No pudimos cargar la configuración');
@@ -651,6 +707,13 @@ export class ConfiguracionPage {
     }
 
     this.loading.set(false);
+  }
+
+  private patchHydratedSettings(saved: BusinessSettings): void {
+    this.settingsForm.patchValue({
+      ...saved,
+      workingHours: workingHoursToFormValue(saved.workingHours)
+    } as never);
   }
 
   private patchDefaultSettings(): void {
