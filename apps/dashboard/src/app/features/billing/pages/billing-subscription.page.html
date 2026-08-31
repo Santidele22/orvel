@@ -8,6 +8,12 @@
       <div class="billing-subscription__spinner" aria-hidden="true"></div>
     }
 
+    @if (state().status === 'alias_ready') {
+      <a class="billing-subscription__support" [href]="whatsAppUrl()" target="_blank" rel="noopener noreferrer">
+        Enviar comprobante por WhatsApp
+      </a>
+    }
+
     @if (state().status === 'cancellation_ready') {
       <button class="billing-subscription__support" type="button" (click)="requestCancellation()">
         Solicitar baja manual

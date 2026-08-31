@@ -51,7 +51,8 @@ describe('PerfilPage contract', () => {
     expect(source).toContain('Ayuda y soporte');
     expect(source).toContain('mailto:orvel2026@gmail.com');
     expect(source).toContain('Privacidad y datos');
-    expect(source).toContain('https://orvel.app/terminos-y-condiciones');
+    expect(source).toContain('https://orvel.pro/terminos-y-condiciones');
+    expect(source).not.toContain('https://orvel.app/terminos-y-condiciones');
   });
 
   it('keeps Cerrar sesión as a danger logout action', () => {
