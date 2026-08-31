@@ -34,14 +34,6 @@ async function readProductionSources(): Promise<Array<{ path: string; source: st
   })));
 }
 
-function sliceBetween(source: string, startMarker: string, endMarker?: string): string {
-  const start = source.indexOf(startMarker);
-  expect(start, `Missing start marker: ${startMarker}`).toBeGreaterThanOrEqual(0);
-  const end = endMarker ? source.indexOf(endMarker, start + startMarker.length) : source.length;
-  expect(end, `Missing end marker: ${endMarker}`).toBeGreaterThan(start);
-  return source.slice(start, end);
-}
-
 describe('RED contract: landing signup/subscription browser storage hygiene', () => {
   it('production landing code never clears all browser storage', async () => {
     const offenders = (await readProductionSources())
@@ -72,17 +64,12 @@ describe('RED contract: landing signup/subscription browser storage hygiene', ()
     expect(signupSources).not.toContain('orvel.signup.password');
   });
 
-  it('retains the subscription idempotency key during retry and clears it only after backend materialization', async () => {
+  it('subscription activation stores the premium review pending flag without Mercado Pago attempt keys', async () => {
     const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
-    const buildIdempotencyKey = sliceBetween(source, 'const buildIdempotencyKey', 'const pollSubscriptionStatus');
-    const failedRetryHandling = sliceBetween(source, "if (!response.ok)", 'if (result?.init_point)');
-    const approvedImmediateHandling = sliceBetween(source, "if (paymentStatus === 'approved')", 'const subscriptionAttemptKey');
-    const pollingApprovedHandling = sliceBetween(source, "if (normalizedStatus === 'approved'", "if (normalizedStatus === 'rejected'");
 
-    expect(buildIdempotencyKey).toMatch(/sessionStorage\.getItem\(subscriptionAttemptKey\)/);
-    expect(buildIdempotencyKey).toMatch(/sessionStorage\.setItem\(subscriptionAttemptKey,\s*generated\)/);
-    expect(failedRetryHandling, 'Retry path must reuse the same idempotency key, not clear it after a transient start failure.').not.toMatch(/removeItem\(subscriptionAttemptKey\)|setItem\(subscriptionAttemptKey/);
-    expect(pollingApprovedHandling).toMatch(/sessionStorage\.removeItem\(subscriptionAttemptKey\)/);
-    expect(approvedImmediateHandling, 'Mercado Pago return query params are hints; do not clear the attempt key until backend materialization is verified.').not.toMatch(/sessionStorage\.removeItem\(subscriptionAttemptKey\)/);
+    expect(source).toMatch(/orvel\.premium_review|markPremiumReviewPending|PREMIUM_REVIEW_STORAGE_KEY/);
+    expect(source).not.toMatch(/subscriptionAttemptKey/);
+    expect(source).not.toMatch(/init_point/);
+    expect(source).not.toMatch(/\/api\/subscriptions\/start/);
   });
 });
