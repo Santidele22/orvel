@@ -566,10 +566,8 @@ export class ConfiguracionPage {
     }
 
     const end = String(group.get('end')?.value ?? '18:00');
-    group.patchValue({
-      start2: end,
-      end2: addClockMinutes(end, 240)
-    });
+    group.get('start2')?.setValue(end);
+    group.get('end2')?.setValue(addClockMinutes(end, 240));
     this.markWorkingDayInteracted(dayKey);
   }
 
@@ -579,7 +577,8 @@ export class ConfiguracionPage {
       return;
     }
 
-    group.patchValue({ start2: '', end2: '' });
+    group.get('start2')?.setValue('');
+    group.get('end2')?.setValue('');
     this.markWorkingDayInteracted(dayKey);
   }
 
