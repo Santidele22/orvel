@@ -407,9 +407,10 @@
                     </button>
                     }
                   </div>
-                  <button type="button" class="h-12 w-12 rounded-xl border border-white/10 bg-bg-primary text-text-secondary hover:text-danger"
+                  <button type="button"
+                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-error/20 text-lg font-semibold leading-none text-error hover:bg-error hover:text-white"
                     (click)="removeWorkingDayInterval($any(day.key), 1)" aria-label="Quitar horario">
-                    <i class="ri-delete-bin-6-line text-lg" aria-hidden="true"></i>
+                    ×
                   </button>
                 </div>
 
@@ -435,9 +436,10 @@
                       {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end2')?.value) }}
                     </button>
                   </div>
-                  <button type="button" class="h-12 w-12 rounded-xl border border-white/10 bg-bg-primary text-text-secondary hover:text-danger"
+                  <button type="button"
+                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-error/20 text-lg font-semibold leading-none text-error hover:bg-error hover:text-white"
                     (click)="removeWorkingDayInterval($any(day.key), 2)" aria-label="Quitar horario">
-                    <i class="ri-delete-bin-6-line text-lg" aria-hidden="true"></i>
+                    ×
                   </button>
                 </div>
                 }
