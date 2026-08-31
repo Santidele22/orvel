@@ -91,7 +91,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
           <svg class="h-4 w-4 shrink-0 text-[#5D6280]" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
         <a
-          href="https://orvel.app/terminos-y-condiciones"
+          href="https://orvel.pro/terminos-y-condiciones"
           target="_blank"
           rel="noopener noreferrer"
           class="flex items-center gap-[13px] border-t border-[rgba(255,255,255,0.045)] px-[15px] py-3.5">

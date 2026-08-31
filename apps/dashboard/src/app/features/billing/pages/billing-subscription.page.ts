@@ -1,9 +1,12 @@
+import {
+  buildPremiumWhatsAppUrl,
+  markPremiumReviewPending
+} from '../../../core/billing/premium-alias-receipt';
 import type { PlanCode } from '../../../core/plans/plan-entitlements';
 import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
 import { ONBOARDING_PLAN_STORAGE_KEY } from '../../onboarding/pages/signup-plan-step.page';
 import {
   createSubscription,
-  CreateSubscriptionError,
   type CreateSubscriptionResult
 } from '../data-access/payments/subscriptions/create-subscription.api';
 import {
@@ -14,9 +17,6 @@ import {
 
 export const BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE =
   'Los pagos online no están disponibles en este momento. Contactá soporte para activar tu plan.';
-
-const BILLING_SUBSCRIPTION_GENERIC_ERROR_MESSAGE =
-  'No pudimos iniciar el pago. Reintentá en unos minutos o contactá soporte.';
 
 const BILLING_SUBSCRIPTION_HEADINGS: Record<BillingSubscriptionMode, { kicker: string; title: string }> = {
   activation: {
@@ -43,6 +43,7 @@ type BillingSubscriptionMode = 'activation' | 'cancellation';
 export type BillingSubscriptionState =
   | { status: 'idle'; message: string }
   | { status: 'loading'; message: string }
+  | { status: 'alias_ready'; message: string }
   | { status: 'redirecting'; message: string }
   | { status: 'unavailable'; message: string }
   | { status: 'error'; message: string }
@@ -50,8 +51,10 @@ export type BillingSubscriptionState =
   | { status: 'cancellation_loading'; message: string }
   | { status: 'cancellation_requested'; message: string };
 
+type BillingStorage = Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'setItem'>>;
+
 type BillingSubscriptionDeps = {
-  storage?: Pick<Storage, 'getItem'> | null;
+  storage?: BillingStorage | null;
   createSubscription?: (input: { planCode: PlanCode }) => Promise<CreateSubscriptionResult>;
   requestCancellation?: (input: { businessId: string; reason: 'manual_request' }) => Promise<RequestSubscriptionCancellationResult>;
   resolveCancellationBusinessId?: () => Promise<string | null>;
@@ -60,7 +63,7 @@ type BillingSubscriptionDeps = {
 };
 
 export class BillingSubscriptionPage {
-  private readonly storage: Pick<Storage, 'getItem'> | null;
+  private readonly storage: BillingStorage | null;
   private readonly createSubscriptionFn: (input: { planCode: PlanCode }) => Promise<CreateSubscriptionResult>;
   private readonly requestCancellationFn: (input: {
     businessId: string;
@@ -119,42 +122,20 @@ export class BillingSubscriptionPage {
     }).format(priceMonthlyCents / 100);
   }
 
+  whatsAppUrl(): string {
+    return buildPremiumWhatsAppUrl();
+  }
+
   async startSubscription(): Promise<void> {
+    markPremiumReviewPending({
+      setItem: (key, value) => {
+        this.storage?.setItem?.(key, value);
+      }
+    });
     this.currentState = {
-      status: 'loading',
-      message: 'Iniciando suscripción segura…'
+      status: 'alias_ready',
+      message: 'Transferí al alias orvel.pagos y mandá el comprobante por WhatsApp. Hasta entonces tu cuenta funciona en plan Gratis.'
     };
-
-    try {
-      const result = await this.createSubscriptionFn({ planCode: this.selectedPlan() });
-
-      if (!result.ok || !result.initPoint) {
-        this.currentState = {
-          status: 'unavailable',
-          message: BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
-        };
-        return;
-      }
-
-      this.currentState = {
-        status: 'redirecting',
-        message: 'Redirigiendo a Mercado Pago…'
-      };
-      this.redirectTo(result.initPoint);
-    } catch (error) {
-      if (error instanceof CreateSubscriptionError && error.code === 'SERVER_CONFIG_ERROR') {
-        this.currentState = {
-          status: 'unavailable',
-          message: BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
-        };
-        return;
-      }
-
-      this.currentState = {
-        status: 'error',
-        message: error instanceof CreateSubscriptionError ? error.message : BILLING_SUBSCRIPTION_GENERIC_ERROR_MESSAGE
-      };
-    }
   }
 
   async requestCancellation(): Promise<void> {

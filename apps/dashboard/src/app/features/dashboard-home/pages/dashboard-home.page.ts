@@ -13,6 +13,15 @@ import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { pickNextAppointment } from './pick-next-appointment';
 import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '../../../core/time/argentina-clock';
+import {
+  buildPremiumWhatsAppUrl,
+  countCurrentMonthBookings,
+  isPremiumReviewPending,
+  markPremiumReceiptSent,
+  readBrowserReviewStorage,
+  shouldShowPremiumReviewBanner,
+} from '../../../core/billing/premium-alias-receipt';
+import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
 
 @Component({
   selector: 'app-dashboard-home',
@@ -72,6 +81,34 @@ export class DashboardHomeComponent {
     return isStandaloneDisplay();
   }
 
+  protected showPremiumReviewBanner(): boolean {
+    const plan = this.businessFacade.settings()?.plan ?? this.user()?.plan ?? 'FREE';
+    const premiumPaid = String(plan).trim().toUpperCase() === 'PREMIUM';
+    return shouldShowPremiumReviewBanner({
+      pending: isPremiumReviewPending(readBrowserReviewStorage()),
+      plan,
+      premiumPaid,
+    });
+  }
+
+  protected premiumWhatsAppUrl(): string {
+    return buildPremiumWhatsAppUrl();
+  }
+
+  protected markReceiptSent(): void {
+    const storage = readBrowserReviewStorage();
+    if (storage) {
+      markPremiumReceiptSent(storage);
+    }
+    this.receiptSent.set(true);
+  }
+
+  protected readonly maxMonthlyBookings = getPlanEntitlements('FREE').maxMonthlyBookings ?? 30;
+
+  protected readonly monthlyBookingCount = computed(() =>
+    countCurrentMonthBookings(this.dashboardService.loadedBookings(), this.dashboardService.now()),
+  );
+
   protected showWebPushCoach(): boolean {
     const notificationSupported = typeof Notification !== 'undefined';
     return evaluateOperatorWebPush({
@@ -96,6 +133,7 @@ export class DashboardHomeComponent {
   protected readonly stats = this.dashboardService.stats;
   protected readonly copied = signal(false);
   protected readonly copyFailed = signal(false);
+  protected readonly receiptSent = signal(false);
   private hydratedUserId: string | null = null;
 
   constructor() {
