@@ -19,8 +19,8 @@ import { AuthService } from '../../../services/auth.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
 import {
-  addClockMinutes,
   persistWorkingHoursRecord,
+  splitWorkingDayForCut,
   workingDayHoursToFormValue,
   workingHoursToFormValue
 } from '../data-access/resolve-working-day-intervals';
@@ -455,13 +455,13 @@ export class ConfiguracionPage {
   }
 
   readonly weekdayRows: WeekdayRow[] = [
-    { key: 'monday', label: 'Monday / Lunes' },
-    { key: 'tuesday', label: 'Tuesday / Martes' },
-    { key: 'wednesday', label: 'Wednesday / Miércoles' },
-    { key: 'thursday', label: 'Thursday / Jueves' },
-    { key: 'friday', label: 'Friday / Viernes' },
-    { key: 'saturday', label: 'Saturday / Sábado' },
-    { key: 'sunday', label: 'Sunday / Domingo' }
+    { key: 'monday', label: 'Lunes' },
+    { key: 'tuesday', label: 'Martes' },
+    { key: 'wednesday', label: 'Miércoles' },
+    { key: 'thursday', label: 'Jueves' },
+    { key: 'friday', label: 'Viernes' },
+    { key: 'saturday', label: 'Sábado' },
+    { key: 'sunday', label: 'Domingo' }
   ];
 
 
@@ -489,7 +489,8 @@ export class ConfiguracionPage {
     if (!validation.isValid) {
       this.fieldErrors.set(validation.fieldErrors);
       this.settingsForm.markAllAsTouched();
-      this.formMessage.set('Formulario inválido. Revisa los campos marcados.');
+      const firstError = Object.values(validation.fieldErrors)[0];
+      this.formMessage.set(firstError || 'Formulario inválido. Revisa los campos marcados.');
       return;
     }
 
@@ -565,9 +566,12 @@ export class ConfiguracionPage {
       return;
     }
 
+    const start = String(group.get('start')?.value ?? '09:00');
     const end = String(group.get('end')?.value ?? '18:00');
-    group.get('start2')?.setValue(end);
-    group.get('end2')?.setValue(addClockMinutes(end, 240));
+    const split = splitWorkingDayForCut(start, end);
+    group.get('end')?.setValue(split.end);
+    group.get('start2')?.setValue(split.start2);
+    group.get('end2')?.setValue(split.end2);
     this.markWorkingDayInteracted(dayKey);
   }
 
@@ -580,6 +584,54 @@ export class ConfiguracionPage {
     group.get('start2')?.setValue('');
     group.get('end2')?.setValue('');
     this.markWorkingDayInteracted(dayKey);
+  }
+
+  removeWorkingDayInterval(dayKey: WeekdayKey, slot: 1 | 2): void {
+    if (slot === 2) {
+      this.removeWorkingDayCut(dayKey);
+      return;
+    }
+
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group) {
+      return;
+    }
+
+    if (this.hasWorkingDayCut(dayKey)) {
+      group.get('start')?.setValue(String(group.get('start2')?.value ?? ''));
+      group.get('end')?.setValue(String(group.get('end2')?.value ?? ''));
+      this.removeWorkingDayCut(dayKey);
+      return;
+    }
+
+    group.get('enabled')?.setValue(false);
+    this.markWorkingDayInteracted(dayKey);
+  }
+
+  copyHoursToAllDays(): void {
+    const source = this.settingsForm.get('workingHours.monday')?.getRawValue() as {
+      enabled: boolean;
+      start: string;
+      end: string;
+      start2: string;
+      end2: string;
+    } | undefined;
+    if (!source) {
+      return;
+    }
+
+    for (const day of this.weekdayRows) {
+      if (day.key === 'monday') {
+        continue;
+      }
+      const group = this.settingsForm.get(`workingHours.${day.key}`);
+      group?.get('enabled')?.setValue(source.enabled);
+      group?.get('start')?.setValue(source.start);
+      group?.get('end')?.setValue(source.end);
+      group?.get('start2')?.setValue(source.start2);
+      group?.get('end2')?.setValue(source.end2);
+      this.markWorkingDayInteracted(day.key);
+    }
   }
 
   private createDayGroup(day: WorkingDayHours) {

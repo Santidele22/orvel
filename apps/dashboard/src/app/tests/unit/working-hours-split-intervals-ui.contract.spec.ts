@@ -12,7 +12,9 @@ describe('working hours split intervals UI source contract', () => {
     const source = readFileSync(ZEN_THEME_TEMPLATE, 'utf-8');
 
     expect(source).toMatch(/data-testid=["']working-hours-section["']/);
-    expect(source).toContain('Agregar corte');
-    expect(source).toContain('Quitar corte');
+    expect(source).toContain('Agregar otro horario');
+    expect(source).toContain('Copiar horario a todos los días');
+    expect(source).toMatch(/role=["']switch["']/);
+    expect(source).toMatch(/data-testid=["']config-field-error-workingHours-form["']/);
   });
 });

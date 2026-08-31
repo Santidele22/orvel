@@ -345,90 +345,124 @@
           </div>
         </article>
 
-        <article [class]="ui.cardGlass + ' space-y-zen-lg'" formGroupName="workingHours" data-testid="working-hours-section">
-          <h2 [class]="ui.titleSection">Horarios de atención</h2>
+        <article class="space-y-4" formGroupName="workingHours" data-testid="working-hours-section">
+          <div class="flex items-center justify-between px-1">
+            <h2 [class]="ui.titleSection">Horarios de atención</h2>
+            <i class="ri-time-line text-lg text-text-secondary" aria-hidden="true"></i>
+          </div>
 
-          <div class="space-y-zen-md">
+          <div class="space-y-3">
             @for (day of weekdayRows; track day.key) {
-            <div class="grid grid-cols-12 gap-zen-md items-center" [formGroupName]="day.key">
-              <div class="col-span-12 md:col-span-4">
-                <span [class]="ui.labelMicro + ' text-secondary'">{{ day.label }}</span>
+            <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-4 space-y-4" [formGroupName]="day.key">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-base font-semibold text-text-primary">{{ day.label }}</span>
+                <label class="relative inline-flex cursor-pointer items-center">
+                  @if (day.key === 'monday') {
+                  <input data-testid="working-hours-monday-enabled" type="checkbox" formControlName="enabled"
+                    class="peer sr-only" role="switch" [attr.aria-checked]="settingsForm.get('workingHours.' + day.key + '.enabled')?.value" />
+                  } @else {
+                  <input type="checkbox" formControlName="enabled" class="peer sr-only" role="switch"
+                    [attr.aria-checked]="settingsForm.get('workingHours.' + day.key + '.enabled')?.value" />
+                  }
+                  <span class="h-6 w-11 rounded-full bg-white/15 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5"></span>
+                </label>
               </div>
-              <div class="col-span-12 md:col-span-2">
-                @if (day.key === 'monday') {
-                <input data-testid="working-hours-monday-enabled" type="checkbox" formControlName="enabled"
-                  class="h-zen-control-sm w-zen-control-sm accent-primary cursor-pointer" />
-                } @else {
-                <input type="checkbox" formControlName="enabled"
-                  class="h-zen-control-sm w-zen-control-sm accent-primary cursor-pointer" />
-                }
-              </div>
-              <div class="col-span-6 md:col-span-3">
-                @if (day.key === 'monday') {
-                <button data-testid="working-hours-monday-start" type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker('monday', 'start')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
-                </button>
-                } @else {
-                <button type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker($any(day.key), 'start')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
-                </button>
-                }
-              </div>
-              <div class="col-span-6 md:col-span-3">
-                @if (day.key === 'monday') {
-                <button data-testid="working-hours-monday-end" type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker('monday', 'end')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
-                </button>
-                } @else {
-                <button type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker($any(day.key), 'end')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
-                </button>
-                }
-              </div>
+
               @if (settingsForm.get('workingHours.' + day.key + '.enabled')?.value) {
-              @if (!hasWorkingDayCut(day.key)) {
-              <div class="col-span-12 md:col-start-7 md:col-span-6">
-                <button type="button" [class]="ui.subtleAction + ' h-zen-control-sm font-medium'"
+              <div class="space-y-3 border-l-2 pl-3" [class]="hasInvalidWorkingHoursRange(day.key) ? 'border-danger' : 'border-white/10'">
+                <div class="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                  <div class="space-y-1">
+                    <span class="text-[11px] text-text-secondary">Abre</span>
+                    @if (day.key === 'monday') {
+                    <button data-testid="working-hours-monday-start" type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      [class.border-danger]="hasInvalidWorkingHoursRange(day.key)"
+                      (click)="openTimePicker('monday', 'start')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
+                    </button>
+                    } @else {
+                    <button type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      [class.border-danger]="hasInvalidWorkingHoursRange(day.key)"
+                      (click)="openTimePicker($any(day.key), 'start')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start')?.value) }}
+                    </button>
+                    }
+                  </div>
+                  <div class="space-y-1">
+                    <span class="text-[11px] text-text-secondary">Cierra</span>
+                    @if (day.key === 'monday') {
+                    <button data-testid="working-hours-monday-end" type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      [class.border-danger]="hasInvalidWorkingHoursRange(day.key)"
+                      (click)="openTimePicker('monday', 'end')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
+                    </button>
+                    } @else {
+                    <button type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      [class.border-danger]="hasInvalidWorkingHoursRange(day.key)"
+                      (click)="openTimePicker($any(day.key), 'end')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end')?.value) }}
+                    </button>
+                    }
+                  </div>
+                  <button type="button" class="h-12 w-12 rounded-xl border border-white/10 bg-bg-primary text-text-secondary hover:text-danger"
+                    (click)="removeWorkingDayInterval($any(day.key), 1)" aria-label="Quitar horario">
+                    <i class="ri-delete-bin-6-line text-lg" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                @if (hasInvalidWorkingHoursRange(day.key)) {
+                <p [class]="ui.fieldError" data-testid="config-field-error-workingHours">La hora de cierre es antes que la de apertura. Ajustá el horario de cierre.</p>
+                }
+
+                @if (hasWorkingDayCut(day.key)) {
+                <div class="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                  <div class="space-y-1">
+                    <span class="text-[11px] text-text-secondary">Abre</span>
+                    <button type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      (click)="openTimePicker($any(day.key), 'start2')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start2')?.value) }}
+                    </button>
+                  </div>
+                  <div class="space-y-1">
+                    <span class="text-[11px] text-text-secondary">Cierra</span>
+                    <button type="button"
+                      class="h-12 w-full rounded-xl border border-white/10 bg-bg-primary px-3 text-sm font-medium text-text-primary"
+                      (click)="openTimePicker($any(day.key), 'end2')">
+                      {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end2')?.value) }}
+                    </button>
+                  </div>
+                  <button type="button" class="h-12 w-12 rounded-xl border border-white/10 bg-bg-primary text-text-secondary hover:text-danger"
+                    (click)="removeWorkingDayInterval($any(day.key), 2)" aria-label="Quitar horario">
+                    <i class="ri-delete-bin-6-line text-lg" aria-hidden="true"></i>
+                  </button>
+                </div>
+                }
+
+                @if (!hasWorkingDayCut(day.key)) {
+                <button type="button" class="inline-flex items-center gap-2 text-sm font-medium text-primary"
                   (click)="addWorkingDayCut($any(day.key))">
-                  Agregar corte
+                  <i class="ri-add-line" aria-hidden="true"></i>
+                  Agregar otro horario
                 </button>
+                }
               </div>
-              } @else {
-              <div class="col-span-6 md:col-span-3 md:col-start-7">
-                <button type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker($any(day.key), 'start2')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.start2')?.value) }}
-                </button>
-              </div>
-              <div class="col-span-6 md:col-span-3">
-                <button type="button"
-                  [class]="ui.subtleAction + ' w-full h-zen-control-sm font-medium shadow-sm hover:shadow-md transition-all'"
-                  (click)="openTimePicker($any(day.key), 'end2')">
-                  {{ formatTo12h(settingsForm.get('workingHours.' + day.key + '.end2')?.value) }}
-                </button>
-              </div>
-              <div class="col-span-12 md:col-start-7 md:col-span-6">
-                <button type="button" [class]="ui.subtleAction + ' h-zen-control-sm font-medium'"
-                  (click)="removeWorkingDayCut($any(day.key))">
-                  Quitar corte
-                </button>
-              </div>
-              }
-              }
-              @if (hasInvalidWorkingHoursRange(day.key)) {
-              <p class="col-span-12" [class]="ui.fieldError" data-testid="config-field-error-workingHours">invalidRange: el horario de apertura debe ser anterior al cierre.</p>
               }
             </div>
             }
+
+            @if (fieldErrors().workingHours) {
+            <p [class]="ui.fieldError" data-testid="config-field-error-workingHours-form">{{ fieldErrors().workingHours }}</p>
+            }
+
+            <button type="button"
+              class="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 py-3 text-sm text-text-secondary hover:text-text-primary"
+              (click)="copyHoursToAllDays()">
+              Copiar horario a todos los días
+            </button>
           </div>
         </article>
         }

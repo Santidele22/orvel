@@ -85,12 +85,47 @@ export function persistWorkingHoursRecord(
   return persisted;
 }
 
-export function addClockMinutes(time: string, minutesToAdd: number): string {
+function timeToMinutes(time: string): number {
   const [hour, minute] = time.split(':').map(Number);
-  const total = Math.min(Math.max((hour * 60 + minute) + minutesToAdd, 0), (23 * 60) + 59);
-  const nextHour = Math.floor(total / 60);
-  const nextMinute = total % 60;
+  return hour * 60 + minute;
+}
+
+function minutesToTime(totalMinutes: number): string {
+  const clamped = Math.min(Math.max(totalMinutes, 0), (23 * 60) + 59);
+  const nextHour = Math.floor(clamped / 60);
+  const nextMinute = clamped % 60;
   return `${String(nextHour).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`;
+}
+
+export function addClockMinutes(time: string, minutesToAdd: number): string {
+  return minutesToTime(timeToMinutes(time) + minutesToAdd);
+}
+
+export function splitWorkingDayForCut(start: string, end: string): { end: string; start2: string; end2: string } {
+  const startMinutes = timeToMinutes(start);
+  const endMinutes = timeToMinutes(end);
+  const siestaStart = 13 * 60 + 30;
+  const siestaEnd = 16 * 60;
+
+  if (startMinutes < siestaStart && siestaEnd < endMinutes) {
+    return { end: '13:30', start2: '16:00', end2: end };
+  }
+
+  const span = endMinutes - startMinutes;
+  if (span > 90) {
+    const mid = startMinutes + Math.floor(span / 2);
+    return {
+      end: minutesToTime(mid - 15),
+      start2: minutesToTime(mid + 15),
+      end2: end
+    };
+  }
+
+  return {
+    end,
+    start2: end,
+    end2: addClockMinutes(end, 240)
+  };
 }
 
 export function workingHoursToFormValue(
