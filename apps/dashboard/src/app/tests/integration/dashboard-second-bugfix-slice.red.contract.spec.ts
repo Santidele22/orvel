@@ -175,7 +175,7 @@ describe('Dashboard second bugfix slice RED contracts', () => {
     expect(source).toMatch(/data-testid=["']working-hours-monday-start["'][\s\S]*openTimePicker\([^)]*monday[^)]*start/);
     expect(source).toMatch(/data-testid=["']working-hours-monday-end["'][\s\S]*openTimePicker\([^)]*monday[^)]*end/);
     expect(source).toMatch(/invalidRange[\s\S]*config-field-error-workingHours/);
-    expect(source).toMatch(/workingHours:\s*values\.workingHours/);
+    expect(source).toMatch(/workingHours:\s*persistWorkingHoursRecord\(values\.workingHours\)/);
     expect(source).toMatch(/data-testid=["']settings-save-submit["'][\s\S]*Guardar cambios/);
   });
 
