@@ -181,7 +181,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         date_iso: dateIso
       };
       if (professionalId?.trim()) {
-        rpcArgs.professional_id = professionalId.trim();
+        rpcArgs['professional_id'] = professionalId.trim();
       }
 
       const { data, error } = await supabase.rpc('query_public_slot_availability', rpcArgs);

@@ -463,7 +463,7 @@ export class PublicBookingPage implements OnInit {
     await Promise.all(days.map(async (day, i) => {
       try {
       const response = await this.publicBookingService.queryPublicSlotAvailability(
-        this.availabilityQuery(serviceId, date)
+        this.availabilityQuery(serviceId, day.date)
       );
 
         if (!this.isCurrentPublicServiceSelection(serviceId)) {
