@@ -15,10 +15,10 @@ export interface NavItem {
   imports: [RouterLink, RouterLinkActive],
   template: `
     <nav
-      class="fixed bottom-0 inset-x-0 z-50 lg:hidden safe-area-bottom"
+      class="fixed bottom-0 inset-x-0 z-50 lg:hidden"
       aria-label="Navegación principal"
       data-testid="mobile-bottom-nav">
-      <div class="flex items-center justify-around h-16 px-2 pb-[env(safe-area-inset-bottom)] border-t bg-[rgba(13,18,32,0.92)] backdrop-blur-xl border-[rgba(255,255,255,0.045)]">
+      <div class="flex items-center justify-around min-h-16 px-2 pb-[env(safe-area-inset-bottom,0px)] border-t bg-[rgba(13,18,32,0.92)] backdrop-blur-xl border-[rgba(255,255,255,0.045)]">
         @for (item of navItems; track item.path) {
           <a
             [routerLink]="item.path"
@@ -37,10 +37,6 @@ export interface NavItem {
   styles: [`
     :host {
       display: contents;
-    }
-
-    .safe-area-bottom {
-      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
   `]
 })

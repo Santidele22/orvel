@@ -29,9 +29,11 @@ describe('Mobile shell: bottom nav integration', () => {
     expect(source).toContain('MobileBottomNavComponent');
   });
 
-  it('adds pb-16 to main for bottom nav clearance', async () => {
+  it('clears iOS safe areas on main for the installed PWA chrome', async () => {
     const html = await readFile(fromRoot(SHELL_HTML), 'utf-8');
-    expect(html).toContain('pb-16');
+    expect(html).toContain('pt-[env(safe-area-inset-top,0px)]');
+    expect(html).toContain('pb-[calc(4rem+env(safe-area-inset-bottom,0px))]');
+    expect(html).not.toMatch(/\bpb-16\b/);
   });
 
   it('has lg:pb-0 to reset padding on desktop', async () => {

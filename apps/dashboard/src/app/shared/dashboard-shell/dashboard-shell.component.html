@@ -15,7 +15,7 @@
         (themeChange)="onThemeChange($event)" class="z-40 shrink-0" />
     </div>
 
-    <main class="flex-1 overflow-y-auto no-scrollbar relative pb-16 lg:pb-0" data-testid="content">
+    <main class="flex-1 overflow-y-auto no-scrollbar relative pt-[env(safe-area-inset-top,0px)] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:pt-0 lg:pb-0" data-testid="content">
       <router-outlet />
     </main>
 
