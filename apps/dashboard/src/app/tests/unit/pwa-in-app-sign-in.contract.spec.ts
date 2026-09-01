@@ -10,21 +10,37 @@ const routeBlock = (routesSource: string, path: string) => {
 };
 
 describe('Contract: public PWA in-app sign-in', () => {
-  it('hops dashboard/login to in-app auth/login before the guarded dashboard parent', () => {
+  it('loads InAppLoginPage at dashboard/login before the guarded dashboard parent', () => {
     const appRoutes = source('src/app/app.routes.ts');
     const dashboardShell = source('src/app/dashboard-shell.routes.ts');
     const signIn = routeBlock(appRoutes, 'dashboard/login');
     const signInIndex = appRoutes.search(/path:\s*'dashboard\/login'/);
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
-    expect(signIn).toContain("redirectTo: '/auth/login'");
-    expect(signIn).toContain("pathMatch: 'full'");
+    expect(signIn).toContain('loadComponent');
+    expect(signIn).toContain('in-app-login.page');
+    expect(signIn).toContain('InAppLoginPage');
+    expect(signIn).not.toContain('redirectTo');
     expect(signIn).not.toContain('canActivate');
     expect(signIn).not.toContain('OperatorSignInPage');
-    expect(signIn).not.toContain('loadComponent');
     expect(signInIndex).toBeGreaterThan(-1);
     expect(signInIndex).toBeLessThan(dashboardIndex);
     expect(dashboardShell).toContain('canActivate: [dashboardAuthGuard]');
+  });
+
+  it('loads InAppSignupWizardPage at dashboard/signup before the guarded dashboard parent', () => {
+    const appRoutes = source('src/app/app.routes.ts');
+    const signUp = routeBlock(appRoutes, 'dashboard/signup');
+    const signUpIndex = appRoutes.search(/path:\s*'dashboard\/signup'/);
+    const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
+
+    expect(signUp).toContain('loadComponent');
+    expect(signUp).toContain('in-app-signup-wizard.page');
+    expect(signUp).toContain('InAppSignupWizardPage');
+    expect(signUp).not.toContain('redirectTo');
+    expect(signUp).not.toContain('canActivate');
+    expect(signUpIndex).toBeGreaterThan(-1);
+    expect(signUpIndex).toBeLessThan(dashboardIndex);
   });
 
   it('does not keep the duplicate operator sign-in page; in-app login owns the form', () => {
