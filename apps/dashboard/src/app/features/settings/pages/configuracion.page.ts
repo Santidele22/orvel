@@ -486,6 +486,28 @@ export class ConfiguracionPage {
     return Boolean(control?.hasError('invalidRange') && (control.touched || control.dirty || this.attemptedSubmit()));
   }
 
+  readonly expandedSalonDay = signal<WeekdayKey | null>(null);
+
+  toggleSalonDay(dayKey: WeekdayKey): void {
+    this.expandedSalonDay.set(this.expandedSalonDay() === dayKey ? null : dayKey);
+  }
+
+  salonDayHoursLabel(dayKey: WeekdayKey): string {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group?.get('enabled')?.value) {
+      return 'Cerrado';
+    }
+
+    const start = String(group.get('start')?.value ?? '').slice(0, 5);
+    const end = String(group.get('end')?.value ?? '').slice(0, 5);
+    const start2 = String(group.get('start2')?.value ?? '').slice(0, 5);
+    const end2 = String(group.get('end2')?.value ?? '').slice(0, 5);
+    const first = start && end ? `${start}–${end}` : '';
+    const second = start2 && end2 ? `${start2}–${end2}` : '';
+    if (first && second) return `${first}, ${second}`;
+    return first || 'Cerrado';
+  }
+
   readonly weekdayRows: WeekdayRow[] = [
     { key: 'monday', label: 'Lunes' },
     { key: 'tuesday', label: 'Martes' },
