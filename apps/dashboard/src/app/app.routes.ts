@@ -60,8 +60,13 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard/login',
-    redirectTo: '/auth/login',
-    pathMatch: 'full'
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'dashboard/signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
   },
   {
     path: 'dashboard',
