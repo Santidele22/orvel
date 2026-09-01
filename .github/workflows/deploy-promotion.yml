@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'orvel-prod' || 'orvel-qa' }}
       url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
