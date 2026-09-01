@@ -139,6 +139,22 @@
             {{ turnosLoadError() }}
           </p>
           }
+          @if (professionalChips().length > 0) {
+          <div class="flex flex-wrap gap-2 px-zen-xl pt-zen-lg" data-testid="turnos-professional-filter">
+            <button type="button"
+              class="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
+              [class.bg-primary]="professionalFilter() === 'todas'"
+              [class.text-white]="professionalFilter() === 'todas'"
+              (click)="professionalFilter.set('todas')">Todas</button>
+            @for (name of professionalChips(); track name) {
+            <button type="button"
+              class="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
+              [class.bg-primary]="professionalFilter() === name"
+              [class.text-white]="professionalFilter() === name"
+              (click)="professionalFilter.set(name)">{{ name }}</button>
+            }
+          </div>
+          }
           <div class="flex-1 overflow-y-auto p-zen-xl space-y-px relative custom-scrollbar">
             @if (!hasTurnosOnSelectedDate()) {
             <div data-testid="turnos-desktop-empty-state" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
@@ -176,6 +192,9 @@
                         <i class="ri-user-heart-line text-base text-primary"></i>
                         {{ turno.clienteNombre }}
                       </p>
+                      @if (turno.professionalNombre) {
+                      <p class="text-xs font-medium text-text-secondary mt-1" data-testid="turno-professional-name">{{ turno.professionalNombre }}</p>
+                      }
                     </div>
 
                     <!-- Action Buttons: Orvel Style (Glass + Shadows) -->
