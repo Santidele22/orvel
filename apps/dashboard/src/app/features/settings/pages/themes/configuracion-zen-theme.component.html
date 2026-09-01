@@ -111,6 +111,25 @@
           </div>
         </article>
 
+        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+          <div class="space-y-1 pr-3">
+            <p class="text-sm font-semibold text-white">Avisos push</p>
+            <p class="text-[11px] text-tertiary leading-tight">Te avisamos con la app cerrada si entra, se cancela o se reprograma un turno.</p>
+          </div>
+          <label class="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox"
+              class="peer sr-only" role="switch" data-testid="settings-web-push-toggle"
+              [ngModel]="webPushEnabled()" [ngModelOptions]="{standalone: true}"
+              [attr.aria-checked]="webPushEnabled()"
+              [disabled]="webPushBusy() || webPushStatus() === 'unsupported' || webPushStatus() === 'denied'"
+              (ngModelChange)="toggleWebPush($event)" />
+            <span class="h-6 w-11 rounded-full bg-white/15 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5"></span>
+          </label>
+        </div>
+        @if (webPushError()) {
+        <p class="text-xs text-error" role="alert">{{ webPushError() }}</p>
+        }
+
         <!-- Información de Contacto -->
         <article [class]="ui.cardGlass + ' space-y-zen-lg'">
           <div class="flex items-center justify-between pb-zen-md">

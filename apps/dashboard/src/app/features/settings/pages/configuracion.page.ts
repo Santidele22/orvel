@@ -31,6 +31,7 @@ import {
   requestSubscriptionCancellation,
   RequestSubscriptionCancellationError
 } from '../../billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
+import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 
 type WeekdayRow = {
   key: WeekdayKey;
@@ -57,6 +58,11 @@ export class ConfiguracionPage {
   private readonly servicioService = inject(ServicioService);
   protected readonly themeService = inject(ThemeService);
   protected readonly authService = inject(AuthService);
+  private readonly webPush = inject(OperatorWebPushService);
+  readonly webPushStatus = this.webPush.status;
+  readonly webPushEnabled = computed(() => this.webPush.status() === 'enabled');
+  readonly webPushBusy = signal(false);
+  readonly webPushError = signal<string | null>(null);
 
   readonly teamProfessionals = signal<Array<{
     id: string;
@@ -166,8 +172,28 @@ export class ConfiguracionPage {
       const userId = this.authService.user()?.id;
       if (userId) {
         void this.hydrateBusinessSettings(userId);
+        void this.webPush.refresh();
       }
     });
+  }
+
+  async toggleWebPush(enabled: boolean): Promise<void> {
+    this.webPushError.set(null);
+    this.webPushBusy.set(true);
+    try {
+      if (enabled) {
+        await this.webPush.enable();
+      } else {
+        await this.webPush.disable();
+      }
+    } catch (error) {
+      this.webPushError.set(
+        error instanceof Error ? error.message : 'No se pudieron guardar los avisos push. Intentá de nuevo.',
+      );
+    } finally {
+      this.webPushBusy.set(false);
+      await this.webPush.refresh();
+    }
   }
   async copyBookingUrl(): Promise<void> {
     this.urlCopyFailed.set(false);
