@@ -37,6 +37,19 @@ export function buildOperatorWebPushPayload(input: { title: string; body: string
   return { title: input.title, body: input.body, url: "/dashboard/turnos" };
 }
 
+export function resolveWebPushDeliveryStatus(tally: { sent: number; gone: number; failed: number }): {
+  status: "sent" | "skipped" | "failed";
+  error: string | null;
+} {
+  if (tally.sent === 0 && tally.failed === 0 && tally.gone === 0) {
+    return { status: "skipped", error: "no_subscriptions" };
+  }
+  if (tally.failed > 0 && tally.sent === 0) {
+    return { status: "failed", error: "send_failed" };
+  }
+  return { status: "sent", error: null };
+}
+
 function goneStatus(statusCode: number | undefined): boolean {
   return statusCode === 410 || statusCode === 404;
 }
@@ -124,8 +137,8 @@ export async function processWebPushOutbox(input: {
         send,
         onGone: (subscriptionId) => input.supabase.from("web_push_subscriptions").delete().eq("id", subscriptionId),
       });
-      const failed = result.failed > 0 && result.sent === 0;
-      await markOutbox(input.supabase, row.id, failed ? "failed" : "sent", failed ? "send_failed" : null);
+      const delivery = resolveWebPushDeliveryStatus(result);
+      await markOutbox(input.supabase, row.id, delivery.status, delivery.error);
     } catch {
       await markOutbox(input.supabase, row.id, "skipped", "send_unavailable");
     }

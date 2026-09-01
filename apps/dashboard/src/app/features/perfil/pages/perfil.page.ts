@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { logoutAndRedirect } from '../../../core/auth/route-protection';
 import { AuthService } from '../../../services/auth.service';
 import { navigateAfterLogout } from '../../../shared/dashboard-shell/logout-navigation';
+import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 
 @Component({
@@ -63,7 +64,10 @@ import { BusinessService } from '../../settings/data-access/business.service';
           </span>
           <svg class="h-4 w-4 shrink-0 text-[#5D6280]" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
-        <a routerLink="/dashboard/notificaciones" class="flex items-center gap-[13px] border-t border-[rgba(255,255,255,0.045)] px-[15px] py-3.5">
+        <a
+          routerLink="/dashboard/configuracion"
+          [queryParams]="{ tab: 'perfil' }"
+          class="flex items-center gap-[13px] border-t border-[rgba(255,255,255,0.045)] px-[15px] py-3.5">
           <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#1A2138] text-[#9096AE]">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           </span>
@@ -72,7 +76,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
             <span class="block text-[11.5px] font-medium text-[#5D6280]">Recordatorios y avisos push</span>
           </span>
           <span class="flex items-center gap-1.5 text-[#5D6280]">
-            <span class="text-[12.5px] font-semibold text-[#9096AE]">Activas</span>
+            <span data-testid="perfil-web-push-status" class="text-[12.5px] font-semibold text-[#9096AE]">{{ webPushStatusLabel() }}</span>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </a>
@@ -151,6 +155,15 @@ export class PerfilPage {
   readonly auth = inject(AuthService);
   private readonly business = inject(BusinessService);
   private readonly router = inject(Router);
+  private readonly webPush = inject(OperatorWebPushService);
+
+  constructor() {
+    void this.webPush.refresh();
+  }
+
+  protected readonly webPushStatusLabel = computed(() =>
+    this.webPush.status() === 'enabled' ? 'Activados' : 'Desactivados',
+  );
 
   protected readonly operatorInitial = computed(() => {
     const name = this.auth.user()?.nombre?.trim();
