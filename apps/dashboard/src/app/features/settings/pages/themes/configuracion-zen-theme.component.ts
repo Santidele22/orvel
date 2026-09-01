@@ -32,10 +32,17 @@ export class ConfiguracionZenThemeComponent {
   get teamServices() { return this.ctx.teamServices; }
   get teamDraftName() { return this.ctx.teamDraftName; }
   get teamSaving() { return this.ctx.teamSaving; }
+  get teamWeekdays() { return this.ctx.teamWeekdays; }
 
   addTeamProfessional(): void { this.ctx.addTeamProfessional(); }
   saveTeamProfessional(professional: unknown): void { this.ctx.saveTeamProfessional(professional); }
   toggleTeamService(professional: unknown, serviceId: string): void { this.ctx.toggleTeamService(professional, serviceId); }
+  professionalBookingUrl(slug: string): string { return this.ctx.professionalBookingUrl(slug); }
+  copyProfessionalBookingUrl(slug: string): void { void this.ctx.copyProfessionalBookingUrl(slug); }
+  hourForDay(professional: unknown, dayOfWeek: number) { return this.ctx.hourForDay(professional, dayOfWeek); }
+  saveProfessionalHours(professional: unknown, dayOfWeek: number, patch: unknown): void {
+    void this.ctx.saveProfessionalHours(professional, dayOfWeek, patch);
+  }
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }
