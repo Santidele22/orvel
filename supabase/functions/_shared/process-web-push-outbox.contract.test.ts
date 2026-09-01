@@ -3,6 +3,7 @@ import { assertEquals } from "jsr:@std/assert";
 import {
   buildOperatorWebPushPayload,
   isOperatorWebPushEventType,
+  resolveWebPushDeliveryStatus,
   shouldSkipWebPush,
 } from "./process-web-push-outbox.ts";
 
@@ -26,6 +27,25 @@ Deno.test("operator payload reuses inbox title/body and opens turnos", () => {
     buildOperatorWebPushPayload({ title: "Nuevo turno", body: "Ana reservó Corte." }),
     { title: "Nuevo turno", body: "Ana reservó Corte.", url: "/dashboard/turnos" },
   );
+});
+
+Deno.test("zero send tally is skipped with no_subscriptions, not sent", () => {
+  assertEquals(resolveWebPushDeliveryStatus({ sent: 0, gone: 0, failed: 0 }), {
+    status: "skipped",
+    error: "no_subscriptions",
+  });
+  assertEquals(resolveWebPushDeliveryStatus({ sent: 1, gone: 0, failed: 0 }), {
+    status: "sent",
+    error: null,
+  });
+  assertEquals(resolveWebPushDeliveryStatus({ sent: 1, gone: 0, failed: 2 }), {
+    status: "sent",
+    error: null,
+  });
+  assertEquals(resolveWebPushDeliveryStatus({ sent: 0, gone: 0, failed: 2 }), {
+    status: "failed",
+    error: "send_failed",
+  });
 });
 
 Deno.test("appointment inbox event types include reminder for operator push", () => {

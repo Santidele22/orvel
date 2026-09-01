@@ -73,4 +73,12 @@ describe('Issue #344 slice 2 — operator web push send', () => {
       expect(helper).toContain(eventType);
     }
   });
+
+  it('helper marks skipped/no_subscriptions when the send tally is 0/0/0', () => {
+    expect(helper).toMatch(/resolveWebPushDeliveryStatus/);
+    expect(helper).toMatch(/no_subscriptions/);
+    expect(helper).toMatch(/sent\s*===?\s*0/);
+    expect(helper).toMatch(/failed\s*===?\s*0/);
+    expect(helper).not.toMatch(/failed\s*\?\s*['"]failed['"]\s*:\s*['"]sent['"]/);
+  });
 });
