@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../../shared/dashboard-section-primitives/zen-section-primitives';
 
 @Component({
   selector: 'app-configuracion-theme-zen',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './configuracion-zen-theme.component.html'
 })
 export class ConfiguracionZenThemeComponent {
@@ -28,6 +28,14 @@ export class ConfiguracionZenThemeComponent {
   get settingsTabs() { return this.ctx.settingsTabs; }
   get urlCopied() { return this.ctx.urlCopied; }
   get urlCopyFailed() { return this.ctx.urlCopyFailed; }
+  get teamProfessionals() { return this.ctx.teamProfessionals; }
+  get teamServices() { return this.ctx.teamServices; }
+  get teamDraftName() { return this.ctx.teamDraftName; }
+  get teamSaving() { return this.ctx.teamSaving; }
+
+  addTeamProfessional(): void { this.ctx.addTeamProfessional(); }
+  saveTeamProfessional(professional: unknown): void { this.ctx.saveTeamProfessional(professional); }
+  toggleTeamService(professional: unknown, serviceId: string): void { this.ctx.toggleTeamService(professional, serviceId); }
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }

@@ -343,6 +343,55 @@
               }
             </div>
           </div>
+
+          <div class="space-y-zen-md pt-zen-md" data-testid="settings-equipo-section">
+            <div class="flex items-center justify-between">
+              <h3 [class]="ui.titleSection">Equipo</h3>
+              <i class="ri-team-line text-tertiary" aria-hidden="true"></i>
+            </div>
+            <div class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-primary">El cliente puede elegir profesional</p>
+                <p class="text-[10px] text-tertiary leading-tight">Si lo activás, el turnero público muestra chips cuando hay dos o más profesionales para el servicio.</p>
+              </div>
+              <input type="checkbox" formControlName="allowClientProfessionalSelection" class="h-5 w-5 accent-primary cursor-pointer" data-testid="settings-allow-client-professional-selection" />
+            </div>
+
+            <div class="space-y-zen-sm">
+              @for (professional of teamProfessionals(); track professional.id) {
+              <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-4 space-y-3" data-testid="settings-professional-row">
+                <div class="flex items-center justify-between gap-3">
+                  <input type="text" [ngModel]="professional.name" [ngModelOptions]="{standalone: true}"
+                    (blur)="saveTeamProfessional({ ...professional, name: $any($event.target).value })"
+                    [class]="ui.input" />
+                  <label class="flex items-center gap-2 text-xs text-secondary">
+                    <input type="checkbox" [ngModel]="professional.active" [ngModelOptions]="{standalone: true}"
+                      (ngModelChange)="saveTeamProfessional({ ...professional, active: $event })" />
+                    Activo
+                  </label>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  @for (service of teamServices(); track service.id) {
+                  <label class="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-[11px] text-secondary">
+                    <input type="checkbox" [checked]="professional.serviceIds.includes(service.id)"
+                      (change)="toggleTeamService(professional, service.id)" />
+                    {{ service.name }}
+                  </label>
+                  }
+                </div>
+              </div>
+              }
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" [ngModel]="teamDraftName()" [ngModelOptions]="{standalone: true}"
+                (ngModelChange)="teamDraftName.set($event)" placeholder="Nombre del profesional" [class]="ui.input" data-testid="settings-professional-name-input" />
+              <button type="button" [class]="ui.primaryAction" [disabled]="teamSaving() || !teamDraftName().trim()"
+                (click)="addTeamProfessional()" data-testid="settings-professional-add">
+                Agregar
+              </button>
+            </div>
+          </div>
         </article>
 
         <article class="space-y-4" formGroupName="workingHours" data-testid="working-hours-section">

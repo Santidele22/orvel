@@ -160,16 +160,6 @@ function createPublicBookingGatewayDouble() {
         } as const;
       }
 
-      if (payload.professionalId) {
-        return {
-          status: 422,
-          error: {
-            code: 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN',
-            message: 'Client professional selection is forbidden by booking policy'
-          }
-        } as const;
-      }
-
       return {
         status: 201,
         data: {
@@ -388,7 +378,7 @@ describe('KB-011.3 - Public booking creation', () => {
     });
   });
 
-  it('KB-011.3.3 - rejects forbidden professional selection from public payload', async () => {
+  it('KB-011.3.3 - forwards professional selection to the booking RPC policy', async () => {
     const response = await api.createPublicBooking({
       businessSlug: 'studio-roma',
       serviceId: 'svc-cut-001',
@@ -401,10 +391,11 @@ describe('KB-011.3 - Public booking creation', () => {
     });
 
     expect(response).toEqual({
-      status: 422,
-      error: {
-        code: 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN',
-        message: expect.stringMatching(/professional|selection|forbidden/i)
+      status: 201,
+      data: {
+        bookingId: 'appt-kb011-001',
+        status: 'confirmed',
+        source: 'client-self-service'
       }
     });
   });

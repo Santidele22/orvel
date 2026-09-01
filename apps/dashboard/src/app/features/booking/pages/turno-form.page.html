@@ -134,6 +134,20 @@
           </div>
         </div>
 
+        @if (professionals().length > 0) {
+        <div class="form-group">
+          <label for="profesional">Profesional</label>
+          <select id="profesional" data-testid="turno-admin-professional-select" [ngModel]="professionalId()"
+            (ngModelChange)="professionalId.set($event)" name="profesional"
+            class="h-12 w-full rounded-xl border border-white/10 bg-[#182033] px-4 text-sm font-medium text-white shadow-inner outline-none transition-colors duration-200 focus:border-primary/50 focus:bg-[#1a2439] focus:ring-2 focus:ring-primary/50">
+            <option value="">Sin asignar</option>
+            @for (professional of professionals(); track professional.id) {
+            <option [value]="professional.id">{{ professional.name }}</option>
+            }
+          </select>
+        </div>
+        }
+
         <div class="form-group">
           <label for="servicio">Servicio *</label>
           <select id="servicio" data-testid="turno-admin-service-select" [ngModel]="servicioId()"
