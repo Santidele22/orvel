@@ -67,8 +67,12 @@ export class PublicBookingPage implements OnInit {
   protected readonly showProfessionalPicker = computed(() =>
     !this.lockedProfessionalSlug()
     && this.allowClientProfessionalSelection()
-    && this.publicProfessionals().length >= 2
+    && this.publicProfessionals().length >= 1
   );
+  protected readonly selectedService = computed(() =>
+    this.publicServices().find((service) => service.id === this.selectedServiceId()) ?? null
+  );
+  protected readonly professionalHints = signal<Record<string, string>>({});
 
   // Validation errors per field
   protected readonly fieldErrors = signal<Record<string, string>>({});
@@ -119,7 +123,8 @@ export class PublicBookingPage implements OnInit {
     this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
-    const professionalSlug = this.route.snapshot.paramMap.get('professionalSlug') ?? '';
+    const professionalSlugParam = this.route.snapshot.paramMap.get('professionalSlug') ?? '';
+    const professionalSlug = professionalSlugParam && professionalSlugParam !== slug ? professionalSlugParam : '';
     const response = await this.businessService.resolveBusinessBySlug(slug);
 
     if (response.data) {
@@ -250,13 +255,47 @@ export class PublicBookingPage implements OnInit {
 
     const professionals = await this.businessService.listPublicProfessionalsForService(slug, serviceId);
     this.publicProfessionals.set(professionals);
-    if (professionals.length < 2) {
+    if (!this.lockedProfessionalSlug()) {
       this.selectedProfessionalId.set('');
     }
+    void this.refreshProfessionalHints(professionals);
   }
 
-  private availabilityQuery(serviceId: string, dateIso: string) {
-    const professionalId = this.selectedProfessionalId().trim();
+  private async refreshProfessionalHints(professionals: Array<{ id: string; name: string }>): Promise<void> {
+    const serviceId = this.selectedServiceId();
+    if (!serviceId || professionals.length === 0) {
+      this.professionalHints.set({});
+      return;
+    }
+
+    const days = this.availableDays().filter((day) => day.isWorkingDay).slice(0, 7);
+    const today = toLocalCivilDate(new Date(), this.businessTimezone());
+    const hints = await Promise.all(professionals.map(async (professional) => {
+      for (const day of days) {
+        const response = await this.publicBookingService.queryPublicSlotAvailability(
+          this.availabilityQuery(serviceId, day.date, professional.id)
+        );
+        const slot = response.data?.slots?.find((item) => (item.remainingCapacity ?? 0) > 0);
+        if (slot) {
+          const time = this.formatSlot(slot.startsAtIso);
+          const when = day.date === today ? `hoy ${time}` : `${day.weekday} ${day.label} · ${time}`;
+          return [professional.id, `Próximo lugar: ${when}`] as const;
+        }
+      }
+      return [professional.id, 'Sin turnos esta semana'] as const;
+    }));
+
+    this.professionalHints.set(Object.fromEntries(hints));
+  }
+
+  protected professionalInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+
+  private availabilityQuery(serviceId: string, dateIso: string, professionalId = this.selectedProfessionalId().trim()) {
     return {
       businessSlug: this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '',
       serviceId,

@@ -88,9 +88,13 @@
             
             <!-- Service Selection -->
             <div class="space-y-4">
-              <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                <i class="ri-customer-service-2-line text-purple-500 text-base"></i>
-                ¿Qué servicio necesitas?
+              <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">1</span>
+                @if (selectedService(); as service) {
+                  <span>{{ service.name }} <span class="font-medium text-slate-400">· {{ service.duration }} min · ${{ service.price }}</span></span>
+                } @else {
+                  <span>Elegí servicio</span>
+                }
               </label>
               <div class="relative group">
                 <select
@@ -99,7 +103,7 @@
                   name="selectedService"
                   required
                   [disabled]="!!serviceErrorMessage() || publicServices().length === 0"
-                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
+                  [class]="'w-full h-12 bg-black/20 border rounded-2xl px-5 text-sm font-medium text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
                           (fieldErrors()['service'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
                 >
                   <option value="" disabled class="bg-[#1E293B]">Selecciona un servicio</option>
@@ -107,7 +111,7 @@
                     <option [value]="svc.id" class="bg-[#1E293B]">{{ svc.name }} ({{ svc.duration }} min) - ${{ svc.price }}</option>
                   }
                 </select>
-                <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
+                <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
                   <i class="ri-arrow-down-s-line text-xl"></i>
                 </div>
               </div>
@@ -115,27 +119,40 @@
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
               @if (showProfessionalPicker()) {
-                <div class="space-y-3" data-testid="public-professional-picker">
-                  <p class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                    <i class="ri-user-star-line text-purple-500 text-base"></i>
-                    ¿Tenés preferencia de profesional?
+                <div class="space-y-3 pt-2" data-testid="public-professional-picker">
+                  <p class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
+                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">2</span>
+                    Elegí profesional
                   </p>
-                  <div class="flex flex-wrap gap-2">
+                  <button type="button"
+                    (click)="onProfessionalChange('')"
+                    [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (!selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
+                    data-testid="public-professional-none">
+                    <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1E293B] text-[#7C3AED]">
+                      <i class="ri-user-line text-xl"></i>
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold text-white">Cualquier profesional</span>
+                      <span class="block text-xs font-medium text-emerald-400">Más horarios disponibles</span>
+                    </span>
+                  </button>
+                  @for (professional of publicProfessionals(); track professional.id) {
                     <button type="button"
-                      (click)="onProfessionalChange('')"
-                      [class]="'px-4 py-2 rounded-full text-xs font-bold border transition-all ' + (!selectedProfessionalId() ? 'bg-[#7C3AED] border-[#7C3AED] text-white' : 'bg-black/20 border-white/10 text-slate-300')"
-                      data-testid="public-professional-none">
-                      Sin preferencia
+                      (click)="onProfessionalChange(professional.id)"
+                      [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (selectedProfessionalId() === professional.id ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
+                      [attr.data-testid]="'public-professional-' + professional.id">
+                      <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#7C3AED] text-sm font-black text-white">
+                        {{ professionalInitials(professional.name) }}
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-semibold text-white">{{ professional.name }}</span>
+                        <span class="block text-xs" [class]="professionalHints()[professional.id] === 'Sin turnos esta semana' ? 'text-rose-400/80' : 'text-slate-400'">
+                          {{ professionalHints()[professional.id] || 'Buscando horarios…' }}
+                        </span>
+                      </span>
+                      <span class="h-4 w-4 rounded-full border border-white/30" [class.bg-[#7C3AED]]="selectedProfessionalId() === professional.id" [class.border-[#7C3AED]]="selectedProfessionalId() === professional.id"></span>
                     </button>
-                    @for (professional of publicProfessionals(); track professional.id) {
-                      <button type="button"
-                        (click)="onProfessionalChange(professional.id)"
-                        [class]="'px-4 py-2 rounded-full text-xs font-bold border transition-all ' + (selectedProfessionalId() === professional.id ? 'bg-[#7C3AED] border-[#7C3AED] text-white' : 'bg-black/20 border-white/10 text-slate-300')"
-                        [attr.data-testid]="'public-professional-' + professional.id">
-                        {{ professional.name }}
-                      </button>
-                    }
-                  </div>
+                  }
                 </div>
               }
               @if (serviceErrorMessage()) {
@@ -157,9 +174,9 @@
             <div class="space-y-8">
               <!-- Horizontal Date Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                  <i class="ri-calendar-2-line text-purple-500 text-base"></i>
-                  1. Selecciona el día
+                <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">{{ showProfessionalPicker() ? '3' : '2' }}</span>
+                  Elegí día y horario
                   @if (loadingAvailability()) {
                     <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
                   }
@@ -187,7 +204,7 @@
               <div class="space-y-4">
                 <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                   <i class="ri-time-line text-purple-500 text-base"></i>
-                  2. Elige tu horario
+                  Horario
                   @if (loadingSlots()) {
                     <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
                   }
@@ -235,7 +252,11 @@
                   </div>
                 }
 
-                @if (availabilitySlots().length > 0) {
+                @if (showProfessionalPicker() && !selectedProfessionalId()) {
+                  <p class="text-[11px] text-slate-500 ml-1 font-medium">
+                    Elegí “Cualquier profesional” → esta grilla te muestra todos los huecos combinados de todo el equipo.
+                  </p>
+                } @else if (availabilitySlots().length > 0) {
                   <p class="text-[10px] text-slate-500 ml-1 italic font-medium">
                     * Todos los horarios se muestran en hora local.
                   </p>

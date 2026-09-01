@@ -13,7 +13,7 @@ describe('Public booking professional picker', () => {
   });
 
   it('defaults to no preference and only submits a specific professionalId', () => {
-    expect(pageHtml).toMatch(/Sin preferencia/);
+    expect(pageHtml).toMatch(/Cualquier profesional/);
     expect(pageTs).toMatch(/professionalId/);
     expect(pageHtml).toMatch(/Te atiende/);
   });
