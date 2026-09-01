@@ -37,6 +37,7 @@ export interface BusinessSettings {
   allowMultipleServices?: boolean;
   cleanupTimeMinutes?: number;
   capacity?: number;
+  allowClientProfessionalSelection?: boolean;
   weekStartDay?: 'monday' | 'sunday';
   timeFormat?: '12h' | '24h';
   firstName?: string;

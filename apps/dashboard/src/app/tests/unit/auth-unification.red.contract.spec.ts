@@ -27,30 +27,18 @@ describe('RED: auth unification contract', () => {
     const appRoutes = source('src/app/app.routes.ts');
     const login = routeBlock(appRoutes, 'auth/login');
     const signup = routeBlock(appRoutes, 'auth/signup');
-    const dashboardLogin = routeBlock(appRoutes, 'dashboard/auth/login');
-    const dashboardSignup = routeBlock(appRoutes, 'dashboard/auth/signup');
     const loginIndex = appRoutes.search(/path:\s*'auth\/login'/);
     const signupIndex = appRoutes.search(/path:\s*'auth\/signup'/);
-    const dashboardLoginIndex = appRoutes.search(/path:\s*'dashboard\/auth\/login'/);
-    const dashboardSignupIndex = appRoutes.search(/path:\s*'dashboard\/auth\/signup'/);
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
     expect(login).toContain('loadComponent');
     expect(login).not.toContain('canActivate');
     expect(signup).toContain('loadComponent');
     expect(signup).not.toContain('canActivate');
-    expect(dashboardLogin).toContain('loadComponent');
-    expect(dashboardLogin).not.toContain('canActivate');
-    expect(dashboardSignup).toContain('loadComponent');
-    expect(dashboardSignup).not.toContain('canActivate');
     expect(loginIndex).toBeGreaterThan(-1);
     expect(signupIndex).toBeGreaterThan(-1);
-    expect(dashboardLoginIndex).toBeGreaterThan(-1);
-    expect(dashboardSignupIndex).toBeGreaterThan(-1);
     expect(loginIndex).toBeLessThan(dashboardIndex);
     expect(signupIndex).toBeLessThan(dashboardIndex);
-    expect(dashboardLoginIndex).toBeLessThan(dashboardIndex);
-    expect(dashboardSignupIndex).toBeLessThan(dashboardIndex);
     expect(appRoutes).not.toMatch(/SignupCredentialsPage(?:Component)?/);
   });
 
@@ -67,7 +55,7 @@ describe('RED: auth unification contract', () => {
   it('redirects unauthenticated protected dashboard access to in-app /auth/login with sanitized returnTo', () => {
     const routeProtection = source('src/app/core/auth/route-protection.ts');
 
-    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/dashboard\/auth\/login['"]/);
+    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
     expect(routeProtection).toMatch(/PARAM_BLOCKLIST|access_token|refresh_token|id_token/);
     expect(routeProtection).toMatch(/encodeURIComponent\(safeReturnTo\)/);
     expect(routeProtection).not.toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/login['"]/);

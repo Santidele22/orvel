@@ -75,3 +75,11 @@ export function buildPublicBookingDays(
 
   return days;
 }
+
+export function isBookablePublicDay(day: DayAvailability): boolean {
+  return day.isWorkingDay && day.hasAvailability;
+}
+
+export function filterBookablePublicDays(days: DayAvailability[]): DayAvailability[] {
+  return days.filter(isBookablePublicDay);
+}

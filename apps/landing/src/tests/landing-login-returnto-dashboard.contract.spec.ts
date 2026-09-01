@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import { sanitizeLandingAuthReturnTo } from '../lib/auth-return-to';
 import { loginWithProvider } from '../lib/auth-provider';
-import { buildInAppAuthRedirect } from '../lib/in-app-auth-redirect';
 
 describe('Contract: landing login returnTo resolves to dashboard app', () => {
   it('falls back to the production dashboard origin outside local development when PUBLIC_DASHBOARD_URL is absent', () => {
@@ -92,13 +91,6 @@ describe('Contract: landing login returnTo resolves to dashboard app', () => {
     expect(loginPage).not.toContain('loginWithGoogle');
     expect(loginPage).not.toContain('createSupabaseOAuthAdapter');
     expect(loginPage).not.toContain('signInWithOAuth');
-
-    const redirect = new URL(
-      buildInAppAuthRedirect(new URL('https://orvel.pro/auth/login?returnTo=/dashboard/inicio'), 'login')
-    );
-    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
-    expect(redirect.pathname).toBe('/dashboard/auth/login');
-    expect(redirect.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
   it('rejects token/payment-bearing and external returnTo values', () => {

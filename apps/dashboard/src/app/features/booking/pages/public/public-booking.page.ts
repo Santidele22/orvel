@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -9,7 +9,7 @@ import { ServicioService } from '../../../servicios/data-access/servicio.service
 import { validatePublicBookingForm } from './public-booking.validation';
 import type { PublicSlot } from '@orvel/booking';
 import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
-import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
+import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublicDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
@@ -50,10 +50,30 @@ export class PublicBookingPage implements OnInit {
   protected readonly businessTimezone = signal<string>(DEFAULT_BUSINESS_TIMEZONE);
 
   protected readonly availableDays = signal<DayAvailability[]>([]);
+  protected readonly bookableDays = computed(() => {
+    if (this.loadingAvailability()) return [];
+    return filterBookablePublicDays(this.availableDays());
+  });
   protected readonly selectedDate = signal<string>(toLocalCivilDate(new Date(), DEFAULT_BUSINESS_TIMEZONE));
   protected readonly resolvedBusinessId = signal<string | null>(null);
   protected readonly rescheduleMode = signal(false);
   protected readonly rescheduleConfirmed = signal(false);
+  protected readonly allowClientProfessionalSelection = signal(false);
+  protected readonly publicProfessionals = signal<Array<{ id: string; name: string }>>([]);
+  protected readonly selectedProfessionalId = signal('');
+  protected readonly confirmedProfessionalName = signal('');
+  protected readonly lockedProfessionalSlug = signal('');
+  protected readonly lockedProfessionalServiceIds = signal<string[]>([]);
+  protected readonly showProfessionalPicker = computed(() =>
+    !this.lockedProfessionalSlug()
+    && this.allowClientProfessionalSelection()
+    && this.publicProfessionals().length >= 1
+  );
+  protected readonly selectedService = computed(() =>
+    this.publicServices().find((service) => service.id === this.selectedServiceId()) ?? null
+  );
+  protected readonly professionalHints = signal<Record<string, string>>({});
+  protected readonly professionalChoiceMade = signal(false);
 
   // Validation errors per field
   protected readonly fieldErrors = signal<Record<string, string>>({});
@@ -95,9 +115,18 @@ export class PublicBookingPage implements OnInit {
     this.businessName.set('');
     this.workingHours.set(null);
     this.selectedSlot = '';
+    this.allowClientProfessionalSelection.set(false);
+    this.publicProfessionals.set([]);
+    this.selectedProfessionalId.set('');
+    this.confirmedProfessionalName.set('');
+    this.lockedProfessionalSlug.set('');
+    this.lockedProfessionalServiceIds.set([]);
+    this.professionalChoiceMade.set(false);
     this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
+    const professionalSlugParam = this.route.snapshot.paramMap.get('professionalSlug') ?? '';
+    const professionalSlug = professionalSlugParam && professionalSlugParam !== slug ? professionalSlugParam : '';
     const response = await this.businessService.resolveBusinessBySlug(slug);
 
     if (response.data) {
@@ -107,6 +136,24 @@ export class PublicBookingPage implements OnInit {
       this.businessTimezone.set(response.data.timezone || DEFAULT_BUSINESS_TIMEZONE);
       
       this.workingHours.set(response.data.settings.workingHours);
+      this.allowClientProfessionalSelection.set(
+        response.data.bookingPolicy?.allowClientProfessionalSelection === true
+      );
+      if (professionalSlug.trim()) {
+        const professional = await this.businessService.resolvePublicProfessional(slug, professionalSlug);
+        if (!professional) {
+          this.errorMessage.set('No encontramos a ese profesional.');
+          this.resolvedBusinessId.set(null);
+          this.loading.set(false);
+          return;
+        }
+        this.lockedProfessionalSlug.set(professional.slug);
+        this.selectedProfessionalId.set(professional.id);
+        this.professionalChoiceMade.set(true);
+        this.confirmedProfessionalName.set(professional.name);
+        this.lockedProfessionalServiceIds.set(professional.serviceIds);
+        this.businessName.set(`${response.data.displayName} · ${professional.name}`);
+      }
       this.initAvailableDays();
       if (this.rescheduleMode()) {
         const loaded = await this.loadTokenBackedReschedulePreload(response.data.id);
@@ -144,8 +191,10 @@ export class PublicBookingPage implements OnInit {
       
       if (services && services.length > 0) {
         // Mapeamos al formato que espera el template (id, name, price, duration)
+        const allowedServiceIds = this.lockedProfessionalServiceIds();
         const mapped = services
           .filter((s: any) => this.isPublicServiceActive(s))
+          .filter((s: any) => !this.lockedProfessionalSlug() || allowedServiceIds.includes(s.id))
           .map((s: any) => ({
             id: s.id,
             name: s.nombre || s.name || 'Servicio sin nombre',
@@ -166,7 +215,10 @@ export class PublicBookingPage implements OnInit {
         if (this.preloadStartsAtIso) {
           this.selectedDate.set(this.preloadStartsAtIso.split('T')[0]);
         }
-        await this.loadAvailability();
+        await this.loadProfessionalsForSelectedService();
+        if (this.canShowScheduleStep()) {
+          await this.loadAvailability();
+        }
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
       }
@@ -184,7 +236,101 @@ export class PublicBookingPage implements OnInit {
   }
 
   async onServiceChange() {
+    this.selectedSlot = '';
+    this.loadingAvailability.set(true);
+    if (!this.lockedProfessionalSlug()) {
+      this.selectedProfessionalId.set('');
+      this.professionalChoiceMade.set(false);
+    }
+    await this.loadProfessionalsForSelectedService();
+    if (this.canShowScheduleStep()) {
+      await this.loadAvailability();
+    } else {
+      this.availabilitySlots.set([]);
+      this.loadingAvailability.set(false);
+    }
+  }
+
+  protected async onProfessionalChange(professionalId: string): Promise<void> {
+    this.selectedProfessionalId.set(professionalId);
+    this.professionalChoiceMade.set(true);
+    this.selectedSlot = '';
+    this.loadingAvailability.set(true);
     await this.loadAvailability();
+  }
+
+  protected canShowProfessionalStep(): boolean {
+    return Boolean(this.selectedServiceId()) && this.showProfessionalPicker();
+  }
+
+  protected canShowScheduleStep(): boolean {
+    if (!this.selectedServiceId()) return false;
+    if (this.showProfessionalPicker() && !this.professionalChoiceMade()) return false;
+    return true;
+  }
+
+  protected canShowContactStep(): boolean {
+    return this.canShowScheduleStep() && Boolean(this.selectedSlot);
+  }
+
+  private async loadProfessionalsForSelectedService(): Promise<void> {
+    const slug = this.resolvedSlug();
+    const serviceId = this.selectedServiceId();
+    if (!slug || !serviceId || !this.allowClientProfessionalSelection() || this.lockedProfessionalSlug()) {
+      this.publicProfessionals.set([]);
+      return;
+    }
+
+    const professionals = await this.businessService.listPublicProfessionalsForService(slug, serviceId);
+    this.publicProfessionals.set(professionals);
+    if (!this.lockedProfessionalSlug()) {
+      this.selectedProfessionalId.set('');
+      this.professionalChoiceMade.set(false);
+    }
+    void this.refreshProfessionalHints(professionals);
+  }
+
+  private async refreshProfessionalHints(professionals: Array<{ id: string; name: string }>): Promise<void> {
+    const serviceId = this.selectedServiceId();
+    if (!serviceId || professionals.length === 0) {
+      this.professionalHints.set({});
+      return;
+    }
+
+    const days = this.availableDays().filter((day) => day.isWorkingDay).slice(0, 7);
+    const today = toLocalCivilDate(new Date(), this.businessTimezone());
+    const hints = await Promise.all(professionals.map(async (professional) => {
+      for (const day of days) {
+        const response = await this.publicBookingService.queryPublicSlotAvailability(
+          this.availabilityQuery(serviceId, day.date, professional.id)
+        );
+        const slot = response.data?.slots?.find((item) => (item.remainingCapacity ?? 0) > 0);
+        if (slot) {
+          const time = this.formatSlot(slot.startsAtIso);
+          const when = day.date === today ? `hoy ${time}` : `${day.weekday} ${day.label} · ${time}`;
+          return [professional.id, `Próximo lugar: ${when}`] as const;
+        }
+      }
+      return [professional.id, 'Sin turnos esta semana'] as const;
+    }));
+
+    this.professionalHints.set(Object.fromEntries(hints));
+  }
+
+  protected professionalInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+
+  private availabilityQuery(serviceId: string, dateIso: string, professionalId = this.selectedProfessionalId().trim()) {
+    return {
+      businessSlug: this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '',
+      serviceId,
+      dateIso,
+      ...(professionalId ? { professionalId } : {})
+    };
   }
 
   // Trigger availability check when service is selected
@@ -205,11 +351,9 @@ export class PublicBookingPage implements OnInit {
     const date = this.selectedDate();
 
     try {
-      const response = await this.publicBookingService.queryPublicSlotAvailability({
-        businessSlug: slug,
-        serviceId,
-        dateIso: date
-      });
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, date)
+      );
 
       if (!this.isCurrentPublicServiceSelection(serviceId)) {
         return;
@@ -329,6 +473,7 @@ export class PublicBookingPage implements OnInit {
         return;
       }
 
+      const selectedProfessionalId = this.selectedProfessionalId().trim();
       const response = await this.publicBookingService.createPublicBooking({
         businessSlug: (this.resolvedSlug() || this.route.snapshot.paramMap.get('slug')) ?? '',
         serviceId: this.selectedServiceId(),
@@ -338,12 +483,18 @@ export class PublicBookingPage implements OnInit {
           email: this.email,
           phone: this.whatsapp
         },
-        notes: this.notes
+        notes: this.notes,
+        ...(selectedProfessionalId ? { professionalId: selectedProfessionalId } : {})
       });
 
       if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
         this.bookingAwaitingApproval.set(response.data.status === 'pending');
+        this.confirmedProfessionalName.set(
+          response.data.professionalName
+          || this.publicProfessionals().find((professional) => professional.id === selectedProfessionalId)?.name
+          || ''
+        );
         window.dispatchEvent(new CustomEvent('booking.created', {
           detail: {
             status: response.data.status,
@@ -369,6 +520,7 @@ export class PublicBookingPage implements OnInit {
   private initAvailableDays() {
     const days = buildPublicBookingDays(this.workingHours(), new Date(), this.businessTimezone());
     this.availableDays.set(days);
+    this.loadingAvailability.set(true);
     const firstWorkingDay = days.find(day => day.isWorkingDay);
     if (firstWorkingDay) {
       this.selectedDate.set(firstWorkingDay.date);
@@ -403,11 +555,9 @@ export class PublicBookingPage implements OnInit {
     // Parallelize availability checks for performance (Day indicators)
     await Promise.all(days.map(async (day, i) => {
       try {
-        const response = await this.publicBookingService.queryPublicSlotAvailability({
-          businessSlug: slug,
-          serviceId,
-          dateIso: day.date
-        });
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, day.date)
+      );
 
         if (!this.isCurrentPublicServiceSelection(serviceId)) {
           return;
@@ -455,7 +605,72 @@ export class PublicBookingPage implements OnInit {
     if (failedAvailabilityChecks) {
       this.availabilityErrorMessage.set('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     }
+
+    const bookable = filterBookablePublicDays(days);
+    const selectedIsBookable = bookable.some(day => day.date === this.selectedDate());
+    if (!selectedIsBookable) {
+      const nextBookable = bookable[0];
+      if (nextBookable) {
+        this.selectedDate.set(nextBookable.date);
+        this.loadingAvailability.set(false);
+        await this.loadAvailabilityForSelectedDate();
+        return;
+      }
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+    }
+
     this.loadingAvailability.set(false);
+  }
+
+  private async loadAvailabilityForSelectedDate(): Promise<void> {
+    const slug = (this.resolvedSlug() || this.route.snapshot.paramMap.get('slug')) ?? '';
+    const serviceId = this.selectedServiceId();
+    const date = this.selectedDate();
+    if (!slug || !serviceId || !this.hasSelectedPublicService(serviceId)) {
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+      return;
+    }
+
+    this.loadingSlots.set(true);
+    try {
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, date)
+      );
+
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
+
+      if (response.error || response.status < 200 || response.status >= 300) {
+        this.availabilitySlots.set([]);
+        this.selectedSlot = '';
+        return;
+      }
+
+      if (response.data?.slots && response.data.slots.length > 0 && this.isConfiguredWorkingDate(date)) {
+        const slots = response.data.slots.map(s => ({
+          startsAtIso: s.startsAtIso,
+          remainingCapacity: s.remainingCapacity ?? 0
+        }));
+        this.availabilitySlots.set(slots);
+        this.updateDayAvailability(date, true);
+        this.selectedSlot = slots[0]?.startsAtIso || '';
+      } else {
+        this.availabilitySlots.set([]);
+        this.updateDayAvailability(date, false);
+        this.selectedSlot = '';
+      }
+    } catch {
+      if (!this.isCurrentPublicServiceSelection(serviceId)) {
+        return;
+      }
+      this.availabilitySlots.set([]);
+      this.selectedSlot = '';
+    } finally {
+      this.loadingSlots.set(false);
+    }
   }
 
   protected async selectDate(date: string) {
@@ -640,6 +855,7 @@ export class PublicBookingPage implements OnInit {
         this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
         this.selectedServiceId() &&
         this.hasSelectedPublicService(this.selectedServiceId()) &&
+        this.canShowScheduleStep() &&
         Object.keys(this.fieldErrors()).length === 0
       );
     }
@@ -651,6 +867,7 @@ export class PublicBookingPage implements OnInit {
       this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
       this.selectedServiceId() &&
       this.hasSelectedPublicService(this.selectedServiceId()) &&
+      this.canShowContactStep() &&
       this.firstName?.trim() && 
       this.lastName?.trim() && 
       this.whatsapp?.trim() && 
