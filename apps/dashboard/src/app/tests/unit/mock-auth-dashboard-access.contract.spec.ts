@@ -91,9 +91,9 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const asyncAccess = await canAccessDashboardAsync(Date.now(), '/dashboard');
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
       expect(asyncAccess.allowed).toBe(false);
-      expect(asyncAccess.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(asyncAccess.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
 
     it('does not allow dashboard access from a legacy local/mock session', () => {
@@ -113,7 +113,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const access = canAccessDashboard(now);
 
       expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(access.redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
   });
 
@@ -130,7 +130,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
 
     it('encodes returnTo into login URL', () => {
       expect(buildLandingLoginRedirect('/dashboard/turnos?filtro=hoy')).toBe(
-        'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
+        'https://orvel.pro/dashboard/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
       );
     });
   });
@@ -152,7 +152,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
       const redirectTo = await logoutAndRedirect();
 
       expect(localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY)).toBeNull();
-      expect(redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
+      expect(redirectTo).toBe('/dashboard/login?returnTo=%2Fdashboard');
     });
   });
 });
