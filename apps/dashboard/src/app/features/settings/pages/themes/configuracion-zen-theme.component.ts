@@ -59,7 +59,7 @@ export class ConfiguracionZenThemeComponent {
   get webPushError() { return this.ctx.webPushError; }
   get webPushStatus() { return this.ctx.webPushStatus; }
   toggleWebPush(enabled: boolean): void { void this.ctx.toggleWebPush(enabled); }
-  
+
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }
   copyBookingUrl(): void { this.ctx.copyBookingUrl(); }
