@@ -62,8 +62,12 @@ export class PublicBookingPage implements OnInit {
   protected readonly publicProfessionals = signal<Array<{ id: string; name: string }>>([]);
   protected readonly selectedProfessionalId = signal('');
   protected readonly confirmedProfessionalName = signal('');
+  protected readonly lockedProfessionalSlug = signal('');
+  protected readonly lockedProfessionalServiceIds = signal<string[]>([]);
   protected readonly showProfessionalPicker = computed(() =>
-    this.allowClientProfessionalSelection() && this.publicProfessionals().length >= 2
+    !this.lockedProfessionalSlug()
+    && this.allowClientProfessionalSelection()
+    && this.publicProfessionals().length >= 2
   );
 
   // Validation errors per field
@@ -110,9 +114,12 @@ export class PublicBookingPage implements OnInit {
     this.publicProfessionals.set([]);
     this.selectedProfessionalId.set('');
     this.confirmedProfessionalName.set('');
+    this.lockedProfessionalSlug.set('');
+    this.lockedProfessionalServiceIds.set([]);
     this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
+    const professionalSlug = this.route.snapshot.paramMap.get('professionalSlug') ?? '';
     const response = await this.businessService.resolveBusinessBySlug(slug);
 
     if (response.data) {
@@ -125,6 +132,20 @@ export class PublicBookingPage implements OnInit {
       this.allowClientProfessionalSelection.set(
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
+      if (professionalSlug.trim()) {
+        const professional = await this.businessService.resolvePublicProfessional(slug, professionalSlug);
+        if (!professional) {
+          this.errorMessage.set('No encontramos a ese profesional.');
+          this.resolvedBusinessId.set(null);
+          this.loading.set(false);
+          return;
+        }
+        this.lockedProfessionalSlug.set(professional.slug);
+        this.selectedProfessionalId.set(professional.id);
+        this.confirmedProfessionalName.set(professional.name);
+        this.lockedProfessionalServiceIds.set(professional.serviceIds);
+        this.businessName.set(`${response.data.displayName} · ${professional.name}`);
+      }
       this.initAvailableDays();
       if (this.rescheduleMode()) {
         const loaded = await this.loadTokenBackedReschedulePreload(response.data.id);
@@ -162,8 +183,10 @@ export class PublicBookingPage implements OnInit {
       
       if (services && services.length > 0) {
         // Mapeamos al formato que espera el template (id, name, price, duration)
+        const allowedServiceIds = this.lockedProfessionalServiceIds();
         const mapped = services
           .filter((s: any) => this.isPublicServiceActive(s))
+          .filter((s: any) => !this.lockedProfessionalSlug() || allowedServiceIds.includes(s.id))
           .map((s: any) => ({
             id: s.id,
             name: s.nombre || s.name || 'Servicio sin nombre',
@@ -204,7 +227,9 @@ export class PublicBookingPage implements OnInit {
 
   async onServiceChange() {
     this.loadingAvailability.set(true);
-    this.selectedProfessionalId.set('');
+    if (!this.lockedProfessionalSlug()) {
+      this.selectedProfessionalId.set('');
+    }
     await this.loadProfessionalsForSelectedService();
     await this.loadAvailability();
   }
@@ -218,7 +243,7 @@ export class PublicBookingPage implements OnInit {
   private async loadProfessionalsForSelectedService(): Promise<void> {
     const slug = this.resolvedSlug();
     const serviceId = this.selectedServiceId();
-    if (!slug || !serviceId || !this.allowClientProfessionalSelection()) {
+    if (!slug || !serviceId || !this.allowClientProfessionalSelection() || this.lockedProfessionalSlug()) {
       this.publicProfessionals.set([]);
       return;
     }

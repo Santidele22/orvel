@@ -17,4 +17,10 @@ describe('Public booking professional picker', () => {
     expect(pageTs).toMatch(/professionalId/);
     expect(pageHtml).toMatch(/Te atiende/);
   });
+
+  it('locks a dedicated professional turnero from the route slug', () => {
+    expect(pageTs).toMatch(/professionalSlug/);
+    expect(pageTs).toMatch(/resolvePublicProfessional/);
+    expect(pageTs).toMatch(/lockedProfessionalSlug/);
+  });
 });
