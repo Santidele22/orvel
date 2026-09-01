@@ -29,6 +29,12 @@ describe('public booking URL helpers', () => {
     );
   });
 
+  it('appends a professional slug for a dedicated public turnero', () => {
+    expect(buildPublicBookingUrl('mi-salon', 'https://qa.orvel.pro', 'laura')).toBe(
+      'https://qa.orvel.pro/booking/mi-salon/laura'
+    );
+  });
+
   it('encodes unsafe slug segments instead of creating nested paths', () => {
     expect(buildPublicBookingUrl('salon centro/mañana libre', 'https://orvel.pro')).toBe(
       'https://orvel.pro/booking/salon%20centro%2Fma%C3%B1ana%20libre'

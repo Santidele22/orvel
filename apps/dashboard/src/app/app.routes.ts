@@ -12,6 +12,10 @@ export const routes: Routes = [
     loadChildren: () => import('./public-booking.routes').then(m => m.manageBookingRoutes)
   },
   {
+    path: 'booking/:slug/:professionalSlug',
+    loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
+  },
+  {
     path: 'booking/:slug',
     loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
   },

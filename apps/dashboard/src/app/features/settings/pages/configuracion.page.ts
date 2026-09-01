@@ -61,11 +61,22 @@ export class ConfiguracionPage {
   readonly teamProfessionals = signal<Array<{
     id: string;
     name: string;
+    slug: string;
     phone: string | null;
     email: string | null;
     active: boolean;
     serviceIds: string[];
+    hours: Array<{ dayOfWeek: number; start: string; end: string }>;
   }>>([]);
+  readonly teamWeekdays = [
+    { dayOfWeek: 1, label: 'Lun' },
+    { dayOfWeek: 2, label: 'Mar' },
+    { dayOfWeek: 3, label: 'Mié' },
+    { dayOfWeek: 4, label: 'Jue' },
+    { dayOfWeek: 5, label: 'Vie' },
+    { dayOfWeek: 6, label: 'Sáb' },
+    { dayOfWeek: 0, label: 'Dom' }
+  ] as const;
   readonly teamServices = signal<Array<{ id: string; name: string }>>([]);
   readonly teamDraftName = signal('');
   readonly teamSaving = signal(false);
@@ -719,7 +730,13 @@ export class ConfiguracionPage {
         firstValueFrom(this.servicioService.getByBusinessId(activeBusinessId)).catch(() => [])
       ]);
 
-      this.teamProfessionals.set(professionals);
+      const withHours = await Promise.all(
+        professionals.map(async (professional) => ({
+          ...professional,
+          hours: professional.id ? await this.facade.listProfessionalHours(professional.id) : []
+        }))
+      );
+      this.teamProfessionals.set(withHours);
       this.teamServices.set(
         (services ?? [])
           .filter((service) => service.activo !== false)
@@ -730,13 +747,67 @@ export class ConfiguracionPage {
     }
   }
 
+  professionalBookingUrl(professionalSlug: string): string {
+    const slug = this.publicBookingSlug();
+    if (!slug || !professionalSlug) {
+      return '';
+    }
+    return buildPublicBookingUrl(slug, undefined, professionalSlug);
+  }
+
+  async copyProfessionalBookingUrl(professionalSlug: string): Promise<void> {
+    const url = this.professionalBookingUrl(professionalSlug);
+    if (!url || !navigator.clipboard?.writeText) return;
+    await navigator.clipboard.writeText(url);
+  }
+
+  hourForDay(
+    professional: { hours: Array<{ dayOfWeek: number; start: string; end: string }> },
+    dayOfWeek: number
+  ): { enabled: boolean; start: string; end: string } {
+    const match = professional.hours.find((hour) => hour.dayOfWeek === dayOfWeek);
+    return {
+      enabled: Boolean(match),
+      start: match?.start || '09:00',
+      end: match?.end || '18:00'
+    };
+  }
+
+  async saveProfessionalHours(
+    professional: { id: string; hours: Array<{ dayOfWeek: number; start: string; end: string }> },
+    dayOfWeek: number,
+    patch: { enabled?: boolean; start?: string; end?: string }
+  ): Promise<void> {
+    const current = this.hourForDay(professional, dayOfWeek);
+    const nextDay = { ...current, ...patch, dayOfWeek };
+    const others = professional.hours.filter((hour) => hour.dayOfWeek !== dayOfWeek);
+    const hours = nextDay.enabled
+      ? [...others, { dayOfWeek, start: nextDay.start, end: nextDay.end }]
+      : others;
+    await this.facade.replaceProfessionalHours(
+      professional.id,
+      this.teamWeekdays.map((day) => {
+        const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
+        return {
+          dayOfWeek: day.dayOfWeek,
+          start: row?.start || '09:00',
+          end: row?.end || '18:00',
+          enabled: Boolean(row)
+        };
+      })
+    );
+    await this.loadTeam();
+  }
+
   async saveTeamProfessional(professional: {
     id?: string | null;
     name: string;
+    slug?: string;
     phone?: string | null;
     email?: string | null;
     active?: boolean;
     serviceIds?: string[];
+    hours?: Array<{ dayOfWeek: number; start: string; end: string }>;
   }): Promise<void> {
     const name = professional.name.trim();
     if (!name) return;
@@ -771,7 +842,7 @@ export class ConfiguracionPage {
     });
   }
 
-  toggleTeamService(professional: { id: string; name: string; phone: string | null; email: string | null; active: boolean; serviceIds: string[] }, serviceId: string): void {
+  toggleTeamService(professional: { id: string; name: string; slug: string; phone: string | null; email: string | null; active: boolean; serviceIds: string[]; hours: Array<{ dayOfWeek: number; start: string; end: string }> }, serviceId: string): void {
     const next = professional.serviceIds.includes(serviceId)
       ? professional.serviceIds.filter((id) => id !== serviceId)
       : [...professional.serviceIds, serviceId];
