@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
+const LANZAMIENTO_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
 const DOWNLOAD_APP_PATH = new URL('../components/organisms/DownloadApp.astro', import.meta.url);
 
 async function source(path: URL): Promise<string> {
@@ -16,12 +16,12 @@ function expectVisibleAnchorTo(sourceText: string, label: RegExp, href: string):
 
 describe('Contract: landing download-app section installs the dashboard PWA', () => {
   it('mounts DownloadApp on the launch home before the final CTA', async () => {
-    const index = await source(INDEX_PATH);
+    const lanzamiento = await source(LANZAMIENTO_PATH);
 
-    expect(index).toMatch(/import DownloadApp from ['"]\.\.\/components\/organisms\/DownloadApp\.astro['"]/);
-    expect(index).toMatch(/<DownloadApp\s*\/>/);
-    expect(index).not.toMatch(/<!--\s*<DownloadApp\s*\/>\s*-->/);
-    expect(index).toMatch(/<DownloadApp\s*\/>\s*<CTA\s*\/>/);
+    expect(lanzamiento).toMatch(/import DownloadApp from ['"]\.\.\/components\/organisms\/DownloadApp\.astro['"]/);
+    expect(lanzamiento).toMatch(/<DownloadApp\s*\/>/);
+    expect(lanzamiento).not.toMatch(/<!--\s*<DownloadApp\s*\/>\s*-->/);
+    expect(lanzamiento).toMatch(/<DownloadApp\s*\/>\s*<CTA\s*\/>/);
   });
 
   it('renders a download heading and a dashboard install CTA, never store badges', async () => {
