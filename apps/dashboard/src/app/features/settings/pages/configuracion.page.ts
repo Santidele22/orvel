@@ -80,6 +80,9 @@ export class ConfiguracionPage {
   readonly teamServices = signal<Array<{ id: string; name: string }>>([]);
   readonly teamDraftName = signal('');
   readonly teamSaving = signal(false);
+  readonly expandedTeamId = signal<string | null>(null);
+  readonly editingTeamHoursId = signal<string | null>(null);
+  readonly teamAvatarColors = ['#7C3AED', '#DB2777', '#0891B2', '#D97706'];
 
   readonly settingsForm = this.formBuilder.nonNullable.group({
     businessName: ['', [Validators.required, Validators.maxLength(80)]],
@@ -154,7 +157,7 @@ export class ConfiguracionPage {
       .pipe(takeUntilDestroyed())
       .subscribe((params) => {
         const tab = params.get('tab');
-        if (tab === 'perfil' || tab === 'negocio') {
+        if (tab === 'perfil' || tab === 'negocio' || tab === 'equipo') {
           this.activeSettingsTab.set(tab);
         }
       });
@@ -225,9 +228,10 @@ export class ConfiguracionPage {
   readonly ui = ORVEL_SECTION_PRIMITIVES;
   readonly settingsTabs = [
     { key: 'perfil', label: 'Perfil', icon: 'ri-user-line' },
-    { key: 'negocio', label: 'Negocio', icon: 'ri-store-2-line' }
+    { key: 'negocio', label: 'Negocio', icon: 'ri-store-2-line' },
+    { key: 'equipo', label: 'Equipo', icon: 'ri-team-line' }
   ] as const;
-  readonly activeSettingsTab = signal<'perfil' | 'negocio'>('perfil');
+  readonly activeSettingsTab = signal<'perfil' | 'negocio' | 'equipo'>('perfil');
 
   // Time Picker Modal State
   readonly isTimePickerOpen = signal(false);
@@ -285,7 +289,7 @@ export class ConfiguracionPage {
     // Only handling single business for now via Auth token
   }
 
-  setSettingsTab(tab: 'perfil' | 'negocio'): void {
+  setSettingsTab(tab: 'perfil' | 'negocio' | 'equipo'): void {
     this.activeSettingsTab.set(tab);
   }
 
@@ -832,6 +836,73 @@ export class ConfiguracionPage {
     } finally {
       this.teamSaving.set(false);
     }
+  }
+
+  toggleTeamCard(professionalId: string): void {
+    const next = this.expandedTeamId() === professionalId ? null : professionalId;
+    this.expandedTeamId.set(next);
+    if (next !== professionalId) {
+      this.editingTeamHoursId.set(null);
+    }
+  }
+
+  toggleTeamHoursEditor(professionalId: string): void {
+    this.editingTeamHoursId.set(this.editingTeamHoursId() === professionalId ? null : professionalId);
+  }
+
+  professionalInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+
+  professionalAccent(index: number): string {
+    return this.teamAvatarColors[index % this.teamAvatarColors.length];
+  }
+
+  serviceSummary(professional: { serviceIds: string[] }): string {
+    const names = this.teamServices()
+      .filter((service) => professional.serviceIds.includes(service.id))
+      .map((service) => service.name);
+    if (names.length === 0) return 'Sin servicios';
+    const shown = names.slice(0, 3);
+    const extra = names.length - shown.length;
+    return extra > 0 ? `${shown.join(' · ')} · +${extra}` : shown.join(' · ');
+  }
+
+  hoursSummary(professional: { hours: Array<{ dayOfWeek: number; start: string; end: string }> }): Array<{ label: string; value: string }> {
+    if (professional.hours.length === 0) {
+      return [{ label: 'Horario', value: 'Usa el del local' }];
+    }
+
+    const items = this.teamWeekdays.map((day) => {
+      const hour = professional.hours.find((row) => row.dayOfWeek === day.dayOfWeek);
+      return {
+        label: day.label,
+        value: hour ? `${hour.start} – ${hour.end}` : 'Cerrado'
+      };
+    });
+
+    const groups: Array<{ startLabel: string; endLabel: string; value: string }> = [];
+    for (const item of items) {
+      const last = groups[groups.length - 1];
+      if (last && last.value === item.value) {
+        last.endLabel = item.label;
+      } else {
+        groups.push({ startLabel: item.label, endLabel: item.label, value: item.value });
+      }
+    }
+
+    return groups.map((group) => ({
+      label: group.startLabel === group.endLabel ? group.startLabel : `${group.startLabel} – ${group.endLabel}`,
+      value: group.value
+    }));
+  }
+
+  persistAllowClientProfessionalSelection(enabled: boolean): void {
+    this.settingsForm.patchValue({ allowClientProfessionalSelection: enabled });
+    void this.onSubmit();
   }
 
   async addTeamProfessional(): Promise<void> {
