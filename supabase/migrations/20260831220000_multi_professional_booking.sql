@@ -1,6 +1,36 @@
 -- Multi-professional booking: owner Equipo, optional public picker, auto-assign.
+-- QA/prod may have 20260729 marked applied without professionals tables.
 
 BEGIN;
+
+CREATE TABLE IF NOT EXISTS public.professionals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL REFERENCES public.businesses(id),
+  name text NOT NULL,
+  phone text,
+  email text,
+  active boolean NOT NULL DEFAULT true,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS idx_professionals_business
+  ON public.professionals (business_id)
+  WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS public.professional_services (
+  professional_id uuid NOT NULL REFERENCES public.professionals(id),
+  service_id uuid NOT NULL REFERENCES public.services(id),
+  custom_price numeric(12,2) CHECK (custom_price >= 0),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (professional_id, service_id)
+);
+
+ALTER TABLE public.professionals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.professional_services ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Business managers manage professionals" ON public.professionals;
 DROP POLICY IF EXISTS "Business managers manage professional services" ON public.professional_services;
