@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
@@ -16,6 +17,7 @@ import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { AuthService } from '../../../services/auth.service';
+import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
 import {
@@ -52,8 +54,21 @@ export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly facade = inject(BusinessService);
+  private readonly servicioService = inject(ServicioService);
   protected readonly themeService = inject(ThemeService);
   protected readonly authService = inject(AuthService);
+
+  readonly teamProfessionals = signal<Array<{
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    active: boolean;
+    serviceIds: string[];
+  }>>([]);
+  readonly teamServices = signal<Array<{ id: string; name: string }>>([]);
+  readonly teamDraftName = signal('');
+  readonly teamSaving = signal(false);
 
   readonly settingsForm = this.formBuilder.nonNullable.group({
     businessName: ['', [Validators.required, Validators.maxLength(80)]],
@@ -91,6 +106,7 @@ export class ConfiguracionPage {
     allowMultipleServices: [true],
     cleanupTimeMinutes: [0, [Validators.min(0)]],
     capacity: [1, [Validators.required, Validators.min(1)]], // Employee count for bookings
+    allowClientProfessionalSelection: [false],
 
     // Regional
     weekStartDay: ['monday' as 'monday' | 'sunday'],
@@ -394,7 +410,8 @@ export class ConfiguracionPage {
       instagram: saved.instagram,
       supportEmail: saved.supportEmail,
       plan: saved.plan,
-      capacity: saved.capacity ?? 1
+      capacity: saved.capacity ?? 1,
+      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false
     });
   }
 
@@ -533,6 +550,7 @@ export class ConfiguracionPage {
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
         capacity: values.capacity,
+        allowClientProfessionalSelection: values.allowClientProfessionalSelection,
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone
@@ -690,6 +708,76 @@ export class ConfiguracionPage {
     dayGroup?.updateValueAndValidity({ onlySelf: true });
   }
 
+  async loadTeam(businessId?: string): Promise<void> {
+    try {
+      const user = this.authService.user();
+      const activeBusinessId = businessId || (user ? await this.facade.getActiveBusinessId(user.id) : '');
+      if (!activeBusinessId) return;
+
+      const [professionals, services] = await Promise.all([
+        this.facade.listBusinessProfessionals(activeBusinessId),
+        firstValueFrom(this.servicioService.getByBusinessId(activeBusinessId)).catch(() => [])
+      ]);
+
+      this.teamProfessionals.set(professionals);
+      this.teamServices.set(
+        (services ?? [])
+          .filter((service) => service.activo !== false)
+          .map((service) => ({ id: service.id, name: service.nombre }))
+      );
+    } catch {
+      this.teamProfessionals.set([]);
+    }
+  }
+
+  async saveTeamProfessional(professional: {
+    id?: string | null;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    active?: boolean;
+    serviceIds?: string[];
+  }): Promise<void> {
+    const name = professional.name.trim();
+    if (!name) return;
+
+    const user = this.authService.user();
+    if (!user) return;
+
+    this.teamSaving.set(true);
+    try {
+      const businessId = await this.facade.getActiveBusinessId(user.id);
+      await this.facade.upsertBusinessProfessional({
+        businessId,
+        id: professional.id,
+        name,
+        phone: professional.phone,
+        email: professional.email,
+        active: professional.active,
+        serviceIds: professional.serviceIds
+      });
+      this.teamDraftName.set('');
+      await this.loadTeam(businessId);
+    } finally {
+      this.teamSaving.set(false);
+    }
+  }
+
+  async addTeamProfessional(): Promise<void> {
+    await this.saveTeamProfessional({
+      name: this.teamDraftName(),
+      active: true,
+      serviceIds: []
+    });
+  }
+
+  toggleTeamService(professional: { id: string; name: string; phone: string | null; email: string | null; active: boolean; serviceIds: string[] }, serviceId: string): void {
+    const next = professional.serviceIds.includes(serviceId)
+      ? professional.serviceIds.filter((id) => id !== serviceId)
+      : [...professional.serviceIds, serviceId];
+    void this.saveTeamProfessional({ ...professional, serviceIds: next });
+  }
+
   private async loadDefaults(): Promise<void> {
     const user = this.authService.user();
     if (user) {
@@ -719,6 +807,7 @@ export class ConfiguracionPage {
         this.savedState.set(cached);
       }
       this.loading.set(false);
+      void this.loadTeam();
       return;
     }
 
@@ -758,6 +847,7 @@ export class ConfiguracionPage {
     }
 
     this.loading.set(false);
+    void this.loadTeam();
   }
 
   private patchHydratedSettings(saved: BusinessSettings): void {

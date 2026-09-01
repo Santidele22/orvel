@@ -41,7 +41,10 @@
            </div>
            <div class="space-y-3">
                <h2 class="text-3xl font-black text-white tracking-tight">{{ rescheduleConfirmed() ? 'Reserva reprogramada' : (bookingAwaitingApproval() ? 'Reserva pendiente de aprobación' : 'Reserva confirmada') }}</h2>
-               <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : (bookingAwaitingApproval() ? 'quedó registrada y está esperando la aprobación del negocio' : 'ha sido confirmada') }}. Te esperamos para brindarte la mejor atención.</p>
+                <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : (bookingAwaitingApproval() ? 'quedó registrada y está esperando la aprobación del negocio' : 'ha sido confirmada') }}. Te esperamos para brindarte la mejor atención.</p>
+                @if (confirmedProfessionalName()) {
+                  <p class="text-white font-semibold" data-testid="booking-confirmed-professional">Te atiende {{ confirmedProfessionalName() }}</p>
+                }
            </div>
            <div class="pt-8 border-t border-white/5">
               <button (click)="bookingConfirmed.set(false); bookingAwaitingApproval.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
@@ -110,6 +113,30 @@
               </div>
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
+              }
+              @if (showProfessionalPicker()) {
+                <div class="space-y-3" data-testid="public-professional-picker">
+                  <p class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    <i class="ri-user-star-line text-purple-500 text-base"></i>
+                    ¿Tenés preferencia de profesional?
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button"
+                      (click)="onProfessionalChange('')"
+                      [class]="'px-4 py-2 rounded-full text-xs font-bold border transition-all ' + (!selectedProfessionalId() ? 'bg-[#7C3AED] border-[#7C3AED] text-white' : 'bg-black/20 border-white/10 text-slate-300')"
+                      data-testid="public-professional-none">
+                      Sin preferencia
+                    </button>
+                    @for (professional of publicProfessionals(); track professional.id) {
+                      <button type="button"
+                        (click)="onProfessionalChange(professional.id)"
+                        [class]="'px-4 py-2 rounded-full text-xs font-bold border transition-all ' + (selectedProfessionalId() === professional.id ? 'bg-[#7C3AED] border-[#7C3AED] text-white' : 'bg-black/20 border-white/10 text-slate-300')"
+                        [attr.data-testid]="'public-professional-' + professional.id">
+                        {{ professional.name }}
+                      </button>
+                    }
+                  </div>
+                </div>
               }
               @if (serviceErrorMessage()) {
                 <div class="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-5 py-4 rounded-2xl text-xs font-bold flex items-start gap-3" role="status" aria-live="polite" data-testid="booking-services-error">

@@ -12,6 +12,8 @@ export interface Turno {
   estado: TurnoEstado;
   notas?: string;
   precio: number;
+  professionalId?: string;
+  professionalNombre?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -5,7 +5,8 @@ export type BookingEstado = 'pendiente' | 'confirmado' | 'en-proceso' | 'complet
 export type BookingRecord = {
   id: string; branchId?: string; clienteId?: string; servicioId?: string;
   fecha: Date; hora: string; duracionMinutos: number; estado: BookingEstado;
-  notas?: string; precio?: number; createdAt: Date; updatedAt: Date;
+  notas?: string; precio?: number; professionalId?: string; professionalNombre?: string;
+  createdAt: Date; updatedAt: Date;
 };
 export const TO_DB_STATUS: Record<BookingEstado, string> = {
   pendiente: 'pending', confirmado: 'booked', 'en-proceso': 'in_progress', completado: 'completed',
@@ -49,6 +50,8 @@ export function mapBookingRow(booking: Record<string, unknown>, branchId: string
     duracionMinutos: Math.round((endsAt.getTime() - startsAt.getTime()) / 60000),
     estado: FROM_DB_STATUS[String(booking['status'])] || 'confirmado',
     notas: booking['notes'] as string | undefined, precio: 0,
+    professionalId: booking['professional_id'] ? String(booking['professional_id']) : undefined,
+    professionalNombre: booking['professional_name'] ? String(booking['professional_name']) : undefined,
     createdAt: new Date(created), updatedAt: new Date(String(booking['updated_at'] || booking['updatedAt'] || created))
   };
 }

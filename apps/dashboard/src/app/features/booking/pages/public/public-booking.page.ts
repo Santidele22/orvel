@@ -58,6 +58,13 @@ export class PublicBookingPage implements OnInit {
   protected readonly resolvedBusinessId = signal<string | null>(null);
   protected readonly rescheduleMode = signal(false);
   protected readonly rescheduleConfirmed = signal(false);
+  protected readonly allowClientProfessionalSelection = signal(false);
+  protected readonly publicProfessionals = signal<Array<{ id: string; name: string }>>([]);
+  protected readonly selectedProfessionalId = signal('');
+  protected readonly confirmedProfessionalName = signal('');
+  protected readonly showProfessionalPicker = computed(() =>
+    this.allowClientProfessionalSelection() && this.publicProfessionals().length >= 2
+  );
 
   // Validation errors per field
   protected readonly fieldErrors = signal<Record<string, string>>({});
@@ -99,6 +106,10 @@ export class PublicBookingPage implements OnInit {
     this.businessName.set('');
     this.workingHours.set(null);
     this.selectedSlot = '';
+    this.allowClientProfessionalSelection.set(false);
+    this.publicProfessionals.set([]);
+    this.selectedProfessionalId.set('');
+    this.confirmedProfessionalName.set('');
     this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
@@ -111,6 +122,9 @@ export class PublicBookingPage implements OnInit {
       this.businessTimezone.set(response.data.timezone || DEFAULT_BUSINESS_TIMEZONE);
       
       this.workingHours.set(response.data.settings.workingHours);
+      this.allowClientProfessionalSelection.set(
+        response.data.bookingPolicy?.allowClientProfessionalSelection === true
+      );
       this.initAvailableDays();
       if (this.rescheduleMode()) {
         const loaded = await this.loadTokenBackedReschedulePreload(response.data.id);
@@ -170,6 +184,7 @@ export class PublicBookingPage implements OnInit {
         if (this.preloadStartsAtIso) {
           this.selectedDate.set(this.preloadStartsAtIso.split('T')[0]);
         }
+        await this.loadProfessionalsForSelectedService();
         await this.loadAvailability();
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
@@ -189,7 +204,40 @@ export class PublicBookingPage implements OnInit {
 
   async onServiceChange() {
     this.loadingAvailability.set(true);
+    this.selectedProfessionalId.set('');
+    await this.loadProfessionalsForSelectedService();
     await this.loadAvailability();
+  }
+
+  protected async onProfessionalChange(professionalId: string): Promise<void> {
+    this.selectedProfessionalId.set(professionalId);
+    this.loadingAvailability.set(true);
+    await this.loadAvailability();
+  }
+
+  private async loadProfessionalsForSelectedService(): Promise<void> {
+    const slug = this.resolvedSlug();
+    const serviceId = this.selectedServiceId();
+    if (!slug || !serviceId || !this.allowClientProfessionalSelection()) {
+      this.publicProfessionals.set([]);
+      return;
+    }
+
+    const professionals = await this.businessService.listPublicProfessionalsForService(slug, serviceId);
+    this.publicProfessionals.set(professionals);
+    if (professionals.length < 2) {
+      this.selectedProfessionalId.set('');
+    }
+  }
+
+  private availabilityQuery(serviceId: string, dateIso: string) {
+    const professionalId = this.selectedProfessionalId().trim();
+    return {
+      businessSlug: this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '',
+      serviceId,
+      dateIso,
+      ...(professionalId ? { professionalId } : {})
+    };
   }
 
   // Trigger availability check when service is selected
@@ -210,11 +258,9 @@ export class PublicBookingPage implements OnInit {
     const date = this.selectedDate();
 
     try {
-      const response = await this.publicBookingService.queryPublicSlotAvailability({
-        businessSlug: slug,
-        serviceId,
-        dateIso: date
-      });
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, date)
+      );
 
       if (!this.isCurrentPublicServiceSelection(serviceId)) {
         return;
@@ -334,6 +380,7 @@ export class PublicBookingPage implements OnInit {
         return;
       }
 
+      const selectedProfessionalId = this.selectedProfessionalId().trim();
       const response = await this.publicBookingService.createPublicBooking({
         businessSlug: (this.resolvedSlug() || this.route.snapshot.paramMap.get('slug')) ?? '',
         serviceId: this.selectedServiceId(),
@@ -343,12 +390,18 @@ export class PublicBookingPage implements OnInit {
           email: this.email,
           phone: this.whatsapp
         },
-        notes: this.notes
+        notes: this.notes,
+        ...(selectedProfessionalId ? { professionalId: selectedProfessionalId } : {})
       });
 
       if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
         this.bookingAwaitingApproval.set(response.data.status === 'pending');
+        this.confirmedProfessionalName.set(
+          response.data.professionalName
+          || this.publicProfessionals().find((professional) => professional.id === selectedProfessionalId)?.name
+          || ''
+        );
         window.dispatchEvent(new CustomEvent('booking.created', {
           detail: {
             status: response.data.status,
@@ -409,11 +462,9 @@ export class PublicBookingPage implements OnInit {
     // Parallelize availability checks for performance (Day indicators)
     await Promise.all(days.map(async (day, i) => {
       try {
-        const response = await this.publicBookingService.queryPublicSlotAvailability({
-          businessSlug: slug,
-          serviceId,
-          dateIso: day.date
-        });
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, date)
+      );
 
         if (!this.isCurrentPublicServiceSelection(serviceId)) {
           return;
@@ -491,11 +542,9 @@ export class PublicBookingPage implements OnInit {
 
     this.loadingSlots.set(true);
     try {
-      const response = await this.publicBookingService.queryPublicSlotAvailability({
-        businessSlug: slug,
-        serviceId,
-        dateIso: date
-      });
+      const response = await this.publicBookingService.queryPublicSlotAvailability(
+        this.availabilityQuery(serviceId, date)
+      );
 
       if (!this.isCurrentPublicServiceSelection(serviceId)) {
         return;
