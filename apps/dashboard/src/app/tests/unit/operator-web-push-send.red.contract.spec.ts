@@ -53,12 +53,18 @@ describe('Issue #344 slice 2 — operator web push send', () => {
     expect(enqueueFn).toMatch(/if[\s\S]+insert into public\.web_push_outbox/i);
   });
 
-  it('edge function exists and is registered like other CRON_KEY processors', () => {
+  it('edge function uses privileged JWT helper and verify_jwt=true', () => {
     expect(existsSync(edgeFnPath), 'process-web-push-outbox/index.ts must exist').toBe(true);
     const edge = readIfPresent(edgeFnPath);
-    expect(edge).toMatch(/CRON_KEY|x-cron-key/);
+    expect(edge).toMatch(/isPrivilegedWebPushAuthorization/);
+    expect(edge).not.toMatch(/CRON_KEY|x-cron-key/);
+    expect(edge).toMatch(/error:\s*"UNAUTHORIZED"/);
     expect(config).toMatch(/\[functions\.process-web-push-outbox\]/);
-    expect(config).toMatch(/\[functions\.process-web-push-outbox\]\s*\nverify_jwt\s*=\s*false/);
+    expect(config).toMatch(/\[functions\.process-web-push-outbox\]\s*\nverify_jwt\s*=\s*true/);
+    expect(config).toMatch(/Authorization: Bearer \$SERVICE_ROLE_KEY/);
+    expect(helper).toMatch(/isPrivilegedWebPushAuthorization/);
+    expect(helper).toMatch(/role\s*===\s*"service_role"|===\s*"service_role"/);
+    expect(helper).not.toMatch(/expectedCronKey|cronKeyHeader/);
   });
 
   it('helper skips when VAPID keys are missing and reuses inbox title/body plus /dashboard/turnos', () => {
