@@ -17,7 +17,7 @@ describe('Contract: public PWA in-app sign-in', () => {
     const signInIndex = appRoutes.search(/path:\s*'dashboard\/login'/);
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
-    expect(signIn).toContain("redirectTo: '/dashboard/auth/login'");
+    expect(signIn).toContain("redirectTo: '/auth/login'");
     expect(signIn).toContain("pathMatch: 'full'");
     expect(signIn).not.toContain('canActivate');
     expect(signIn).not.toContain('OperatorSignInPage');

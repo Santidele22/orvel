@@ -217,7 +217,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     const result = await canAccessDashboardAsync(now);
 
     expect(result.allowed).toBe(false);
-    expect(result.redirectTo).toBe('/dashboard/auth/login?returnTo=%2Fdashboard');
+    expect(result.redirectTo).toBe('/auth/login?returnTo=%2Fdashboard');
     expect(supabaseAuthClientMock.getSession).toHaveBeenCalledTimes(1);
   });
 

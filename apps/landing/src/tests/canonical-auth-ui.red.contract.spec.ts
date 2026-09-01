@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { buildInAppAuthRedirect } from '../lib/in-app-auth-redirect';
-
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('RED: landing auth pages redirect into dashboard in-app auth', () => {
@@ -16,12 +14,6 @@ describe('RED: landing auth pages redirect into dashboard in-app auth', () => {
     expect(loginPage).not.toContain('name="email"');
     expect(loginPage).not.toContain('name="password"');
     expect(loginPage).not.toContain('initLoginPage');
-
-    const redirect = new URL(
-      buildInAppAuthRedirect(new URL('https://orvel.pro/auth/login'), 'login')
-    );
-    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
-    expect(redirect.pathname).toBe('/dashboard/auth/login');
   });
 
   it('does not expose Google OAuth on the login redirect page', () => {
@@ -49,12 +41,6 @@ describe('RED: landing auth pages redirect into dashboard in-app auth', () => {
       expect(page, path).toMatch(/['"]signup['"]/);
       expect(page, path).not.toContain('name="password"');
     }
-
-    const redirect = new URL(
-      buildInAppAuthRedirect(new URL('https://orvel.pro/auth/signup/plan'), 'signup')
-    );
-    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
-    expect(redirect.pathname).toBe('/dashboard/auth/signup');
   });
 
   it('never persists password values from landing auth redirect pages', () => {

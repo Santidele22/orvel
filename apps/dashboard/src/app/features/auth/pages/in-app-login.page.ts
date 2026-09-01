@@ -39,7 +39,7 @@ const DEFAULT_RETURN_TO = '/dashboard/turnos';
         </form>
         <p class="in-app-auth__footer">
           ¿No tenés cuenta?
-          <a routerLink="/dashboard/auth/signup">Creá tu alta</a>
+          <a routerLink="/auth/signup">Creá tu alta</a>
         </p>
       </section>
     </main>

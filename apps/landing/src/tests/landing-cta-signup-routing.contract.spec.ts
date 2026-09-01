@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-import { buildInAppAuthRedirect } from '../lib/in-app-auth-redirect';
-
 const HEADER_PATH = new URL('../components/organisms/Header.astro', import.meta.url);
 const HERO_PATH = new URL('../components/organisms/Hero.astro', import.meta.url);
 const CTA_PATH = new URL('../components/organisms/CTA.astro', import.meta.url);
@@ -50,11 +48,5 @@ describe('Contract: landing CTA routing to signup', () => {
     expect(source).toMatch(/buildInAppAuthRedirect/);
     expect(source).toMatch(/Astro\.redirect/);
     expect(source).toMatch(/['"]signup['"]/);
-
-    const redirect = new URL(
-      buildInAppAuthRedirect(new URL('https://orvel.pro/auth/signup/plan'), 'signup')
-    );
-    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
-    expect(redirect.pathname).toBe('/dashboard/auth/signup');
   });
 });

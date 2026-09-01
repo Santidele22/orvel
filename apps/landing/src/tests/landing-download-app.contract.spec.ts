@@ -15,11 +15,13 @@ function expectVisibleAnchorTo(sourceText: string, label: RegExp, href: string):
 }
 
 describe('Contract: landing download-app section installs the dashboard PWA', () => {
-  it('does not mount DownloadApp on the waitlist home', async () => {
+  it('mounts DownloadApp on the launch home before the final CTA', async () => {
     const index = await source(INDEX_PATH);
 
-    expect(index).not.toMatch(/organisms\/DownloadApp\.astro/);
-    expect(index).not.toMatch(/<DownloadApp\s*\/>/);
+    expect(index).toMatch(/import DownloadApp from ['"]\.\.\/components\/organisms\/DownloadApp\.astro['"]/);
+    expect(index).toMatch(/<DownloadApp\s*\/>/);
+    expect(index).not.toMatch(/<!--\s*<DownloadApp\s*\/>\s*-->/);
+    expect(index).toMatch(/<DownloadApp\s*\/>\s*<CTA\s*\/>/);
   });
 
   it('renders a download heading and a dashboard install CTA, never store badges', async () => {

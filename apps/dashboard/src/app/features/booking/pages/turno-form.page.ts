@@ -12,6 +12,7 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
+import { BusinessService } from '../../settings/data-access/business.service';
 import { AuthService } from '../../../services/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
@@ -20,6 +21,7 @@ import { getBranchContextService } from '../../../core/branches/branch-context.s
 import { ArgentinaClockService } from '../../../core/time/argentina-clock.service';
 import { filterLiveAvailableStarts, readArgentinaClock } from '../../../core/time/argentina-clock';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { buildPublicBookingDays } from './public/public-booking-days';
 
 @Component({
   selector: 'app-turno-form',
@@ -34,6 +36,7 @@ export class TurnoFormPage implements OnInit {
   private availability = inject(BookingAvailabilityService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
+  private businessService = inject(BusinessService);
   private authService = inject(AuthService);
   protected branchContext = getBranchContextService();
   private readonly argentinaClock = inject(ArgentinaClockService);
@@ -55,6 +58,8 @@ export class TurnoFormPage implements OnInit {
   // Form data
   protected clientes = signal<Cliente[]>([]);
   protected servicios = signal<Servicio[]>([]);
+  protected professionals = signal<Array<{ id: string; name: string }>>([]);
+  protected professionalId = signal('');
   private readonly availableStarts = signal<string[]>([]);
   protected readonly disponibles = computed(() =>
     filterLiveAvailableStarts(
@@ -71,6 +76,7 @@ export class TurnoFormPage implements OnInit {
   protected defaultBranchScopeReady = signal<boolean>(false);
   protected defaultBranchSetupError = signal<string | null>(null);
   protected availabilityRequestKey = signal<string>('');
+  protected bookableDates = signal<string[]>([]);
   private latestAvailabilityVersion = 0;
 
   // Form fields
@@ -127,6 +133,11 @@ export class TurnoFormPage implements OnInit {
 
       this.clientes.set(this.clienteService.items());
       this.servicios.set(this.servicioService.items());
+      const businessId = await this.businessService.getActiveBusinessId(this.authService.user()?.id);
+      if (businessId) {
+        const team = await this.businessService.listBusinessProfessionals(businessId);
+        this.professionals.set(team.filter((member) => member.active).map((member) => ({ id: member.id, name: member.name })));
+      }
 
       // Check if editing
       const id = this.route.snapshot.paramMap.get('id');
@@ -136,7 +147,7 @@ export class TurnoFormPage implements OnInit {
         await this.loadTurno(id);
       } else {
         // Load available times for initial date
-        this.checkAvailability();
+        this.refreshBookableDays();
       }
 
       this.loading.set(false);
@@ -161,7 +172,7 @@ export class TurnoFormPage implements OnInit {
         this.estado.set(turno.estado);
         
         // Check availability after loading
-        this.checkAvailability();
+        this.refreshBookableDays();
       }
     } catch {
       this.error.set('Turno no encontrado');
@@ -173,18 +184,108 @@ export class TurnoFormPage implements OnInit {
     this.checkAvailability();
   }
 
-  protected onServicioChange() {
+  protected async onServicioChange() {
     const servicio = this.servicios().find(s => s.id === this.servicioId());
     if (servicio) {
       this.duracionMinutos.set(servicio.duracionMinutos);
       this.precio.set(servicio.precio);
     }
     this.resetAvailability('La disponibilidad cambió: elegí un horario disponible.');
-    this.checkAvailability();
+    await this.refreshBookableDays();
+  }
+
+  protected async refreshBookableDays() {
+    const version = ++this.latestAvailabilityVersion;
+    this.bookableDates.set([]);
+    this.availableStarts.set([]);
+    this.hora.set('');
+    this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
+    this.hasLoadedAvailability.set(false);
+    this.availabilityStale.set(true);
+
+    if (!this.servicioId()) {
+      this.availabilityLoading.set(false);
+      this.conflictError.set(null);
+      return;
+    }
+
+    this.availabilityLoading.set(true);
+    this.conflictError.set(null);
+
+    try {
+      const scope = await this.resolveScope();
+      this.defaultBranchScopeReady.set(true);
+      const windowDays = buildPublicBookingDays(null, this.argentinaClock.now());
+      const results = await Promise.all(windowDays.map(async (day) => {
+        try {
+          const hours = await this.availability.loadAvailabilityAdminSlotTimes({
+            fecha: parseLocalDate(day.date),
+            dateIso: day.date,
+            durationMinutes: this.duracionMinutos(),
+            serviceId: this.servicioId(),
+            branchId: scope.branchId,
+            businessId: scope.businessId,
+            context: this.isEdit() ? 'admin-reschedule' : 'admin-create',
+            bookingId: this.turnoId()
+          });
+          return { date: day.date, hours };
+        } catch {
+          return { date: day.date, hours: [] as string[] };
+        }
+      }));
+
+      if (version !== this.latestAvailabilityVersion) {
+        return;
+      }
+
+      const bookable = results.filter(result => result.hours.length > 0).map(result => result.date);
+      this.bookableDates.set(bookable);
+
+      if (!bookable.includes(this.fecha())) {
+        this.fecha.set(bookable[0] ?? '');
+      }
+
+      if (!this.fecha()) {
+        this.availableStarts.set([]);
+        this.availabilityEmpty.set(true);
+        this.hasLoadedAvailability.set(true);
+        this.availabilityStale.set(false);
+        this.availabilityLoading.set(false);
+        return;
+      }
+
+      await this.checkAvailability();
+    } catch (error) {
+      if (version !== this.latestAvailabilityVersion) return;
+      this.bookableDates.set([]);
+      this.availableStarts.set([]);
+      this.hora.set('');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.availabilityError.set(/ACCOUNT_SETUP_REQUIRED|ACTIVE_BRANCH_REQUIRED|BRANCH_REQUIRED|INVALID_BRANCH|BRANCH_NOT_FOUND|BRANCH_FORBIDDEN|UNAUTHORIZED|BUSINESS_NOT_FOUND/i.test(errorMessage)
+        ? 'No pudimos preparar el turno para esta cuenta. Revisá la configuración de cuenta o contactá soporte.'
+        : 'No pudimos consultar disponibilidad. Reintentá antes de guardar.');
+      this.availabilityStale.set(true);
+      this.hasLoadedAvailability.set(false);
+      this.conflictError.set(this.unavailableSlotMessage);
+      this.availabilityLoading.set(false);
+    }
   }
 
   protected async checkAvailability() {
     const availabilityVersion = ++this.latestAvailabilityVersion;
+    if (!this.servicioId() || !this.fecha()) {
+      this.availableStarts.set([]);
+      this.hora.set('');
+      this.availabilityError.set(null);
+      this.availabilityEmpty.set(!!this.servicioId() && !this.fecha());
+      this.hasLoadedAvailability.set(!!this.servicioId() && !this.fecha());
+      this.availabilityStale.set(!this.servicioId());
+      this.availabilityLoading.set(false);
+      this.conflictError.set(null);
+      return;
+    }
+
     const fechaDate = parseLocalDate(this.fecha());
     const today = parseLocalDate(readArgentinaClock(this.argentinaClock.now()).dateKey);
     const requestKey = `${this.fecha()}|${this.duracionMinutos()}|${this.servicioId()}|${this.turnoId() ?? ''}|${availabilityVersion}`;
@@ -196,12 +297,6 @@ export class TurnoFormPage implements OnInit {
     this.hasLoadedAvailability.set(false);
     this.availabilityStale.set(true);
     this.isPastDate.set(fechaDate < today);
-
-    if (!this.servicioId()) {
-      this.availabilityLoading.set(false);
-      this.conflictError.set(null);
-      return;
-    }
 
     this.availabilityLoading.set(true);
     this.conflictError.set(null);
@@ -347,7 +442,8 @@ export class TurnoFormPage implements OnInit {
           duracionMinutos: this.duracionMinutos(),
           precio: this.precio(),
           notas: this.notas(),
-          estado: this.estado()
+          estado: this.estado(),
+          professionalId: this.professionalId() || undefined
         };
         await this.scheduling.create(dto, scope);
         this.resetAvailability();
@@ -420,7 +516,7 @@ export class TurnoFormPage implements OnInit {
       this.servicios.set(this.servicioService.items());
     }
     this.resetAvailability('La sucursal activa cambió: elegí un horario disponible.');
-    await this.checkAvailability();
+    await this.refreshBookableDays();
   }
 
   private async ensureDefaultBranchScopeReady(context: 'turno' | 'disponibilidad'): Promise<string> {

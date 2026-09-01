@@ -12,6 +12,10 @@ export const routes: Routes = [
     loadChildren: () => import('./public-booking.routes').then(m => m.manageBookingRoutes)
   },
   {
+    path: 'booking/:slug/:professionalSlug',
+    loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
+  },
+  {
     path: 'booking/:slug',
     loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
   },
@@ -55,18 +59,8 @@ export const routes: Routes = [
       import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
   },
   {
-    path: 'dashboard/auth/login',
-    loadComponent: () =>
-      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
-  },
-  {
-    path: 'dashboard/auth/signup',
-    loadComponent: () =>
-      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
-  },
-  {
     path: 'dashboard/login',
-    redirectTo: '/dashboard/auth/login',
+    redirectTo: '/auth/login',
     pathMatch: 'full'
   },
   {

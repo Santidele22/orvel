@@ -9,7 +9,7 @@
       </header>
 
       <div [class]="ui.cardGlass">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+        <div class="grid grid-cols-3 gap-zen-sm md:gap-zen-md">
           @for (tab of settingsTabs; track tab.key) {
           <button type="button"
             [class]="ui.subtleAction + ' justify-center gap-zen-md transition-all ' + 
@@ -343,19 +343,26 @@
               }
             </div>
           </div>
+
         </article>
 
-        <article class="space-y-4" formGroupName="workingHours" data-testid="working-hours-section">
-          <div class="flex items-center justify-between px-1">
-            <h2 [class]="ui.titleSection">Horarios de atención</h2>
-            <i class="ri-time-line text-lg text-text-secondary" aria-hidden="true"></i>
-          </div>
+        <article class="space-y-3" formGroupName="workingHours" data-testid="working-hours-section">
+          <p class="px-1 text-[10px] font-black uppercase tracking-widest text-tertiary">Horarios de atención del local</p>
 
-          <div class="space-y-3">
+          <div class="overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary/80">
             @for (day of weekdayRows; track day.key) {
-            <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-4 space-y-4" [formGroupName]="day.key">
+            <div class="border-b border-white/5 last:border-b-0" [formGroupName]="day.key">
+              <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left"
+                (click)="toggleSalonDay($any(day.key))" [attr.aria-expanded]="expandedSalonDay() === day.key">
+                <span class="flex-1 text-sm font-medium text-white">{{ day.label }}</span>
+                <span class="text-sm tabular-nums" [class]="salonDayHoursLabel($any(day.key)) === 'Cerrado' ? 'text-tertiary' : 'text-slate-300'">{{ salonDayHoursLabel($any(day.key)) }}</span>
+                <i class="ri-arrow-right-s-line text-lg text-tertiary" [class.rotate-90]="expandedSalonDay() === day.key"></i>
+              </button>
+
+              @if (expandedSalonDay() === day.key) {
+              <div class="space-y-4 border-t border-white/5 px-4 pb-4 pt-3">
               <div class="flex items-center justify-between gap-3">
-                <span class="text-base font-semibold text-text-primary">{{ day.label }}</span>
+                <span class="text-sm text-secondary">Abierto</span>
                 <label class="relative inline-flex cursor-pointer items-center">
                   @if (day.key === 'monday') {
                   <input data-testid="working-hours-monday-enabled" type="checkbox" formControlName="enabled"
@@ -453,8 +460,11 @@
                 }
               </div>
               }
+              </div>
+              }
             </div>
             }
+          </div>
 
             @if (fieldErrors().workingHours) {
             <p [class]="ui.fieldError" data-testid="config-field-error-workingHours-form">{{ fieldErrors().workingHours }}</p>
@@ -464,6 +474,116 @@
               class="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 py-3 text-sm text-text-secondary hover:text-text-primary"
               (click)="copyHoursToAllDays()">
               Copiar horario a todos los días
+            </button>
+        </article>
+        }
+
+        @if (activeSettingsTab() === 'equipo') {
+        <article class="space-y-4" data-testid="settings-equipo-section">
+          <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+            <div class="space-y-1 pr-3">
+              <p class="text-sm font-semibold text-white">Cliente elige profesional</p>
+              <p class="text-[11px] text-tertiary leading-tight">Si está apagado, Orvel asigna automático</p>
+            </div>
+            <label class="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" formControlName="allowClientProfessionalSelection"
+                class="peer sr-only" role="switch" data-testid="settings-allow-client-professional-selection"
+                (change)="persistAllowClientProfessionalSelection($any($event.target).checked)" />
+              <span class="h-6 w-11 rounded-full bg-white/15 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5"></span>
+            </label>
+          </div>
+
+          <p class="px-1 text-[10px] font-black uppercase tracking-widest text-tertiary">Profesionales</p>
+
+          <div class="space-y-3">
+            @for (professional of teamProfessionals(); track professional.id; let i = $index) {
+            <div class="rounded-2xl border border-white/10 bg-bg-secondary/80" data-testid="settings-professional-row">
+              <div class="flex items-center gap-3 px-3 py-3">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
+                  [style.background]="professionalAccent(i)">{{ professionalInitials(professional.name) }}</span>
+                <button type="button" class="min-w-0 flex-1 text-left" (click)="toggleTeamCard(professional.id)">
+                  <span class="block truncate text-sm font-semibold text-white">{{ professional.name }}</span>
+                  <span class="block truncate text-[11px] text-tertiary">{{ serviceSummary(professional) }}</span>
+                </button>
+                <label class="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" class="peer sr-only" role="switch"
+                    [ngModel]="professional.active" [ngModelOptions]="{standalone: true}"
+                    (ngModelChange)="saveTeamProfessional({ ...professional, active: $event })" />
+                  <span class="h-6 w-11 rounded-full bg-white/15 transition-colors peer-checked:bg-primary after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5"></span>
+                </label>
+                <button type="button" class="text-tertiary" (click)="toggleTeamCard(professional.id)" [attr.aria-expanded]="expandedTeamId() === professional.id">
+                  <i [class]="expandedTeamId() === professional.id ? 'ri-arrow-up-s-line text-xl' : 'ri-arrow-down-s-line text-xl'"></i>
+                </button>
+              </div>
+
+              @if (expandedTeamId() === professional.id) {
+              <div class="space-y-4 border-t border-white/10 px-4 py-4">
+                <div class="space-y-2">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-tertiary">Servicios</p>
+                  <div class="flex flex-wrap gap-2">
+                    @for (service of teamServices(); track service.id) {
+                    <button type="button"
+                      [class]="'rounded-full border px-3 py-1 text-[11px] ' + (professional.serviceIds.includes(service.id) ? 'border-primary/40 bg-primary/15 text-white' : 'border-white/10 text-secondary')"
+                      (click)="toggleTeamService(professional, service.id)">
+                      {{ service.name }}
+                    </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-tertiary">Horarios</p>
+                  @for (row of hoursSummary(professional); track row.label) {
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-secondary">{{ row.label }}</span>
+                    <span [class]="row.value === 'Cerrado' || row.value === 'Usa el del local' ? 'text-tertiary' : 'text-white'">{{ row.value }}</span>
+                  </div>
+                  }
+                  @if (editingTeamHoursId() === professional.id) {
+                  <div class="space-y-2 pt-2">
+                    @for (day of teamWeekdays; track day.dayOfWeek) {
+                    <div class="grid grid-cols-[2.5rem_auto_1fr_1fr] items-center gap-2 text-[11px] text-secondary">
+                      <span>{{ day.label }}</span>
+                      <input type="checkbox" [checked]="hourForDay(professional, day.dayOfWeek).enabled"
+                        (change)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: $any($event.target).checked })" />
+                      <input type="time" [value]="hourForDay(professional, day.dayOfWeek).start"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, start: $any($event.target).value })"
+                        class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
+                      <input type="time" [value]="hourForDay(professional, day.dayOfWeek).end"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, end: $any($event.target).value })"
+                        class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
+                    </div>
+                    }
+                  </div>
+                  }
+                  <button type="button"
+                    class="mt-2 flex w-full items-center justify-center rounded-2xl border border-white/10 py-3 text-sm font-medium text-primary"
+                    (click)="toggleTeamHoursEditor(professional.id)">
+                    {{ editingTeamHoursId() === professional.id ? 'Listo' : 'Editar horarios' }}
+                  </button>
+                </div>
+
+                <div class="flex gap-2">
+                  <button type="button"
+                    class="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 py-3 text-sm text-secondary"
+                    (click)="copyProfessionalBookingUrl(professional.slug)"
+                    [disabled]="!professional.slug" data-testid="settings-professional-turnero-url">
+                    <i class="ri-share-forward-line"></i>
+                    Copiar enlace
+                  </button>
+                </div>
+              </div>
+              }
+            </div>
+            }
+          </div>
+
+          <div class="flex gap-2">
+            <input type="text" [ngModel]="teamDraftName()" [ngModelOptions]="{standalone: true}"
+              (ngModelChange)="teamDraftName.set($event)" placeholder="Nombre del profesional" [class]="ui.input" data-testid="settings-professional-name-input" />
+            <button type="button" [class]="ui.primaryAction" [disabled]="teamSaving() || !teamDraftName().trim()"
+              (click)="addTeamProfessional()" data-testid="settings-professional-add">
+              Agregar
             </button>
           </div>
         </article>

@@ -69,10 +69,23 @@ export type ManageBookingInput = {
   nowIso: string;
 };
 
+export type PublicProfessional = {
+  id: string;
+  name: string;
+};
+
+export type BusinessProfessional = PublicProfessional & {
+  phone?: string | null;
+  email?: string | null;
+  active: boolean;
+  serviceIds: string[];
+};
+
 export type PublicSlotAvailabilityInput = {
   businessSlug: string;
   serviceId: string;
   dateIso: string;
+  professionalId?: string;
 };
 
 export type PublicSlot = {
@@ -86,6 +99,8 @@ export type PublicBookingConfirmation = {
   status: 'confirmed' | 'pending';
   source: 'client-self-service';
   manageToken?: string;
+  professionalId?: string;
+  professionalName?: string;
 };
 
 export type ManageBookingDetails = {

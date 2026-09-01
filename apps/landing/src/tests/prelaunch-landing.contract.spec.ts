@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 
 const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
 const LANZAMIENTO_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
+const PRELANZAMIENTO_PATH = new URL('../pages/prelanzamiento.astro', import.meta.url);
 const PRELAUNCH_DIR = new URL('../components/organisms/prelaunch/', import.meta.url);
 
 async function source(path: URL): Promise<string> {
@@ -17,9 +18,9 @@ async function prelaunchSources(): Promise<string> {
   return chunks.join('\n');
 }
 
-describe('Contract: public index is the prelaunch waitlist landing', () => {
+describe('Contract: waitlist stays parked at /prelanzamiento', () => {
   it('composes prelaunch organisms instead of launch Header/Hero/CTA', async () => {
-    const index = await source(INDEX_PATH);
+    const index = await source(PRELANZAMIENTO_PATH);
 
     expect(index).toMatch(/organisms\/prelaunch\/PrelaunchHeader/);
     expect(index).toMatch(/organisms\/prelaunch\/PrelaunchHero/);
@@ -42,7 +43,7 @@ describe('Contract: public index is the prelaunch waitlist landing', () => {
   });
 
   it('wires public CTAs to the waitlist modal, not signup or credentials', async () => {
-    const index = await source(INDEX_PATH);
+    const index = await source(PRELANZAMIENTO_PATH);
     const prelaunch = await prelaunchSources();
     const publicSurface = `${index}\n${prelaunch}`;
 
@@ -54,19 +55,35 @@ describe('Contract: public index is the prelaunch waitlist landing', () => {
   });
 });
 
-describe('Contract: launch landing stays parked at /lanzamiento', () => {
+describe('Contract: public index is the launch landing', () => {
   it('still mounts launch Header/Hero/Pricing/CTA and handlePlanSelection', async () => {
+    const index = await source(INDEX_PATH);
+
+    expect(index).toMatch(/import Header from ['"]\.\.\/components\/organisms\/Header\.astro['"]/);
+    expect(index).toMatch(/import Hero from ['"]\.\.\/components\/organisms\/Hero\.astro['"]/);
+    expect(index).toMatch(/import Pricing from ['"]\.\.\/components\/organisms\/Pricing\.astro['"]/);
+    expect(index).toMatch(/import CTA from ['"]\.\.\/components\/organisms\/CTA\.astro['"]/);
+    expect(index).toMatch(/<Header\s*\/>/);
+    expect(index).toMatch(/<Hero\s*\/>/);
+    expect(index).toMatch(/<Pricing/);
+    expect(index).toMatch(/<CTA\s*\/>/);
+    expect(index).toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
+    expect(index).toContain('/auth/signup/credentials');
+    expect(index).not.toMatch(/organisms\/prelaunch\/PrelaunchHero/);
+  });
+});
+
+describe('Contract: /lanzamiento stays the same usable landing or redirects home', () => {
+  it('redirects to / or still mounts launch Header/Hero/Pricing/CTA', async () => {
     const lanzamiento = await source(LANZAMIENTO_PATH);
+    if (/return\s+Astro\.redirect\(\s*['"]\/['"]/.test(lanzamiento)) {
+      expect(lanzamiento).toMatch(/Astro\.redirect\(\s*['"]\/['"]/);
+      return;
+    }
 
     expect(lanzamiento).toMatch(/import Header from ['"]\.\.\/components\/organisms\/Header\.astro['"]/);
-    expect(lanzamiento).toMatch(/import Hero from ['"]\.\.\/components\/organisms\/Hero\.astro['"]/);
-    expect(lanzamiento).toMatch(/import Pricing from ['"]\.\.\/components\/organisms\/Pricing\.astro['"]/);
-    expect(lanzamiento).toMatch(/import CTA from ['"]\.\.\/components\/organisms\/CTA\.astro['"]/);
     expect(lanzamiento).toMatch(/<Header\s*\/>/);
     expect(lanzamiento).toMatch(/<Hero\s*\/>/);
-    expect(lanzamiento).toMatch(/<Pricing/);
-    expect(lanzamiento).toMatch(/<CTA\s*\/>/);
     expect(lanzamiento).toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
-    expect(lanzamiento).toContain('/auth/signup/credentials');
   });
 });

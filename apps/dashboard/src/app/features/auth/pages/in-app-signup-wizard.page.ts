@@ -22,7 +22,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
             @if (wizard.canGoBack()) {
               <button type="button" class="in-app-auth__back" (click)="wizard.back()">Volver</button>
             } @else {
-              <a routerLink="/dashboard/auth/login" class="in-app-auth__back">Volver</a>
+              <a routerLink="/auth/login" class="in-app-auth__back">Volver</a>
             }
             <div class="in-app-auth__dots" aria-label="Progreso">
               @for (dot of [1, 2, 3, 4]; track dot) {
