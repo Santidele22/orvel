@@ -447,6 +447,8 @@ verify_jwt = false
 [functions.signup-email-verification-lifecycle]
 verify_jwt = false
 
-# Authenticate with CRON_KEY like appointment-reminders-24h.
+# Drain follow-up: POST {project_url}/functions/v1/process-web-push-outbox
+# with Authorization: Bearer $SERVICE_ROLE_KEY (same vault Bearer as the INSERT trigger).
+# Do not put CRON_KEY in Authorization. Scheduler interval is operational (~1-5 min).
 [functions.process-web-push-outbox]
-verify_jwt = false
+verify_jwt = true
