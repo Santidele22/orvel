@@ -79,6 +79,12 @@ describe('MobileAgendaDayView contract', () => {
     expect(templateSource).toMatch(/data-testid="mobile-agenda-fab"/);
   });
 
+  it('FAB sits above the bottom nav plus iOS inset', () => {
+    expect(templateSource).toContain('bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]');
+    expect(templateSource).not.toContain('[style.padding-bottom]');
+    expect(templateSource).not.toMatch(/\bbottom-6\b/);
+  });
+
   it('FAB has routerLink="/dashboard/turnos/new"', () => {
     expect(templateSource).toMatch(/routerLink="\/dashboard\/turnos\/new"/);
   });

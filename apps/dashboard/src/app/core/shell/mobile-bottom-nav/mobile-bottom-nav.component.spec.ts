@@ -59,10 +59,13 @@ describe('MobileBottomNavComponent', () => {
     expect(source).toContain('lg:hidden');
   });
 
-  it('has safe-area-bottom class for iOS safe area', async () => {
+  it('applies the iOS bottom inset once without shrinking the icon row', async () => {
     const source = await readFile(fromRoot(COMPONENT_TS), 'utf-8');
-    expect(source).toContain('safe-area-bottom');
-    expect(source).toContain('env(safe-area-inset-bottom)');
+    expect(source).toContain('min-h-16');
+    expect(source).toContain('pb-[env(safe-area-inset-bottom,0px)]');
+    expect(source).not.toMatch(/(?<!min-)h-16\b/);
+    expect(source).not.toContain('safe-area-bottom');
+    expect(source.match(/env\(safe-area-inset-bottom/g)?.length).toBe(1);
   });
 
   it('has data-testid="mobile-bottom-nav"', async () => {
