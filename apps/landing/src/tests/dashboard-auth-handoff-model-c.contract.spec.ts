@@ -32,7 +32,7 @@ describe('Contract: landing redirects into dashboard in-app auth', () => {
     );
 
     expect(handoffUrl.origin).toBe('https://dashboard.orvel.pro');
-    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).toBe('/dashboard/login');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/turnos?view=week');
   });
 
@@ -75,7 +75,7 @@ describe('Contract: landing redirects into dashboard in-app auth', () => {
     );
 
     expect(fallbackHandoff.origin).toBe('https://dashboard.orvel.pro');
-    expect(fallbackHandoff.pathname).toBe('/auth/signup');
+    expect(fallbackHandoff.pathname).toBe('/dashboard/signup');
     expect(fallbackHandoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
     expect(source).toMatch(/buildInAppAuthRedirect/);
     expect(source).toMatch(/Astro\.redirect/);
@@ -94,7 +94,7 @@ describe('Contract: landing redirects into dashboard in-app auth', () => {
     );
 
     expect(handoffUrl.origin).toBe('https://dashboard.orvel.pro');
-    expect(handoffUrl.pathname).toBe('/auth/login');
+    expect(handoffUrl.pathname).toBe('/dashboard/login');
     expect(handoffUrl.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
@@ -115,10 +115,12 @@ describe('Contract: landing redirects into dashboard in-app auth', () => {
     expect(returnToSource).toMatch(/PARAM_BLOCKLIST[\s\S]*code[\s\S]*access_token|PARAM_BLOCKLIST[\s\S]*access_token[\s\S]*code/);
   });
 
-  it('landing bare /auth exists as a compatibility redirect to /auth/login preserving query params', async () => {
+  it('landing bare /auth redirects via in-app login helper, never a self-hop to /auth/login', async () => {
     const source = await readFile(AUTH_COMPAT_PAGE, 'utf8');
 
-    expect(source).toContain("Astro.redirect('/auth/login'");
-    expect(source).toContain('Astro.url.search');
+    expect(source).toMatch(/buildInAppAuthRedirect/);
+    expect(source).toContain("buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL)");
+    expect(source).toMatch(/Astro\.redirect/);
+    expect(source).not.toContain("Astro.redirect('/auth/login'");
   });
 });
