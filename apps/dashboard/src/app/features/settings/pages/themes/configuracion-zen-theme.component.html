@@ -379,6 +379,28 @@
                   </label>
                   }
                 </div>
+                @if (professional.slug) {
+                <div class="flex items-center gap-2">
+                  <code class="min-w-0 flex-1 truncate text-[10px] text-purple-400" data-testid="settings-professional-turnero-url">{{ professionalBookingUrl(professional.slug) }}</code>
+                  <button type="button" [class]="ui.subtleAction" (click)="copyProfessionalBookingUrl(professional.slug)">Copiar turnero</button>
+                </div>
+                }
+                <p class="text-[10px] text-tertiary">Horario propio. Si no tildás ningún día, usa el del local.</p>
+                <div class="space-y-2">
+                  @for (day of teamWeekdays; track day.dayOfWeek) {
+                  <div class="grid grid-cols-[2.5rem_auto_1fr_1fr] items-center gap-2 text-[11px] text-secondary">
+                    <span>{{ day.label }}</span>
+                    <input type="checkbox" [checked]="hourForDay(professional, day.dayOfWeek).enabled"
+                      (change)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: $any($event.target).checked })" />
+                    <input type="time" [value]="hourForDay(professional, day.dayOfWeek).start"
+                      (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, start: $any($event.target).value })"
+                      class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
+                    <input type="time" [value]="hourForDay(professional, day.dayOfWeek).end"
+                      (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, end: $any($event.target).value })"
+                      class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
+                  </div>
+                  }
+                </div>
               </div>
               }
             </div>
