@@ -54,6 +54,11 @@ export class ConfiguracionZenThemeComponent {
   persistAllowClientProfessionalSelection(enabled: boolean): void {
     this.ctx.persistAllowClientProfessionalSelection(enabled);
   }
+  get webPushEnabled() { return this.ctx.webPushEnabled; }
+  get webPushBusy() { return this.ctx.webPushBusy; }
+  get webPushError() { return this.ctx.webPushError; }
+  get webPushStatus() { return this.ctx.webPushStatus; }
+  toggleWebPush(enabled: boolean): void { void this.ctx.toggleWebPush(enabled); }
   
   publicBookingUrl() { return this.ctx.publicBookingUrl(); }
   hasPublicBookingUrl() { return this.ctx.hasPublicBookingUrl(); }

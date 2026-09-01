@@ -11,6 +11,13 @@ const servicePath = root('src/app/features/operator-web-push/operator-web-push.s
 const swPath = root('src/orvel-push-sw.js');
 const homeHtml = readIfPresent(root('src/app/features/dashboard-home/pages/dashboard-home.page.html'));
 const homeTs = readIfPresent(root('src/app/features/dashboard-home/pages/dashboard-home.page.ts'));
+const settingsHtml = readIfPresent(
+  root('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html'),
+);
+const settingsPageTs = readIfPresent(root('src/app/features/settings/pages/configuracion.page.ts'));
+const settingsThemeTs = readIfPresent(
+  root('src/app/features/settings/pages/themes/configuracion-zen-theme.component.ts'),
+);
 const appConfig = readIfPresent(root('src/app/app.config.ts'));
 const angularJson = readIfPresent(root('angular.json'));
 const requiredEnv = readIfPresent(repoRoot('packages/config/src/dashboard-env.ts'));
@@ -111,6 +118,34 @@ describe('Issue #344 slice 1 — operator web push subscribe', () => {
     expect(requiredEnv).not.toMatch(/VAPID_PUBLIC_KEY/);
     expect(service).toContain('readVapidPublicKey');
     expect(readIfPresent(helperPath)).toMatch(/__ORVEL_DASHBOARD_ENV__|VAPID_PUBLIC_KEY/);
+  });
+
+  it('Configuración Perfil tab exposes a standalone avisos push switch', () => {
+    const perfilTab = settingsHtml.split("activeSettingsTab() === 'perfil'")[1]?.split("activeSettingsTab() === 'negocio'")[0] ?? '';
+    const equipoTab = settingsHtml.split("activeSettingsTab() === 'equipo'")[1] ?? '';
+    expect(perfilTab).toContain('data-testid="settings-web-push-toggle"');
+    expect(perfilTab).toContain('Avisos push');
+    expect(perfilTab).toContain(
+      'Te avisamos con la app cerrada si entra, se cancela o se reprograma un turno.',
+    );
+    expect(perfilTab).toMatch(/peer sr-only[\s\S]*role=["']switch["']/);
+    expect(perfilTab).toMatch(/ngModelOptions[\s\S]*standalone:\s*true|standalone:\s*true/);
+    expect(equipoTab).not.toContain('data-testid="settings-web-push-toggle"');
+    expect(settingsPageTs).toMatch(/toggleWebPush|enableWebPush|webPushEnabled/);
+    expect(settingsThemeTs).toMatch(/toggleWebPush|enableWebPush|webPushEnabled/);
+    expect(settingsHtml).not.toMatch(/formControlName=["'][^"']*webPush/);
+  });
+
+  it('service can disable/unsubscribe and re-bind the current business_id after permission is granted', () => {
+    const service = readIfPresent(servicePath);
+    expect(service).toMatch(/\bdisable\s*\(/);
+    expect(service).toMatch(/unsubscribe\s*\(/);
+    expect(service).toMatch(/\.delete\(/);
+    expect(service).toMatch(/onConflict:\s*['"]endpoint['"]/);
+    expect(service).toMatch(/getSubscription\s*\(/);
+    expect(service).toMatch(/status|webPushStatus|enabled/);
+    expect(service).toMatch(/No se pudieron guardar los avisos push/);
+    expect(service).not.toMatch(/Denied, missing VAPID, or persist failure must stay silent\./);
   });
 
   it('custom SW wraps ngsw-worker and opens /dashboard/turnos on click', () => {
