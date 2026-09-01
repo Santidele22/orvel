@@ -73,6 +73,9 @@ export class ConfiguracionZenThemeComponent {
   removeWorkingDayInterval(dayKey: any, slot: 1 | 2): void { this.ctx.removeWorkingDayInterval(dayKey, slot); }
   copyHoursToAllDays(): void { this.ctx.copyHoursToAllDays(); }
   setSettingsTab(tab: 'perfil' | 'negocio' | 'equipo'): void { this.ctx.setSettingsTab(tab); }
+  toggleSalonDay(dayKey: any): void { this.ctx.toggleSalonDay(dayKey); }
+  salonDayHoursLabel(dayKey: any): string { return this.ctx.salonDayHoursLabel(dayKey); }
+  get expandedSalonDay() { return this.ctx.expandedSalonDay; }
   openAccountSettingsModal(): void { this.ctx.openAccountSettingsModal(); }
   openAccountCancellationModal(): void { this.ctx.openAccountCancellationModal(); }
 }

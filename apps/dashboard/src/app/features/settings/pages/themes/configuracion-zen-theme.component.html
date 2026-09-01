@@ -346,17 +346,23 @@
 
         </article>
 
-        <article class="space-y-4" formGroupName="workingHours" data-testid="working-hours-section">
-          <div class="flex items-center justify-between px-1">
-            <h2 [class]="ui.titleSection">Horarios de atención</h2>
-            <i class="ri-time-line text-lg text-text-secondary" aria-hidden="true"></i>
-          </div>
+        <article class="space-y-3" formGroupName="workingHours" data-testid="working-hours-section">
+          <p class="px-1 text-[10px] font-black uppercase tracking-widest text-tertiary">Horarios de atención del local</p>
 
-          <div class="space-y-3">
+          <div class="overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary/80">
             @for (day of weekdayRows; track day.key) {
-            <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-4 space-y-4" [formGroupName]="day.key">
+            <div class="border-b border-white/5 last:border-b-0" [formGroupName]="day.key">
+              <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left"
+                (click)="toggleSalonDay($any(day.key))" [attr.aria-expanded]="expandedSalonDay() === day.key">
+                <span class="flex-1 text-sm font-medium text-white">{{ day.label }}</span>
+                <span class="text-sm tabular-nums" [class]="salonDayHoursLabel($any(day.key)) === 'Cerrado' ? 'text-tertiary' : 'text-slate-300'">{{ salonDayHoursLabel($any(day.key)) }}</span>
+                <i class="ri-arrow-right-s-line text-lg text-tertiary" [class.rotate-90]="expandedSalonDay() === day.key"></i>
+              </button>
+
+              @if (expandedSalonDay() === day.key) {
+              <div class="space-y-4 border-t border-white/5 px-4 pb-4 pt-3">
               <div class="flex items-center justify-between gap-3">
-                <span class="text-base font-semibold text-text-primary">{{ day.label }}</span>
+                <span class="text-sm text-secondary">Abierto</span>
                 <label class="relative inline-flex cursor-pointer items-center">
                   @if (day.key === 'monday') {
                   <input data-testid="working-hours-monday-enabled" type="checkbox" formControlName="enabled"
@@ -454,8 +460,11 @@
                 }
               </div>
               }
+              </div>
+              }
             </div>
             }
+          </div>
 
             @if (fieldErrors().workingHours) {
             <p [class]="ui.fieldError" data-testid="config-field-error-workingHours-form">{{ fieldErrors().workingHours }}</p>
@@ -466,7 +475,6 @@
               (click)="copyHoursToAllDays()">
               Copiar horario a todos los días
             </button>
-          </div>
         </article>
         }
 
