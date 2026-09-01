@@ -1,3 +1,8 @@
 ---
-return Astro.redirect('/auth/login' + Astro.url.search, 302);
+import { buildInAppAuthRedirect } from '../lib/in-app-auth-redirect';
+
+return Astro.redirect(
+  buildInAppAuthRedirect(Astro.url, 'login', import.meta.env.PUBLIC_DASHBOARD_URL),
+  302
+);
 ---

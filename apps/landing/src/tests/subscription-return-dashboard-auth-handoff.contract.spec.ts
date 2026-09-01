@@ -36,15 +36,15 @@ describe('RED Contract: subscription return normalization handoff from landing',
       })
     );
 
-    expect(handoff.origin).toBe('https://orvel.pro');
-    expect(handoff.pathname).toBe('/auth/login');
-    expect(handoff.pathname).not.toBe('/dashboard/auth');
+    expect(handoff.origin).toBe('https://dashboard.orvel.pro');
+    expect(handoff.pathname).toBe('/dashboard/login');
+    expect(handoff.pathname).not.toBe('/auth/login');
     expect(handoff.searchParams.get('mode')).toBe('login');
     expect(handoff.searchParams.get('source')).toBe('subscription');
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio?from=subscription');
   });
 
-  it('maps signup handoff to landing signup plan instead of dashboard-owned signup pages', async () => {
+  it('maps signup handoff to dashboard-owned /dashboard/signup', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoff = new URL(
@@ -56,9 +56,9 @@ describe('RED Contract: subscription return normalization handoff from landing',
       })
     );
 
-    expect(handoff.origin).toBe('https://orvel.pro');
-    expect(handoff.pathname).toBe('/auth/signup/plan');
-    expect(handoff.pathname).not.toMatch(/^\/dashboard\/auth/);
+    expect(handoff.origin).toBe('https://dashboard.orvel.pro');
+    expect(handoff.pathname).toBe('/dashboard/signup');
+    expect(handoff.pathname).not.toBe('/auth/signup');
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 

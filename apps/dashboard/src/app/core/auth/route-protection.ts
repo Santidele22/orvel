@@ -20,9 +20,9 @@ function sessionUserId(session: { user?: { id?: unknown } } | null | undefined):
 
 const CANONICAL_LANDING_ORIGIN = 'https://orvel.pro';
 const LOCAL_LANDING_PORT = '4321';
-	const LOGIN_ROUTE = '/auth/login';
-	const DASHBOARD_SIGN_IN_ROUTE = '/auth/login';
-	const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
+const LOGIN_ROUTE = '/dashboard/login';
+const DASHBOARD_SIGN_IN_ROUTE = '/dashboard/login';
+const PLAN_SELECTION_ROUTE = '/auth/signup/plan';
 const SIGNUP_ONBOARDING_ROUTE = '/auth/signup/onboarding';
 const PARAM_BLOCKLIST = /^(access_token|refresh_token|token|id_token|code|preapproval_id|collection_id|payment_id|status|status_detail|merchant_order_id|external_reference|checkout_session_id)$/i;
 const TOKEN_OR_PAYMENT_TEXT = /(access_token|refresh_token|id_token|code|preapproval_id|collection_id|payment_id|merchant_order_id|external_reference|checkout_session_id)/i;
