@@ -7,7 +7,7 @@ const pageHtml = readFileSync(new URL('./public-booking.page.html', import.meta.
 describe('Public booking professional picker', () => {
   it('hides the picker unless allowClientProfessionalSelection is on', () => {
     expect(pageHtml).toMatch(/data-testid=["']public-professional-picker["']/);
-    expect(pageHtml).toMatch(/@if\s*\(showProfessionalPicker\(\)\)[\s\S]{0,240}data-testid=["']public-professional-picker["']/);
+    expect(pageHtml).toMatch(/@if\s*\(canShowProfessionalStep\(\)\)[\s\S]{0,240}data-testid=["']public-professional-picker["']/);
     expect(pageTs).toMatch(/allowClientProfessionalSelection/);
     expect(pageTs).toMatch(/list_public_professionals_for_service|listPublicProfessionalsForService/);
   });
@@ -22,5 +22,14 @@ describe('Public booking professional picker', () => {
     expect(pageTs).toMatch(/professionalSlug/);
     expect(pageTs).toMatch(/resolvePublicProfessional/);
     expect(pageTs).toMatch(/lockedProfessionalSlug/);
+  });
+
+  it('gates later booking steps until the previous step is complete', () => {
+    expect(pageTs).toMatch(/canShowProfessionalStep/);
+    expect(pageTs).toMatch(/canShowScheduleStep/);
+    expect(pageTs).toMatch(/canShowContactStep/);
+    expect(pageTs).toMatch(/professionalChoiceMade/);
+    expect(pageHtml).toMatch(/canShowScheduleStep\(\)/);
+    expect(pageHtml).toMatch(/canShowContactStep\(\)/);
   });
 });

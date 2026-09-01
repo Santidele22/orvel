@@ -118,7 +118,7 @@
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
-              @if (showProfessionalPicker()) {
+              @if (canShowProfessionalStep()) {
                 <div class="space-y-3 pt-2" data-testid="public-professional-picker">
                   <p class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
                     <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">2</span>
@@ -126,7 +126,7 @@
                   </p>
                   <button type="button"
                     (click)="onProfessionalChange('')"
-                    [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (!selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
+                    [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (professionalChoiceMade() && !selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
                     data-testid="public-professional-none">
                     <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1E293B] text-[#7C3AED]">
                       <i class="ri-user-line text-xl"></i>
@@ -171,7 +171,8 @@
             </div>
 
             <!-- Availability Selection (Date & Time Picker) -->
-            <div class="space-y-8">
+            @if (canShowScheduleStep()) {
+            <div class="space-y-8" data-testid="public-schedule-step">
               <!-- Horizontal Date Picker -->
               <div class="space-y-4">
                 <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
@@ -252,7 +253,7 @@
                   </div>
                 }
 
-                @if (showProfessionalPicker() && !selectedProfessionalId()) {
+                @if (professionalChoiceMade() && !selectedProfessionalId()) {
                   <p class="text-[11px] text-slate-500 ml-1 font-medium">
                     Elegí “Cualquier profesional” → esta grilla te muestra todos los huecos combinados de todo el equipo.
                   </p>
@@ -263,8 +264,9 @@
                 }
               </div>
             </div>
+            }
             
-            @if (!rescheduleMode()) {
+            @if (!rescheduleMode() && canShowContactStep()) {
             <!-- Client Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div class="space-y-4">

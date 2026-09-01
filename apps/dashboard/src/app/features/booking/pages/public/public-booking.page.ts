@@ -73,6 +73,7 @@ export class PublicBookingPage implements OnInit {
     this.publicServices().find((service) => service.id === this.selectedServiceId()) ?? null
   );
   protected readonly professionalHints = signal<Record<string, string>>({});
+  protected readonly professionalChoiceMade = signal(false);
 
   // Validation errors per field
   protected readonly fieldErrors = signal<Record<string, string>>({});
@@ -120,6 +121,7 @@ export class PublicBookingPage implements OnInit {
     this.confirmedProfessionalName.set('');
     this.lockedProfessionalSlug.set('');
     this.lockedProfessionalServiceIds.set([]);
+    this.professionalChoiceMade.set(false);
     this.applyReschedulePreload();
 
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
@@ -147,6 +149,7 @@ export class PublicBookingPage implements OnInit {
         }
         this.lockedProfessionalSlug.set(professional.slug);
         this.selectedProfessionalId.set(professional.id);
+        this.professionalChoiceMade.set(true);
         this.confirmedProfessionalName.set(professional.name);
         this.lockedProfessionalServiceIds.set(professional.serviceIds);
         this.businessName.set(`${response.data.displayName} · ${professional.name}`);
@@ -213,7 +216,9 @@ export class PublicBookingPage implements OnInit {
           this.selectedDate.set(this.preloadStartsAtIso.split('T')[0]);
         }
         await this.loadProfessionalsForSelectedService();
-        await this.loadAvailability();
+        if (this.canShowScheduleStep()) {
+          await this.loadAvailability();
+        }
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
       }
@@ -231,18 +236,41 @@ export class PublicBookingPage implements OnInit {
   }
 
   async onServiceChange() {
+    this.selectedSlot = '';
     this.loadingAvailability.set(true);
     if (!this.lockedProfessionalSlug()) {
       this.selectedProfessionalId.set('');
+      this.professionalChoiceMade.set(false);
     }
     await this.loadProfessionalsForSelectedService();
-    await this.loadAvailability();
+    if (this.canShowScheduleStep()) {
+      await this.loadAvailability();
+    } else {
+      this.availabilitySlots.set([]);
+      this.loadingAvailability.set(false);
+    }
   }
 
   protected async onProfessionalChange(professionalId: string): Promise<void> {
     this.selectedProfessionalId.set(professionalId);
+    this.professionalChoiceMade.set(true);
+    this.selectedSlot = '';
     this.loadingAvailability.set(true);
     await this.loadAvailability();
+  }
+
+  protected canShowProfessionalStep(): boolean {
+    return Boolean(this.selectedServiceId()) && this.showProfessionalPicker();
+  }
+
+  protected canShowScheduleStep(): boolean {
+    if (!this.selectedServiceId()) return false;
+    if (this.showProfessionalPicker() && !this.professionalChoiceMade()) return false;
+    return true;
+  }
+
+  protected canShowContactStep(): boolean {
+    return this.canShowScheduleStep() && Boolean(this.selectedSlot);
   }
 
   private async loadProfessionalsForSelectedService(): Promise<void> {
@@ -257,6 +285,7 @@ export class PublicBookingPage implements OnInit {
     this.publicProfessionals.set(professionals);
     if (!this.lockedProfessionalSlug()) {
       this.selectedProfessionalId.set('');
+      this.professionalChoiceMade.set(false);
     }
     void this.refreshProfessionalHints(professionals);
   }
@@ -826,6 +855,7 @@ export class PublicBookingPage implements OnInit {
         this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
         this.selectedServiceId() &&
         this.hasSelectedPublicService(this.selectedServiceId()) &&
+        this.canShowScheduleStep() &&
         Object.keys(this.fieldErrors()).length === 0
       );
     }
@@ -837,6 +867,7 @@ export class PublicBookingPage implements OnInit {
       this.availabilitySlots().some(slot => slot.startsAtIso === this.selectedSlot) &&
       this.selectedServiceId() &&
       this.hasSelectedPublicService(this.selectedServiceId()) &&
+      this.canShowContactStep() &&
       this.firstName?.trim() && 
       this.lastName?.trim() && 
       this.whatsapp?.trim() && 
