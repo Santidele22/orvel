@@ -105,6 +105,68 @@ export class BusinessService {
     return this.supabaseClient || null;
   }
 
+  async listPublicProfessionalsForService(
+    businessSlug: string,
+    serviceId: string
+  ): Promise<Array<{ id: string; name: string }>> {
+    if (!this.supabaseClient) return [];
+    const { data, error } = await this.supabaseClient.rpc('list_public_professionals_for_service', {
+      business_slug: normalizePublicBookingSlug(businessSlug),
+      service_id: serviceId
+    });
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row: { id: string; name: string }) => ({
+      id: String(row.id),
+      name: String(row.name)
+    }));
+  }
+
+  async listBusinessProfessionals(businessId: string): Promise<Array<{
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    active: boolean;
+    serviceIds: string[];
+  }>> {
+    if (!this.supabaseClient) return [];
+    const { data, error } = await this.supabaseClient.rpc('list_business_professionals', {
+      p_business_id: businessId
+    });
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row: Record<string, unknown>) => ({
+      id: String(row['id']),
+      name: String(row['name'] ?? ''),
+      phone: (row['phone'] as string | null) ?? null,
+      email: (row['email'] as string | null) ?? null,
+      active: row['active'] !== false,
+      serviceIds: Array.isArray(row['service_ids']) ? (row['service_ids'] as string[]).map(String) : []
+    }));
+  }
+
+  async upsertBusinessProfessional(payload: {
+    businessId: string;
+    id?: string | null;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    active?: boolean;
+    serviceIds?: string[];
+  }): Promise<string | null> {
+    if (!this.supabaseClient) return null;
+    const { data, error } = await this.supabaseClient.rpc('upsert_business_professional', {
+      p_business_id: payload.businessId,
+      p_id: payload.id || null,
+      p_name: payload.name,
+      p_phone: payload.phone ?? null,
+      p_email: payload.email ?? null,
+      p_active: payload.active ?? true,
+      p_service_ids: payload.serviceIds ?? []
+    });
+    if (error) throw error;
+    return data ? String(data) : null;
+  }
+
   setActiveBusiness(id: string) {
     this.activeBusinessId.set(id);
     localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, id);
@@ -268,7 +330,8 @@ export class BusinessService {
         cancellation_window_minutes: settings.cancelationGracePeriod,
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
-        capacity: settings.capacity
+        capacity: settings.capacity,
+        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false
       });
 
     if (error) {
@@ -410,6 +473,7 @@ export class BusinessService {
       allowMultipleServices: settings?.allow_multiple_services,
       cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
       capacity: formDefaults.capacity,
+      allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false,
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',

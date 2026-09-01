@@ -15,6 +15,8 @@ export type BookingResponse = {
   status: string;
   source: string;
   manageToken?: string;
+  professionalId?: string;
+  professionalName?: string;
 };
 
 export class PublicBookingService {
@@ -28,6 +30,7 @@ export class PublicBookingService {
     businessSlug: string;
     serviceId: string;
     dateIso: string;
+    professionalId?: string;
   }): Promise<ApiResponse<AvailabilityResponse>> {
     return this.gateway.queryPublicSlotAvailability(payload);
   }

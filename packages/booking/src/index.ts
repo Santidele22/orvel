@@ -9,6 +9,8 @@ export type {
   PublicBookingPayload,
   ManageBookingInput,
   PublicSlotAvailabilityInput,
+  PublicProfessional,
+  BusinessProfessional,
   PublicSlot,
   PublicBookingConfirmation,
   ManageBookingDetails,

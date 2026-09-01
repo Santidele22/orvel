@@ -12,6 +12,7 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
+import { BusinessService } from '../../settings/data-access/business.service';
 import { AuthService } from '../../../services/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
@@ -35,6 +36,7 @@ export class TurnoFormPage implements OnInit {
   private availability = inject(BookingAvailabilityService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
+  private businessService = inject(BusinessService);
   private authService = inject(AuthService);
   protected branchContext = getBranchContextService();
   private readonly argentinaClock = inject(ArgentinaClockService);
@@ -56,6 +58,8 @@ export class TurnoFormPage implements OnInit {
   // Form data
   protected clientes = signal<Cliente[]>([]);
   protected servicios = signal<Servicio[]>([]);
+  protected professionals = signal<Array<{ id: string; name: string }>>([]);
+  protected professionalId = signal('');
   private readonly availableStarts = signal<string[]>([]);
   protected readonly disponibles = computed(() =>
     filterLiveAvailableStarts(
@@ -129,6 +133,11 @@ export class TurnoFormPage implements OnInit {
 
       this.clientes.set(this.clienteService.items());
       this.servicios.set(this.servicioService.items());
+      const businessId = await this.businessService.getActiveBusinessId(this.authService.user()?.id);
+      if (businessId) {
+        const team = await this.businessService.listBusinessProfessionals(businessId);
+        this.professionals.set(team.filter((member) => member.active).map((member) => ({ id: member.id, name: member.name })));
+      }
 
       // Check if editing
       const id = this.route.snapshot.paramMap.get('id');
@@ -433,7 +442,8 @@ export class TurnoFormPage implements OnInit {
           duracionMinutos: this.duracionMinutos(),
           precio: this.precio(),
           notas: this.notas(),
-          estado: this.estado()
+          estado: this.estado(),
+          professionalId: this.professionalId() || undefined
         };
         await this.scheduling.create(dto, scope);
         this.resetAvailability();

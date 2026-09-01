@@ -254,6 +254,25 @@ describe('createSupabaseBookingGateway contract surface', () => {
     });
   });
 
+  it('forwards professionalId on the 4-arg public availability RPC', async () => {
+    const rpc = vi.fn(() => okRpc([]));
+    const gateway = createSupabaseBookingGateway({ client: { rpc } });
+
+    await gateway.queryPublicSlotAvailability({
+      businessSlug: 'demo-salon',
+      serviceId: 'service-1',
+      dateIso: '2026-06-01',
+      professionalId: 'pro-1'
+    });
+
+    expect(rpc).toHaveBeenCalledWith('query_public_slot_availability', {
+      business_slug: 'demo-salon',
+      service_id: 'service-1',
+      date_iso: '2026-06-01',
+      professional_id: 'pro-1'
+    });
+  });
+
   it('returns policy-specific status codes for self-service token failures', async () => {
     const gateway = createSupabaseBookingGateway({
       client: { rpc: vi.fn(() => errorRpc('POLICY_WINDOW_CLOSED', 'Policy window closed')) }

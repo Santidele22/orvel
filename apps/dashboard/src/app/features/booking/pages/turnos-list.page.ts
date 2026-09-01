@@ -143,6 +143,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected loading = signal<boolean>(false);
   protected viewMode = signal<'list' | 'calendar'>('list');
   protected filterStatus = signal<TurnoEstado | 'todos'>('todos');
+  protected professionalFilter = signal<string>('todas');
+  protected readonly professionalChips = computed(() => {
+    const names = this.turnos()
+      .map((turno) => turno.professionalNombre?.trim())
+      .filter((name): name is string => Boolean(name));
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b, 'es'));
+  });
   protected filterFecha = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
   protected selectedDate = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
 
@@ -234,8 +241,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const filtered = status === 'todos' 
       ? daily 
       : daily.filter(t => t.estado === status);
+    const professionalId = this.professionalFilter();
+    const byProfessional = professionalId === 'todas'
+      ? filtered
+      : filtered.filter((turno) => turno.professionalNombre === professionalId);
       
-    return filtered.slice(0, this.visibleLimit());
+    return byProfessional.slice(0, this.visibleLimit());
   });
 
   /**
@@ -936,7 +947,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
       const sStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
       const isSameDay = tStr === sStr;
       const tHourPrefix = t.hora.split(':')[0];
-      return isSameDay && tHourPrefix === hourPrefix;
+      const professionalId = this.professionalFilter();
+      const matchesProfessional = professionalId === 'todas' || t.professionalNombre === professionalId;
+      return isSameDay && tHourPrefix === hourPrefix && matchesProfessional;
     });
   }
 }

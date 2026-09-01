@@ -80,6 +80,7 @@ type PublicSlotAvailabilityInput = {
   businessSlug: string
   serviceId: string
   dateIso: string
+  professionalId?: string
 }
 
 type CancelBookingByTokenInput = ManageBookingInput
@@ -310,7 +311,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
     async createPublicBooking(
       payload: PublicBookingPayload
-    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' }>> {
+    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service'; professionalId?: string; professionalName?: string }>> {
       const validationFields = validatePublicBookingPayload(payload)
       if (validationFields.length > 0) {
         return validationError(validationFields)
@@ -366,7 +367,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       }
 
       const row = result.data as any;
-      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' } = {
+      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service'; professionalId?: string; professionalName?: string } = {
         bookingId: row.booking_id,
         status: row.status === 'pending' ? 'pending' : 'confirmed',
         source: 'client-self-service'
@@ -374,6 +375,13 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
       if (row.manage_token ?? row.manageToken) {
         responseData.manageToken = row.manage_token ?? row.manageToken
+      }
+
+      if (row.professional_id) {
+        responseData.professionalId = String(row.professional_id)
+      }
+      if (row.professional_name) {
+        responseData.professionalName = String(row.professional_name)
       }
 
       return {
@@ -388,7 +396,8 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       const result = await client.rpc('query_public_slot_availability', {
         business_slug: input.businessSlug,
         service_id: input.serviceId,
-        date_iso: input.dateIso
+        date_iso: input.dateIso,
+        ...(input.professionalId?.trim() ? { professional_id: input.professionalId.trim() } : {})
       })
 
       if (result.error) {

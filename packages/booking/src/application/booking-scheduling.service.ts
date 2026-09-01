@@ -4,7 +4,7 @@ import { mapAdminMutationError, toStartsAtIso } from './booking-record';
 
 export type CreateBookingInput = {
   clienteId?: string; walkInName?: string; servicioId: string; fecha: Date; hora: string;
-  duracionMinutos: number; notas?: string; branchId?: string; precio?: number;
+  duracionMinutos: number; notas?: string; branchId?: string; precio?: number; professionalId?: string;
 };
 export type SchedulingContext = { businessId: string; branchId: string; performedBy: string };
 export type AdminRescheduleInput = { fecha: Date; hora: string; performedBy: string; reason?: string };
@@ -19,6 +19,7 @@ export class BookingSchedulingService {
       serviceId: dto.servicioId, startsAtIso: toStartsAtIso(dto.fecha, dto.hora),
       durationMinutes: dto.duracionMinutos, clientId: dto.clienteId || undefined,
       walkInName: dto.clienteId ? undefined : dto.walkInName?.trim(),
+      professionalId: dto.professionalId || undefined,
       performedBy: context.performedBy, notes: dto.notas
     };
     const response = await this.adminRepo.createManualBooking(payload);
