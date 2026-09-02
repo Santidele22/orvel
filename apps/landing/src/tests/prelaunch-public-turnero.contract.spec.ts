@@ -15,6 +15,14 @@ const SHOWCASE_PATH = new URL(
   '../components/organisms/prelaunch/PrelaunchProductShowcase.astro',
   import.meta.url
 );
+const PORTAL_SHOT_PATH = new URL(
+  '../../public/prelaunch/public-turnero-portal.png',
+  import.meta.url
+);
+const FORM_SHOT_PATH = new URL(
+  '../../public/prelaunch/public-turnero-form.png',
+  import.meta.url
+);
 
 const JARGON = /\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i;
 const FORBIDDEN_CLAIMS =
@@ -72,30 +80,49 @@ describe('Contract: prelaunch public turnero section', () => {
     expect(source).not.toMatch(/multi-?profesional/i);
   });
 
-  it('shows one public-booking phone mock, not operator dashboard chrome or overlapping Cloxy badges', async () => {
+  it('shows real public-turnero screenshots instead of the HTML confirmation mock', async () => {
     const source = await readFile(SECTION_PATH, 'utf8');
-    const phoneChunk =
-      source.match(/data-public-turnero-phone[\s\S]*?(?=data-public-turnero-chips|<script|$)/)?.[0] ??
-      source.match(/data-public-turnero-phone[\s\S]*/)?.[0] ??
-      '';
-    const phoneOpen = source.match(/<div\b[^>]*data-public-turnero-phone[^>]*>/)?.[0] ?? '';
-    const chipsOpen = source.match(/<[^>]*data-public-turnero-chips[^>]*>/)?.[0] ?? '';
+    const portalShot = await readFile(PORTAL_SHOT_PATH);
+    const formShot = await readFile(FORM_SHOT_PATH);
+    const chipsOpen = source.match(/<ul\b[^>]*data-public-turnero-chips[^>]*>/)?.[0] ?? '';
+    const shotsOpen = source.match(/<[^>]*data-public-turnero-shots[^>]*>/)?.[0] ?? '';
+    const shotsChunk =
+      source.match(/data-public-turnero-shots[\s\S]*?(?=<\/section>)/)?.[0] ?? '';
+    const imgTags = [...source.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
 
-    expect(source).toContain('data-public-turnero-phone');
-    expect(phoneChunk.length).toBeGreaterThan(80);
-    expect(phoneChunk).toMatch(/servicio/i);
-    expect(phoneChunk).toMatch(/junio|15:30|fecha/i);
-    expect(phoneChunk).toMatch(/confirmad/i);
-    expect(phoneChunk).not.toMatch(/\bAgenda\b/);
-    expect(phoneChunk).not.toMatch(/\bClientes\b/);
-    expect(phoneChunk).not.toContain('data-product-phone');
-    expect(phoneChunk).not.toContain('data-product-desktop');
+    expect(source).toContain('id="turnero-publico"');
+    expect(portalShot.byteLength).toBeGreaterThan(1000);
+    expect(formShot.byteLength).toBeGreaterThan(1000);
 
-    expect(phoneOpen).not.toMatch(/\babsolute\b/);
-    expect(phoneOpen).not.toMatch(/-bottom/);
-    expect(phoneOpen).not.toMatch(/-right/);
+    expect(imgTags.some((tag) => tag.includes('src="/prelaunch/public-turnero-portal.png"'))).toBe(
+      true
+    );
+    expect(imgTags.some((tag) => tag.includes('src="/prelaunch/public-turnero-form.png"'))).toBe(
+      true
+    );
+    expect(shotsChunk).toContain('public-turnero-portal.png');
+    expect(shotsChunk).toContain('public-turnero-form.png');
+
+    expect(source).not.toContain('Corte clásico');
+    expect(source).not.toContain('2 de junio');
+    expect(source).not.toContain('Vista de ejemplo');
+
+    expect(source).toContain('El link funciona a cualquier hora');
+    expect(source).toContain('Sin instalar nada');
+    expect(source).toContain('Confirmación al instante');
+    expect(source).toContain('El celular deja de atender turnos');
+    expect(source).toContain('/auth/signup/plan');
+
     expect(chipsOpen).not.toMatch(/\babsolute\b/);
+    expect(shotsOpen).toMatch(/\brelative\b/);
+    expect(shotsOpen).toContain('min-h-[540px]');
+    expect(shotsChunk).toMatch(/\babsolute\b/);
+    expect(imgTags.every((tag) => tag.includes('object-cover'))).toBe(true);
     expect(source).not.toMatch(/(?:<span\b[^>]*\brounded-full\b[^>]*>\s*<\/span>\s*){3}/);
+    expect(source).not.toMatch(/\bAgenda\b/);
+    expect(source).not.toMatch(/\bClientes\b/);
+    expect(source).not.toContain('data-product-phone');
+    expect(source).not.toContain('data-product-desktop');
   });
 
   it('does not rewrite Cómo funciona or the product showcase, and keeps #como-funciona', async () => {
