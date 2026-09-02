@@ -1,5 +1,5 @@
 ---
-// Prelaunch header: waitlist CTA only, no login or signup.
+// Prelaunch header: login and signup, no waitlist CTA.
 ---
 
 <header class="fixed top-0 left-0 right-0 z-50 bg-bg-primary/80 backdrop-blur-xl border-b border-border h-16">
@@ -11,12 +11,16 @@
     <nav class="hidden md:flex items-center gap-7" aria-label="Navegación principal">
       <a class="text-text-secondary hover:text-text-primary font-headline text-sm font-medium tracking-wide transition-colors" href="#producto">Producto</a>
       <a class="text-text-secondary hover:text-text-primary font-headline text-sm font-medium tracking-wide transition-colors" href="#rubros">Rubros</a>
-      <a class="text-text-secondary hover:text-text-primary font-headline text-sm font-medium tracking-wide transition-colors" href="#novedades">Novedades</a>
       <a class="text-text-secondary hover:text-text-primary font-headline text-sm font-medium tracking-wide transition-colors" href="#precios">Precios</a>
     </nav>
 
-    <button type="button" class="btn btn-primary js-open-waitlist px-5 py-2 text-xs tracking-widest uppercase">
-      Quiero mi lugar
-    </button>
+    <div class="flex items-center gap-3">
+      <a href="/auth/login" class="text-text-secondary hover:text-text-primary font-headline font-bold text-[11px] uppercase tracking-widest transition-colors">
+        Iniciar sesión
+      </a>
+      <a href="/auth/signup/plan" class="btn btn-primary px-5 py-2 text-xs tracking-widest uppercase">
+        Crear cuenta
+      </a>
+    </div>
   </div>
 </header>

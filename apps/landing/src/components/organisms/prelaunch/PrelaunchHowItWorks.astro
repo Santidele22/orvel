@@ -1,0 +1,94 @@
+---
+const steps = [
+  {
+    n: '01',
+    title: 'Elige el servicio',
+    body: 'Tu cliente entra al link del negocio desde el celular. Ve servicios, precio y duración al instante. Sin app y sin registro.'
+  },
+  {
+    n: '02',
+    title: 'Elige fecha y hora',
+    body: 'Selecciona el día y el horario que está libre. Todo en tiempo real, sin llamarte ni escribirte.'
+  },
+  {
+    n: '03',
+    title: 'Reserva confirmada',
+    body: 'El turno queda confirmado al instante. Recibe los detalles por email y vos lo ves en la agenda.'
+  }
+];
+---
+
+<section class="landing-section bg-bg-primary" id="como-funciona">
+  <div class="landing-container">
+    <div class="text-center landing-section-header">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Paso a paso</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">¿Cómo funciona?</h2>
+      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        Tanto para vos como para tus clientes, reservar nunca fue tan fácil.
+      </p>
+    </div>
+
+    <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+      <ol class="space-y-4">
+        {steps.map((step) => (
+          <li class="landing-card p-5 md:p-6 reveal">
+            <p class="text-[11px] uppercase tracking-[0.14em] text-primary mb-2">Paso {step.n}</p>
+            <h3 class="font-headline font-bold text-text-primary text-lg mb-2">{step.title}</h3>
+            <p class="text-sm text-text-secondary leading-relaxed">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div class="flex justify-center reveal" data-mock-booking-preview>
+        <div class="relative w-[280px] max-w-full">
+          <div class="rounded-[2.2rem] border border-white/10 bg-[#0b0b12] p-3 shadow-2xl">
+            <div class="rounded-[1.7rem] overflow-hidden bg-[#101018] border border-white/5">
+              <div class="px-4 pt-4 pb-3 flex items-center justify-between">
+                <p class="text-[11px] text-text-secondary">11:32</p>
+                <p class="text-[10px] uppercase tracking-widest text-primary">Orvel</p>
+              </div>
+              <div class="px-4 pb-3">
+                <p class="font-headline font-bold text-text-primary text-sm">Peluquería La Corte</p>
+                <p class="text-[11px] text-text-secondary mt-0.5">Reservá sin escribir</p>
+              </div>
+              <div class="mx-4 mb-3 rounded-full bg-white/5 px-3 py-2 text-[11px] text-text-secondary">
+                Buscar servicio
+              </div>
+              <div class="px-3 pb-4 space-y-2">
+                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-headline font-semibold text-text-primary">Corte clásico</p>
+                    <p class="text-[11px] text-text-secondary">$8.000 · 30 min</p>
+                  </div>
+                  <span class="rounded-full bg-primary px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
+                </article>
+                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-headline font-semibold text-text-primary">Color</p>
+                    <p class="text-[11px] text-text-secondary">$18.000 · 90 min</p>
+                  </div>
+                  <span class="rounded-full bg-primary/80 px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
+                </article>
+                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-headline font-semibold text-text-primary">Brushing</p>
+                    <p class="text-[11px] text-text-secondary">$6.500 · 40 min</p>
+                  </div>
+                  <span class="rounded-full bg-primary/80 px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
+                </article>
+              </div>
+            </div>
+          </div>
+          <p class="mt-3 text-center text-[11px] text-text-secondary">Vista de ejemplo. Screenshots reales después.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-10">
+      <a href="/auth/signup/plan" class="btn btn-primary py-4 px-10 text-xs tracking-widest uppercase">
+        Empezá gratis
+      </a>
+      <p class="mt-3 text-sm text-text-secondary">Sin tarjeta. El plan Gratis está listo.</p>
+    </div>
+  </div>
+</section>
