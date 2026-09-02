@@ -1,41 +1,99 @@
 ---
-const rubros = [
-  { title: 'Peluquería', body: 'Cortes y color sin estrés.', image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800' },
-  { title: 'Uñas', body: 'Organización al minuto.', image: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800' },
-  { title: 'Barbería', body: 'Reservas automáticas.', image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800' },
-  { title: 'Masajes', body: 'Buffers y preparación.', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800' }
-];
+import { PRELAUNCH_RUBRO_IDS, PRELAUNCH_RUBROS } from '../../../lib/prelaunch-rubros';
 ---
 
-<section class="landing-section-compact bg-bg-secondary" id="rubros">
+<section class="landing-section-compact bg-bg-primary" id="rubros" data-rubros-root data-view="list">
   <div class="landing-container">
-    <div class="text-center landing-section-header">
-      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Rubros</div>
-      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">
-        Hecho para quien vive de los turnos
-      </h2>
-      <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
-        Seleccioná tu rubro. Misma lógica clara: disponibilidad real, menos ida y vuelta.
-      </p>
+    <div data-rubro-list>
+      <div class="text-center landing-section-header">
+        <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Rubros</div>
+        <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">
+          Hecho para quien vive de los turnos
+        </h2>
+        <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+          Seleccioná tu rubro. Vas a ver por qué Orvel encaja en tu operación, no en un negocio genérico.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {PRELAUNCH_RUBRO_IDS.map((id) => {
+          const rubro = PRELAUNCH_RUBROS[id];
+          return (
+            <button
+              type="button"
+              class="group relative h-72 rounded-2xl overflow-hidden border border-border text-left appearance-none p-0 cursor-pointer"
+              data-rubro-id={id}
+              aria-label={`Ver ${rubro.title}`}
+            >
+              <img
+                src={rubro.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                class="rubro-thumb w-full h-full object-cover grayscale-[0.55] brightness-75 contrast-105 scale-[1.02] transition duration-500 group-hover:grayscale-[0.2] group-hover:brightness-90 group-hover:scale-105 group-focus-visible:grayscale-[0.2] group-focus-visible:brightness-90 group-focus-visible:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/55 to-transparent"></div>
+              <span class="pointer-events-none absolute top-3 right-3 z-10 rounded-full border border-white/15 bg-bg-primary/50 px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-text-primary opacity-0 -translate-y-1 transition duration-200 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">
+                Ver por qué
+              </span>
+              <div class="absolute inset-x-0 bottom-0 p-6 z-10">
+                <h3 class="font-headline font-bold text-2xl text-text-primary mb-1" data-rubro-title>{rubro.title}</h3>
+                <p class="text-text-secondary text-sm">{rubro.tag}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-      {rubros.map((rubro) => (
-        <article class="group relative h-72 rounded-2xl overflow-hidden landing-card reveal">
-          <img
-            src={rubro.image}
-            alt={rubro.title}
-            loading="lazy"
-            decoding="async"
-            class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-transform duration-700 group-hover:scale-105"
-          />
-          <div class="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/50 to-transparent"></div>
-          <div class="absolute inset-x-0 bottom-0 p-6">
-            <h3 class="font-headline font-bold text-2xl text-text-primary mb-1">{rubro.title}</h3>
-            <p class="text-text-secondary text-sm">{rubro.body}</p>
+    <div data-rubro-detail hidden>
+      <div class="grid gap-7 lg:grid-cols-2 lg:items-stretch">
+        <div class="relative min-h-[22rem] lg:min-h-[32rem] overflow-hidden rounded-3xl border border-border" data-rubro-hero></div>
+        <div class="flex flex-col rounded-3xl border border-border bg-bg-primary p-6 md:p-8">
+          <button
+            type="button"
+            class="self-start mb-5 rounded-full border border-border px-3 py-2 text-sm text-text-primary hover:border-primary hover:text-white"
+            data-rubro-back
+          >
+            ← Todos los rubros
+          </button>
+          <div data-rubro-copy></div>
+          <div class="mt-auto pt-6 flex flex-wrap gap-3">
+            <button type="button" class="btn btn-primary js-open-waitlist">Quiero mi lugar</button>
+            <button type="button" class="btn btn-ghost border border-border" data-rubro-back>Seguir viendo rubros</button>
           </div>
-        </article>
-      ))}
+        </div>
+      </div>
     </div>
   </div>
 </section>
+
+<style is:global>
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 420ms;
+  }
+
+  ::view-transition-group(*) {
+    animation-duration: 480ms;
+    animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .rubro-vt-image { view-transition-name: rubro-image; }
+  .rubro-vt-title { view-transition-name: rubro-title; }
+
+  ::view-transition-old(rubro-image),
+  ::view-transition-new(rubro-image) {
+    height: 100%;
+    object-fit: cover;
+    overflow: clip;
+    border-radius: 1rem;
+  }
+</style>
+
+<script>
+  import { initPrelaunchRubros } from '../../../lib/prelaunch-rubros';
+
+  initPrelaunchRubros(document);
+  void document.startViewTransition;
+</script>
