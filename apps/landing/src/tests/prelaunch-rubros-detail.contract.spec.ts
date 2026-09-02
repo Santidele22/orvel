@@ -43,7 +43,7 @@ function renderRubrosDocument() {
         <div data-rubro-hero></div>
         <button type="button" data-rubro-back>Todos los rubros</button>
         <div data-rubro-copy></div>
-        <button type="button" class="js-open-waitlist">Quiero mi lugar</button>
+        <a href="/auth/signup/plan">Crear cuenta</a>
       </div>
     </section>
   `, { url: 'https://orvel.pro/' });
@@ -52,7 +52,7 @@ function renderRubrosDocument() {
 }
 
 describe('Contract: prelaunch rubros copy and markup', () => {
-  it('keeps the four rubros as buttons with waitlist CTA and no visitor jargon', async () => {
+  it('keeps the four rubros as buttons with signup CTA and no visitor jargon', async () => {
     const source = await readFile(RUBROS_PATH, 'utf8');
     const features = await readFile(FEATURES_PATH, 'utf8');
 
@@ -62,8 +62,10 @@ describe('Contract: prelaunch rubros copy and markup', () => {
     expect(source).not.toMatch(/<section[^>]*bg-bg-secondary/);
     expect(source).toMatch(/<button[^>]*data-rubro-id/);
     expect(source).toContain('Ver por qué');
-    expect(source).toContain('Quiero mi lugar');
-    expect(source).toContain('js-open-waitlist');
+    expect(source).toContain('Crear cuenta');
+    expect(source).toContain('/auth/signup/plan');
+    expect(source).not.toContain('js-open-waitlist');
+    expect(source).not.toContain('Quiero mi lugar');
     expect(source).toContain('startViewTransition');
     expect(source).toMatch(/data-rubro-back/);
     expect(source).toMatch(/h-full min-h-\[22rem\][\s\S]*data-rubro-hero/);
