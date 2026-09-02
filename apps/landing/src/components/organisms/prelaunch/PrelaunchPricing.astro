@@ -31,7 +31,7 @@ const featureCopy: Record<string, { desc: string; items: string[] }> = {
       <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Precios</div>
       <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">Claros desde el día uno</h2>
       <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
-        Lo que ves es lo que sale. No es checkout: anotate y te avisamos al abrir.
+        Lo que ves es lo que sale. Creá tu cuenta y empezá hoy.
       </p>
     </div>
 
@@ -56,12 +56,12 @@ const featureCopy: Record<string, { desc: string; items: string[] }> = {
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              class:list={['btn w-full js-open-waitlist', featured ? 'btn-primary' : 'btn-ghost border border-border']}
+            <a
+              href="/auth/signup/plan"
+              class:list={['btn w-full', featured ? 'btn-primary' : 'btn-ghost border border-border']}
             >
-              Quiero mi lugar
-            </button>
+              Crear cuenta
+            </a>
           </article>
         );
       })}
