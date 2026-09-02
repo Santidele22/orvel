@@ -94,91 +94,71 @@ const panels = [
           ))}
         </div>
 
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(9.5rem,11rem)] lg:items-start">
+        <div class="flex flex-col gap-4">
           <div
-            class="overflow-hidden rounded-2xl border border-border bg-bg-primary"
-            data-product-desktop
+            class="inline-flex w-fit self-end rounded-xl border border-border p-1"
+            role="tablist"
+            aria-label="Vista web o celular"
           >
-            <div class="flex items-center border-b border-border px-4 py-2.5">
-              <p
-                class="text-[11px] font-headline font-semibold uppercase tracking-[0.14em] text-primary"
-                data-product-hud-label
-              >
-                Agenda
-              </p>
-            </div>
-
-            <div data-product-surface="agenda">
-              <div class="grid grid-cols-[88px_1fr] gap-px bg-border p-4 text-left">
-                <div class="rounded-l-xl bg-bg-secondary p-3 text-[11px] text-text-secondary">
-                  <p class="font-headline font-semibold text-text-primary mb-2">Hoy</p>
-                  <p>10:00</p>
-                  <p class="mt-3">15:30</p>
-                  <p class="mt-3">16:30</p>
-                </div>
-                <div class="space-y-2 rounded-r-xl bg-bg-secondary p-3">
-                  <article class="rounded-xl border border-border bg-bg-primary p-3">
-                    <p class="text-sm font-headline font-semibold text-text-primary">Bloqueo · almuerzo</p>
-                    <p class="text-[11px] text-text-secondary">10:00 · 30 min</p>
-                  </article>
-                  <article class="rounded-xl border border-primary/30 bg-primary/10 p-3">
-                    <p class="text-sm font-headline font-semibold text-text-primary">Corte clásico · Ana</p>
-                    <p class="text-[11px] text-text-secondary">15:30 · Confirmado</p>
-                  </article>
-                  <article class="rounded-xl border border-border bg-bg-primary p-3">
-                    <p class="text-sm font-headline font-semibold text-text-primary">Color · Luis</p>
-                    <p class="text-[11px] text-text-secondary">16:30 · Confirmado</p>
-                  </article>
-                </div>
-              </div>
-            </div>
-
-            <div class="hidden" data-product-surface="clientes" hidden>
-              <div class="p-4 space-y-2">
-                <article class="rounded-xl border border-primary/30 bg-primary/10 p-3">
-                  <p class="text-sm font-headline font-semibold text-text-primary">Ana López</p>
-                  <p class="text-[11px] text-text-secondary">11 5555-2030 · último turno: corte</p>
-                </article>
-                <article class="rounded-xl border border-border bg-bg-primary p-3">
-                  <p class="text-sm font-headline font-semibold text-text-primary">Luis Pérez</p>
-                  <p class="text-[11px] text-text-secondary">11 4444-1188 · último turno: color</p>
-                </article>
-                <article class="rounded-xl border border-border bg-bg-primary p-3">
-                  <p class="text-sm font-headline font-semibold text-text-primary">María Díaz</p>
-                  <p class="text-[11px] text-text-secondary">11 3333-9090 · 4 turnos</p>
-                </article>
-              </div>
-            </div>
+            <button
+              type="button"
+              class="min-h-[44px] cursor-pointer rounded-lg px-4 font-headline text-sm font-semibold bg-primary/15 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              role="tab"
+              aria-selected="true"
+              data-product-viewport-tab="web"
+            >
+              Web
+            </button>
+            <button
+              type="button"
+              class="min-h-[44px] cursor-pointer rounded-lg px-4 font-headline text-sm font-semibold text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              role="tab"
+              aria-selected="false"
+              data-product-viewport-tab="mobile"
+            >
+              Celular
+            </button>
           </div>
 
-          <div class="w-full max-w-[168px] justify-self-center lg:justify-self-stretch lg:max-w-none" data-product-phone>
-            <div class="rounded-[1.6rem] border border-border bg-bg-secondary p-1.5">
-              <div class="overflow-hidden rounded-[1.25rem] bg-[#f4f4f5] text-zinc-900">
-                <div class="px-3 pt-2 pb-1 flex items-center justify-between text-[9px] text-zinc-500">
-                  <span>10:37</span>
-                  <span class="h-3 w-10 rounded-full bg-zinc-900/80"></span>
-                  <span>Orvel</span>
-                </div>
-                <div data-product-phone-surface="agenda">
-                  <div class="px-3 pb-3">
-                    <p class="text-[10px] text-zinc-500">Hoy</p>
-                    <p class="font-headline font-bold text-xs text-zinc-900">Agenda</p>
-                    <article class="mt-2 rounded-xl bg-white p-2 shadow-sm">
-                      <p class="text-[10px] text-primary font-semibold">15:30</p>
-                      <p class="text-xs font-headline font-semibold">Ana · Corte</p>
-                    </article>
-                  </div>
-                </div>
-                <div class="hidden" data-product-phone-surface="clientes" hidden>
-                  <div class="px-3 pb-3">
-                    <p class="text-[10px] text-zinc-500">Ficha</p>
-                    <p class="font-headline font-bold text-xs text-zinc-900">Ana López</p>
-                    <article class="mt-2 rounded-xl bg-white p-2 shadow-sm">
-                      <p class="text-[10px] text-zinc-500">Último turno</p>
-                      <p class="text-xs font-headline font-semibold">Corte · 2 jun</p>
-                    </article>
-                  </div>
-                </div>
+          <div>
+            <div
+              class="overflow-hidden rounded-2xl border border-border bg-bg-primary"
+              data-product-desktop
+            >
+              <div data-product-surface="agenda">
+                <img
+                  src="/prelaunch/showcase-agenda-web.png"
+                  alt="Agenda de turnos en la web"
+                  class="block h-auto w-full object-contain"
+                />
+              </div>
+              <div class="hidden" data-product-surface="clientes" hidden>
+                <img
+                  src="/prelaunch/showcase-clientes-web.png"
+                  alt="Clientes en la web"
+                  class="block h-auto w-full object-contain"
+                />
+              </div>
+            </div>
+
+            <div
+              class="mx-auto hidden w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-bg-primary"
+              data-product-phone
+              hidden
+            >
+              <div data-product-phone-surface="agenda">
+                <img
+                  src="/prelaunch/showcase-agenda-mobile.jpg"
+                  alt="Agenda de turnos en el celular"
+                  class="block h-auto w-full object-contain"
+                />
+              </div>
+              <div class="hidden" data-product-phone-surface="clientes" hidden>
+                <img
+                  src="/prelaunch/showcase-clientes-mobile.jpg"
+                  alt="Clientes en el celular"
+                  class="block h-auto w-full object-contain"
+                />
               </div>
             </div>
           </div>
@@ -186,7 +166,7 @@ const panels = [
       </div>
     </div>
 
-    <p class="mt-6 text-[11px] text-text-secondary">Vista de ejemplo. Screenshots reales después.</p>
+    <p class="mt-6 text-[11px] text-text-secondary">Así se ve Orvel en la web y en el celular.</p>
   </div>
 </section>
 
@@ -194,7 +174,11 @@ const panels = [
   const root = document.querySelector<HTMLElement>('[data-product-showcase]');
   if (root) {
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-product-tab]'));
-    const hudLabel = root.querySelector<HTMLElement>('[data-product-hud-label]');
+    const viewportTabs = Array.from(
+      root.querySelectorAll<HTMLButtonElement>('[data-product-viewport-tab]')
+    );
+    const desktop = root.querySelector<HTMLElement>('[data-product-desktop]');
+    const phone = root.querySelector<HTMLElement>('[data-product-phone]');
 
     function showSurface(surface: string): void {
       tabs.forEach((tab) => {
@@ -206,10 +190,6 @@ const panels = [
         tab.classList.toggle('border-transparent', !active);
         tab.classList.toggle('text-text-secondary', !active);
       });
-
-      if (hudLabel) {
-        hudLabel.textContent = surface === 'clientes' ? 'Clientes' : 'Agenda';
-      }
 
       root.querySelectorAll<HTMLElement>('[data-product-copy]').forEach((panel) => {
         const match = panel.dataset.productCopy === surface;
@@ -230,10 +210,37 @@ const panels = [
       });
     }
 
+    function showViewport(viewport: string): void {
+      viewportTabs.forEach((tab) => {
+        const active = tab.dataset.productViewportTab === viewport;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.classList.toggle('bg-primary/15', active);
+        tab.classList.toggle('text-text-primary', active);
+        tab.classList.toggle('text-text-secondary', !active);
+      });
+
+      const isWeb = viewport === 'web';
+      if (desktop) {
+        desktop.classList.toggle('hidden', !isWeb);
+        desktop.toggleAttribute('hidden', !isWeb);
+      }
+      if (phone) {
+        phone.classList.toggle('hidden', isWeb);
+        phone.toggleAttribute('hidden', isWeb);
+      }
+    }
+
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
         const surface = tab.dataset.productTab;
         if (surface) showSurface(surface);
+      });
+    });
+
+    viewportTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const viewport = tab.dataset.productViewportTab;
+        if (viewport) showViewport(viewport);
       });
     });
   }
