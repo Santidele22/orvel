@@ -10,6 +10,7 @@ import EarlyBird from '../components/organisms/prelaunch/EarlyBird.astro';
 import PrelaunchProblem from '../components/organisms/prelaunch/PrelaunchProblem.astro';
 import PrelaunchFeatures from '../components/organisms/prelaunch/PrelaunchFeatures.astro';
 import PrelaunchHowItWorks from '../components/organisms/prelaunch/PrelaunchHowItWorks.astro';
+import PrelaunchProductShowcase from '../components/organisms/prelaunch/PrelaunchProductShowcase.astro';
 import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
 import PrelaunchPricing from '../components/organisms/prelaunch/PrelaunchPricing.astro';
 import PrelaunchFaq from '../components/organisms/prelaunch/PrelaunchFaq.astro';
@@ -38,6 +39,7 @@ const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` 
   <PrelaunchProblem />
   <PrelaunchFeatures />
   <PrelaunchHowItWorks />
+  <PrelaunchProductShowcase />
   <PrelaunchRubros />
   <PrelaunchPricing plansWithBilling={plansWithBilling} />
   <PrelaunchFaq premiumPriceLabel={premiumPriceLabel} />
