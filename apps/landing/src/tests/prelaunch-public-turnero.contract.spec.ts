@@ -84,7 +84,8 @@ describe('Contract: prelaunch public turnero section', () => {
     const source = await readFile(SECTION_PATH, 'utf8');
     const portalShot = await readFile(PORTAL_SHOT_PATH);
     const formShot = await readFile(FORM_SHOT_PATH);
-    const chipsOpen = source.match(/<[^>]*data-public-turnero-chips[^>]*>/)?.[0] ?? '';
+    const chipsOpen = source.match(/<ul\b[^>]*data-public-turnero-chips[^>]*>/)?.[0] ?? '';
+    const shotsOpen = source.match(/<[^>]*data-public-turnero-shots[^>]*>/)?.[0] ?? '';
     const shotsChunk =
       source.match(/data-public-turnero-shots[\s\S]*?(?=<\/section>)/)?.[0] ?? '';
     const imgTags = [...source.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
@@ -99,6 +100,8 @@ describe('Contract: prelaunch public turnero section', () => {
     expect(imgTags.some((tag) => tag.includes('src="/prelaunch/public-turnero-form.png"'))).toBe(
       true
     );
+    expect(shotsChunk).toContain('public-turnero-portal.png');
+    expect(shotsChunk).toContain('public-turnero-form.png');
 
     expect(source).not.toContain('Corte clásico');
     expect(source).not.toContain('2 de junio');
@@ -111,9 +114,10 @@ describe('Contract: prelaunch public turnero section', () => {
     expect(source).toContain('/auth/signup/plan');
 
     expect(chipsOpen).not.toMatch(/\babsolute\b/);
-    expect(shotsChunk).not.toMatch(/\babsolute\b/);
-    expect(shotsChunk).not.toMatch(/-bottom/);
-    expect(shotsChunk).not.toMatch(/-right/);
+    expect(shotsOpen).toMatch(/\brelative\b/);
+    expect(shotsOpen).toContain('min-h-[540px]');
+    expect(shotsChunk).toMatch(/\babsolute\b/);
+    expect(imgTags.every((tag) => tag.includes('object-cover'))).toBe(true);
     expect(source).not.toMatch(/(?:<span\b[^>]*\brounded-full\b[^>]*>\s*<\/span>\s*){3}/);
     expect(source).not.toMatch(/\bAgenda\b/);
     expect(source).not.toMatch(/\bClientes\b/);
