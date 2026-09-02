@@ -40,6 +40,7 @@ function renderRubrosDocument() {
         ).join('')}
       </div>
       <div data-rubro-detail hidden>
+        <div data-rubro-hero></div>
         <button type="button" data-rubro-back>Todos los rubros</button>
         <div data-rubro-copy></div>
         <button type="button" class="js-open-waitlist">Quiero mi lugar</button>
@@ -65,6 +66,7 @@ describe('Contract: prelaunch rubros copy and markup', () => {
     expect(source).toContain('js-open-waitlist');
     expect(source).toContain('startViewTransition');
     expect(source).toMatch(/data-rubro-back/);
+    expect(source).toMatch(/h-full min-h-\[22rem\][\s\S]*data-rubro-hero/);
 
     expect(visitorCopy()).toContain('Color y corte dejan de pelearse en la agenda.');
     expect(visitorCopy()).toContain('Tiempo entre sesiones');
@@ -104,6 +106,12 @@ describe('Contract: rubro detail opens with View Transition fallback', () => {
     expect(document.querySelector('[data-rubro-copy]')?.textContent).toContain(
       'Color y corte dejan de pelearse en la agenda.'
     );
+    const heroImage = document.querySelector('[data-rubro-hero] img');
+    expect(heroImage?.className).toMatch(/absolute/);
+    expect(heroImage?.className).toMatch(/inset-0/);
+    expect(heroImage?.className).toMatch(/h-full/);
+    expect(heroImage?.className).toMatch(/w-full/);
+    expect(heroImage?.className).toMatch(/object-cover/);
     expect(document.querySelectorAll('[data-rubro-detail]:not([hidden])').length).toBe(1);
 
     document.querySelector<HTMLButtonElement>('[data-rubro-back]')!.click();
