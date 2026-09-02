@@ -55,4 +55,23 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     expect(source).not.toMatch(/\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i);
     expect(source).not.toMatch(/fundadores?/i);
   });
+
+  it('uses a three-beat stage instead of a generic timeline-and-phone fold', async () => {
+    const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
+
+    expect(source).toContain('data-how-stage');
+    expect(source).toContain('data-how-stage-copy');
+    expect(source).toContain('data-how-step-index');
+    expect(source).toMatch(
+      /(?:class="[^"]*\bflex\b[^"]*"[^>]*data-how-steps=|data-how-steps="[^"]*"[^>]*class="[^"]*\bflex\b)/
+    );
+    expect(source).toMatch(/<button\b[^>]*\bmin-h-\[44px\][^>]*\bdata-how-step-index=|<button\b[^>]*\bdata-how-step-index=[^>]*\bmin-h-\[44px\]/);
+    expect(source).not.toContain('data-how-dot-index');
+    expect(source).not.toContain('absolute left-[22px]');
+    expect(source).not.toContain('w-px bg-white/10');
+    expect(source).not.toMatch(/absolute\s+-left-6/);
+    expect(source).not.toMatch(/top-24/);
+    expect(source).not.toMatch(/absolute\s+inset-0/);
+    expect(source).not.toMatch(/<ol\b[^>]*\bspace-y-4\b/);
+  });
 });
