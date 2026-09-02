@@ -1,9 +1,28 @@
 ---
-const chips = [
-  'El link funciona a cualquier hora',
-  'Sin instalar nada',
-  'Confirmación al instante',
-  'El celular deja de atender turnos'
+const beats = [
+  {
+    n: '01',
+    title: 'El link funciona a cualquier hora',
+    body: 'Fuera de horario, feriados o mientras estás con otro cliente, el turnero sigue tomando reservas.'
+  },
+  {
+    n: '02',
+    title: 'Confirmación al instante',
+    body: 'El cliente ve la disponibilidad real de tu agenda y recibe los detalles por email apenas reserva.'
+  },
+  {
+    n: '03',
+    title: 'Nadie se queda sin turno',
+    body: 'Sin ida y vuelta de mensajes ni llamados perdidos: el horario se bloquea en el momento.'
+  }
+];
+
+const days = [
+  { label: 'JUE 3', variant: 'a' },
+  { label: 'VIE 4', variant: 'b' },
+  { label: 'LUN 7', variant: '' },
+  { label: 'MIE 8', variant: '' },
+  { label: 'JUE 9', variant: '' }
 ];
 ---
 
@@ -13,66 +32,124 @@ const chips = [
   data-public-turnero
 >
   <div class="landing-container">
-    <div class="landing-section-header text-left">
-      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">
-        Turnero público
-      </div>
-      <h2
-        class="landing-title font-headline font-bold text-text-primary mb-4 reveal"
-        style="letter-spacing: -0.04em;"
-      >
-        Tus clientes <span class="italic font-light">reservan desde el celular</span>
-      </h2>
-      <p class="landing-lead text-text-secondary font-body reveal stagger-1">
-        Nadie se queda sin turno. Sin llamados, sin ida y vuelta.
-      </p>
-    </div>
-
-    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] lg:items-start">
+    <div class="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
       <div class="reveal">
-        <p class="text-sm text-text-secondary leading-relaxed mb-6">
-          Compartís el link una vez. El cliente abre el link del negocio desde el celular, sin instalar nada y sin cuenta. Elige servicio, día y hora con disponibilidad real. El turno queda confirmado al instante y los detalles llegan por email. También fuera de horario, sin atender el teléfono.
+        <div class="mb-5 flex items-center gap-2">
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
+          <p class="text-sm text-text-secondary font-body">Turnero público — disponible ahora</p>
+        </div>
+
+        <h2 class="landing-title font-headline font-bold text-text-primary mb-5">
+          Tus clientes reservan desde el celular, sin llamarte
+        </h2>
+
+        <p class="text-text-secondary font-body leading-relaxed mb-8 max-w-xl">
+          Compartís el link una vez. Tu cliente elige servicio, profesional y horario con disponibilidad real, y el turno queda confirmado al instante — sin instalar nada, sin cuenta, sin que atiendas el teléfono.
         </p>
 
-        <ul class="flex flex-wrap gap-2 mb-8" data-public-turnero-chips>
-          {chips.map((chip) => (
-            <li class="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-headline font-semibold text-text-primary">
-              {chip}
+        <ol class="mb-8" data-public-turnero-chips>
+          {beats.map((beat) => (
+            <li class="border-t border-border py-5">
+              <div class="flex gap-4">
+                <span class="mt-0.5 shrink-0 font-headline text-sm text-primary/55">{beat.n}</span>
+                <div>
+                  <p class="font-headline font-semibold text-text-primary">{beat.title}</p>
+                  <p class="mt-1 text-sm text-text-secondary">{beat.body}</p>
+                </div>
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
 
-        <a href="/auth/signup/plan" class="btn btn-primary py-4 px-10 text-xs tracking-widest uppercase">
-          Empezá gratis
-        </a>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <a href="/auth/signup/plan" class="btn btn-primary py-4 px-10 text-sm">
+            Empezá gratis
+          </a>
+          <p class="text-sm text-text-secondary">No necesitás tarjeta para probarlo</p>
+        </div>
       </div>
 
       <div>
         <div class="relative min-h-[540px] w-full" data-public-turnero-shots>
-          <figure
-            class="landing-card absolute top-8 right-1 w-[72%] overflow-hidden aspect-[3/4] rotate-2 shadow-xl sm:top-14 sm:right-0 sm:w-[68%]"
+          <div
+            class="pointer-events-none absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/25 blur-3xl"
+            aria-hidden="true"
+          ></div>
+
+          <div
+            class="landing-card absolute top-14 right-0 w-[78%] rotate-6 p-5 opacity-70 shadow-xl"
+            aria-hidden="true"
           >
-            <img
-              src="/prelaunch/public-turnero-form.png"
-              alt="Turnero público: el cliente confirma la reserva"
-              width="720"
-              height="1080"
-              class="h-full w-full object-cover object-center"
-              loading="lazy"
-            />
-          </figure>
-          <figure
-            class="landing-card absolute top-0 left-0 z-10 w-[84%] overflow-hidden aspect-[3/4] shadow-2xl sm:w-[78%]"
+            <div class="space-y-3">
+              <div class="h-3 w-24 rounded-full bg-white/10"></div>
+              <div class="h-8 w-full rounded-xl bg-white/5"></div>
+              <div class="h-8 w-5/6 rounded-xl bg-white/5"></div>
+              <div class="h-16 w-full rounded-2xl bg-white/5"></div>
+              <div class="h-10 w-full rounded-xl bg-primary/20"></div>
+            </div>
+          </div>
+
+          <article
+            class="relative z-10 w-[92%] max-w-[420px] rounded-2xl border border-white/10 bg-bg-secondary p-5 text-text-primary shadow-2xl"
           >
-            <img
-              src="/prelaunch/public-turnero-portal.png"
-              alt="Turnero público: el cliente elige servicio y día"
-              width="720"
-              height="1031"
-              class="h-full w-full object-cover object-center"
-              loading="lazy"
-            />
-          </figure>
+            <p class="text-[11px] font-medium tracking-wide text-text-secondary">Portal de reservas online</p>
+            <p class="mt-3 text-sm text-text-secondary">Bienvenido a</p>
+            <p class="font-headline font-bold text-lg text-primary">barber shop</p>
+            <p class="mt-1 text-sm text-text-secondary">Reservá tu próximo turno en segundos.</p>
+
+            <div class="mt-5 space-y-4">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                  1 · Elegí el servicio
+                </p>
+                <div class="mt-2 flex items-center justify-between rounded-xl bg-primary px-3 py-2.5 text-text-on-secondary">
+                  <p class="text-sm font-headline font-semibold">Afeitado clásico · 30 min</p>
+                  <p class="text-sm font-bold">$1000</p>
+                </div>
+              </div>
+
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                  2 · Elegí profesional
+                </p>
+                <div class="mt-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+                  <p class="text-sm font-headline font-semibold">Cualquier profesional</p>
+                  <p class="text-[11px] text-text-secondary">Más horarios disponibles</p>
+                </div>
+                <div class="mt-2 flex items-center gap-3 rounded-xl border border-white/10 px-3 py-2.5">
+                  <span
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-headline font-bold text-primary"
+                  >
+                    JM
+                  </span>
+                  <div>
+                    <p class="text-sm font-headline font-semibold">Javier Mansilla</p>
+                    <p class="text-[11px] text-text-secondary">Próximo lugar: Jue 3 · 09:00</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                  3 · Elegí día y horario
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  {days.map((day) => (
+                    <span
+                      class:list={[
+                        'public-turnero-day rounded-full px-3 py-1.5 text-[11px] font-headline font-semibold',
+                        day.variant === 'a' && 'public-turnero-day--a',
+                        day.variant === 'b' && 'public-turnero-day--b',
+                        !day.variant && 'bg-white/5 text-text-secondary'
+                      ]}
+                    >
+                      {day.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </article>
         </div>
         <p class="mt-4 text-[11px] text-text-secondary">
           Así se ve el link público de reservas.
@@ -81,3 +158,58 @@ const chips = [
     </div>
   </div>
 </section>
+
+<style>
+  .public-turnero-day--a {
+    background: #7c3aed;
+    color: #fff;
+  }
+
+  .public-turnero-day--b {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .public-turnero-day--a {
+      animation: public-turnero-day-a 4.8s ease-in-out infinite;
+    }
+
+    .public-turnero-day--b {
+      animation: public-turnero-day-b 4.8s ease-in-out infinite;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-turnero-day--a,
+    .public-turnero-day--b {
+      animation: none;
+    }
+  }
+
+  @keyframes public-turnero-day-a {
+    0%,
+    45% {
+      background: #7c3aed;
+      color: #fff;
+    }
+    55%,
+    100% {
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+    }
+  }
+
+  @keyframes public-turnero-day-b {
+    0%,
+    45% {
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+    }
+    55%,
+    100% {
+      background: #7c3aed;
+      color: #fff;
+    }
+  }
+</style>
