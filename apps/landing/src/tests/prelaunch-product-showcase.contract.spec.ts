@@ -54,37 +54,28 @@ describe('Contract: prelaunch product showcase section', () => {
     const tablistAnchor = source.indexOf('Superficies del producto');
     const tablistWindow = source.slice(Math.max(0, tablistAnchor - 220), tablistAnchor + 80);
     const phoneOpen = source.match(/<div\b[^>]*data-product-phone[^>]*>/)?.[0] ?? '';
-    const viewportChunk =
-      source.match(/data-product-viewport-tab[\s\S]*?data-product-desktop[\s\S]*?data-product-phone/)?.[0] ??
-      '';
     const tabButton =
       (source.match(/<button\b[\s\S]*?<\/button>/g) ?? []).find((button) =>
         button.includes('data-product-tab')
-      ) ?? '';
-    const viewportButton =
-      (source.match(/<button\b[\s\S]*?<\/button>/g) ?? []).find((button) =>
-        button.includes('data-product-viewport-tab')
       ) ?? '';
 
     expect(tablistAnchor).toBeGreaterThan(-1);
     expect(tablistWindow).toMatch(/flex-col/);
     expect(source).not.toMatch(/(?:<span\b[^>]*\brounded-full\b[^>]*>\s*<\/span>\s*){3}/);
-    expect(phoneOpen).not.toMatch(/\babsolute\b/);
-    expect(phoneOpen).not.toMatch(/-bottom/);
-    expect(phoneOpen).not.toMatch(/-right/);
-    expect(viewportChunk).toBeTruthy();
-    expect(viewportChunk).not.toMatch(/orvel\.pro/i);
+    expect(source).not.toMatch(/orvel\.pro/i);
+    expect(source).not.toMatch(/app\.cloxsy\.com/i);
+    expect(source).not.toMatch(/cloxy|cloxsy/i);
     expect(source).not.toMatch(/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(9\.5rem,11rem\)\]/);
     expect(tabButton).toContain('data-product-tab');
     expect(tabButton).not.toMatch(/\brounded-full\b/);
     expect(tabButton).toMatch(/\bcursor-pointer\b/);
     expect(tabButton).toMatch(/min-h-\[44px\]|\bmin-h-11\b/);
-    expect(viewportButton).toContain('data-product-viewport-tab');
-    expect(viewportButton).toMatch(/\bcursor-pointer\b/);
-    expect(viewportButton).toMatch(/min-h-\[44px\]|\bmin-h-11\b/);
+    expect(source).not.toContain('data-product-viewport-tab');
+    expect(phoneOpen).toMatch(/\babsolute\b/);
+    expect(phoneOpen).toMatch(/-bottom|-right/);
   });
 
-  it('shows real Agenda and Clientes screenshots with a Web/Celular toggle', async () => {
+  it('shows real Agenda and Clientes screenshots on desktop and overlapping phone', async () => {
     const source = await readFile(SHOWCASE_PATH, 'utf8');
     const agendaWeb = await readFile(AGENDA_WEB_PATH);
     const agendaMobile = await readFile(AGENDA_MOBILE_PATH);
@@ -110,11 +101,14 @@ describe('Contract: prelaunch product showcase section', () => {
       imgTags.some((tag) => tag.includes('src="/prelaunch/showcase-clientes-mobile.jpg"'))
     ).toBe(true);
 
-    expect(source).toContain('data-product-viewport-tab');
-    expect(source).toContain('data-product-viewport-tab="web"');
-    expect(source).toContain('data-product-viewport-tab="mobile"');
-    expect(source).toContain('Web');
-    expect(source).toContain('Celular');
+    const desktopOpen = source.match(/<div\b[^>]*data-product-desktop[^>]*>/)?.[0] ?? '';
+    const phoneOpen = source.match(/<div\b[^>]*data-product-phone[^>]*>/)?.[0] ?? '';
+
+    expect(desktopOpen).toBeTruthy();
+    expect(phoneOpen).toBeTruthy();
+    expect(phoneOpen).not.toMatch(/(?:^|[\s"'])hidden(?:[\s"'>]|$)/);
+    expect(source).not.toContain('data-product-viewport-tab');
+    expect(source).not.toContain('function showViewport');
     expect(source).toContain('Así se ve Orvel en la web y en el celular.');
     expect(source).not.toContain('Vista de ejemplo');
     expect(source).not.toContain('Corte clásico');
