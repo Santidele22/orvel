@@ -1,83 +1,223 @@
 ---
-const steps = [
+const clientSteps = [
   {
     n: '01',
+    icon: 'ri-checkbox-circle-line',
     title: 'Elige el servicio',
-    body: 'Tu cliente entra al link del negocio desde el celular. Ve servicios, precio y duración al instante. Sin app y sin registro.'
+    body: 'Entra al link del negocio desde el celular. Sin app y sin registro. Ve todos los servicios con precio y duración al instante.'
   },
   {
     n: '02',
+    icon: 'ri-calendar-check-line',
     title: 'Elige fecha y hora',
-    body: 'Selecciona el día y el horario que está libre. Todo en tiempo real, sin llamarte ni escribirte.'
+    body: 'Selecciona el día y el horario disponible. Todo en tiempo real, sin llamados ni mensajes.'
   },
   {
     n: '03',
+    icon: 'ri-checkbox-circle-line',
     title: 'Reserva confirmada',
     body: 'El turno queda confirmado al instante. Recibe los detalles por email y vos lo ves en la agenda.'
   }
 ];
+
+const businessSteps = [
+  {
+    n: '01',
+    icon: 'ri-scissors-cut-line',
+    title: 'Cargá servicios y horarios',
+    body: 'Definí qué ofrecés, cuánto dura y cuándo atendés. El link muestra solo lo que está libre.'
+  },
+  {
+    n: '02',
+    icon: 'ri-share-forward-line',
+    title: 'Compartí tu link',
+    body: 'Mandás el link una vez. El cliente reserva solo, también fuera de horario.'
+  },
+  {
+    n: '03',
+    icon: 'ri-calendar-todo-line',
+    title: 'Ves el turno en la agenda',
+    body: 'Cada reserva entra sola. Cancelar y reprogramar sin desarmar el día.'
+  }
+];
+
+const weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const calendarCells = [
+  '', '', '', '1', '2', '3', '4',
+  '5', '6', '7', '8', '9', '10', '11',
+  '12', '13', '14', '15', '16', '17', '18',
+  '19', '20', '21', '22', '23', '24', '25',
+  '26', '27', '28', '29', '30', '', ''
+];
 ---
 
-<section class="landing-section bg-bg-primary" id="como-funciona">
+<section class="landing-section bg-bg-primary" id="como-funciona" data-how-it-works>
   <div class="landing-container">
     <div class="text-center landing-section-header">
       <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Paso a paso</div>
-      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">¿Cómo funciona?</h2>
+      <h2
+        class="landing-title font-headline font-bold text-text-primary mb-4 reveal"
+        style="letter-spacing: -0.04em;"
+      >
+        ¿Cómo <span class="italic font-light">funciona</span>?
+      </h2>
       <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
         Tanto para vos como para tus clientes, reservar nunca fue tan fácil.
       </p>
+      <p class="max-w-2xl mx-auto mt-3 text-sm text-text-secondary reveal stagger-1">
+        Tus clientes entran al link del negocio, eligen el servicio, la fecha y confirman el turno en segundos. Reciben todo por email.
+      </p>
     </div>
 
-    <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
-      <ol class="space-y-4">
-        {steps.map((step) => (
-          <li class="landing-card p-5 md:p-6 reveal">
-            <p class="text-[11px] uppercase tracking-[0.14em] text-primary mb-2">Paso {step.n}</p>
-            <h3 class="font-headline font-bold text-text-primary text-lg mb-2">{step.title}</h3>
-            <p class="text-sm text-text-secondary leading-relaxed">{step.body}</p>
-          </li>
-        ))}
-      </ol>
+    <div class="flex justify-center mb-10 reveal">
+      <div class="inline-flex rounded-full border border-border bg-white/5 p-1" role="tablist" aria-label="Para quién es el paso a paso">
+        <button
+          type="button"
+          class="rounded-full px-5 py-2 text-sm font-headline font-semibold bg-white text-bg-primary"
+          data-how-audience="clients"
+          aria-pressed="true"
+        >
+          Para tus clientes
+        </button>
+        <button
+          type="button"
+          class="rounded-full px-5 py-2 text-sm font-headline font-semibold text-text-secondary"
+          data-how-audience="business"
+          aria-pressed="false"
+        >
+          Para tu negocio
+        </button>
+      </div>
+    </div>
+
+    <div class="grid gap-10 lg:grid-cols-[1fr_minmax(260px,320px)] lg:items-center">
+      <div class="relative pl-3">
+        <div class="absolute left-[22px] top-8 bottom-8 w-px bg-white/10" aria-hidden="true"></div>
+        <ol class="space-y-4" data-how-steps="clients">
+          {clientSteps.map((step, index) => (
+            <li class="relative flex gap-4">
+              <span
+                class:list={[
+                  'relative z-10 mt-6 h-3 w-3 shrink-0 rounded-full ring-4 ring-bg-primary',
+                  index === 1 ? 'bg-primary' : 'bg-white/25'
+                ]}
+              ></span>
+              <article class="landing-card flex-1 p-5 md:p-6 reveal">
+                <div class="flex items-start gap-3">
+                  <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
+                    <i class={`${step.icon} text-lg`} aria-hidden="true"></i>
+                  </span>
+                  <div>
+                    <p class="text-[11px] uppercase tracking-[0.14em] text-primary mb-1">Paso {step.n}</p>
+                    <h3 class="font-headline italic font-bold text-text-primary text-xl mb-2">{step.title}</h3>
+                    <p class="text-sm text-text-secondary leading-relaxed">{step.body}</p>
+                  </div>
+                </div>
+              </article>
+            </li>
+          ))}
+        </ol>
+        <ol class="space-y-4 hidden" data-how-steps="business" hidden>
+          {businessSteps.map((step, index) => (
+            <li class="relative flex gap-4">
+              <span
+                class:list={[
+                  'relative z-10 mt-6 h-3 w-3 shrink-0 rounded-full ring-4 ring-bg-primary',
+                  index === 1 ? 'bg-primary' : 'bg-white/25'
+                ]}
+              ></span>
+              <article class="landing-card flex-1 p-5 md:p-6">
+                <div class="flex items-start gap-3">
+                  <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
+                    <i class={`${step.icon} text-lg`} aria-hidden="true"></i>
+                  </span>
+                  <div>
+                    <p class="text-[11px] uppercase tracking-[0.14em] text-primary mb-1">Paso {step.n}</p>
+                    <h3 class="font-headline italic font-bold text-text-primary text-xl mb-2">{step.title}</h3>
+                    <p class="text-sm text-text-secondary leading-relaxed">{step.body}</p>
+                  </div>
+                </div>
+              </article>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       <div class="flex justify-center reveal" data-mock-booking-preview>
         <div class="relative w-[280px] max-w-full">
-          <div class="rounded-[2.2rem] border border-white/10 bg-[#0b0b12] p-3 shadow-2xl">
-            <div class="rounded-[1.7rem] overflow-hidden bg-[#101018] border border-white/5">
-              <div class="px-4 pt-4 pb-3 flex items-center justify-between">
-                <p class="text-[11px] text-text-secondary">11:32</p>
-                <p class="text-[10px] uppercase tracking-widest text-primary">Orvel</p>
+          <div class="rounded-[2.4rem] border border-white/15 bg-[#1a1a22] p-2.5 shadow-2xl">
+            <div class="rounded-[1.9rem] overflow-hidden bg-[#f4f4f5] text-zinc-900">
+              <div class="px-4 pt-3 pb-2 flex items-center justify-between text-[10px] text-zinc-500">
+                <span>10:37</span>
+                <span class="h-4 w-16 rounded-full bg-zinc-900/80"></span>
+                <span>Orvel</span>
               </div>
-              <div class="px-4 pb-3">
-                <p class="font-headline font-bold text-text-primary text-sm">Peluquería La Corte</p>
-                <p class="text-[11px] text-text-secondary mt-0.5">Reservá sin escribir</p>
+
+              <div data-how-phone="clients">
+                <div class="px-4 pb-2">
+                  <p class="text-[11px] text-zinc-500">Atrás</p>
+                  <p class="font-headline font-bold text-sm text-zinc-900 mt-1">Selecciona una fecha</p>
+                </div>
+                <div class="px-4 pb-3" data-mock-calendar>
+                  <div class="flex items-center justify-between text-[11px] font-semibold text-zinc-800 mb-2">
+                    <span>‹</span>
+                    <span>Junio 2026</span>
+                    <span>›</span>
+                  </div>
+                  <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-400 mb-1">
+                    {weekdays.map((day) => <span>{day}</span>)}
+                  </div>
+                  <div class="grid grid-cols-7 gap-1 text-center text-[11px]">
+                    {calendarCells.map((day) => (
+                      <span
+                        class:list={[
+                          'h-7 flex items-center justify-center rounded-full',
+                          day === '2' && 'bg-zinc-900 text-white font-semibold',
+                          day !== '2' && day !== '' && 'text-zinc-700',
+                          ['3', '4', '5', '6', '7', '10', '11'].includes(day) && 'text-primary'
+                        ]}
+                      >
+                        {day}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div class="mx-3 mb-3 rounded-2xl bg-white p-3 shadow-sm">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-headline font-semibold">Corte clásico</p>
+                      <p class="text-[11px] text-zinc-500">30 min · La Corte</p>
+                    </div>
+                    <p class="text-sm font-bold">$8.000</p>
+                  </div>
+                  <div class="mt-3 h-9 rounded-xl bg-zinc-200 text-[11px] font-semibold flex items-center justify-center text-zinc-700">
+                    Confirmar reserva
+                  </div>
+                </div>
               </div>
-              <div class="mx-4 mb-3 rounded-full bg-white/5 px-3 py-2 text-[11px] text-text-secondary">
-                Buscar servicio
-              </div>
-              <div class="px-3 pb-4 space-y-2">
-                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-headline font-semibold text-text-primary">Corte clásico</p>
-                    <p class="text-[11px] text-text-secondary">$8.000 · 30 min</p>
-                  </div>
-                  <span class="rounded-full bg-primary px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
-                </article>
-                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-headline font-semibold text-text-primary">Color</p>
-                    <p class="text-[11px] text-text-secondary">$18.000 · 90 min</p>
-                  </div>
-                  <span class="rounded-full bg-primary/80 px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
-                </article>
-                <article class="rounded-2xl border border-white/8 bg-white/5 p-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-headline font-semibold text-text-primary">Brushing</p>
-                    <p class="text-[11px] text-text-secondary">$6.500 · 40 min</p>
-                  </div>
-                  <span class="rounded-full bg-primary/80 px-3 py-1 text-[10px] uppercase tracking-widest text-white">Reservar</span>
-                </article>
+
+              <div class="hidden" data-how-phone="business" hidden>
+                <div class="px-4 pb-2">
+                  <p class="text-[11px] text-zinc-500">Agenda</p>
+                  <p class="font-headline font-bold text-sm text-zinc-900 mt-1">Hoy · 2 de junio</p>
+                </div>
+                <div class="px-3 pb-4 space-y-2">
+                  <article class="rounded-2xl bg-white p-3 shadow-sm">
+                    <p class="text-[11px] text-primary font-semibold">15:30</p>
+                    <p class="text-sm font-headline font-semibold">Corte clásico</p>
+                    <p class="text-[11px] text-zinc-500">Confirmado · Ana</p>
+                  </article>
+                  <article class="rounded-2xl bg-white p-3 shadow-sm">
+                    <p class="text-[11px] text-primary font-semibold">16:30</p>
+                    <p class="text-sm font-headline font-semibold">Color</p>
+                    <p class="text-[11px] text-zinc-500">Confirmado · Luis</p>
+                  </article>
+                </div>
               </div>
             </div>
+          </div>
+          <div class="absolute -left-6 top-24 hidden sm:block rounded-full border border-white/10 bg-bg-primary/90 px-3 py-2 text-[11px] text-text-primary shadow-xl">
+            Disponibilidad en tiempo real
           </div>
           <p class="mt-3 text-center text-[11px] text-text-secondary">Vista de ejemplo. Screenshots reales después.</p>
         </div>
@@ -92,3 +232,39 @@ const steps = [
     </div>
   </div>
 </section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-how-it-works]');
+  if (root) {
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-how-audience]'));
+
+    function showAudience(audience: string): void {
+      buttons.forEach((button) => {
+        const active = button.dataset.howAudience === audience;
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.classList.toggle('bg-white', active);
+        button.classList.toggle('text-bg-primary', active);
+        button.classList.toggle('text-text-secondary', !active);
+      });
+
+      root.querySelectorAll<HTMLElement>('[data-how-steps]').forEach((panel) => {
+        const match = panel.dataset.howSteps === audience;
+        panel.classList.toggle('hidden', !match);
+        panel.toggleAttribute('hidden', !match);
+      });
+
+      root.querySelectorAll<HTMLElement>('[data-how-phone]').forEach((panel) => {
+        const match = panel.dataset.howPhone === audience;
+        panel.classList.toggle('hidden', !match);
+        panel.toggleAttribute('hidden', !match);
+      });
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const audience = button.dataset.howAudience;
+        if (audience) showAudience(audience);
+      });
+    });
+  }
+</script>
