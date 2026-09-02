@@ -15,6 +15,14 @@ const SHOWCASE_PATH = new URL(
   '../components/organisms/prelaunch/PrelaunchProductShowcase.astro',
   import.meta.url
 );
+const PORTAL_SHOT_PATH = new URL(
+  '../../public/prelaunch/public-turnero-portal.png',
+  import.meta.url
+);
+const FORM_SHOT_PATH = new URL(
+  '../../public/prelaunch/public-turnero-form.png',
+  import.meta.url
+);
 
 const JARGON = /\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i;
 const FORBIDDEN_CLAIMS =
@@ -88,24 +96,40 @@ describe('Contract: prelaunch public turnero section', () => {
     expect(source).not.toMatch(/multi-?profesional/i);
   });
 
-  it('shows an HTML booking card with overlapping depth instead of a screenshot stack', async () => {
+  it('shows overlapping real booking screenshots instead of an HTML booking-card mock', async () => {
     const source = await readFile(SECTION_PATH, 'utf8');
+    const portalShot = await readFile(PORTAL_SHOT_PATH);
+    const formShot = await readFile(FORM_SHOT_PATH);
+    const chipsOpen = source.match(/<(?:ol|ul)\b[^>]*data-public-turnero-chips[^>]*>/)?.[0] ?? '';
     const shotsOpen = source.match(/<[^>]*data-public-turnero-shots[^>]*>/)?.[0] ?? '';
     const shotsChunk =
       source.match(/data-public-turnero-shots[\s\S]*?(?=<\/section>)/)?.[0] ?? '';
+    const imgTags = [...source.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
 
     expect(source).toContain('id="turnero-publico"');
+    expect(portalShot.byteLength).toBeGreaterThan(1000);
+    expect(formShot.byteLength).toBeGreaterThan(1000);
+
+    expect(imgTags.some((tag) => tag.includes('src="/prelaunch/public-turnero-portal.png"'))).toBe(
+      true
+    );
+    expect(imgTags.some((tag) => tag.includes('src="/prelaunch/public-turnero-form.png"'))).toBe(
+      true
+    );
+    expect(imgTags.every((tag) => tag.includes('object-cover'))).toBe(true);
+
+    expect(chipsOpen).not.toMatch(/\babsolute\b/);
     expect(shotsOpen).toMatch(/\brelative\b/);
     expect(shotsOpen).toContain('min-h-[540px]');
     expect(shotsChunk).toMatch(/\babsolute\b/);
 
-    expect(source).toContain('Portal de reservas online');
-    expect(source).toContain('barber shop');
-    expect(source).toContain('Afeitado clásico');
     expect(source).toContain('Así se ve el link público de reservas.');
+    expect(source).toContain('Turnero público: el cliente elige servicio y día');
+    expect(source).toContain('Turnero público: el cliente confirma la reserva');
 
-    expect(source).not.toContain('src="/prelaunch/public-turnero-portal.png"');
-    expect(source).not.toContain('src="/prelaunch/public-turnero-form.png"');
+    expect(source).not.toContain('Portal de reservas online');
+    expect(source).not.toContain('barber shop');
+    expect(source).not.toContain('Afeitado clásico');
     expect(source).not.toContain('Corte clásico');
     expect(source).not.toContain('2 de junio');
     expect(source).not.toContain('Vista de ejemplo');
