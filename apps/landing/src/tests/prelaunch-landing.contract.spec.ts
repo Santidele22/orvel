@@ -13,6 +13,7 @@ const COMPOSED_PRELAUNCH = [
   'PrelaunchProblem.astro',
   'PrelaunchFeatures.astro',
   'PrelaunchHowItWorks.astro',
+  'PrelaunchPublicTurnero.astro',
   'PrelaunchProductShowcase.astro',
   'PrelaunchRubros.astro',
   'PrelaunchPricing.astro',
@@ -38,8 +39,11 @@ function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchFeatures/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHowItWorks/);
+  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPublicTurnero/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProductShowcase/);
-  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/);
+  expect(page).toMatch(
+    /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchPublicTurnero[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
+  );
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchRubros/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPricing/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchFaq/);
