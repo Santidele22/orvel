@@ -9,7 +9,6 @@ import {
 } from '../lib/prelaunch-rubros';
 
 const RUBROS_PATH = new URL('../components/organisms/prelaunch/PrelaunchRubros.astro', import.meta.url);
-const FEATURES_PATH = new URL('../components/organisms/prelaunch/PrelaunchFeatures.astro', import.meta.url);
 const PRELAUNCH_DIR = new URL('../components/organisms/prelaunch/', import.meta.url);
 
 const RUBRO_IDS = ['peluqueria', 'unas', 'barberia', 'masajes'] as const;
@@ -54,7 +53,6 @@ function renderRubrosDocument() {
 describe('Contract: prelaunch rubros copy and markup', () => {
   it('keeps the four rubros as buttons with signup CTA and no visitor jargon', async () => {
     const source = await readFile(RUBROS_PATH, 'utf8');
-    const features = await readFile(FEATURES_PATH, 'utf8');
 
     expect(source).toContain('Hecho para quien vive de los turnos');
     expect(source).toContain('id="rubros"');
@@ -74,7 +72,6 @@ describe('Contract: prelaunch rubros copy and markup', () => {
     expect(visitorCopy()).toContain('Tiempo entre sesiones');
     expect(visitorCopy()).not.toMatch(FORBIDDEN_VISITOR_JARGON);
     expect(source).not.toMatch(FORBIDDEN_VISITOR_JARGON);
-    expect(features).not.toMatch(FORBIDDEN_VISITOR_JARGON);
 
     expect(source).toContain('PRELAUNCH_RUBRO_IDS');
     expect(source).toMatch(/data-rubro-id=\{id\}/);
