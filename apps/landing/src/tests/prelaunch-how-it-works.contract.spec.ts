@@ -27,4 +27,32 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     expect(source).not.toMatch(/\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i);
     expect(source).not.toMatch(/fundadores?/i);
   });
+
+  it('auto-advances three distinct mocks per audience and respects reduced motion', async () => {
+    const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
+
+    expect(source).toContain('data-how-step-index');
+    expect(source).toContain('data-how-mock');
+    expect(source).toContain('data-how-mock-step="0"');
+    expect(source).toContain('data-how-mock-step="1"');
+    expect(source).toContain('data-how-mock-step="2"');
+    expect(source).toMatch(/data-how-autoplay/);
+    expect(source).toContain("matchMedia('(prefers-reduced-motion: reduce)')");
+    expect(source).toMatch(/setInterval|setTimeout/);
+    expect(source).toContain('IntersectionObserver');
+    expect(source).toContain('visibilityState');
+    expect(source).toMatch(/<button\b[^>]*\bdata-how-step-index=/);
+
+    const mockStepValues = [...source.matchAll(/data-how-mock-step="(\d+)"/g)].map(
+      (match) => match[1]
+    );
+    expect(new Set(mockStepValues)).toEqual(new Set(['0', '1', '2']));
+    expect(mockStepValues.filter((value) => value === '0').length).toBeGreaterThanOrEqual(2);
+    expect(mockStepValues.filter((value) => value === '1').length).toBeGreaterThanOrEqual(2);
+    expect(mockStepValues.filter((value) => value === '2').length).toBeGreaterThanOrEqual(2);
+
+    expect(source).not.toMatch(/cloxy/i);
+    expect(source).not.toMatch(/\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i);
+    expect(source).not.toMatch(/fundadores?/i);
+  });
 });
