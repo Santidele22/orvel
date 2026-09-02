@@ -175,7 +175,7 @@ function renderRubroDetail(copy: HTMLElement, hero: HTMLElement | null, id: Prel
 
   if (hero) {
     hero.innerHTML = `
-      <img src="${rubro.image}" alt="" class="rubro-vt-image" />
+      <img src="${rubro.image}" alt="" class="rubro-vt-image absolute inset-0 h-full w-full object-cover" />
       <div class="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/40 to-transparent"></div>
       <div class="absolute inset-x-0 bottom-0 p-6 z-10">
         <p class="text-[11px] uppercase tracking-[0.18em] text-primary-soft mb-2">Rubro</p>
