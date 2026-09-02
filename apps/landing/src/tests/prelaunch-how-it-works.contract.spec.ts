@@ -74,4 +74,37 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     expect(source).not.toMatch(/absolute\s+inset-0/);
     expect(source).not.toMatch(/<ol\b[^>]*\bspace-y-4\b/);
   });
+
+  it('locks step height with a CSS grid stack instead of display:none', async () => {
+    const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
+
+    expect(source).toContain('col-start-1');
+    expect(source).toContain('row-start-1');
+    expect(source).toContain('invisible');
+    expect(source).toMatch(/min-h-\[[5-9]\d{2}px\]/);
+
+    const stageCopyTags = source.match(/<div\b[^>]*data-how-stage-copy[^>]*>/g) ?? [];
+    expect(stageCopyTags.length).toBeGreaterThanOrEqual(2);
+    for (const tag of stageCopyTags) {
+      expect(tag).not.toMatch(/(?:^|\s)hidden(?:\s|=|>|$)/);
+      expect(tag).not.toMatch(/\bclass="[^"]*\bhidden\b/);
+      expect(tag).not.toMatch(/class:list=\{[^}]*['"]hidden['"]/);
+    }
+
+    const mockStepTags = source.match(/<div\b[^>]*data-how-mock-step[^>]*>/g) ?? [];
+    expect(mockStepTags.length).toBeGreaterThanOrEqual(6);
+    for (const tag of mockStepTags) {
+      expect(tag).not.toMatch(/(?:^|\s)hidden(?:\s|=|>|$)/);
+      expect(tag).not.toMatch(/\bclass="[^"]*\bhidden\b/);
+      expect(tag).not.toMatch(/class:list=\{[^}]*['"]hidden['"]/);
+    }
+
+    const showStep = source.match(/function showStep\([\s\S]*?\n    \}/)?.[0] ?? '';
+    expect(showStep).toContain('invisible');
+    expect(showStep).not.toContain("toggleAttribute('hidden'");
+    expect(showStep).not.toMatch(/classList\.toggle\('hidden'/);
+
+    expect(source).not.toContain('data-how-dot-index');
+    expect(source).not.toMatch(/absolute\s+-left-6/);
+  });
 });
