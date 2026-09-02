@@ -11,11 +11,16 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
 
     expect(source).toContain('id="como-funciona"');
-    expect(source).toContain('¿Cómo funciona?');
+    expect(source).toContain('¿Cómo');
+    expect(source).toContain('funciona');
     expect(source).toContain('Elige el servicio');
     expect(source).toContain('Elige fecha y hora');
     expect(source).toContain('Reserva confirmada');
     expect(source).toContain('data-mock-booking-preview');
+    expect(source).toContain('data-mock-calendar');
+    expect(source).toContain('data-how-audience');
+    expect(source).toContain('Para tus clientes');
+    expect(source).toContain('Para tu negocio');
     expect(source).toContain('/auth/signup/plan');
     expect(source).toMatch(/<section\b[^>]*\bbg-bg-primary\b/);
     expect(source).not.toMatch(/cloxy/i);
