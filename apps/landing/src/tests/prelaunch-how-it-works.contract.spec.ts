@@ -6,29 +6,46 @@ const HOW_IT_WORKS_PATH = new URL(
   import.meta.url
 );
 
+const FORBIDDEN_VISITOR =
+  /\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp|cloxy)\b|seña|cobro online|mercado pago|fundadores?/i;
+
 describe('Contract: prelaunch Cómo funciona section', () => {
-  it('shows the client booking flow with a mocked phone, not competitor UI', async () => {
+  it('shows the client booking flow with underline tabs and a sibling phone', async () => {
     const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
 
     expect(source).toContain('id="como-funciona"');
-    expect(source).toContain('¿Cómo');
-    expect(source).toContain('funciona');
+    expect(source).toContain('Cómo funciona');
+    expect(source).toContain('De la búsqueda al turno confirmado');
+    expect(source).toContain(
+      'Tus clientes entran al link del negocio, eligen el servicio, la fecha y confirman. Sin apps, sin registro, sin llamadas.'
+    );
     expect(source).toContain('Elige el servicio');
     expect(source).toContain('Elige fecha y hora');
     expect(source).toContain('Reserva confirmada');
+    expect(source).toContain('01');
+    expect(source).toContain('02');
+    expect(source).toContain('03');
+    expect(source).toContain('Disponibilidad en tiempo real');
+    expect(source).toContain('Precios y duración visibles');
+    expect(source).toContain('Sin ida y vuelta');
+    expect(source).toContain('Bloqueos automáticos');
+    expect(source).toContain('Recordatorio automático');
+    expect(source).toContain('Reprogramar en un toque');
+    expect(source).toContain('Vista de ejemplo');
     expect(source).toContain('data-mock-booking-preview');
     expect(source).toContain('data-mock-calendar');
-    expect(source).toContain('data-how-audience');
-    expect(source).toContain('Para tus clientes');
-    expect(source).toContain('Para tu negocio');
     expect(source).toContain('/auth/signup/plan');
     expect(source).toMatch(/<section\b[^>]*\bbg-bg-primary\b/);
-    expect(source).not.toMatch(/cloxy/i);
-    expect(source).not.toMatch(/\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i);
-    expect(source).not.toMatch(/fundadores?/i);
+    expect(source).toMatch(/border-b-2/);
+    expect(source).not.toContain('data-how-audience');
+    expect(source).not.toContain('Para tu negocio');
+    expect(source).not.toContain('Para tus clientes');
+    expect(source).not.toContain('businessSteps');
+    expect(source).not.toContain('Paso a paso');
+    expect(source).not.toMatch(FORBIDDEN_VISITOR);
   });
 
-  it('auto-advances three distinct mocks per audience and respects reduced motion', async () => {
+  it('auto-advances three distinct mocks and respects reduced motion', async () => {
     const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
 
     expect(source).toContain('data-how-step-index');
@@ -47,25 +64,26 @@ describe('Contract: prelaunch Cómo funciona section', () => {
       (match) => match[1]
     );
     expect(new Set(mockStepValues)).toEqual(new Set(['0', '1', '2']));
-    expect(mockStepValues.filter((value) => value === '0').length).toBeGreaterThanOrEqual(2);
-    expect(mockStepValues.filter((value) => value === '1').length).toBeGreaterThanOrEqual(2);
-    expect(mockStepValues.filter((value) => value === '2').length).toBeGreaterThanOrEqual(2);
+    expect(mockStepValues.filter((value) => value === '0').length).toBeGreaterThanOrEqual(1);
+    expect(mockStepValues.filter((value) => value === '1').length).toBeGreaterThanOrEqual(1);
+    expect(mockStepValues.filter((value) => value === '2').length).toBeGreaterThanOrEqual(1);
 
-    expect(source).not.toMatch(/cloxy/i);
-    expect(source).not.toMatch(/\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp)\b/i);
-    expect(source).not.toMatch(/fundadores?/i);
+    expect(source).not.toContain('data-how-audience');
+    expect(source).not.toMatch(FORBIDDEN_VISITOR);
   });
 
-  it('uses a three-beat stage instead of a generic timeline-and-phone fold', async () => {
+  it('uses underline tabs and a copy+phone stage instead of pills or a timeline fold', async () => {
     const source = await readFile(HOW_IT_WORKS_PATH, 'utf8');
 
     expect(source).toContain('data-how-stage');
     expect(source).toContain('data-how-stage-copy');
     expect(source).toContain('data-how-step-index');
     expect(source).toMatch(
-      /(?:class="[^"]*\bflex\b[^"]*"[^>]*data-how-steps=|data-how-steps="[^"]*"[^>]*class="[^"]*\bflex\b)/
+      /(?:class="[^"]*\bflex\b[^"]*"[^>]*data-how-steps=|data-how-steps="[^"]*"[^>]*class="[^"]*\bflex\b|class="[^"]*\bborder-b\b[^"]*"[^>]*role="tablist"|role="tablist"[^>]*class="[^"]*\bborder-b\b)/
     );
-    expect(source).toMatch(/<button\b[^>]*\bmin-h-\[44px\][^>]*\bdata-how-step-index=|<button\b[^>]*\bdata-how-step-index=[^>]*\bmin-h-\[44px\]/);
+    expect(source).toMatch(
+      /<button\b[^>]*\bmin-h-\[44px\][^>]*\bdata-how-step-index=|<button\b[^>]*\bdata-how-step-index=[^>]*\bmin-h-\[44px\]/
+    );
     expect(source).not.toContain('data-how-dot-index');
     expect(source).not.toContain('absolute left-[22px]');
     expect(source).not.toContain('w-px bg-white/10');
@@ -84,7 +102,8 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     expect(source).toMatch(/min-h-\[[5-9]\d{2}px\]/);
 
     const stageCopyTags = source.match(/<div\b[^>]*data-how-stage-copy[^>]*>/g) ?? [];
-    expect(stageCopyTags.length).toBeGreaterThanOrEqual(2);
+    expect(stageCopyTags.length).toBeGreaterThanOrEqual(1);
+    expect((source.match(/data-how-stage-copy/g) ?? []).length).toBeGreaterThanOrEqual(1);
     for (const tag of stageCopyTags) {
       expect(tag).not.toMatch(/(?:^|\s)hidden(?:\s|=|>|$)/);
       expect(tag).not.toMatch(/\bclass="[^"]*\bhidden\b/);
@@ -92,7 +111,7 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     }
 
     const mockStepTags = source.match(/<div\b[^>]*data-how-mock-step[^>]*>/g) ?? [];
-    expect(mockStepTags.length).toBeGreaterThanOrEqual(6);
+    expect(mockStepTags.length).toBeGreaterThanOrEqual(3);
     for (const tag of mockStepTags) {
       expect(tag).not.toMatch(/(?:^|\s)hidden(?:\s|=|>|$)/);
       expect(tag).not.toMatch(/\bclass="[^"]*\bhidden\b/);
