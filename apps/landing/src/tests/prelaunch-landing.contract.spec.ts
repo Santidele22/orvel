@@ -11,7 +11,6 @@ const COMPOSED_PRELAUNCH = [
   'PrelaunchHero.astro',
   'EarlyBird.astro',
   'PrelaunchProblem.astro',
-  'PrelaunchFeatures.astro',
   'PrelaunchHowItWorks.astro',
   'PrelaunchPublicTurnero.astro',
   'PrelaunchProductShowcase.astro',
@@ -20,6 +19,9 @@ const COMPOSED_PRELAUNCH = [
   'PrelaunchFaq.astro',
   'PrelaunchCta.astro'
 ] as const;
+
+const HEADER_PATH = new URL('../components/organisms/prelaunch/PrelaunchHeader.astro', import.meta.url);
+const HERO_PATH = new URL('../components/organisms/prelaunch/PrelaunchHero.astro', import.meta.url);
 
 async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
@@ -37,7 +39,9 @@ function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHero/);
   expect(page).toMatch(/organisms\/prelaunch\/EarlyBird/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
-  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchFeatures/);
+  expect(page).not.toMatch(/organisms\/prelaunch\/PrelaunchFeatures/);
+  expect(page).not.toMatch(/<PrelaunchFeatures/);
+  expect(page).not.toMatch(/id=["']producto["']/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHowItWorks/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPublicTurnero/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProductShowcase/);
@@ -115,5 +119,19 @@ describe('Contract: unused waitlist files remain in the repo', () => {
       'StickyWaitlistCta.astro',
       'PrelaunchNovedades.astro'
     ]));
+    expect(files).not.toContain('PrelaunchFeatures.astro');
+  });
+});
+
+describe('Contract: dead #producto anchors are retargeted after Features is removed', () => {
+  it('sends header Producto to the showcase and hero secondary CTA to Cómo funciona', async () => {
+    const header = await source(HEADER_PATH);
+    const hero = await source(HERO_PATH);
+
+    expect(header).toMatch(/href="#en-un-solo-lugar"[^>]*>Producto</);
+    expect(header).not.toMatch(/href="#producto"/);
+    expect(hero).toContain('Ver qué hace Orvel');
+    expect(hero).toMatch(/href="#como-funciona"[^>]*>[\s\S]*Ver qué hace Orvel/);
+    expect(hero).not.toMatch(/href="#producto"/);
   });
 });
