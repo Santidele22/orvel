@@ -33,6 +33,31 @@ describe('Contract: prelaunch product showcase section', () => {
     expect(source).not.toMatch(/fundadores?/i);
   });
 
+  it('uses an Orvel command-desk composition, not Cloxy product-ad chrome', async () => {
+    const source = await readFile(SHOWCASE_PATH, 'utf8');
+    const tablistAnchor = source.indexOf('role="tablist"');
+    const tablistWindow = source.slice(Math.max(0, tablistAnchor - 220), tablistAnchor + 80);
+    const phoneOpen = source.match(/<div\b[^>]*data-product-phone[^>]*>/)?.[0] ?? '';
+    const desktopChunk =
+      source.match(/data-product-desktop[\s\S]*?data-product-phone/)?.[0] ?? '';
+    const tabButton =
+      (source.match(/<button\b[\s\S]*?<\/button>/g) ?? []).find((button) =>
+        button.includes('data-product-tab')
+      ) ?? '';
+
+    expect(tablistAnchor).toBeGreaterThan(-1);
+    expect(tablistWindow).toMatch(/flex-col/);
+    expect(source).not.toMatch(/(?:<span\b[^>]*\brounded-full\b[^>]*>\s*<\/span>\s*){3}/);
+    expect(phoneOpen).not.toMatch(/\babsolute\b/);
+    expect(phoneOpen).not.toMatch(/-bottom/);
+    expect(phoneOpen).not.toMatch(/-right/);
+    expect(desktopChunk).not.toMatch(/orvel\.pro/i);
+    expect(tabButton).toContain('data-product-tab');
+    expect(tabButton).not.toMatch(/\brounded-full\b/);
+    expect(tabButton).toMatch(/\bcursor-pointer\b/);
+    expect(tabButton).toMatch(/min-h-\[44px\]|\bmin-h-11\b/);
+  });
+
   it('is composed after Cómo funciona on index and prelanzamiento', async () => {
     const index = await readFile(INDEX_PATH, 'utf8');
     const prelanzamiento = await readFile(PRELANZAMIENTO_PATH, 'utf8');
