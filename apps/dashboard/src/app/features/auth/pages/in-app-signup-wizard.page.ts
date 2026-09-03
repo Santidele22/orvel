@@ -55,7 +55,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
         @if (wizard.step === 2) {
           <p class="in-app-auth__eyebrow">Paso 2</p>
           <h1>¿Qué rubro tenés?</h1>
-          <p class="in-app-auth__lede">Elegí uno o más. El primero es el Principal.</p>
+          <p class="in-app-auth__lede">Elegí un rubro.</p>
           <div class="in-app-auth__chips">
             @for (rubro of wizard.rubroCatalog(); track rubro.code) {
               <button
@@ -65,9 +65,6 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 (click)="wizard.toggleRubro(rubro.code)"
               >
                 {{ rubro.label }}
-                @if (wizard.principalRubro() === rubro.code) {
-                  <span class="in-app-auth__chip-badge">Principal</span>
-                }
               </button>
             }
           </div>
@@ -144,7 +141,6 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               </header>
               <p class="in-app-auth__lede">Lo pedís, lo activamos nosotros.</p>
               <ul class="in-app-auth__plan-list">
-                <li>Más rubros</li>
                 <li>Agenda sin límites</li>
                 <li>No se cobra ni se activa solo</li>
               </ul>
@@ -326,18 +322,6 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       align-items: center;
       gap: 8px;
       cursor: pointer;
-    }
-    .in-app-auth__chip-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: #7C3AED;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
     }
     .in-app-auth__chip.is-selected {
       border-color: #7C3AED;
