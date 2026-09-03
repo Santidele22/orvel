@@ -44,12 +44,11 @@ export class InAppSignupWizard {
   }
 
   toggleRubro(code: string): void {
-    const index = this.selectedRubros.indexOf(code);
-    if (index >= 0) {
-      this.selectedRubros = this.selectedRubros.filter(item => item !== code);
+    if (this.selectedRubros.length === 1 && this.selectedRubros[0] === code) {
+      this.selectedRubros = [];
       return;
     }
-    this.selectedRubros = [...this.selectedRubros, code];
+    this.selectedRubros = [code];
   }
 
   canContinue(): boolean {
@@ -61,7 +60,7 @@ export class InAppSignupWizard {
       );
     }
     if (this.step === 2) {
-      return this.selectedRubros.length >= 1;
+      return this.selectedRubros.length === 1;
     }
     if (this.step === 3) {
       return this.canCreateAccess();
