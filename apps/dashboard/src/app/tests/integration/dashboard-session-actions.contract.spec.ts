@@ -92,4 +92,15 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(zenSidebar).toMatch(/data-testid=["']dashboard-sidebar-logout-action["']/);
     expect(zenSidebar).toMatch(/\(click\)=["']onLogout\(\)["']/);
   });
+
+  it('sidebar logout confirm flag is a signal read by the template', async () => {
+    const sidebarTs = await source(SIDEBAR_TS);
+    const sidebarHtml = await source(SIDEBAR_HTML);
+
+    expect(sidebarTs).toMatch(/\bisLogoutConfirmModalOpen\s*=\s*signal\(\s*false\s*\)/);
+    expect(sidebarTs).toMatch(/\bopenLogoutConfirmModal[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*true\s*\)/);
+    expect(sidebarTs).toMatch(/\bconfirmLogout[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*false\s*\)/);
+    expect(sidebarTs).toMatch(/\bcancelLogout[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*false\s*\)/);
+    expect(sidebarHtml).toMatch(/@if\s*\(\s*isLogoutConfirmModalOpen\(\)\s*\)/);
+  });
 });
