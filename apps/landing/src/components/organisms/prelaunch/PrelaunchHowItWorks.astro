@@ -1,0 +1,419 @@
+---
+const clientSteps = [
+  {
+    n: '01',
+    title: 'Elige el servicio',
+    body: 'Entra al link del negocio desde el celular. Ve todos los servicios con precio y duración al instante, sin descargar nada.',
+    features: [
+      {
+        label: 'Disponibilidad en tiempo real',
+        sub: 'Los horarios se actualizan al momento, sin dobles reservas.'
+      },
+      {
+        label: 'Precios y duración visibles',
+        sub: 'Cada servicio muestra cuánto cuesta y cuánto tarda antes de elegir.'
+      }
+    ],
+    shot: {
+      src: '/prelaunch/public-turnero-booking.png',
+      alt: 'Turnero público: el cliente reserva desde el celular'
+    }
+  },
+  {
+    n: '02',
+    title: 'Elige fecha y hora',
+    body: 'Un calendario simple muestra los turnos libres. El cliente toca un horario y pasa a confirmar.',
+    features: [
+      {
+        label: 'Sin ida y vuelta',
+        sub: 'El horario se reserva al instante, no hace falta esperar respuesta.'
+      },
+      {
+        label: 'Bloqueos automáticos',
+        sub: 'Los feriados o descansos del negocio no aparecen como opción.'
+      }
+    ],
+    shot: {
+      src: '/prelaunch/public-turnero-booking.png',
+      alt: 'Turnero público: el cliente reserva desde el celular'
+    }
+  },
+  {
+    n: '03',
+    title: 'Reserva confirmada',
+    body: 'El turno queda agendado al toque. Los detalles llegan por email.',
+    features: [
+      {
+        label: 'Recordatorio automático',
+        sub: 'El cliente recibe un aviso por email antes del turno para reducir ausencias.'
+      },
+      {
+        label: 'Reprogramar en un toque',
+        sub: 'Si algo cambia, se puede mover el turno sin llamar al negocio.'
+      }
+    ],
+    shot: {
+      src: '/prelaunch/public-turnero-booking.png',
+      alt: 'Turnero público: el cliente reserva desde el celular'
+    }
+  }
+];
+
+const businessSteps = [
+  {
+    n: '01',
+    title: 'Creá tu cuenta',
+    body: 'En minutos, sin tarjeta. Cargás servicios, precios y horarios.',
+    icon: 'ri-user-add-line'
+  },
+  {
+    n: '02',
+    title: 'Compartís el link',
+    body: 'Un link del negocio. Lo ponés en tu perfil o se lo mandás al cliente.',
+    icon: 'ri-link'
+  },
+  {
+    n: '03',
+    title: 'El turno llega solo',
+    body: 'El cliente reserva con disponibilidad real. Queda en la agenda; los detalles van por email.',
+    icon: 'ri-calendar-check-line'
+  },
+  {
+    n: '04',
+    title: 'Gestionás el día',
+    body: 'Agenda y clientes juntos. Desde el celular o la computadora.',
+    icon: 'ri-dashboard-line'
+  }
+] as const;
+---
+
+<section
+  class="landing-section bg-bg-primary"
+  id="como-funciona"
+  data-how-it-works
+  data-how-autoplay="off"
+>
+  <div class="landing-container">
+    <div class="landing-section-header text-left max-w-3xl">
+      <div class="landing-eyebrow border border-primary-soft/25 bg-primary-soft/10 text-primary-soft mb-4">
+        <span class="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true"></span>
+        Cómo funciona
+      </div>
+      <h2
+        class="landing-title font-headline font-bold text-text-primary mb-4 reveal"
+        style="letter-spacing: -0.04em;"
+      >
+        Tanto para el negocio como para el cliente.
+      </h2>
+      <p class="landing-lead text-text-secondary font-body reveal stagger-1">
+        El cliente reserva desde el link. Vos llevás el día en un solo lugar.
+      </p>
+    </div>
+
+    <div
+      class="mb-8 inline-flex rounded-xl border border-border bg-bg-secondary p-1"
+      data-how-audience
+      role="tablist"
+      aria-label="Audiencia"
+    >
+      <button
+        type="button"
+        class="min-h-[44px] cursor-pointer rounded-lg bg-primary/15 px-4 text-sm font-headline font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        data-how-audience="client"
+        aria-pressed="true"
+      >
+        Para tus clientes
+      </button>
+      <button
+        type="button"
+        class="min-h-[44px] cursor-pointer rounded-lg px-4 text-sm font-headline font-semibold text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        data-how-audience="business"
+        aria-pressed="false"
+      >
+        Para tu negocio
+      </button>
+    </div>
+
+    <div class="grid">
+      <div
+        class="col-start-1 row-start-1"
+        data-how-audience-panel="client"
+      >
+        <div
+          class="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start"
+          data-how-stage
+        >
+          <div class="order-2 min-w-0 lg:order-1">
+            <div
+              class="mb-8 flex border-b border-border"
+              role="tablist"
+              aria-label="Pasos para el cliente"
+              data-how-steps
+            >
+              {clientSteps.map((step, index) => (
+                <button
+                  type="button"
+                  class:list={[
+                    'flex min-h-[44px] flex-1 cursor-pointer items-end gap-2 border-b-2 px-2 py-3 text-left text-sm font-headline font-semibold -mb-px',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    index === 0
+                      ? 'border-primary text-text-primary'
+                      : 'border-transparent text-text-secondary'
+                  ]}
+                  data-how-step-index={index}
+                  aria-pressed={index === 0 ? 'true' : 'false'}
+                  aria-label={`Paso ${step.n}: ${step.title}`}
+                >
+                  <span
+                    class:list={[
+                      'text-xs font-bold tracking-wide',
+                      index === 0 ? 'text-primary' : 'text-text-secondary'
+                    ]}
+                    data-how-step-number
+                  >
+                    {step.n}
+                  </span>
+                  <span class="leading-tight">{step.title}</span>
+                </button>
+              ))}
+            </div>
+
+            <div class="grid" data-how-copy-stack>
+              {clientSteps.map((step, index) => (
+                <div
+                  class:list={[
+                    'col-start-1 row-start-1',
+                    index !== 0 && 'invisible pointer-events-none'
+                  ]}
+                  data-how-stage-copy={index}
+                  aria-hidden={index !== 0}
+                >
+                  <h3 class="mb-2 font-headline text-xl font-bold text-text-primary">{step.title}</h3>
+                  <p class="text-sm leading-relaxed text-text-secondary">{step.body}</p>
+                  <div class="mt-6 space-y-4">
+                    {step.features.map((feature) => (
+                      <div class="flex items-start gap-3">
+                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
+                        <div>
+                          <p class="font-headline text-sm font-semibold text-text-primary">{feature.label}</p>
+                          <p class="text-sm leading-relaxed text-text-secondary">{feature.sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div class="order-1 flex justify-center lg:order-2">
+            <div class="w-[280px] max-w-full">
+              <div class="flex min-h-[520px] flex-col rounded-[2.4rem] border border-white/15 bg-[#1a1a22] p-2.5 shadow-2xl">
+                <div class="grid min-h-[520px] flex-1 overflow-hidden rounded-[1.9rem] bg-bg-primary" data-how-mock>
+                  <div class="col-start-1 row-start-1 min-h-[520px]" data-how-mock-step="0">
+                    <img
+                      src={clientSteps[0].shot.src}
+                      alt={clientSteps[0].shot.alt}
+                      class="block h-full w-full object-cover object-top"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <div
+                    class="col-start-1 row-start-1 min-h-[520px] invisible pointer-events-none"
+                    data-how-mock-step="1"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src={clientSteps[1].shot.src}
+                      alt={clientSteps[1].shot.alt}
+                      class="block h-full w-full object-cover object-top"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <div
+                    class="col-start-1 row-start-1 min-h-[520px] invisible pointer-events-none"
+                    data-how-mock-step="2"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src={clientSteps[2].shot.src}
+                      alt={clientSteps[2].shot.alt}
+                      class="block h-full w-full object-cover object-top"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="col-start-1 row-start-1 invisible pointer-events-none"
+        data-how-audience-panel="business"
+        aria-hidden="true"
+      >
+        <div class="grid max-w-3xl grid-cols-2 gap-4 md:gap-5" aria-label="Pasos para el negocio">
+          {businessSteps.map((step) => (
+            <article class="landing-card flex flex-col p-4 sm:p-5">
+              <p class="text-[11px] font-bold tracking-widest text-primary">PASO {step.n}</p>
+              <div
+                class="mt-3 flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-primary/10"
+                aria-hidden="true"
+              >
+                <i class={`${step.icon} text-xl text-primary`}></i>
+              </div>
+              <h3 class="mt-4 font-headline text-base font-bold text-text-primary sm:text-lg">{step.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-text-secondary">{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <a
+      href="/auth/signup/plan"
+      class="mt-8 inline-flex min-h-[44px] items-center font-headline text-sm font-semibold text-primary"
+    >
+      Empezá gratis
+    </a>
+  </div>
+</section>
+
+<script>
+  type HowAudience = 'client' | 'business';
+
+  const STEP_MS = 5_000;
+  const STEP_COUNT: Record<'client', number> = {
+    client: 3
+  };
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.querySelector<HTMLElement>('[data-how-it-works]');
+
+  if (root) {
+    let audience: HowAudience = 'client';
+    let current = 0;
+    let timer = 0;
+    let inView = false;
+
+    function clearTimer(): void {
+      window.clearInterval(timer);
+      timer = 0;
+      root.setAttribute('data-how-autoplay', 'off');
+    }
+
+    function armTimer(): void {
+      clearTimer();
+      if (audience !== 'client') return;
+      if (reducedMotion || !inView || document.visibilityState !== 'visible') return;
+      root.setAttribute('data-how-autoplay', 'on');
+      timer = window.setInterval(() => {
+        showStep((current + 1) % STEP_COUNT.client);
+      }, STEP_MS);
+    }
+
+    function activePanel(): HTMLElement | null {
+      return root.querySelector(`[data-how-audience-panel="${audience}"]`);
+    }
+
+    function showAudience(next: HowAudience): void {
+      if (next !== audience) {
+        audience = next;
+        current = 0;
+
+        root.querySelectorAll<HTMLButtonElement>('button[data-how-audience]').forEach((button) => {
+          const value = button.dataset.howAudience;
+          if (value !== 'client' && value !== 'business') return;
+          const active = value === audience;
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          button.classList.toggle('bg-primary/15', active);
+          button.classList.toggle('text-text-primary', active);
+          button.classList.toggle('text-text-secondary', !active);
+        });
+
+        root.querySelectorAll<HTMLElement>('[data-how-audience-panel]').forEach((panel) => {
+          const match = panel.dataset.howAudiencePanel === audience;
+          panel.classList.toggle('invisible', !match);
+          panel.classList.toggle('pointer-events-none', !match);
+          panel.setAttribute('aria-hidden', match ? 'false' : 'true');
+        });
+      }
+
+      showStep(0);
+      armTimer();
+    }
+
+    function showStep(index: number): void {
+      current = index;
+      const panel = activePanel();
+      if (!panel) return;
+
+      panel.querySelectorAll<HTMLButtonElement>('[data-how-step-index]').forEach((step) => {
+        const active = Number(step.dataset.howStepIndex) === index;
+        step.setAttribute('aria-pressed', active ? 'true' : 'false');
+        step.classList.toggle('border-primary', active);
+        step.classList.toggle('text-text-primary', active);
+        step.classList.toggle('border-transparent', !active);
+        step.classList.toggle('text-text-secondary', !active);
+
+        const badge = step.querySelector('[data-how-step-number]');
+        if (badge) {
+          badge.classList.toggle('text-primary', active);
+          badge.classList.toggle('text-text-secondary', !active);
+        }
+      });
+
+      panel.querySelectorAll<HTMLElement>('[data-how-stage-copy]').forEach((copy) => {
+        const match = copy.dataset.howStageCopy === String(index);
+        copy.classList.toggle('invisible', !match);
+        copy.classList.toggle('pointer-events-none', !match);
+        copy.setAttribute('aria-hidden', match ? 'false' : 'true');
+      });
+
+      panel.querySelectorAll<HTMLElement>('[data-how-mock-step]').forEach((mock) => {
+        const match = mock.dataset.howMockStep === String(index);
+        mock.classList.toggle('invisible', !match);
+        mock.classList.toggle('pointer-events-none', !match);
+        mock.setAttribute('aria-hidden', match ? 'false' : 'true');
+      });
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('button[data-how-audience]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = button.dataset.howAudience;
+        if (next === 'client' || next === 'business') showAudience(next);
+      });
+    });
+
+    root.querySelectorAll<HTMLButtonElement>('[data-how-step-index]').forEach((step) => {
+      step.addEventListener('click', () => {
+        const index = Number(step.dataset.howStepIndex);
+        if (!Number.isFinite(index)) return;
+        showStep(index);
+        armTimer();
+      });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      armTimer();
+    });
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          inView = entries.some((entry) => entry.isIntersecting);
+          armTimer();
+        },
+        { threshold: 0.35 }
+      );
+      observer.observe(root);
+    } else {
+      inView = true;
+      armTimer();
+    }
+  }
+</script>

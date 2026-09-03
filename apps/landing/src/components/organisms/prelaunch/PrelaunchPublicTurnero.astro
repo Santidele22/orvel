@@ -1,0 +1,102 @@
+---
+const beats = [
+  {
+    n: '01',
+    title: 'El link funciona a cualquier hora',
+    body: 'Fuera de horario, feriados o mientras estás con otro cliente, el turnero sigue tomando reservas.'
+  },
+  {
+    n: '02',
+    title: 'Confirmación al instante',
+    body: 'El cliente ve la disponibilidad real de tu agenda y recibe los detalles por email apenas reserva.'
+  },
+  {
+    n: '03',
+    title: 'Nadie se queda sin turno',
+    body: 'Sin ida y vuelta de mensajes ni llamados perdidos: el horario se bloquea en el momento.'
+  }
+];
+---
+
+<section
+  class="landing-section bg-bg-primary"
+  id="turnero-publico"
+  data-public-turnero
+>
+  <div class="landing-container">
+    <div class="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
+      <div class="reveal">
+        <div class="mb-5 flex items-center gap-2">
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
+          <p class="text-sm text-text-secondary font-body">Turnero público — disponible ahora</p>
+        </div>
+
+        <h2 class="landing-title font-headline font-bold text-text-primary mb-5">
+          Tus clientes reservan desde el celular, sin llamarte
+        </h2>
+
+        <p class="text-text-secondary font-body leading-relaxed mb-8 max-w-xl">
+          Compartís el link una vez. Tu cliente elige servicio, profesional y horario con disponibilidad real, y el turno queda confirmado al instante — sin instalar nada, sin cuenta, sin que atiendas el teléfono.
+        </p>
+
+        <ol class="mb-8" data-public-turnero-chips>
+          {beats.map((beat) => (
+            <li class="border-t border-border py-5">
+              <div class="flex gap-4">
+                <span class="mt-0.5 shrink-0 font-headline text-sm text-primary/55">{beat.n}</span>
+                <div>
+                  <p class="font-headline font-semibold text-text-primary">{beat.title}</p>
+                  <p class="mt-1 text-sm text-text-secondary">{beat.body}</p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <a href="/auth/signup/plan" class="btn btn-primary py-4 px-10 text-sm">
+            Empezá gratis
+          </a>
+          <p class="text-sm text-text-secondary">No necesitás tarjeta para probarlo</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="relative min-h-[540px] w-full" data-public-turnero-shots>
+          <div
+            class="pointer-events-none absolute left-1/2 top-16 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/25 blur-3xl"
+            aria-hidden="true"
+          ></div>
+
+          <figure
+            class="landing-card absolute top-8 right-1 w-[72%] overflow-hidden aspect-[3/4] rotate-6 shadow-xl sm:top-14 sm:right-0 sm:w-[68%]"
+          >
+            <img
+              src="/prelaunch/public-turnero-form.png"
+              alt="Turnero público: el cliente confirma la reserva"
+              width="720"
+              height="1080"
+              class="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </figure>
+          <figure
+            class="landing-card absolute top-0 left-0 z-10 w-[84%] overflow-hidden aspect-[3/4] shadow-2xl sm:w-[78%]"
+          >
+            <img
+              src="/prelaunch/public-turnero-portal.png"
+              alt="Turnero público: el cliente elige servicio y día"
+              width="720"
+              height="1031"
+              class="h-full w-full object-cover object-center"
+              loading="lazy"
+            />
+          </figure>
+        </div>
+        <p class="mt-4 text-[11px] text-text-secondary">
+          Así se ve el link público de reservas.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
