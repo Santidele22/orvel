@@ -30,7 +30,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(wizard.step).toBe(2);
   });
 
-  it('requires at least one rubro and treats the first selected as principal', () => {
+  it('requires exactly one rubro and replaces instead of accumulating', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -38,12 +38,21 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.continue();
 
     expect(wizard.canContinue()).toBe(false);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual([]);
+
     wizard.toggleRubro('unas');
     wizard.toggleRubro('peluqueria');
 
     expect(wizard.canContinue()).toBe(true);
-    expect(wizard.selectedRubros[0]).toBe('unas');
-    expect(wizard.principalRubro()).toBe('unas');
+    expect(wizard.selectedRubros).toEqual(['peluqueria']);
+    expect(wizard.principalRubro()).toBe('peluqueria');
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual(['peluqueria']);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toHaveLength(1);
+
+    wizard.toggleRubro('peluqueria');
+    expect(wizard.selectedRubros).toEqual([]);
+    expect(wizard.canContinue()).toBe(false);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual([]);
   });
 
   it('rejects password shorter than 8 characters or a mismatch before creating the Free account', () => {
@@ -85,6 +94,8 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(payload.apellido).toBe('Delebeq');
     expect(payload.negocioNombre).toBe('Studio Norte');
     expect(payload.rubro).toBe('peluqueria');
+    expect(payload.selected_business_types).toEqual(['peluqueria']);
+    expect(payload.selected_business_types).toHaveLength(1);
     expect(payload).not.toHaveProperty('telefono');
   });
 
@@ -163,6 +174,9 @@ describe('Contract: in-app signup wizard (#562)', () => {
 
     expect(page).toContain('¿Cómo te llamás?');
     expect(page).toContain('¿Qué rubro tenés?');
+    expect(page).toContain('Elegí un rubro.');
+    expect(page).not.toContain('Elegí uno o más');
+    expect(page).not.toContain('Más rubros');
     expect(page).toContain('Creá tu acceso');
     expect(page).toContain('Paso 4 de 4');
     expect(page).toContain('¿Qué plan querés?');
@@ -213,12 +227,12 @@ describe('Contract: in-app signup wizard (#562)', () => {
     }
   });
 
-  it('marks Principal as a chip badge, not concatenated inline text', async () => {
+  it('does not render Principal-vs-secondary chip chrome', async () => {
     const page = await readFile(WIZARD_PAGE, 'utf8');
 
     expect(page).toContain('{{ rubro.label }}');
-    expect(page).toMatch(/in-app-auth__chip-badge/);
-    expect(page).not.toMatch(/<span>Principal<\/span>/);
+    expect(page).not.toContain('Principal');
+    expect(page).not.toMatch(/in-app-auth__chip-badge/);
   });
 });
 
