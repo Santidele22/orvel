@@ -39,25 +39,45 @@ export class CalendarPickerComponent {
     return this.pivotDate().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
   });
 
+  protected readonly navigatorLabel = computed(() => {
+    const selected = this._selectedDate();
+    if (this.isToday(selected)) {
+      return 'Hoy';
+    }
+
+    return selected
+      .toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
+      .replace(/\./g, '')
+      .replace(/,/g, '');
+  });
+
   selectDate(day: Date) {
     this._selectedDate.set(day);
     this.dateChange.emit(day);
   }
 
   prevWeek() {
-    const d = new Date(this.pivotDate());
-    d.setDate(d.getDate() - 7);
-    this.pivotDate.set(d);
+    this.shiftSelectedByDays(-7);
   }
 
   nextWeek() {
-    const d = new Date(this.pivotDate());
-    d.setDate(d.getDate() + 7);
-    this.pivotDate.set(d);
+    this.shiftSelectedByDays(7);
   }
 
   goToToday() {
-    this.pivotDate.set(new Date());
+    this.applyViewDate(new Date());
+  }
+
+  private shiftSelectedByDays(days: number) {
+    const next = new Date(this._selectedDate());
+    next.setDate(next.getDate() + days);
+    this.applyViewDate(next);
+  }
+
+  private applyViewDate(date: Date) {
+    this._selectedDate.set(date);
+    this.pivotDate.set(date);
+    this.dateChange.emit(date);
   }
 
   isToday(date: Date): boolean {

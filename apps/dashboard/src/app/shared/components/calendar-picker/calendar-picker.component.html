@@ -17,7 +17,7 @@
       </button>
       <button (click)="goToToday()" 
               class="px-3 h-8 text-[10px] font-bold uppercase tracking-wider text-text-tertiary hover:text-primary transition-all">
-        Hoy
+        {{ navigatorLabel() }}
       </button>
       <button (click)="nextWeek()" 
               class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface text-text-secondary hover:text-primary transition-all">
