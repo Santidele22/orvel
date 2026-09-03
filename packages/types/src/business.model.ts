@@ -55,6 +55,7 @@ export interface BusinessPublicView {
     bufferMinutes: number;
     minNoticeMinutes: number;
     slotIntervalMinutes: number;
+    maxAdvanceDays: number;
     workingHours: Record<WeekdayKey, WorkingDayHours>;
   };
   bookingPolicy: {

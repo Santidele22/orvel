@@ -638,6 +638,7 @@ export class BusinessService {
         bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
         minNoticeMinutes: settings?.minNoticeMinutes ?? settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
         slotIntervalMinutes: settings?.slotIntervalMinutes ?? settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
+        maxAdvanceDays: settings?.maxAdvanceDays ?? settings?.max_advance_days ?? 30,
         workingHours: resolveWorkingHours(
           settings?.workingHours ?? settings?.working_hours,
           this.getDefaultWorkingHours()
