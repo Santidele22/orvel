@@ -111,7 +111,7 @@
           </div>
         </article>
 
-        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+        <div class="md:hidden flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
           <div class="space-y-1 pr-3">
             <p class="text-sm font-semibold text-white">Avisos push</p>
             <p class="text-[11px] text-tertiary leading-tight">Te avisamos con la app cerrada si entra, se cancela o se reprograma un turno.</p>
@@ -187,9 +187,9 @@
                 </div>
                 <p class="text-xs text-secondary mt-2">Premium se activa a mano: te pasamos el alias, enviá el comprobante y Santi lo activa.</p>
               </div>
-              <button type="button" data-testid="upgrade-plan-cta" disabled
-                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20 opacity-60 cursor-not-allowed'"
-                aria-disabled="true">
+              <button type="button" data-testid="upgrade-plan-cta"
+                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20'"
+                (click)="openManualPremium()">
                 Mejorar Plan a mano
               </button>
             </div>
@@ -353,16 +353,6 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md pt-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Capacidad (empleados)</label>
-              <input type="number" formControlName="capacity" [class]="ui.input" min="1" />
-              @if (fieldErrors().capacity) {
-              <p [class]="ui.fieldError" data-testid="config-field-error-capacity">{{ fieldErrors().capacity }}</p>
-              }
-            </div>
-          </div>
-
         </article>
 
         <article class="space-y-3" formGroupName="workingHours" data-testid="working-hours-section">
@@ -499,7 +489,7 @@
 
         @if (activeSettingsTab() === 'equipo') {
         <article class="space-y-4" data-testid="settings-equipo-section">
-          <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
             <div class="space-y-1 pr-3">
               <p class="text-sm font-semibold text-white">Cliente elige profesional</p>
               <p class="text-[11px] text-tertiary leading-tight">Si está apagado, Orvel asigna automático</p>
