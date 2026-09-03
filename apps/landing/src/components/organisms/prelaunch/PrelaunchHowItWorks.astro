@@ -64,47 +64,25 @@ const businessSteps = [
     n: '01',
     title: 'Creá tu cuenta',
     body: 'En minutos, sin tarjeta. Cargás servicios, precios y horarios.',
-    visual: {
-      kind: 'overlap' as const,
-      web: '/prelaunch/showcase-inicio-web.png',
-      webAlt: 'Inicio del negocio en la computadora',
-      mobile: '/prelaunch/showcase-inicio-mobile.jpg',
-      mobileAlt: 'Inicio del negocio en el celular'
-    }
+    icon: 'ri-user-add-line'
   },
   {
     n: '02',
     title: 'Compartís el link',
     body: 'Un link del negocio. Lo ponés en tu perfil o se lo mandás al cliente.',
-    visual: {
-      kind: 'phone' as const,
-      src: '/prelaunch/public-turnero-portal.png',
-      alt: 'Link público del negocio para reservar'
-    }
+    icon: 'ri-link'
   },
   {
     n: '03',
     title: 'El turno llega solo',
     body: 'El cliente reserva con disponibilidad real. Queda en la agenda; los detalles van por email.',
-    visual: {
-      kind: 'overlap' as const,
-      web: '/prelaunch/showcase-agenda-web.png',
-      webAlt: 'Agenda de turnos en la computadora',
-      mobile: '/prelaunch/showcase-agenda-mobile.jpg',
-      mobileAlt: 'Agenda de turnos en el celular'
-    }
+    icon: 'ri-calendar-check-line'
   },
   {
     n: '04',
     title: 'Gestionás el día',
     body: 'Agenda y clientes juntos. Desde el celular o la computadora.',
-    visual: {
-      kind: 'overlap' as const,
-      web: '/prelaunch/showcase-clientes-web.png',
-      webAlt: 'Clientes en la computadora',
-      mobile: '/prelaunch/showcase-clientes-mobile.jpg',
-      mobileAlt: 'Clientes en el celular'
-    }
+    icon: 'ri-dashboard-line'
   }
 ] as const;
 ---
@@ -279,168 +257,20 @@ const businessSteps = [
         data-how-audience-panel="business"
         aria-hidden="true"
       >
-        <div
-          class="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start"
-          data-how-stage
-        >
-          <div class="order-2 min-w-0 lg:order-1">
-            <div
-              class="mb-8 flex border-b border-border"
-              role="tablist"
-              aria-label="Pasos para el negocio"
-              data-how-steps
-            >
-              {businessSteps.map((step, index) => (
-                <button
-                  type="button"
-                  class:list={[
-                    'flex min-h-[44px] flex-1 cursor-pointer items-end gap-1.5 border-b-2 px-1.5 py-3 text-left text-xs font-headline font-semibold -mb-px sm:gap-2 sm:px-2 sm:text-sm',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    index === 0
-                      ? 'border-primary text-text-primary'
-                      : 'border-transparent text-text-secondary'
-                  ]}
-                  data-how-step-index={index}
-                  aria-pressed={index === 0 ? 'true' : 'false'}
-                  aria-label={`Paso ${step.n}: ${step.title}`}
-                >
-                  <span
-                    class:list={[
-                      'text-xs font-bold tracking-wide',
-                      index === 0 ? 'text-primary' : 'text-text-secondary'
-                    ]}
-                    data-how-step-number
-                  >
-                    {step.n}
-                  </span>
-                  <span class="leading-tight">{step.title}</span>
-                </button>
-              ))}
-            </div>
-
-            <div class="grid" data-how-copy-stack>
-              {businessSteps.map((step, index) => (
-                <div
-                  class:list={[
-                    'col-start-1 row-start-1',
-                    index !== 0 && 'invisible pointer-events-none'
-                  ]}
-                  data-how-stage-copy={index}
-                  aria-hidden={index !== 0}
-                >
-                  <h3 class="mb-2 font-headline text-xl font-bold text-text-primary">{step.title}</h3>
-                  <p class="text-sm leading-relaxed text-text-secondary">{step.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div class="order-1 lg:order-2">
-            <div class="grid min-h-[520px] items-center" data-how-mock>
-              <div class="col-start-1 row-start-1" data-how-mock-step="0">
-                <div class="relative mx-auto w-full max-w-lg pb-16 pr-10 sm:pb-20 sm:pr-12">
-                  <div class="overflow-hidden rounded-2xl border border-border bg-bg-primary shadow-lg">
-                    <div class="h-7 border-b border-border bg-bg-secondary" aria-hidden="true"></div>
-                    <img
-                      src={businessSteps[0].visual.web}
-                      alt={businessSteps[0].visual.webAlt}
-                      class="block h-auto w-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div class="absolute -bottom-4 -right-3 z-10 w-32 overflow-hidden rounded-[1.75rem] border border-border bg-black p-1.5 shadow-2xl sm:w-40">
-                    <div class="overflow-hidden rounded-[1.35rem]">
-                      <img
-                        src={businessSteps[0].visual.mobile}
-                        alt={businessSteps[0].visual.mobileAlt}
-                        class="block h-auto w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <div class="grid grid-cols-2 gap-4 md:gap-5" aria-label="Pasos para el negocio">
+          {businessSteps.map((step) => (
+            <article class="landing-card flex aspect-square flex-col p-5 sm:p-6">
+              <p class="text-[11px] font-bold tracking-widest text-primary">PASO {step.n}</p>
               <div
-                class="col-start-1 row-start-1 invisible pointer-events-none"
-                data-how-mock-step="1"
+                class="mt-3 flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-primary/10"
                 aria-hidden="true"
               >
-                <div class="mx-auto w-[280px] max-w-full">
-                  <div class="rounded-[2.4rem] border border-white/15 bg-[#1a1a22] p-2.5 shadow-2xl">
-                    <div class="overflow-hidden rounded-[1.9rem] bg-bg-primary">
-                      <img
-                        src={businessSteps[1].visual.src}
-                        alt={businessSteps[1].visual.alt}
-                        class="block h-auto w-full object-cover object-top"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <i class={`${step.icon} text-xl text-primary`}></i>
               </div>
-              <div
-                class="col-start-1 row-start-1 invisible pointer-events-none"
-                data-how-mock-step="2"
-                aria-hidden="true"
-              >
-                <div class="relative mx-auto w-full max-w-lg pb-16 pr-10 sm:pb-20 sm:pr-12">
-                  <div class="overflow-hidden rounded-2xl border border-border bg-bg-primary shadow-lg">
-                    <div class="h-7 border-b border-border bg-bg-secondary" aria-hidden="true"></div>
-                    <img
-                      src={businessSteps[2].visual.web}
-                      alt={businessSteps[2].visual.webAlt}
-                      class="block h-auto w-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div class="absolute -bottom-4 -right-3 z-10 w-32 overflow-hidden rounded-[1.75rem] border border-border bg-black p-1.5 shadow-2xl sm:w-40">
-                    <div class="overflow-hidden rounded-[1.35rem]">
-                      <img
-                        src={businessSteps[2].visual.mobile}
-                        alt={businessSteps[2].visual.mobileAlt}
-                        class="block h-auto w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="col-start-1 row-start-1 invisible pointer-events-none"
-                data-how-mock-step="3"
-                aria-hidden="true"
-              >
-                <div class="relative mx-auto w-full max-w-lg pb-16 pr-10 sm:pb-20 sm:pr-12">
-                  <div class="overflow-hidden rounded-2xl border border-border bg-bg-primary shadow-lg">
-                    <div class="h-7 border-b border-border bg-bg-secondary" aria-hidden="true"></div>
-                    <img
-                      src={businessSteps[3].visual.web}
-                      alt={businessSteps[3].visual.webAlt}
-                      class="block h-auto w-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div class="absolute -bottom-4 -right-3 z-10 w-32 overflow-hidden rounded-[1.75rem] border border-border bg-black p-1.5 shadow-2xl sm:w-40">
-                    <div class="overflow-hidden rounded-[1.35rem]">
-                      <img
-                        src={businessSteps[3].visual.mobile}
-                        alt={businessSteps[3].visual.mobileAlt}
-                        class="block h-auto w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+              <h3 class="mt-4 font-headline text-base font-bold text-text-primary sm:text-lg">{step.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-text-secondary">{step.body}</p>
+            </article>
+          ))}
         </div>
       </div>
     </div>
@@ -458,9 +288,8 @@ const businessSteps = [
   type HowAudience = 'client' | 'business';
 
   const STEP_MS = 5_000;
-  const STEP_COUNT: Record<HowAudience, number> = {
-    client: 3,
-    business: 4
+  const STEP_COUNT: Record<'client', number> = {
+    client: 3
   };
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const root = document.querySelector<HTMLElement>('[data-how-it-works]');
@@ -479,10 +308,11 @@ const businessSteps = [
 
     function armTimer(): void {
       clearTimer();
+      if (audience !== 'client') return;
       if (reducedMotion || !inView || document.visibilityState !== 'visible') return;
       root.setAttribute('data-how-autoplay', 'on');
       timer = window.setInterval(() => {
-        showStep((current + 1) % STEP_COUNT[audience]);
+        showStep((current + 1) % STEP_COUNT.client);
       }, STEP_MS);
     }
 
