@@ -6,8 +6,8 @@ interface Props {
 const { premiumPriceLabel = null } = Astro.props;
 
 const plansAnswer = premiumPriceLabel
-  ? `Gratis: hasta 30 turnos/mes en 1 local. Premium: ${premiumPriceLabel} ARS/mes, turnos ilimitados en 1 local. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.`
-  : 'Gratis: hasta 30 turnos/mes en 1 local. Premium: turnos ilimitados en 1 local. El precio de Premium se confirma al abrir. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.';
+  ? `Gratis: hasta 30 turnos/mes en 1 local. Premium: ${premiumPriceLabel} ARS/mes, turnos ilimitados en 1 local. Los primeros 50 pueden llevar descuento en el primer mes de Premium.`
+  : 'Gratis: hasta 30 turnos/mes en 1 local. Premium: turnos ilimitados en 1 local. Los primeros 50 pueden llevar descuento en el primer mes de Premium.';
 
 const faqs = [
   {
@@ -27,8 +27,8 @@ const faqs = [
     answer: plansAnswer
   },
   {
-    question: '¿Cuándo sale?',
-    answer: 'Estamos en pre-lanzamiento. Te escribimos cuando abrimos. Los 50 primeros de la lista llevan el beneficio de fundador según la franja en la que entraron.'
+    question: '¿Ya puedo usarlo?',
+    answer: 'Sí. Creá tu cuenta y empezá hoy. Los primeros 50 llevan descuento en el primer mes de Premium, según la franja.'
   }
 ];
 ---

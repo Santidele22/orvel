@@ -9,7 +9,6 @@ import {
 } from '../lib/prelaunch-rubros';
 
 const RUBROS_PATH = new URL('../components/organisms/prelaunch/PrelaunchRubros.astro', import.meta.url);
-const FEATURES_PATH = new URL('../components/organisms/prelaunch/PrelaunchFeatures.astro', import.meta.url);
 const PRELAUNCH_DIR = new URL('../components/organisms/prelaunch/', import.meta.url);
 
 const RUBRO_IDS = ['peluqueria', 'unas', 'barberia', 'masajes'] as const;
@@ -43,7 +42,7 @@ function renderRubrosDocument() {
         <div data-rubro-hero></div>
         <button type="button" data-rubro-back>Todos los rubros</button>
         <div data-rubro-copy></div>
-        <button type="button" class="js-open-waitlist">Quiero mi lugar</button>
+        <a href="/auth/signup/plan">Crear cuenta</a>
       </div>
     </section>
   `, { url: 'https://orvel.pro/' });
@@ -52,18 +51,21 @@ function renderRubrosDocument() {
 }
 
 describe('Contract: prelaunch rubros copy and markup', () => {
-  it('keeps the four rubros as buttons with waitlist CTA and no visitor jargon', async () => {
+  it('keeps the four rubros as buttons with signup CTA and no visitor jargon', async () => {
     const source = await readFile(RUBROS_PATH, 'utf8');
-    const features = await readFile(FEATURES_PATH, 'utf8');
 
     expect(source).toContain('Hecho para quien vive de los turnos');
+    expect(source).toMatch(/landing-section-header[^"]*\btext-left\b|text-left[^"]*landing-section-header/);
+    expect(source).not.toMatch(/text-center landing-section-header|landing-section-header text-center/);
     expect(source).toContain('id="rubros"');
     expect(source).toMatch(/<section[^>]*bg-bg-primary/);
     expect(source).not.toMatch(/<section[^>]*bg-bg-secondary/);
     expect(source).toMatch(/<button[^>]*data-rubro-id/);
     expect(source).toContain('Ver por qué');
-    expect(source).toContain('Quiero mi lugar');
-    expect(source).toContain('js-open-waitlist');
+    expect(source).toContain('Crear cuenta');
+    expect(source).toContain('/auth/signup/plan');
+    expect(source).not.toContain('js-open-waitlist');
+    expect(source).not.toContain('Quiero mi lugar');
     expect(source).toContain('startViewTransition');
     expect(source).toMatch(/data-rubro-back/);
     expect(source).toMatch(/h-full min-h-\[22rem\][\s\S]*data-rubro-hero/);
@@ -72,7 +74,6 @@ describe('Contract: prelaunch rubros copy and markup', () => {
     expect(visitorCopy()).toContain('Tiempo entre sesiones');
     expect(visitorCopy()).not.toMatch(FORBIDDEN_VISITOR_JARGON);
     expect(source).not.toMatch(FORBIDDEN_VISITOR_JARGON);
-    expect(features).not.toMatch(FORBIDDEN_VISITOR_JARGON);
 
     expect(source).toContain('PRELAUNCH_RUBRO_IDS');
     expect(source).toMatch(/data-rubro-id=\{id\}/);

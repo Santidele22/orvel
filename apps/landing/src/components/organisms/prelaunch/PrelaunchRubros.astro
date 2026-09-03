@@ -5,12 +5,12 @@ import { PRELAUNCH_RUBRO_IDS, PRELAUNCH_RUBROS } from '../../../lib/prelaunch-ru
 <section class="landing-section-compact bg-bg-primary" id="rubros" data-rubros-root data-view="list">
   <div class="landing-container">
     <div data-rubro-list>
-      <div class="text-center landing-section-header">
+      <div class="text-left landing-section-header">
         <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">Rubros</div>
         <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">
           Hecho para quien vive de los turnos
         </h2>
-        <p class="landing-lead text-text-secondary font-body mx-auto reveal stagger-1">
+        <p class="landing-lead text-text-secondary font-body reveal stagger-1">
           Seleccioná tu rubro. Vas a ver por qué Orvel encaja en tu operación, no en un negocio genérico.
         </p>
       </div>
@@ -59,7 +59,7 @@ import { PRELAUNCH_RUBRO_IDS, PRELAUNCH_RUBROS } from '../../../lib/prelaunch-ru
           </button>
           <div data-rubro-copy></div>
           <div class="mt-auto pt-6 flex flex-wrap gap-3">
-            <button type="button" class="btn btn-primary js-open-waitlist">Quiero mi lugar</button>
+            <a href="/auth/signup/plan" class="btn btn-primary">Crear cuenta</a>
             <button type="button" class="btn btn-ghost border border-border" data-rubro-back>Seguir viendo rubros</button>
           </div>
         </div>

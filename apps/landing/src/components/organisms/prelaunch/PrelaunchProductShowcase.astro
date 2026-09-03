@@ -1,0 +1,188 @@
+---
+const panels = [
+  {
+    id: 'agenda',
+    tab: 'Agenda',
+    claim: 'Turnos, horarios y bloqueos del día',
+    headline: 'Gestioná tu agenda sin complicaciones',
+    body: 'Los turnos del día, los horarios y los bloqueos viven juntos. Lo ocupado no se ofrece.',
+    bullets: [
+      { icon: 'ri-calendar-line', text: 'Vista de turnos confirmados, a la hora que toca' },
+      { icon: 'ri-time-line', text: 'Horarios y bloqueos para cuidar la disponibilidad real' }
+    ]
+  },
+  {
+    id: 'clientes',
+    tab: 'Clientes',
+    claim: 'Contacto e historial de quien reserva',
+    headline: 'Conocé a tus clientes',
+    body: 'Nombre, celular y el historial de turnos. Lo justo para atender, sin armar un sistema aparte.',
+    bullets: [
+      { icon: 'ri-user-line', text: 'Datos de contacto de quien reserva' },
+      { icon: 'ri-history-line', text: 'Historial de turnos para saber quién ya vino' }
+    ]
+  }
+] as const;
+---
+
+<section
+  class="landing-section bg-bg-primary"
+  id="en-un-solo-lugar"
+  data-product-showcase
+>
+  <div class="landing-container">
+    <div class="landing-section-header text-left">
+      <div class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">En un solo lugar</div>
+      <h2 class="landing-title font-headline font-bold text-text-primary mb-4 reveal">
+        Agenda y clientes. <span class="italic font-light">Juntos.</span>
+      </h2>
+      <p class="landing-lead text-text-secondary font-body reveal stagger-1">
+        Turnos, clientes, horarios y bloqueos en un mismo sistema. Lo que está libre se ve. Lo ocupado no se ofrece.
+      </p>
+    </div>
+
+    <div class="landing-card p-4 md:p-6 lg:p-8 reveal">
+      <div class="grid gap-6 lg:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1.35fr)] lg:items-start">
+        <div class="flex flex-col gap-6">
+          <div
+            class="flex flex-col gap-2"
+            role="tablist"
+            aria-label="Superficies del producto"
+          >
+            {panels.map((panel, index) => (
+              <button
+                type="button"
+                id={`product-tab-${panel.id}`}
+                class:list={[
+                  'flex min-h-[44px] w-full cursor-pointer flex-col items-start gap-0.5 rounded-xl border-l-2 px-4 py-3 text-left',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  index === 0
+                    ? 'border-primary bg-primary/15 text-text-primary'
+                    : 'border-transparent text-text-secondary'
+                ]}
+                role="tab"
+                aria-selected={index === 0 ? 'true' : 'false'}
+                aria-controls={`product-panel-${panel.id}`}
+                data-product-tab={panel.id}
+              >
+                <span class="font-headline text-sm font-semibold">{panel.tab}</span>
+                <span class="text-xs font-body font-normal text-text-secondary">{panel.claim}</span>
+              </button>
+            ))}
+          </div>
+
+          {panels.map((panel, index) => (
+            <div
+              id={`product-panel-${panel.id}`}
+              class:list={[index !== 0 && 'hidden']}
+              role="tabpanel"
+              aria-labelledby={`product-tab-${panel.id}`}
+              data-product-copy={panel.id}
+              hidden={index !== 0}
+            >
+              <h3 class="font-headline italic font-bold text-text-primary text-xl mb-2">{panel.headline}</h3>
+              <p class="text-sm text-text-secondary leading-relaxed mb-4">{panel.body}</p>
+              <ul class="space-y-3">
+                {panel.bullets.map((bullet) => (
+                  <li class="flex items-start gap-3 text-sm text-text-primary">
+                    <i class={`${bullet.icon} mt-0.5 text-base text-primary`} aria-hidden="true"></i>
+                    <span>{bullet.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div class="relative pb-16 pr-10 sm:pb-20 sm:pr-12">
+          <div
+            class="overflow-hidden rounded-2xl border border-border bg-bg-primary shadow-lg"
+            data-product-desktop
+          >
+            <div class="h-7 border-b border-border bg-bg-secondary" aria-hidden="true"></div>
+            <div data-product-surface="agenda">
+              <img
+                src="/prelaunch/showcase-agenda-web.png"
+                alt="Agenda de turnos en la web"
+                class="block h-auto w-full object-cover"
+              />
+            </div>
+            <div class="hidden" data-product-surface="clientes" hidden>
+              <img
+                src="/prelaunch/showcase-clientes-web.png"
+                alt="Clientes en la web"
+                class="block h-auto w-full object-cover"
+              />
+            </div>
+          </div>
+
+          <div
+            class="absolute -bottom-4 -right-3 z-10 w-40 overflow-hidden rounded-[1.75rem] border border-border bg-black p-1.5 shadow-2xl sm:w-44 md:w-[12.5rem]"
+            data-product-phone
+          >
+            <div class="overflow-hidden rounded-[1.35rem]" data-product-phone-surface="agenda">
+              <img
+                src="/prelaunch/showcase-agenda-mobile.jpg"
+                alt="Agenda de turnos en el celular"
+                class="block h-auto w-full object-cover"
+              />
+            </div>
+            <div class="hidden overflow-hidden rounded-[1.35rem]" data-product-phone-surface="clientes" hidden>
+              <img
+                src="/prelaunch/showcase-clientes-mobile.jpg"
+                alt="Clientes en el celular"
+                class="block h-auto w-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-6 text-[11px] text-text-secondary">Así se ve Orvel en la web y en el celular.</p>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-product-showcase]');
+  if (root) {
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-product-tab]'));
+
+    function showSurface(surface: string): void {
+      tabs.forEach((tab) => {
+        const active = tab.dataset.productTab === surface;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.classList.toggle('border-primary', active);
+        tab.classList.toggle('bg-primary/15', active);
+        tab.classList.toggle('text-text-primary', active);
+        tab.classList.toggle('border-transparent', !active);
+        tab.classList.toggle('text-text-secondary', !active);
+      });
+
+      root.querySelectorAll<HTMLElement>('[data-product-copy]').forEach((panel) => {
+        const match = panel.dataset.productCopy === surface;
+        panel.classList.toggle('hidden', !match);
+        panel.toggleAttribute('hidden', !match);
+      });
+
+      root.querySelectorAll<HTMLElement>('[data-product-surface]').forEach((panel) => {
+        const match = panel.dataset.productSurface === surface;
+        panel.classList.toggle('hidden', !match);
+        panel.toggleAttribute('hidden', !match);
+      });
+
+      root.querySelectorAll<HTMLElement>('[data-product-phone-surface]').forEach((panel) => {
+        const match = panel.dataset.productPhoneSurface === surface;
+        panel.classList.toggle('hidden', !match);
+        panel.toggleAttribute('hidden', !match);
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const surface = tab.dataset.productTab;
+        if (surface) showSurface(surface);
+      });
+    });
+  }
+</script>
