@@ -3,7 +3,7 @@ import { Component, computed, inject, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
 import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import {
@@ -54,6 +54,7 @@ type WorkingHoursTimeField = 'start' | 'end' | 'start2' | 'end2';
 export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly facade = inject(BusinessService);
   private readonly servicioService = inject(ServicioService);
   protected readonly themeService = inject(ThemeService);
@@ -321,6 +322,10 @@ export class ConfiguracionPage {
 
   openAccountSettingsModal(): void {
     this.isAccountSettingsModalOpen.set(true);
+  }
+
+  openManualPremium(): void {
+    void this.router.navigateByUrl('/billing/subscription');
   }
 
   cancelAccountSettingsModal(): void {
