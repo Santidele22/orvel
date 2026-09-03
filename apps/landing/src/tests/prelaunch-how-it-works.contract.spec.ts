@@ -145,6 +145,7 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     expect(business.length).toBeGreaterThan(0);
     expect(business).toMatch(/\bgrid\b/);
     expect(business).toMatch(/grid-cols-2/);
+    expect(business).toMatch(/max-w-3xl/);
     expect(business).toContain('landing-card');
     expect(business).not.toContain('aspect-square');
     expect(business).toMatch(/PASO \{step\.n\}/);
