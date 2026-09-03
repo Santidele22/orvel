@@ -1,6 +1,6 @@
 import { getRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
 
-export type SignupWizardStep = 1 | 2 | 3 | 4 | 5;
+export type SignupWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type SignupRubroOption = {
   code: string;
@@ -106,10 +106,11 @@ export class InAppSignupWizard {
     if (this.step === 2) this.step = 1;
     else if (this.step === 3) this.step = 2;
     else if (this.step === 4) this.step = 3;
+    else if (this.step === 6) this.step = 4;
   }
 
   canGoBack(): boolean {
-    return this.step === 2 || this.step === 3 || this.step === 4;
+    return this.step === 2 || this.step === 3 || this.step === 4 || this.step === 6;
   }
 
   showsStepChrome(): boolean {
@@ -141,7 +142,7 @@ export class InAppSignupWizard {
 
   requestPremium(): void {
     this.premiumRequested = true;
-    this.step = 5;
+    this.step = 6;
   }
 
   premiumRequestMetadata(): { plan: 'FREE'; premium_requested: boolean } {
