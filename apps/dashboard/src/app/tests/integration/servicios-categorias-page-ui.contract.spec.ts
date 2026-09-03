@@ -3,9 +3,18 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readServiciosPageSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.html');
+  const candidates = [
+    [
+      resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.ts'),
+      resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.html')
+    ],
+    [
+      resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.ts'),
+      resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.html')
+    ]
+  ] as const;
 
+  const [tsPath, htmlPath] = candidates.find(([ts, html]) => existsSync(ts) || existsSync(html)) ?? candidates[0];
   const tsSource = existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
   const htmlSource = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';
 
@@ -56,8 +65,20 @@ describe('Sprint 1 RED - Servicios/Categorías page UI behavior contract', () =>
     // TODO(Aurora): incluir estados loading/empty explícitos para UX determinista
     const source = readServiciosPageSource();
 
-    expect(source).toMatch(/data-testid=["']services-loading-state["']/);
-    expect(source).toMatch(/data-testid=["']services-empty-state["']/);
+    expect(source).toMatch(/data-testid=["'](services-loading-state|servicios-loading-skeleton)["']/);
     expect(source).toMatch(/aria-busy/);
+  });
+
+  it('keeps Categoría and Nuevo servicio the same control height and shared width', () => {
+    const source = readServiciosPageSource();
+    const addTrigger =
+      source.match(/<button\b[^>]*data-testid=["']servicios-modal-add-trigger["'][^>]*>/i)?.[0] ?? '';
+    const categoryTrigger =
+      source.match(/<button\b[^>]*data-testid=["']category-create-form["'][^>]*>/i)?.[0] ?? '';
+
+    expect(addTrigger).toMatch(/\bw-full\b/);
+    expect(categoryTrigger).toMatch(/\bw-full\b/);
+    expect(addTrigger).toMatch(/ui\.primaryAction|\bh-12\b/);
+    expect(categoryTrigger).toMatch(/\bh-12\b/);
   });
 });

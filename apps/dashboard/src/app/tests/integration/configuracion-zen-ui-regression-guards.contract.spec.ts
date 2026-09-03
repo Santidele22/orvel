@@ -81,7 +81,8 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
 
     expect(negocioBlock).toContain('Políticas y Logística');
     expect(negocioBlock).toContain('Horarios de atención');
-    expect(negocioBlock).toMatch(/Capacidad|capacity/i);
+    expect(negocioBlock).not.toMatch(/Capacidad \(empleados\)/);
+    expect(negocioBlock).not.toMatch(/formControlName=["']capacity["']/i);
   });
 
   it('keeps account cancellation CTA scoped to Cuenta y Suscripción with paid-through copy', async () => {
@@ -104,10 +105,24 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
     const upgradeCta = source.match(
       /<button\b[^>]*data-testid=["']upgrade-plan-cta["'][\s\S]*?<\/button>/i
     )?.[0] ?? '';
-    expect(upgradeCta).toMatch(/\bdisabled\b/i);
+    expect(upgradeCta).toMatch(/\(click\)=["']openManualPremium\(\)["']/i);
+    expect(upgradeCta).not.toMatch(/\bdisabled\b/i);
+    expect(upgradeCta).not.toMatch(/aria-disabled/i);
+    expect(upgradeCta).not.toMatch(/cursor-not-allowed/i);
     expect(upgradeCta).not.toMatch(/próximamente/i);
     expect(upgradeCta).not.toMatch(/Mercado Pago/i);
     expect(source).toMatch(/te pasamos el alias/i);
     expect(source).toMatch(/enviá el comprobante/i);
+
+    const pageTs = await readFile(
+      resolve(process.cwd(), 'src/app/features/settings/pages/configuracion.page.ts'),
+      'utf-8'
+    );
+    const themeTs = await readFile(
+      resolve(process.cwd(), 'src/app/features/settings/pages/themes/configuracion-zen-theme.component.ts'),
+      'utf-8'
+    );
+    expect(pageTs).toMatch(/openManualPremium\(\)\s*:\s*void\s*\{[\s\S]*navigateByUrl\(['"]\/billing\/subscription['"]\)/);
+    expect(themeTs).toMatch(/openManualPremium\(\)\s*:\s*void\s*\{\s*this\.ctx\.openManualPremium\(\);\s*\}/);
   });
 });
