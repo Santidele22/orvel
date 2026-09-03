@@ -11,6 +11,7 @@ const FORBIDDEN_VISITOR =
   /\b(walk-in|no-show|buffers?|cta|saas|pwa|whatsapp|cloxy)\b|seña|cobro online|mercado pago|fundadores?/i;
 
 const REAL_SHOTS = [
+  'public-turnero-booking.png',
   'public-turnero-portal.png',
   'public-turnero-form.png',
   'showcase-inicio-web.png',
@@ -94,8 +95,10 @@ describe('Contract: prelaunch Cómo funciona section', () => {
     const source = await howItWorksSource();
     const business = audiencePanelSource(source, 'business');
 
-    expect(source).toContain('/prelaunch/public-turnero-portal.png');
-    expect(source).toContain('/prelaunch/public-turnero-form.png');
+    expect(source).toContain('/prelaunch/public-turnero-booking.png');
+    expect(source.match(/\/prelaunch\/public-turnero-booking\.png/g)?.length).toBe(3);
+    expect(source).not.toContain('/prelaunch/public-turnero-portal.png');
+    expect(source).not.toContain('/prelaunch/public-turnero-form.png');
     expect(source).not.toContain('/prelaunch/showcase-inicio-web.png');
     expect(source).not.toContain('/prelaunch/showcase-inicio-mobile.jpg');
     expect(source).not.toContain('/prelaunch/showcase-agenda-web.png');
