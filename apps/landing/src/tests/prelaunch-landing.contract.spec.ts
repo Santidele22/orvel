@@ -9,12 +9,11 @@ const PRELAUNCH_DIR = new URL('../components/organisms/prelaunch/', import.meta.
 const COMPOSED_PRELAUNCH = [
   'PrelaunchHeader.astro',
   'PrelaunchHero.astro',
+  'PrelaunchRubros.astro',
   'EarlyBird.astro',
-  'PrelaunchProblem.astro',
   'PrelaunchHowItWorks.astro',
   'PrelaunchPublicTurnero.astro',
   'PrelaunchProductShowcase.astro',
-  'PrelaunchRubros.astro',
   'PrelaunchPricing.astro',
   'PrelaunchFaq.astro',
   'PrelaunchCta.astro'
@@ -37,8 +36,11 @@ async function composedPrelaunchSources(): Promise<string> {
 function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHeader/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHero/);
+  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchRubros/);
   expect(page).toMatch(/organisms\/prelaunch\/EarlyBird/);
-  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
+  expect(page).not.toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
+  expect(page).not.toMatch(/<PrelaunchProblem/);
+  expect(page).not.toMatch(/id=["']el-problema["']/);
   expect(page).not.toMatch(/organisms\/prelaunch\/PrelaunchFeatures/);
   expect(page).not.toMatch(/<PrelaunchFeatures/);
   expect(page).not.toMatch(/id=["']producto["']/);
@@ -46,9 +48,14 @@ function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPublicTurnero/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProductShowcase/);
   expect(page).toMatch(
+    /organisms\/prelaunch\/PrelaunchHero[\s\S]*organisms\/prelaunch\/PrelaunchRubros/
+  );
+  expect(page).toMatch(
+    /organisms\/prelaunch\/PrelaunchRubros[\s\S]*organisms\/prelaunch\/EarlyBird/
+  );
+  expect(page).toMatch(
     /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchPublicTurnero[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
   );
-  expect(page).toMatch(/organisms\/prelaunch\/PrelaunchRubros/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPricing/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchFaq/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchCta/);
@@ -120,6 +127,7 @@ describe('Contract: unused waitlist files remain in the repo', () => {
       'PrelaunchNovedades.astro'
     ]));
     expect(files).not.toContain('PrelaunchFeatures.astro');
+    expect(files).not.toContain('PrelaunchProblem.astro');
   });
 });
 

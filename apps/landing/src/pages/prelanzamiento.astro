@@ -6,12 +6,11 @@ import { fetchWaitlistOccupied } from '../lib/waitlist-sheet';
 
 import PrelaunchHeader from '../components/organisms/prelaunch/PrelaunchHeader.astro';
 import PrelaunchHero from '../components/organisms/prelaunch/PrelaunchHero.astro';
+import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
 import EarlyBird from '../components/organisms/prelaunch/EarlyBird.astro';
-import PrelaunchProblem from '../components/organisms/prelaunch/PrelaunchProblem.astro';
 import PrelaunchHowItWorks from '../components/organisms/prelaunch/PrelaunchHowItWorks.astro';
 import PrelaunchPublicTurnero from '../components/organisms/prelaunch/PrelaunchPublicTurnero.astro';
 import PrelaunchProductShowcase from '../components/organisms/prelaunch/PrelaunchProductShowcase.astro';
-import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
 import PrelaunchPricing from '../components/organisms/prelaunch/PrelaunchPricing.astro';
 import PrelaunchFaq from '../components/organisms/prelaunch/PrelaunchFaq.astro';
 import PrelaunchCta from '../components/organisms/prelaunch/PrelaunchCta.astro';
@@ -35,12 +34,11 @@ const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` 
 >
   <PrelaunchHeader />
   <PrelaunchHero />
+  <PrelaunchRubros />
   <EarlyBird occupied={occupied} franja={franja} />
-  <PrelaunchProblem />
   <PrelaunchHowItWorks />
   <PrelaunchPublicTurnero />
   <PrelaunchProductShowcase />
-  <PrelaunchRubros />
   <PrelaunchPricing plansWithBilling={plansWithBilling} />
   <PrelaunchFaq premiumPriceLabel={premiumPriceLabel} />
   <PrelaunchCta />
