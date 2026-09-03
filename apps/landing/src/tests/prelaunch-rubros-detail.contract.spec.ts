@@ -55,6 +55,8 @@ describe('Contract: prelaunch rubros copy and markup', () => {
     const source = await readFile(RUBROS_PATH, 'utf8');
 
     expect(source).toContain('Hecho para quien vive de los turnos');
+    expect(source).toMatch(/landing-section-header[^"]*\btext-left\b|text-left[^"]*landing-section-header/);
+    expect(source).not.toMatch(/text-center landing-section-header|landing-section-header text-center/);
     expect(source).toContain('id="rubros"');
     expect(source).toMatch(/<section[^>]*bg-bg-primary/);
     expect(source).not.toMatch(/<section[^>]*bg-bg-secondary/);
