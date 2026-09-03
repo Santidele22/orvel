@@ -22,7 +22,8 @@ describe('Premium alias + WhatsApp receipt (landing billing)', () => {
     const source = subscriptionSource();
     const markup = source.split('<script>')[0] ?? source;
 
-    expect(markup).not.toMatch(/Mercado Pago/i);
+    expect(markup).toContain('No usamos Mercado Pago ni tarjeta');
+    expect(markup).not.toMatch(/Mercado Pago checkout/i);
     expect(source).not.toMatch(/init_point/);
     expect(source).not.toMatch(/\/api\/subscriptions\/start/);
     expect(source).not.toMatch(/window\.location\.href\s*=\s*result\.init_point/);
@@ -33,6 +34,8 @@ describe('Premium alias + WhatsApp receipt (landing billing)', () => {
 
     expect(source).toContain('PASO FINAL');
     expect(source).toContain('Transferí y mandá el comprobante');
+    expect(source).toContain('No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.');
+    expect(source).toMatch(/md:grid-cols-2/);
     expect(source).toContain('PLAN PREMIUM');
     expect(source).toContain('$25.000/mes');
     expect(source).toContain('Pago pendiente');

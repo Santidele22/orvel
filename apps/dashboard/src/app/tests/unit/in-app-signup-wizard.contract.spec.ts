@@ -117,7 +117,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
 
     wizard.requestPremium();
     expect(wizard.premiumRequested).toBe(true);
-    expect(wizard.step).toBe(5);
+    expect(wizard.step).toBe(6);
     expect(wizard.premiumRequestMetadata()).toEqual(
       expect.objectContaining({
         plan: 'FREE',
@@ -158,6 +158,15 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.chooseFree();
     expect(wizard.canGoBack()).toBe(false);
     expect(wizard.showsStepChrome()).toBe(false);
+
+    const premiumWizard = new InAppSignupWizard();
+    premiumWizard.markAccountCreated();
+    premiumWizard.requestPremium();
+    expect(premiumWizard.step).toBe(6);
+    expect(premiumWizard.canGoBack()).toBe(true);
+    expect(premiumWizard.showsStepChrome()).toBe(true);
+    premiumWizard.back();
+    expect(premiumWizard.step).toBe(4);
   });
 
   it('loads rubros from the dashboard reference catalog instead of a second hardcoded list', () => {
@@ -196,8 +205,32 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('Empezar gratis');
     expect(page).toContain('Pedir Premium y entrar');
     expect(page).toContain('Entrar a la agenda');
+    expect(page).toContain('PASO FINAL');
+    expect(page).toContain('Transferí y mandá el comprobante');
+    expect(page).toContain('No usamos Mercado Pago ni tarjeta');
+    expect(page).toContain('orvel.pagos');
+    expect(page).toContain('Copiar');
+    expect(page).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(page).toContain('Mandá el comprobante por WhatsApp.');
+    expect(page).toContain('Entrá ya en Gratis, sin esperar a nadie.');
+    expect(page).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');
+    expect(page).toContain('Enviar comprobante por WhatsApp');
+    expect(page).toContain('Hasta entonces tu cuenta funciona en plan Gratis.');
+    expect(page).toContain('Pago pendiente');
+    expect(page).toContain('$25.000/mes');
+    expect(page).toContain('Turnos ilimitados');
+    expect(page).toContain('1 local');
+    expect(page).toContain('PLAN PREMIUM');
+    expect(page).toContain('markPremiumReviewPending');
+    expect(page).toContain('copyPremiumAlias');
+    expect(page).toContain('buildPremiumWhatsAppUrl');
     expect(page).not.toContain('Premium pedido · Free activo');
     expect(page).toMatch(/import\('canvas-confetti'\)/);
+    expect(page).toMatch(/chooseFree\(\)[\s\S]*triggerSignupSuccessConfetti/);
+    const premiumHandler = page.match(/protected async requestPremium\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
+    expect(premiumHandler).toContain('markPremiumReviewPending');
+    expect(premiumHandler).toContain('updateUser');
+    expect(premiumHandler).not.toContain('triggerSignupSuccessConfetti');
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(page).not.toMatch(/teléfono|telefono|notch|home indicator|phone-frame/i);
     expect(page).toMatch(/prefers-reduced-motion/);
