@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@angular/compiler';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { provideZonelessChangeDetection, Type, ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -135,7 +135,8 @@ describe('public booking settings synchronization', () => {
             workingHours,
             slotIntervalMinutes: 45,
             bufferMinutes: 10,
-            minNoticeMinutes: 180
+            minNoticeMinutes: 180,
+            maxAdvanceDays: 2
           },
           booking_policy: {
             autoConfirm: false,
@@ -158,7 +159,8 @@ describe('public booking settings synchronization', () => {
       workingHours,
       slotIntervalMinutes: 45,
       bufferMinutes: 10,
-      minNoticeMinutes: 180
+      minNoticeMinutes: 180,
+      maxAdvanceDays: 2
     });
     expect(service.supabaseClient.from).not.toHaveBeenCalled();
   });
@@ -224,6 +226,83 @@ describe('public booking settings synchronization', () => {
       isWorkingDay: true,
       hasAvailability: false
     });
+    expect(days).toHaveLength(14);
+  });
+
+  it('maps missing public maxAdvanceDays to the SQL default of 30', async () => {
+    const { BusinessService } = await loadBusinessServiceModule();
+    const service = Object.create(BusinessService.prototype) as BusinessServicePublicResolver & {
+      supabaseClient: {
+        rpc: ReturnType<typeof vi.fn>;
+        from: ReturnType<typeof vi.fn>;
+      };
+    };
+    service.supabaseClient = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          id: 'business-1',
+          slug: 'studio-roma',
+          name: 'Studio Roma',
+          timezone: 'America/Argentina/Buenos_Aires',
+          settings: {
+            workingHours: createWorkingHours(['monday']),
+            max_advance_days: 7
+          },
+          booking_policy: {}
+        },
+        error: null
+      }),
+      from: vi.fn()
+    };
+
+    const response = await service.resolveBusinessBySlug('studio-roma');
+
+    expect(response.data?.settings.maxAdvanceDays).toBe(7);
+  });
+
+  it('caps the public day strip to the provided dayWindow', async () => {
+    const { buildPublicBookingDays } = await loadPublicBookingPageModule();
+    const workingHours = createWorkingHours(['monday']);
+
+    const days = buildPublicBookingDays(
+      workingHours,
+      new Date('2026-06-29T12:00:00.000Z'),
+      'America/Argentina/Buenos_Aires',
+      3
+    );
+
+    expect(days).toHaveLength(3);
+  });
+
+  it('initAvailableDays uses maxAdvanceDays as the public day window', () => {
+    const pageTs = readFileSync(
+      join(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.ts'),
+      'utf-8'
+    );
+
+    expect(pageTs).toMatch(/maxAdvanceDays\.set\(/);
+    expect(pageTs).toMatch(
+      /buildPublicBookingDays\(\s*this\.workingHours\(\),\s*new Date\(\),\s*this\.businessTimezone\(\),\s*this\.maxAdvanceDays\(\)\s*\+\s*1\s*\)/
+    );
+  });
+
+  it('exposes maxAdvanceDays from the latest resolve_business_by_slug body', () => {
+    const migrationsDir = join(process.cwd(), '..', '..', 'supabase', 'migrations');
+    const latestFile = readdirSync(migrationsDir)
+      .filter((entry) => entry.endsWith('.sql'))
+      .sort()
+      .reverse()
+      .find((entry) =>
+        /create\s+or\s+replace\s+function\s+(?:public\.)?resolve_business_by_slug/i.test(
+          readFileSync(join(migrationsDir, entry), 'utf-8')
+        )
+      );
+
+    expect(latestFile).toBeTruthy();
+    const sql = readFileSync(join(migrationsDir, latestFile!), 'utf-8');
+    expect(sql).toMatch(/max_advance_days/i);
+    expect(sql).toMatch(/'maxAdvanceDays'/);
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.resolve_business_by_slug\(text\) TO anon,\s*authenticated/i);
   });
 
   it('formats booking day strings from the business timezone civil date instead of UTC ISO conversion', async () => {

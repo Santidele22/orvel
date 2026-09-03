@@ -50,12 +50,14 @@ export function getWeekdayKeyFromLocalCivilDate(dateIso: string): WeekdayKey {
 export function buildPublicBookingDays(
   workingHours: Partial<Record<WeekdayKey, WorkingDayHours>> | null | undefined,
   today: Date = new Date(),
-  timeZone: string = DEFAULT_BUSINESS_TIMEZONE
+  timeZone: string = DEFAULT_BUSINESS_TIMEZONE,
+  dayWindow?: number
 ): DayAvailability[] {
   const days: DayAvailability[] = [];
   const [todayYear, todayMonth, todayDay] = toLocalCivilDate(today, timeZone).split('-').map(Number);
+  const windowSize = Math.max(1, Math.floor(dayWindow ?? PUBLIC_BOOKING_DAY_WINDOW));
 
-  for (let i = 0; i < PUBLIC_BOOKING_DAY_WINDOW; i++) {
+  for (let i = 0; i < windowSize; i++) {
     const d = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + i, UTC_NOON_HOUR));
     const year = d.getUTCFullYear();
     const month = String(d.getUTCMonth() + 1).padStart(2, '0');
