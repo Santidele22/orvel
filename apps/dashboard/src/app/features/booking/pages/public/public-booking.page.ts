@@ -282,6 +282,7 @@ export class PublicBookingPage implements OnInit {
         if (this.canShowScheduleStep()) {
           await this.loadAvailability();
         }
+        this.expandedStep.set(this.canShowProfessionalStep() ? 'professional' : 'schedule');
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
       }

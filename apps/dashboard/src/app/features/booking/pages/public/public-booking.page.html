@@ -137,8 +137,7 @@
                   </button>
                 }
               }
-              @if (isStepOpen('service') || !selectedService()) {
-              <div class="relative group">
+              <div class="relative group" [class.hidden]="!!selectedService() && !isStepOpen('service')">
                 <select
                   [(ngModel)]="selectedServiceId"
                   (change)="onServiceChange()"
@@ -157,7 +156,6 @@
                   <i class="ri-arrow-down-s-line text-xl"></i>
                 </div>
               </div>
-              }
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
