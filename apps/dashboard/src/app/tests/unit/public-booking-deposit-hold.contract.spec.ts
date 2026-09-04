@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEPOSIT_HOLD_RELEASE_COPY,
   formatBusinessDepositRequiredBanner,
+  formatDepositMoney,
   formatServiceDepositPreview,
   readPublicDepositHold
 } from '../../features/booking/pages/public/public-booking-deposit-hold';
@@ -104,20 +105,28 @@ describe('public booking deposit hold success copy', () => {
   });
 
   it('warns about seña on the service summary and near Confirmar reserva before submit', () => {
-    expect(formatServiceDepositPreview(10000, 50)).toBe('Seña 50% · $5000');
+    expect(formatServiceDepositPreview(10000, 50)).toBe(`Seña 50% · ${formatDepositMoney(5000)}`);
     expect(formatServiceDepositPreview(10000, 0)).toBeNull();
-    expect(formatServiceDepositPreview(8000, 25)).toBe('Seña 25% · $2000');
-    expect(formatServiceDepositPreview(8000, 100)).toBe('Seña 100% · $8000');
+    expect(formatServiceDepositPreview(8000, 25)).toBe(`Seña 25% · ${formatDepositMoney(2000)}`);
+    expect(formatServiceDepositPreview(8000, 100)).toBe(`Seña 100% · ${formatDepositMoney(8000)}`);
 
     expect(pageSource).toMatch(/formatServiceDepositPreview\(/);
+    expect(pageSource).toMatch(/buildServiceDepositQuote\(/);
     expect(pageSource).not.toMatch(/service\.depositPercent/);
     expect(pageTemplate).toMatch(/serviceDepositPreview\(/);
+    expect(pageTemplate).toMatch(/serviceDepositQuote\(/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-preview["']/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-notice["']/);
+    expect(pageTemplate).toContain('Este servicio requiere seña');
+    expect(pageTemplate).toContain('Seña a pagar ahora');
+    expect(pageTemplate).toContain('Resto, a pagar en el local');
+    expect(pageTemplate).toContain('Pagar seña y confirmar');
     expect(pageTemplate).toContain('Confirmar Reserva');
+    expect(pageTemplate).not.toMatch(/Mercado Pago/);
+    expect(pageTemplate).not.toMatch(/reintegran/);
     expect(pageTemplate).toContain(DEPOSIT_HOLD_RELEASE_COPY);
 
-    const submitIndex = pageTemplate.indexOf('Confirmar Reserva');
+    const submitIndex = pageTemplate.indexOf('Pagar seña y confirmar');
     expect(submitIndex).toBeGreaterThan(0);
     const beforeSubmit = pageTemplate.slice(Math.max(0, submitIndex - 2500), submitIndex);
     expect(beforeSubmit).toMatch(/booking-deposit-required-notice/);
