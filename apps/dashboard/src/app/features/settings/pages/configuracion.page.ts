@@ -123,6 +123,7 @@ export class ConfiguracionPage {
     autoConfirm: [true],
     maxAdvanceDays: [90, [Validators.min(1)]],
     depositEnabled: [false],
+    depositPercent: [0],
     depositAlias: [''],
     depositCbu: [''],
 
@@ -621,6 +622,11 @@ export class ConfiguracionPage {
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
         depositEnabled: values.depositEnabled,
+        depositPercent: values.depositEnabled && [25, 50, 100].includes(Number(values.depositPercent))
+          ? Number(values.depositPercent)
+          : values.depositEnabled
+            ? 50
+            : 0,
         depositAlias: values.depositAlias.trim(),
         depositCbu: values.depositCbu.trim(),
         capacity: values.capacity,

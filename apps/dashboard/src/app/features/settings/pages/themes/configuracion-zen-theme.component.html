@@ -325,14 +325,33 @@
           </div>
 
           @if (settingsForm.get('depositEnabled')?.value) {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+          <div class="space-y-zen-md">
             <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
-              <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
+              <label [class]="ui.labelMicro + ' text-secondary'">Porcentaje de seña</label>
+              <div class="flex flex-wrap gap-zen-md">
+                <label class="inline-flex items-center gap-2 text-sm font-medium text-primary">
+                  <input type="radio" formControlName="depositPercent" [value]="25" class="accent-primary" />
+                  25%
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm font-medium text-primary">
+                  <input type="radio" formControlName="depositPercent" [value]="50" class="accent-primary" />
+                  50%
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm font-medium text-primary">
+                  <input type="radio" formControlName="depositPercent" [value]="100" class="accent-primary" />
+                  100%
+                </label>
+              </div>
             </div>
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">CBU / CVU</label>
-              <input type="text" formControlName="depositCbu" [class]="ui.input" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+              <div class="space-y-zen-sm">
+                <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
+                <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
+              </div>
+              <div class="space-y-zen-sm">
+                <label [class]="ui.labelMicro + ' text-secondary'">CBU / CVU</label>
+                <input type="text" formControlName="depositCbu" [class]="ui.input" />
+              </div>
             </div>
           </div>
           }

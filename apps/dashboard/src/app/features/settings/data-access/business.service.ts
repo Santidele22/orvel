@@ -384,6 +384,7 @@ export class BusinessService {
         capacity: settings.capacity,
         allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false,
         deposit_enabled: settings.depositEnabled ?? false,
+        deposit_percent: settings.depositPercent ?? 0,
         deposit_alias: settings.depositAlias ?? '',
         deposit_cbu: settings.depositCbu ?? ''
       });
@@ -529,6 +530,7 @@ export class BusinessService {
       capacity: formDefaults.capacity,
       allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false,
       depositEnabled: settings?.deposit_enabled ?? false,
+      depositPercent: Number(settings?.deposit_percent ?? 0),
       depositAmountPesos: settings?.deposit_amount_pesos == null ? null : Number(settings.deposit_amount_pesos),
       depositAlias: settings?.deposit_alias ?? '',
       depositCbu: settings?.deposit_cbu ?? '',
@@ -649,7 +651,9 @@ export class BusinessService {
         workingHours: resolveWorkingHours(
           settings?.workingHours ?? settings?.working_hours,
           this.getDefaultWorkingHours()
-        )
+        ),
+        depositEnabled: settings?.depositEnabled ?? settings?.deposit_enabled ?? false,
+        depositPercent: Number(settings?.depositPercent ?? settings?.deposit_percent ?? 0)
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,
