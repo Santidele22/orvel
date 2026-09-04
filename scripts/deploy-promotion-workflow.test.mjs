@@ -25,6 +25,17 @@ test('deploy-promotion job environment has a name so GitHub can parse the workfl
   );
 });
 
+test('deploy-promotion builds the dashboard with an Angular configuration that exists', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.match(source, /echo "angular_config=production"/);
+  assert.doesNotMatch(
+    source,
+    /angular_config=qa/,
+    'apps/dashboard has no Angular configuration named qa (only production and development).',
+  );
+});
+
 test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
