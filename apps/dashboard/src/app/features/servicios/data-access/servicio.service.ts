@@ -624,6 +624,7 @@ export class ServicioService {
       category: dto.categoria.trim(),
       duration_minutes: dto.duracionMinutos,
       price: dto.precio,
+      deposit_percent: dto.depositPercent ?? 0,
       is_active: dto.activo
     };
 
@@ -662,6 +663,7 @@ export class ServicioService {
     }
     if (dto.duracionMinutos !== undefined) payload['duration_minutes'] = dto.duracionMinutos;
     if (dto.precio !== undefined) payload['price'] = dto.precio;
+    if (dto.depositPercent !== undefined) payload['deposit_percent'] = dto.depositPercent;
     if (dto.activo !== undefined) payload['is_active'] = dto.activo;
 
     const { error } = await supabaseClient
@@ -710,6 +712,7 @@ export class ServicioService {
       categoria: String(row['category'] ?? 'Otro'),
       duracionMinutos: Number(row['duration_minutes'] ?? 30),
       precio: Number(row['price'] ?? 0),
+      depositPercent: Number(row['deposit_percent'] ?? 0),
       activo: Boolean(row['is_active'] ?? true),
       createdAt: new Date(createdAtRaw),
       updatedAt: new Date(updatedAtRaw)
@@ -721,6 +724,7 @@ export class ServicioService {
 
     const nuevo: Servicio = {
       ...dto,
+      depositPercent: dto.depositPercent ?? 0,
       id: this.buildSupabaseFallbackId(),
       createdAt: new Date(),
       updatedAt: new Date()
@@ -768,6 +772,7 @@ export class ServicioService {
         categoria: String(item['categoria']),
         duracionMinutos: Number(item['duracionMinutos']),
         precio: Number(item['precio']),
+        depositPercent: Number(item['depositPercent'] ?? 0),
         activo: Boolean(item['activo']),
         createdAt: new Date(String(item['createdAt'])),
         updatedAt: new Date(String(item['updatedAt']))
@@ -1040,6 +1045,7 @@ export class ServicioService {
         categoria,
         duracionMinutos: this.estimateCatalogDuration(nombre),
         precio: 0,
+        depositPercent: 0,
         activo: true,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01')

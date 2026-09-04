@@ -350,7 +350,6 @@ export class BusinessSettingsFacade {
           week_start_day: persistedLocal.weekStartDay,
           time_format: persistedLocal.timeFormat,
           deposit_enabled: persistedLocal.depositEnabled,
-          deposit_amount_pesos: persistedLocal.depositAmountPesos,
           deposit_alias: persistedLocal.depositAlias,
           deposit_cbu: persistedLocal.depositCbu,
 

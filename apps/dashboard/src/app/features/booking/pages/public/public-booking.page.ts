@@ -15,6 +15,7 @@ import { logMutationFailure } from '../../../../core/observability/mutation-erro
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import {
   formatDepositHoldExpiry,
+  formatServiceDepositPreview,
   readPublicDepositHold,
   type PublicDepositHoldView
 } from './public-booking-deposit-hold';
@@ -48,7 +49,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
   
-  protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
+  protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number; depositPercent: number }>>([]);
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
@@ -103,6 +104,14 @@ export class PublicBookingPage implements OnInit {
 
   protected async retryPortalLoad(): Promise<void> {
     await this.loadPortal();
+  }
+
+  protected serviceDepositPreview(): string | null {
+    const service = this.selectedService();
+    if (!service) {
+      return null;
+    }
+    return formatServiceDepositPreview(service.price, service.depositPercent);
   }
 
   protected depositHoldExpiryLabel(): string {
@@ -223,7 +232,8 @@ export class PublicBookingPage implements OnInit {
             id: s.id,
             name: s.nombre || s.name || 'Servicio sin nombre',
             price: s.precio || s.price || 0,
-            duration: s.duration_minutes || s.duration || 30
+            duration: s.duration_minutes || s.duration || 30,
+            depositPercent: Number(s.depositPercent ?? s.deposit_percent ?? 0)
           }));
 
         if (mapped.length === 0) {

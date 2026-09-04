@@ -325,11 +325,7 @@
           </div>
 
           @if (settingsForm.get('depositEnabled')?.value) {
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Monto de seña (pesos)</label>
-              <input type="number" formControlName="depositAmountPesos" [class]="ui.input" min="0" step="1" />
-            </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
             <div class="space-y-zen-sm">
               <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
               <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
