@@ -1,5 +1,19 @@
 export const DEPOSIT_HOLD_RELEASE_COPY = 'Si no se confirma la seña, el horario se libera.';
 
+export function computeServiceDepositHoldAmount(price: number, percent: number): number {
+  if (!percent) {
+    return 0;
+  }
+  return Math.round((Number(price) * Number(percent)) / 100);
+}
+
+export function formatServiceDepositPreview(price: number, percent: number): string | null {
+  if (!percent) {
+    return null;
+  }
+  return `Seña ${percent}% · $${computeServiceDepositHoldAmount(price, percent)}`;
+}
+
 export type PublicDepositHoldView = {
   code: string;
   amountPesos: number;

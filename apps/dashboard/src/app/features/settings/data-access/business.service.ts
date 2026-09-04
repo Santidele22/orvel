@@ -384,7 +384,6 @@ export class BusinessService {
         capacity: settings.capacity,
         allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false,
         deposit_enabled: settings.depositEnabled ?? false,
-        deposit_amount_pesos: settings.depositAmountPesos ?? null,
         deposit_alias: settings.depositAlias ?? '',
         deposit_cbu: settings.depositCbu ?? ''
       });
