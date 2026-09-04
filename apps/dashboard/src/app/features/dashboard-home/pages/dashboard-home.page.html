@@ -253,6 +253,15 @@
                 }">
                 {{ turno.badgeLabel }}
               </span>
+              @if (turno.depositPending) {
+                <button
+                  type="button"
+                  class="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-200 hover:bg-amber-400/20"
+                  [disabled]="confirmingDepositId() === turno.id"
+                  (click)="confirmDepositReceived(turno.id, $event)">
+                  Seña recibida
+                </button>
+              }
               <button class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center text-text-tertiary hover:text-white hover:bg-white/5 transition-all">
                 <i class="ri-arrow-right-s-line text-xl"></i>
               </button>
@@ -457,6 +466,15 @@
             {{ relativeTimeBadge(next) }}
           </span>
         </article>
+        @if (next.depositPending) {
+          <button
+            type="button"
+            class="mb-5 w-full rounded-[16px] border border-[rgba(251,191,36,0.28)] bg-[rgba(251,191,36,0.12)] px-4 py-3 text-sm font-bold text-[#FBBF24]"
+            [disabled]="confirmingDepositId() === next.id"
+            (click)="confirmDepositReceived(next.id, $event)">
+            Seña recibida
+          </button>
+        }
       } @else {
         <div class="mb-5 rounded-[16px] border border-dashed border-[rgba(255,255,255,0.045)] bg-[#141A2C] px-4 py-6 text-center">
           <p class="text-sm font-medium text-[#9096AE]">No hay turnos próximos</p>

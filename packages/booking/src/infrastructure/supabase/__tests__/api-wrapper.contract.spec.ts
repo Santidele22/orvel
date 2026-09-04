@@ -13,7 +13,8 @@ import {
   rescheduleBookingByToken,
   setSupabaseBookingGateway,
   updateAdminBooking,
-  updateBookingStatus
+  updateBookingStatus,
+  confirmBookingDepositReceived
 } from '../api-wrapper';
 
 function createMockGateway(): SupabaseBookingGateway {
@@ -87,6 +88,10 @@ function createMockGateway(): SupabaseBookingGateway {
     updateBookingStatus: vi.fn(async () => ({
       status: 200,
       data: { bookingId: 'booking-admin', status: 'completed' }
+    })),
+    confirmBookingDepositReceived: vi.fn(async () => ({
+      status: 200,
+      data: { bookingId: 'booking-admin', depositStatus: 'paid' }
     }))
   };
 }
@@ -223,6 +228,9 @@ describe('supabase-booking api-wrapper contract', () => {
     await expect(updateBookingStatus({ bookingId: 'booking-admin', status: 'completed', performedBy: 'admin-1' })).resolves.toMatchObject({
       status: 200
     });
+    await expect(confirmBookingDepositReceived({ bookingId: 'booking-admin', performedBy: 'admin-1' })).resolves.toMatchObject({
+      status: 200
+    });
 
     expect(gateway.createAdminManualBooking).toHaveBeenCalledWith({
       businessId: 'biz-1',
@@ -249,6 +257,7 @@ describe('supabase-booking api-wrapper contract', () => {
       startsAtIso: '2026-06-01T12:00:00.000Z'
     });
     expect(gateway.updateBookingStatus).toHaveBeenCalledWith({ bookingId: 'booking-admin', status: 'completed', performedBy: 'admin-1' });
+    expect(gateway.confirmBookingDepositReceived).toHaveBeenCalledWith({ bookingId: 'booking-admin', performedBy: 'admin-1' });
   });
 
   it('returns exact admin endpoint success shapes from the injected gateway', async () => {

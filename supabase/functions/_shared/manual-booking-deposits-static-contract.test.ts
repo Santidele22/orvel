@@ -738,3 +738,26 @@ Deno.test("percent seña: resolve_business_by_slug exposes business deposit_enab
     "public resolve settings must include depositPercent",
   );
 });
+
+Deno.test("pending seña skips appointment_confirmation until operator confirm", async () => {
+  const sql = await readAllSqlMigrations();
+  const createBody = latestCreatePublicBookingBody(sql);
+  const confirmBody = latestFunctionBodyMatching(
+    sql,
+    "confirm_booking_deposit_received",
+    (candidate) => /appointment_confirmation/i.test(candidate),
+  );
+
+  assert(
+    /v_deposit_status\s+IS\s+DISTINCT\s+FROM\s+'pending'/i.test(createBody),
+    "create_public_booking must not enqueue appointment_confirmation while seña is pending",
+  );
+  assert(
+    /appointment_confirmation/i.test(confirmBody),
+    "confirm_booking_deposit_received must enqueue appointment_confirmation after seña is paid",
+  );
+  assert(
+    /deposit_status\s+IN\s*\(\s*'pending'\s*,\s*'claim_pending'\s*\)/i.test(confirmBody),
+    "operator confirm must accept pending and claim_pending holds",
+  );
+});
