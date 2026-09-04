@@ -20,7 +20,8 @@ import type {
   AdminUpdateBookingPayload,
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
-  AdminStatusUpdatePayload
+  AdminStatusUpdatePayload,
+  ConfirmBookingDepositPayload
 } from '../../types';
 
 type BookingNotificationRow = {
@@ -761,6 +762,38 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         data: {
           bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
           status: (data as { status?: string })?.status ?? payload.status
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async confirmBookingDepositReceived(
+    payload: ConfirmBookingDepositPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('confirm_booking_deposit_received', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
         }
       };
     } catch (err) {
