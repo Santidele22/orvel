@@ -2,12 +2,25 @@ export const TIMEZONE = 'America/Argentina/Buenos_Aires';
 export const TURNO_NOT_FOUND_MESSAGE = 'TURNO_NOT_FOUND: Turno no encontrado';
 export const ADMIN_INVALID_TRANSITION_CODE = ['TURNO', 'INVALID', 'STATUS', 'TRANSITION'].join('_');
 export type BookingEstado = 'pendiente' | 'confirmado' | 'en-proceso' | 'completado' | 'cancelado' | 'no-asistio';
+export type BookingDepositStatus = 'none' | 'pending' | 'paid' | 'claim_pending' | 'released' | 'abandoned' | 'void';
 export type BookingRecord = {
   id: string; branchId?: string; clienteId?: string; servicioId?: string;
   fecha: Date; hora: string; duracionMinutos: number; estado: BookingEstado;
+  depositStatus?: BookingDepositStatus;
   notas?: string; precio?: number; professionalId?: string; professionalNombre?: string;
   createdAt: Date; updatedAt: Date;
 };
+
+export function isDepositUnpaid(status?: string | null): boolean {
+  return status === 'pending' || status === 'claim_pending';
+}
+
+export function appointmentStatusLabel(estado: BookingEstado, depositStatus?: string | null): string {
+  if (isDepositUnpaid(depositStatus) && (estado === 'confirmado' || estado === 'pendiente')) {
+    return 'Pendiente de seña';
+  }
+  return estado;
+}
 export const TO_DB_STATUS: Record<BookingEstado, string> = {
   pendiente: 'pending', confirmado: 'booked', 'en-proceso': 'in_progress', completado: 'completed',
   cancelado: 'cancelled', 'no-asistio': 'no_show'
@@ -49,6 +62,7 @@ export function mapBookingRow(booking: Record<string, unknown>, branchId: string
     fecha: toArgentinaDate(startsAt), hora: toArgentinaTime(startsAt),
     duracionMinutos: Math.round((endsAt.getTime() - startsAt.getTime()) / 60000),
     estado: FROM_DB_STATUS[String(booking['status'])] || 'confirmado',
+    depositStatus: (String(booking['deposit_status'] ?? booking['depositStatus'] ?? 'none') || 'none') as BookingRecord['depositStatus'],
     notas: booking['notes'] as string | undefined, precio: 0,
     professionalId: booking['professional_id'] ? String(booking['professional_id']) : undefined,
     professionalNombre: booking['professional_name'] ? String(booking['professional_name']) : undefined,

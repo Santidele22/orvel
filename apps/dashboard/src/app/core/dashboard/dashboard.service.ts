@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
+import { appointmentStatusLabel, isDepositUnpaid, type BookingQueries, type BookingRecord } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
@@ -212,7 +212,9 @@ export class DashboardService {
         ...t,
         clienteNombre: clientsMap.get(t.clienteId ?? '') || 'Cliente',
         servicioNombre: servicesMap.get(t.servicioId ?? '') || 'Servicio',
-        dateLabel
+        dateLabel,
+        badgeLabel: appointmentStatusLabel(t.estado, t.depositStatus),
+        depositPending: isDepositUnpaid(t.depositStatus)
       };
     });
   });
