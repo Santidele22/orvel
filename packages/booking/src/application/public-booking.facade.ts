@@ -17,6 +17,12 @@ export type BookingResponse = {
   manageToken?: string;
   professionalId?: string;
   professionalName?: string;
+  depositCode?: string;
+  depositAmount?: number;
+  depositAlias?: string;
+  depositCbu?: string;
+  depositHoldExpiresAt?: string;
+  depositHoldMessage?: string;
 };
 
 export class PublicBookingService {

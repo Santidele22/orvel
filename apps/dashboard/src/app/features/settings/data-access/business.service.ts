@@ -382,7 +382,11 @@ export class BusinessService {
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
         capacity: settings.capacity,
-        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false
+        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false,
+        deposit_enabled: settings.depositEnabled ?? false,
+        deposit_amount_pesos: settings.depositAmountPesos ?? null,
+        deposit_alias: settings.depositAlias ?? '',
+        deposit_cbu: settings.depositCbu ?? ''
       });
 
     if (error) {
@@ -525,6 +529,10 @@ export class BusinessService {
       cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
       capacity: formDefaults.capacity,
       allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false,
+      depositEnabled: settings?.deposit_enabled ?? false,
+      depositAmountPesos: settings?.deposit_amount_pesos == null ? null : Number(settings.deposit_amount_pesos),
+      depositAlias: settings?.deposit_alias ?? '',
+      depositCbu: settings?.deposit_cbu ?? '',
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',
