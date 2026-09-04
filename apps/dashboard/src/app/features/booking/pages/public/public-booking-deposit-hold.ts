@@ -11,7 +11,39 @@ export function formatServiceDepositPreview(price: number, percent: number): str
   if (!percent) {
     return null;
   }
-  return `Seña ${percent}% · $${computeServiceDepositHoldAmount(price, percent)}`;
+  return `Seña ${percent}% · ${formatDepositMoney(computeServiceDepositHoldAmount(price, percent))}`;
+}
+
+export function formatDepositMoney(amount: number): string {
+  return `$${Math.round(Number(amount) || 0).toLocaleString('es-AR')}`;
+}
+
+export type ServiceDepositQuote = {
+  serviceName: string;
+  servicePrice: number;
+  percent: number;
+  holdAmount: number;
+  remainderAmount: number;
+};
+
+export function buildServiceDepositQuote(
+  serviceName: string,
+  price: number,
+  percent: number
+): ServiceDepositQuote | null {
+  if (![25, 50, 100].includes(Number(percent))) {
+    return null;
+  }
+
+  const servicePrice = Math.round(Number(price) || 0);
+  const holdAmount = computeServiceDepositHoldAmount(servicePrice, percent);
+  return {
+    serviceName,
+    servicePrice,
+    percent: Number(percent),
+    holdAmount,
+    remainderAmount: Math.max(0, servicePrice - holdAmount)
+  };
 }
 
 export function formatBusinessDepositRequiredBanner(percent: number): string | null {
