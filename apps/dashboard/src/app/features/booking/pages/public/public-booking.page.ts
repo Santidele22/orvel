@@ -13,6 +13,11 @@ import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublic
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
+import {
+  formatDepositHoldExpiry,
+  readPublicDepositHold,
+  type PublicDepositHoldView
+} from './public-booking-deposit-hold';
 
 type ReschedulePreload = {
   mode: 'reschedule';
@@ -38,6 +43,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly businessName = signal('');
   protected readonly bookingConfirmed = signal(false);
   protected readonly bookingAwaitingApproval = signal(false);
+  protected readonly depositHold = signal<PublicDepositHoldView | null>(null);
   protected readonly errorMessage = signal('');
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
@@ -99,6 +105,20 @@ export class PublicBookingPage implements OnInit {
     await this.loadPortal();
   }
 
+  protected depositHoldExpiryLabel(): string {
+    const iso = this.depositHold()?.expiresAtIso;
+    if (!iso) {
+      return '';
+    }
+    return formatDepositHoldExpiry(iso);
+  }
+
+  protected dismissBookingSuccess(): void {
+    this.bookingConfirmed.set(false);
+    this.bookingAwaitingApproval.set(false);
+    this.depositHold.set(null);
+  }
+
   private async loadPortal(): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
@@ -106,6 +126,7 @@ export class PublicBookingPage implements OnInit {
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
     this.bookingAwaitingApproval.set(false);
+    this.depositHold.set(null);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
@@ -493,6 +514,7 @@ export class PublicBookingPage implements OnInit {
       if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
         this.bookingAwaitingApproval.set(response.data.status === 'pending');
+        this.depositHold.set(readPublicDepositHold(response.data));
         this.confirmedProfessionalName.set(
           response.data.professionalName
           || this.publicProfessionals().find((professional) => professional.id === selectedProfessionalId)?.name

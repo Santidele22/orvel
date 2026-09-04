@@ -58,6 +58,12 @@ export type BusinessSettingsState = {
   weekStartDay: 'monday' | 'sunday';
   timeFormat: '12h' | '24h';
 
+  // Deposit / seña
+  depositEnabled: boolean;
+  depositAmountPesos: number | null;
+  depositAlias: string;
+  depositCbu: string;
+
   // User Profile (Personal)
   firstName?: string;
   lastName?: string;
@@ -97,6 +103,12 @@ type BusinessSettingsSupabaseRow = {
   // Regional
   week_start_day?: 'monday' | 'sunday';
   time_format?: '12h' | '24h';
+
+  // Deposit / seña
+  deposit_enabled?: boolean;
+  deposit_amount_pesos?: number | null;
+  deposit_alias?: string;
+  deposit_cbu?: string;
 
   // Row mapping for Profile (from join or separate query)
   first_name?: string;
@@ -337,6 +349,10 @@ export class BusinessSettingsFacade {
           cleanup_time_minutes: persistedLocal.cleanupTimeMinutes,
           week_start_day: persistedLocal.weekStartDay,
           time_format: persistedLocal.timeFormat,
+          deposit_enabled: persistedLocal.depositEnabled,
+          deposit_amount_pesos: persistedLocal.depositAmountPesos,
+          deposit_alias: persistedLocal.depositAlias,
+          deposit_cbu: persistedLocal.depositCbu,
 
           updated_at: persistedLocal.updatedAt
         };
@@ -589,6 +605,10 @@ export class BusinessSettingsFacade {
       capacity: (row.capacity !== undefined && Number.isFinite(row.capacity) && row.capacity >= 1) ? Number(row.capacity) : 1,
       weekStartDay: row.week_start_day ?? 'monday',
       timeFormat: row.time_format ?? '12h',
+      depositEnabled: row.deposit_enabled ?? false,
+      depositAmountPesos: row.deposit_amount_pesos == null ? null : Number(row.deposit_amount_pesos),
+      depositAlias: row.deposit_alias ?? '',
+      depositCbu: row.deposit_cbu ?? '',
 
       // Profile Fields
       firstName: row.first_name ?? '',
@@ -636,6 +656,10 @@ export class BusinessSettingsFacade {
       capacity: 1,
       weekStartDay: 'monday',
       timeFormat: '12h',
+      depositEnabled: false,
+      depositAmountPesos: null,
+      depositAlias: '',
+      depositCbu: '',
 
       // Profile Fallbacks
       firstName: '',
