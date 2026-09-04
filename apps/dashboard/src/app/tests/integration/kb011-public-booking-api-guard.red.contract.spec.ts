@@ -235,6 +235,10 @@ function createPublicBookingGatewayDouble() {
 
     async updateBookingStatus() {
       return { status: 501 };
+    },
+
+    async confirmBookingDepositReceived() {
+      return { status: 501 };
     }
   };
 }

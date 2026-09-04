@@ -172,3 +172,8 @@ export type AdminStatusUpdatePayload = {
   status: string;
   performedBy: string;
 };
+
+export type ConfirmBookingDepositPayload = {
+  bookingId: string;
+  performedBy?: string;
+};
