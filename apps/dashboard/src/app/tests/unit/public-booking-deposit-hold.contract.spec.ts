@@ -110,12 +110,11 @@ describe('public booking deposit hold success copy', () => {
     expect(formatServiceDepositPreview(8000, 25)).toBe(`Seña 25% · ${formatDepositMoney(2000)}`);
     expect(formatServiceDepositPreview(8000, 100)).toBe(`Seña 100% · ${formatDepositMoney(8000)}`);
 
-    expect(pageSource).toMatch(/formatServiceDepositPreview\(/);
     expect(pageSource).toMatch(/buildServiceDepositQuote\(/);
     expect(pageSource).not.toMatch(/service\.depositPercent/);
-    expect(pageTemplate).toMatch(/serviceDepositPreview\(/);
     expect(pageTemplate).toMatch(/serviceDepositQuote\(/);
-    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-preview["']/);
+    expect(pageTemplate).not.toMatch(/data-testid=["']booking-deposit-preview["']/);
+    expect(pageTemplate).not.toMatch(/data-testid=["']booking-deposit-required-banner["']/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-notice["']/);
     expect(pageTemplate).toContain('Este servicio requiere seña');
     expect(pageTemplate).toContain('Seña a pagar ahora');
@@ -147,8 +146,9 @@ describe('public booking deposit hold success copy', () => {
     expect(pageSource).toMatch(/depositPercent/);
     expect(pageSource).toMatch(/settings\.depositPercent/);
     expect(pageSource).not.toMatch(/service\.depositPercent/);
-    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-banner["']/);
-    expect(pageTemplate).toMatch(/businessDepositBanner\(/);
+    expect(pageTemplate).not.toMatch(/data-testid=["']booking-deposit-required-banner["']/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-service-collapsed["']/);
+    expect(pageTemplate).toMatch(/bg-emerald-500\/15/);
 
     const typesSource = readUtf8('../../packages/types/src/business.model.ts');
     expect(typesSource).toMatch(/depositEnabled/);
