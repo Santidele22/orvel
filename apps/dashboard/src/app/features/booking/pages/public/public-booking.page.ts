@@ -14,6 +14,7 @@ import { emitPublicBookingFailureEvent } from '../../../../core/observability/pu
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import {
+  formatBusinessDepositRequiredBanner,
   formatDepositHoldExpiry,
   formatServiceDepositPreview,
   readPublicDepositHold,
@@ -49,7 +50,9 @@ export class PublicBookingPage implements OnInit {
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
   
-  protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number; depositPercent: number }>>([]);
+  protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
+  protected readonly depositEnabled = signal(false);
+  protected readonly depositPercent = signal(0);
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
@@ -108,10 +111,17 @@ export class PublicBookingPage implements OnInit {
 
   protected serviceDepositPreview(): string | null {
     const service = this.selectedService();
-    if (!service) {
+    if (!service || !this.depositEnabled()) {
       return null;
     }
-    return formatServiceDepositPreview(service.price, service.depositPercent);
+    return formatServiceDepositPreview(service.price, this.depositPercent());
+  }
+
+  protected businessDepositBanner(): string | null {
+    if (!this.depositEnabled()) {
+      return null;
+    }
+    return formatBusinessDepositRequiredBanner(this.depositPercent());
   }
 
   protected depositHoldExpiryLabel(): string {
@@ -146,6 +156,8 @@ export class PublicBookingPage implements OnInit {
     this.businessName.set('');
     this.workingHours.set(null);
     this.maxAdvanceDays.set(30);
+    this.depositEnabled.set(false);
+    this.depositPercent.set(0);
     this.selectedSlot = '';
     this.allowClientProfessionalSelection.set(false);
     this.publicProfessionals.set([]);
@@ -169,6 +181,8 @@ export class PublicBookingPage implements OnInit {
       
       this.workingHours.set(response.data.settings.workingHours);
       this.maxAdvanceDays.set(response.data.settings.maxAdvanceDays ?? 30);
+      this.depositEnabled.set(response.data.settings.depositEnabled === true);
+      this.depositPercent.set(Number(response.data.settings.depositPercent ?? 0));
       this.allowClientProfessionalSelection.set(
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
@@ -232,8 +246,7 @@ export class PublicBookingPage implements OnInit {
             id: s.id,
             name: s.nombre || s.name || 'Servicio sin nombre',
             price: s.precio || s.price || 0,
-            duration: s.duration_minutes || s.duration || 30,
-            depositPercent: Number(s.depositPercent ?? s.deposit_percent ?? 0)
+            duration: s.duration_minutes || s.duration || 30
           }));
 
         if (mapped.length === 0) {

@@ -9,9 +9,6 @@ export const createServicioSchema = z.object({
   categoria: z.string().trim().min(1, 'La categoría es obligatoria.'),
   duracionMinutos: z.coerce.number().min(5, 'Duración mínima: 5 min.').max(480, 'Duración máxima: 480 min.'),
   precio: z.coerce.number().min(0, 'El precio no puede ser negativo.'),
-  depositPercent: z.coerce.number().refine((value) => [0, 25, 50, 100].includes(value), {
-    message: 'La seña debe ser 0, 25, 50 o 100.'
-  }).optional().default(0),
   activo: z.boolean().optional().default(true)
 });
 

@@ -625,21 +625,22 @@ function holdAmountFromPercent(price: number, percent: number): number {
   return Math.round((price * percent) / 100);
 }
 
-Deno.test("percent seña: public.services.deposit_percent is 0/25/50/100 default 0", async () => {
+Deno.test("percent seña: business_settings.deposit_percent is 0/25/50/100 default 0", async () => {
   const sql = await readAllSqlMigrations();
 
   assert(
-    /ALTER\s+TABLE\s+public\.services[\s\S]*deposit_percent\s+smallint\s+NOT\s+NULL\s+DEFAULT\s+0/i
+    /ALTER\s+TABLE\s+public\.business_settings\s+ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?\s+deposit_percent\s+smallint\s+NOT\s+NULL\s+DEFAULT\s+0/i
       .test(sql),
-    "public.services.deposit_percent must be smallint NOT NULL DEFAULT 0",
+    "business_settings.deposit_percent must be smallint NOT NULL DEFAULT 0",
   );
   assert(
-    /deposit_percent[\s\S]{0,240}in\s*\(\s*0\s*,\s*25\s*,\s*50\s*,\s*100\s*\)/i.test(sql),
-    "deposit_percent CHECK must allow only 0, 25, 50, 100",
+    /business_settings_deposit_percent_check[\s\S]{0,120}deposit_percent\s+in\s*\(\s*0\s*,\s*25\s*,\s*50\s*,\s*100\s*\)/i
+      .test(sql),
+    "business_settings.deposit_percent CHECK must allow only 0, 25, 50, 100",
   );
 });
 
-Deno.test("percent seña: hold amount uses service percent; 50% of 10000 is 5000; 0 percent is deposits-off", async () => {
+Deno.test("percent seña: hold amount uses business percent × service price; not services.deposit_percent", async () => {
   const sql = await readAllSqlMigrations();
   const body = latestCreatePublicBookingBody(sql);
   const helper = latestFunctionBodyMatching(
@@ -647,11 +648,16 @@ Deno.test("percent seña: hold amount uses service percent; 50% of 10000 is 5000
     "_booking_deposit_hold_amount",
     (candidate) => /p_percent/i.test(candidate) && /p_price/i.test(candidate),
   );
+  const configBody = latestFunctionBodyMatching(
+    sql,
+    "_read_business_booking_config",
+    (candidate) => /deposit_percent/i.test(candidate),
+  );
 
-  assert(holdAmountFromPercent(10000, 50) === 5000, '50% of 10000 must be 5000');
-  assert(holdAmountFromPercent(10000, 0) === 0, '0 percent hold amount must be 0');
-  assert(holdAmountFromPercent(10000, 100) === 10000, '100% of 10000 must be 10000');
-  assert(holdAmountFromPercent(9999, 25) === 2500, '25% of 9999 must round to 2500');
+  assert(holdAmountFromPercent(10000, 50) === 5000, "50% of 10000 must be 5000");
+  assert(holdAmountFromPercent(10000, 0) === 0, "0 percent hold amount must be 0");
+  assert(holdAmountFromPercent(10000, 100) === 10000, "100% of 10000 must be 10000");
+  assert(holdAmountFromPercent(9999, 25) === 2500, "25% of 9999 must round to 2500");
 
   assert(
     /ROUND\s*\(\s*\(?\s*p_price\s*\*\s*p_percent\s*\)?\s*\/\s*100(?:\.0)?/i.test(helper),
@@ -659,23 +665,34 @@ Deno.test("percent seña: hold amount uses service percent; 50% of 10000 is 5000
   );
   assert(
     /_booking_deposit_hold_amount\s*\(/i.test(body),
-    "create_public_booking must compute hold amount from the service percent helper",
+    "create_public_booking must compute hold amount from the percent helper",
   );
   assert(
     !/v_deposit_amount\s*:=\s*\(\s*v_config\s*->>\s*'deposit_amount_pesos'\s*\)/i.test(body),
     "create_public_booking must not take hold amount from business_settings.deposit_amount_pesos",
   );
   assert(
-    /deposit_percent/i.test(body),
-    "create_public_booking must read services.deposit_percent",
+    !/s\.deposit_percent/i.test(body),
+    "create_public_booking must not require services.deposit_percent for holds",
   );
   assert(
-    /COALESCE\s*\(\s*v_deposit_percent\s*,\s*0\s*\)\s*>\s*0|v_deposit_percent\s*>\s*0/i.test(body),
-    "0 percent must take the deposits-off path (no pending hold)",
+    /v_config\s*->>\s*'deposit_percent'/i.test(body),
+    "create_public_booking must read business_settings.deposit_percent from config",
+  );
+  assert(
+    /deposit_percent/i.test(configBody),
+    "_read_business_booking_config must surface deposit_percent",
+  );
+  assert(
+    /deposit_enabled[\s\S]{0,400}(?:25|50|100)[\s\S]{0,200}(?:v_deposit_percent|deposit_percent)/i
+      .test(body) ||
+      /v_deposit_enabled[\s\S]{0,240}v_deposit_percent\s+IN\s*\(\s*25\s*,\s*50\s*,\s*100\s*\)/i
+        .test(body),
+    "hold path must require deposit_enabled and percent in (25, 50, 100)",
   );
 });
 
-Deno.test("percent seña: incomplete alias/CBU raises BOOKING_DEPOSIT_SETTINGS_INCOMPLETE when percent > 0", async () => {
+Deno.test("percent seña: incomplete alias/CBU raises BOOKING_DEPOSIT_SETTINGS_INCOMPLETE when business percent is on", async () => {
   const body = latestCreatePublicBookingBody(await readAllSqlMigrations());
 
   assert(
@@ -683,13 +700,41 @@ Deno.test("percent seña: incomplete alias/CBU raises BOOKING_DEPOSIT_SETTINGS_I
     "incomplete alias/CBU must still raise BOOKING_DEPOSIT_SETTINGS_INCOMPLETE",
   );
   const incompleteIndex = body.search(/BOOKING_DEPOSIT_SETTINGS_INCOMPLETE/i);
-  const beforeIncomplete = body.slice(Math.max(0, incompleteIndex - 500), incompleteIndex);
+  const beforeIncomplete = body.slice(Math.max(0, incompleteIndex - 700), incompleteIndex);
   assert(
-    /deposit_percent|v_deposit_percent/i.test(beforeIncomplete),
-    "incomplete settings must be gated by service percent > 0, not a business-wide pesos amount",
+    /v_config\s*->>\s*'deposit_percent'/i.test(beforeIncomplete),
+    "incomplete settings must be gated by business deposit_percent, not services.deposit_percent",
+  );
+  assert(
+    !/s\.deposit_percent/i.test(beforeIncomplete),
+    "incomplete settings must not gate on services.deposit_percent",
   );
   assert(
     !/v_deposit_amount\s+IS\s+NULL\s+OR\s+v_deposit_amount\s*<=\s*0/i.test(body),
     "incomplete settings must not require business_settings.deposit_amount_pesos",
+  );
+});
+
+Deno.test("percent seña: resolve_business_by_slug exposes business deposit_enabled and deposit_percent", async () => {
+  const sql = await readAllSqlMigrations();
+  const body = latestFunctionBodyMatching(
+    sql,
+    "resolve_business_by_slug",
+    (candidate) => /deposit_percent/i.test(candidate) && /deposit_enabled/i.test(candidate),
+  );
+
+  assert(
+    /deposit_enabled/i.test(body) && /deposit_percent/i.test(body),
+    "resolve_business_by_slug must expose deposit_enabled and deposit_percent for the public turnero",
+  );
+  assert(
+    /'depositEnabled'[\s\S]{0,80}deposit_enabled|'deposit_enabled'[\s\S]{0,80}deposit_enabled/i
+      .test(body),
+    "public resolve settings must include depositEnabled",
+  );
+  assert(
+    /'depositPercent'[\s\S]{0,80}deposit_percent|'deposit_percent'[\s\S]{0,80}deposit_percent/i
+      .test(body),
+    "public resolve settings must include depositPercent",
   );
 });

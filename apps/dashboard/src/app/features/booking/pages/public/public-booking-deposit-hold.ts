@@ -14,6 +14,13 @@ export function formatServiceDepositPreview(price: number, percent: number): str
   return `Seña ${percent}% · $${computeServiceDepositHoldAmount(price, percent)}`;
 }
 
+export function formatBusinessDepositRequiredBanner(percent: number): string | null {
+  if (![25, 50, 100].includes(Number(percent))) {
+    return null;
+  }
+  return `Este negocio pide seña del ${percent}% para reservar.`;
+}
+
 export type PublicDepositHoldView = {
   code: string;
   amountPesos: number;

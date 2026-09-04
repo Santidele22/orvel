@@ -47,39 +47,26 @@ function methodBody(sourceText: string, methodName: string): string {
   return '';
 }
 
-describe('servicios persist depositPercent 0/25/50/100', () => {
-  const modelSource = readUtf8('src/app/models/servicio.model.ts');
+describe('servicios do not configure seña per service', () => {
   const serviceSource = readUtf8('src/app/features/servicios/data-access/servicio.service.ts');
   const pageSource = readUtf8('src/app/features/servicios/pages/servicios.page.ts');
   const pageTemplate = readUtf8('src/app/features/servicios/pages/servicios.page.html');
   const validationSource = readUtf8('src/app/features/servicios/pages/servicios.validation.ts');
 
-  it('models and validates depositPercent as 0, 25, 50, or 100', () => {
-    expect(modelSource).toMatch(/depositPercent\s*:\s*number/);
-    expect(validationSource).toMatch(/depositPercent/);
-    expect(validationSource).toMatch(/0,\s*25,\s*50,\s*100/);
+  it('removes per-service seña UI from create and edit', () => {
+    expect(pageTemplate).not.toMatch(/formControlName=["']depositPercent["']/);
+    expect(pageTemplate).not.toMatch(/service-deposit-percent/);
+    expect(pageSource).not.toMatch(/depositPercent\s*:\s*\[/);
+    expect(validationSource).not.toMatch(/depositPercent/);
   });
 
-  it('exposes a 0/25/50/100 seña control on create and edit', () => {
-    expect(pageSource).toMatch(/depositPercent\s*:\s*\[0/);
-    expect(pageTemplate).toMatch(/formControlName=["']depositPercent["']/);
-    expect(pageTemplate).toMatch(/Seña/);
-    for (const percent of [0, 25, 50, 100]) {
-      expect(pageTemplate).toContain(String(percent));
-    }
-  });
-
-  it('persists depositPercent as services.deposit_percent on create, update, and map', () => {
+  it('does not persist services.deposit_percent on create or update', () => {
     const createBody = methodBody(serviceSource, 'createServicioInSupabase');
     expect(createBody, 'createServicioInSupabase must exist').not.toBe('');
-    expect(createBody).toMatch(/deposit_percent\s*:\s*dto\.depositPercent/);
+    expect(createBody).not.toMatch(/deposit_percent/);
 
     const updateBody = methodBody(serviceSource, 'updateServicioInSupabase');
     expect(updateBody, 'updateServicioInSupabase must exist').not.toBe('');
-    expect(updateBody).toMatch(/deposit_percent['"]?\s*\]?\s*=\s*dto\.depositPercent|payload\['deposit_percent'\]\s*=\s*dto\.depositPercent/);
-
-    const mapped = methodBody(serviceSource, 'mapSupabaseRowToServicio');
-    expect(mapped, 'mapSupabaseRowToServicio must exist').not.toBe('');
-    expect(mapped).toMatch(/depositPercent\s*:\s*Number\(\s*row\['deposit_percent'\]/);
+    expect(updateBody).not.toMatch(/deposit_percent/);
   });
 });

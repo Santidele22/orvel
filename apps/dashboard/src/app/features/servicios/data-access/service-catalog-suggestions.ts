@@ -55,7 +55,6 @@ export function getSuggestedServicesForRubros(rubros: unknown): SuggestedService
           categoria,
           duracionMinutos: estimateCatalogDuration(nombre),
           precio: 0,
-          depositPercent: 0,
           activo: true,
           source: 'suggested',
           rubro,
