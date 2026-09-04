@@ -48,6 +48,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly resolvedSlug = signal<string>('');
   protected readonly workingHours = signal<Partial<Record<WeekdayKey, WorkingDayHours>> | null>(null);
   protected readonly businessTimezone = signal<string>(DEFAULT_BUSINESS_TIMEZONE);
+  protected readonly maxAdvanceDays = signal(30);
 
   protected readonly availableDays = signal<DayAvailability[]>([]);
   protected readonly bookableDays = computed(() => {
@@ -114,6 +115,7 @@ export class PublicBookingPage implements OnInit {
     this.resolvedBusinessId.set(null);
     this.businessName.set('');
     this.workingHours.set(null);
+    this.maxAdvanceDays.set(30);
     this.selectedSlot = '';
     this.allowClientProfessionalSelection.set(false);
     this.publicProfessionals.set([]);
@@ -136,6 +138,7 @@ export class PublicBookingPage implements OnInit {
       this.businessTimezone.set(response.data.timezone || DEFAULT_BUSINESS_TIMEZONE);
       
       this.workingHours.set(response.data.settings.workingHours);
+      this.maxAdvanceDays.set(response.data.settings.maxAdvanceDays ?? 30);
       this.allowClientProfessionalSelection.set(
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
@@ -518,7 +521,7 @@ export class PublicBookingPage implements OnInit {
   }
 
   private initAvailableDays() {
-    const days = buildPublicBookingDays(this.workingHours(), new Date(), this.businessTimezone());
+    const days = buildPublicBookingDays(this.workingHours(), new Date(), this.businessTimezone(), this.maxAdvanceDays() + 1);
     this.availableDays.set(days);
     this.loadingAvailability.set(true);
     const firstWorkingDay = days.find(day => day.isWorkingDay);
