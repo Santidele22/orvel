@@ -24,3 +24,15 @@ test('deploy-promotion job environment has a name so GitHub can parse the workfl
     'GitHub rejects environment mappings without name (0 jobs, "workflow file issue").',
   );
 });
+
+test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.match(source, /secrets\.SUPABASE_ACCESS_TOKEN_QA/);
+  assert.match(source, /secrets\.SUPABASE_ACCESS_TOKEN_PROD/);
+  assert.doesNotMatch(
+    source,
+    /secrets\.SUPABASE_ACCESS_TOKEN[^\w]/,
+    'Shared SUPABASE_ACCESS_TOKEN would let a prod rotate clobber QA (or the reverse).',
+  );
+});
