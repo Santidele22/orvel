@@ -311,7 +311,35 @@
                 <input type="checkbox" formControlName="autoConfirm" class="h-5 w-5 accent-primary cursor-pointer" />
               </div>
             </div>
+            <div class="space-y-zen-md">
+              <p [class]="ui.labelMicro + ' text-secondary'">Seña</p>
+              <div
+                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
+                <div class="space-y-1">
+                  <p class="text-sm font-semibold text-primary">Pedir seña para reservar</p>
+                  <p class="text-[10px] text-tertiary leading-tight">Si no se confirma la seña, el horario se libera.</p>
+                </div>
+                <input type="checkbox" formControlName="depositEnabled" class="h-5 w-5 accent-primary cursor-pointer" />
+              </div>
+            </div>
           </div>
+
+          @if (settingsForm.get('depositEnabled')?.value) {
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Monto de seña (pesos)</label>
+              <input type="number" formControlName="depositAmountPesos" [class]="ui.input" min="0" step="1" />
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
+              <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
+            </div>
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">CBU / CVU</label>
+              <input type="text" formControlName="depositCbu" [class]="ui.input" />
+            </div>
+          </div>
+          }
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
             <div class="space-y-zen-sm">
