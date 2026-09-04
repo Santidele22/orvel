@@ -64,6 +64,9 @@ export interface BusinessPublicView {
     workingHours: Record<WeekdayKey, WorkingDayHours>;
     depositEnabled?: boolean;
     depositPercent?: number;
+    depositAlias?: string | null;
+    depositCbu?: string | null;
+    supportPhone?: string | null;
   };
   bookingPolicy: {
     autoConfirm: boolean;
