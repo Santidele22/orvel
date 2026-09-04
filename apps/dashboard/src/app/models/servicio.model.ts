@@ -6,7 +6,6 @@ export interface Servicio {
   categoria: string;
   duracionMinutos: number;
   precio: number;
-  depositPercent: number;
   activo: boolean;
   createdAt: Date;
   updatedAt: Date;

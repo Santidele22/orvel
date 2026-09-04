@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DEPOSIT_HOLD_RELEASE_COPY,
+  formatBusinessDepositRequiredBanner,
   formatServiceDepositPreview,
   readPublicDepositHold
 } from '../../features/booking/pages/public/public-booking-deposit-hold';
@@ -108,8 +109,8 @@ describe('public booking deposit hold success copy', () => {
     expect(formatServiceDepositPreview(8000, 25)).toBe('Seña 25% · $2000');
     expect(formatServiceDepositPreview(8000, 100)).toBe('Seña 100% · $8000');
 
-    expect(pageSource).toMatch(/depositPercent/);
     expect(pageSource).toMatch(/formatServiceDepositPreview\(/);
+    expect(pageSource).not.toMatch(/service\.depositPercent/);
     expect(pageTemplate).toMatch(/serviceDepositPreview\(/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-preview["']/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-notice["']/);
@@ -121,5 +122,34 @@ describe('public booking deposit hold success copy', () => {
     const beforeSubmit = pageTemplate.slice(Math.max(0, submitIndex - 2500), submitIndex);
     expect(beforeSubmit).toMatch(/booking-deposit-required-notice/);
     expect(beforeSubmit).toContain(DEPOSIT_HOLD_RELEASE_COPY);
+  });
+
+  it('shows a business seña banner from resolve settings, not per-service percent', () => {
+    expect(formatBusinessDepositRequiredBanner(50)).toBe(
+      'Este negocio pide seña del 50% para reservar.'
+    );
+    expect(formatBusinessDepositRequiredBanner(25)).toBe(
+      'Este negocio pide seña del 25% para reservar.'
+    );
+    expect(formatBusinessDepositRequiredBanner(0)).toBeNull();
+
+    expect(pageSource).toMatch(/formatBusinessDepositRequiredBanner\(/);
+    expect(pageSource).toMatch(/depositEnabled/);
+    expect(pageSource).toMatch(/depositPercent/);
+    expect(pageSource).toMatch(/settings\.depositPercent/);
+    expect(pageSource).not.toMatch(/service\.depositPercent/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-banner["']/);
+    expect(pageTemplate).toMatch(/businessDepositBanner\(/);
+
+    const typesSource = readUtf8('../../packages/types/src/business.model.ts');
+    expect(typesSource).toMatch(/depositEnabled/);
+    expect(typesSource).toMatch(/depositPercent/);
+
+    const resolverSource = readUtf8(
+      'src/app/features/settings/data-access/business.service.ts'
+    );
+    expect(resolverSource).toMatch(/depositEnabled/);
+    expect(resolverSource).toMatch(/depositPercent/);
+    expect(resolverSource).toMatch(/mapToPublicView/);
   });
 });

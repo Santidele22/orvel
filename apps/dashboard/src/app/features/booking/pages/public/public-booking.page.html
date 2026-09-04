@@ -107,6 +107,9 @@
             <p class="text-slate-400 text-base md:text-lg max-w-md mx-auto leading-relaxed font-medium">
               {{ rescheduleMode() ? 'Elegí una nueva fecha y horario disponible para tu cita.' : 'Reserva tu próximo tratamiento en segundos y disfruta de una experiencia premium.' }}
             </p>
+            @if (businessDepositBanner(); as banner) {
+              <p class="mx-auto max-w-md rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200" data-testid="booking-deposit-required-banner">{{ banner }}</p>
+            }
           </div>
         </header>
 

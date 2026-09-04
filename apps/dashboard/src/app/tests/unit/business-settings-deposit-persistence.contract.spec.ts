@@ -81,10 +81,12 @@ describe('WU3 business settings deposit persistence', () => {
     const defaults = methodBody(facadeSource, 'buildDefaultState');
     expect(defaults, 'buildDefaultState must exist').not.toBe('');
     expect(defaults).toMatch(/depositEnabled\s*:\s*false/);
+    expect(defaults).toMatch(/depositPercent\s*:\s*0/);
 
     const mapped = methodBody(facadeSource, 'mapFromSupabaseRow');
     expect(mapped, 'mapFromSupabaseRow must exist').not.toBe('');
     expect(mapped).toMatch(/depositEnabled\s*:\s*row\.deposit_enabled\s*\?\?\s*false/);
+    expect(mapped).toMatch(/depositPercent\s*:/);
   });
 
   it('round-trips camelCase deposit fields to snake_case on facade save', () => {
@@ -101,29 +103,33 @@ describe('WU3 business settings deposit persistence', () => {
     expect(save, 'saveToSupabase must exist').not.toBe('');
     expect(save).toMatch(/deposit_enabled\s*:\s*persistedLocal\.depositEnabled/);
     expect(save).not.toMatch(/deposit_amount_pesos\s*:/);
+    expect(save).toMatch(/deposit_percent\s*:\s*persistedLocal\.depositPercent/);
     expect(save).toMatch(/deposit_alias\s*:\s*persistedLocal\.depositAlias/);
     expect(save).toMatch(/deposit_cbu\s*:\s*persistedLocal\.depositCbu/);
   });
 
   it('persists the same deposit fields through the live BusinessService settings path', () => {
     expect(typesSource).toMatch(/depositEnabled\?:/);
+    expect(typesSource).toMatch(/depositPercent\?:/);
     expect(typesSource).toMatch(/depositAlias\?:/);
     expect(typesSource).toMatch(/depositCbu\?:/);
 
     const mapped = methodBody(serviceSource, 'mapToSettings');
     expect(mapped, 'mapToSettings must exist').not.toBe('');
     expect(mapped).toMatch(/depositEnabled\s*:\s*settings\?\.deposit_enabled\s*\?\?\s*false/);
+    expect(mapped).toMatch(/depositPercent\s*:/);
     expect(mapped).toMatch(/depositAlias\s*:/);
     expect(mapped).toMatch(/depositCbu\s*:/);
 
     expect(serviceSource).toMatch(/deposit_enabled\s*:\s*settings\.depositEnabled\s*\?\?\s*false/);
+    expect(serviceSource).toMatch(/deposit_percent\s*:\s*settings\.depositPercent/);
     expect(serviceSource).not.toMatch(/deposit_amount_pesos\s*:\s*settings\.depositAmountPesos/);
     expect(serviceSource).toMatch(/deposit_alias\s*:\s*settings\.depositAlias/);
     expect(serviceSource).toMatch(/deposit_cbu\s*:\s*settings\.depositCbu/);
   });
 
   it('exposes Seña controls on zen settings and saves them from configuracion', () => {
-    for (const control of ['depositEnabled', 'depositAlias', 'depositCbu']) {
+    for (const control of ['depositEnabled', 'depositPercent', 'depositAlias', 'depositCbu']) {
       expect(pageSource, `${control} must be a form control`).toMatch(
         new RegExp(`${control}\\s*:\\s*\\[`)
       );
@@ -134,6 +140,9 @@ describe('WU3 business settings deposit persistence', () => {
 
     expect(pageSource).not.toMatch(/depositAmountPesos\s*:\s*\[/);
     expect(zenTemplate).not.toMatch(/formControlName=["']depositAmountPesos["']/);
+    expect(zenTemplate).toMatch(/25%/);
+    expect(zenTemplate).toMatch(/50%/);
+    expect(zenTemplate).toMatch(/100%/);
 
     expect(zenTemplate).toMatch(/Seña/);
     expect(zenTemplate).toMatch(/Alias/);
@@ -145,6 +154,7 @@ describe('WU3 business settings deposit persistence', () => {
     const savePayload = extractObjectLiteralAfter(onSubmit, 'this.facade.save(');
     expect(savePayload, 'onSubmit must save deposit fields').not.toBe('');
     expect(savePayload).toMatch(/depositEnabled\s*:/);
+    expect(savePayload).toMatch(/depositPercent\s*:/);
     expect(savePayload).not.toMatch(/depositAmountPesos\s*:/);
     expect(savePayload).toMatch(/depositAlias\s*:/);
     expect(savePayload).toMatch(/depositCbu\s*:/);
