@@ -386,7 +386,8 @@ export class BusinessService {
         deposit_enabled: settings.depositEnabled ?? false,
         deposit_percent: settings.depositPercent ?? 0,
         deposit_alias: settings.depositAlias ?? '',
-        deposit_cbu: settings.depositCbu ?? ''
+        deposit_cbu: settings.depositCbu ?? '',
+        support_phone: settings.phone ?? ''
       });
 
     if (error) {
@@ -653,7 +654,10 @@ export class BusinessService {
           this.getDefaultWorkingHours()
         ),
         depositEnabled: settings?.depositEnabled ?? settings?.deposit_enabled ?? false,
-        depositPercent: Number(settings?.depositPercent ?? settings?.deposit_percent ?? 0)
+        depositPercent: Number(settings?.depositPercent ?? settings?.deposit_percent ?? 0),
+        depositAlias: settings?.depositAlias ?? settings?.deposit_alias ?? null,
+        depositCbu: settings?.depositCbu ?? settings?.deposit_cbu ?? null,
+        supportPhone: settings?.supportPhone ?? settings?.support_phone ?? null
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,

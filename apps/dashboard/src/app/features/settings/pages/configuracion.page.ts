@@ -461,7 +461,11 @@ export class ConfiguracionPage {
       supportEmail: saved.supportEmail,
       plan: saved.plan,
       capacity: saved.capacity ?? 1,
-      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false
+      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false,
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? ''
     });
   }
 
@@ -1060,7 +1064,12 @@ export class ConfiguracionPage {
   private patchHydratedSettings(saved: BusinessSettings): void {
     this.settingsForm.patchValue({
       ...saved,
-      workingHours: workingHoursToFormValue(saved.workingHours)
+      workingHours: workingHoursToFormValue(saved.workingHours),
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? '',
+      phone: saved.phone ?? ''
     } as never);
   }
 

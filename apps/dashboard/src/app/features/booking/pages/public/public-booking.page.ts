@@ -14,6 +14,7 @@ import { emitPublicBookingFailureEvent } from '../../../../core/observability/pu
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import {
+  buildSeñaReceiptWhatsAppUrl,
   buildServiceDepositQuote,
   formatBusinessDepositRequiredBanner,
   formatDepositHoldExpiry,
@@ -56,6 +57,9 @@ export class PublicBookingPage implements OnInit {
   protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
   protected readonly depositEnabled = signal(false);
   protected readonly depositPercent = signal(0);
+  protected readonly depositAlias = signal<string | null>(null);
+  protected readonly depositCbu = signal<string | null>(null);
+  protected readonly supportPhone = signal<string | null>(null);
   protected readonly expandedStep = signal<'service' | 'professional' | 'schedule' | 'contact'>('service');
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
@@ -133,6 +137,10 @@ export class PublicBookingPage implements OnInit {
     return formatDepositMoney(amount);
   }
 
+  protected receiptWhatsAppUrl(details?: { code?: string | null; amountPesos?: number | null }): string | null {
+    return buildSeñaReceiptWhatsAppUrl(this.supportPhone(), details);
+  }
+
   protected businessDepositBanner(): string | null {
     if (!this.depositEnabled()) {
       return null;
@@ -174,6 +182,9 @@ export class PublicBookingPage implements OnInit {
     this.maxAdvanceDays.set(30);
     this.depositEnabled.set(false);
     this.depositPercent.set(0);
+    this.depositAlias.set(null);
+    this.depositCbu.set(null);
+    this.supportPhone.set(null);
     this.selectedSlot = '';
     this.allowClientProfessionalSelection.set(false);
     this.publicProfessionals.set([]);
@@ -199,6 +210,9 @@ export class PublicBookingPage implements OnInit {
       this.maxAdvanceDays.set(response.data.settings.maxAdvanceDays ?? 30);
       this.depositEnabled.set(response.data.settings.depositEnabled === true);
       this.depositPercent.set(Number(response.data.settings.depositPercent ?? 0));
+      this.depositAlias.set(response.data.settings.depositAlias?.trim() || null);
+      this.depositCbu.set(response.data.settings.depositCbu?.trim() || null);
+      this.supportPhone.set(response.data.settings.supportPhone?.trim() || null);
       this.allowClientProfessionalSelection.set(
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
