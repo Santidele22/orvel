@@ -140,9 +140,11 @@ describe('WU3 business settings deposit persistence', () => {
 
     expect(pageSource).not.toMatch(/depositAmountPesos\s*:\s*\[/);
     expect(zenTemplate).not.toMatch(/formControlName=["']depositAmountPesos["']/);
-    expect(zenTemplate).toMatch(/25%/);
-    expect(zenTemplate).toMatch(/50%/);
-    expect(zenTemplate).toMatch(/100%/);
+    expect(zenTemplate).toMatch(/\[25,\s*50,\s*100\]/);
+    expect(zenTemplate).toContain('{{ pct }}%');
+    expect(zenTemplate).toMatch(/data-testid=["']deposit-percent-segment["']/);
+    expect(zenTemplate).toMatch(/bg-primary/);
+    expect(zenTemplate).not.toMatch(/bg-blue/);
 
     expect(zenTemplate).toMatch(/Seña/);
     expect(zenTemplate).toMatch(/Alias/);

@@ -14,11 +14,14 @@ import { emitPublicBookingFailureEvent } from '../../../../core/observability/pu
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import {
+  buildServiceDepositQuote,
   formatBusinessDepositRequiredBanner,
   formatDepositHoldExpiry,
+  formatDepositMoney,
   formatServiceDepositPreview,
   readPublicDepositHold,
-  type PublicDepositHoldView
+  type PublicDepositHoldView,
+  type ServiceDepositQuote
 } from './public-booking-deposit-hold';
 
 type ReschedulePreload = {
@@ -115,6 +118,18 @@ export class PublicBookingPage implements OnInit {
       return null;
     }
     return formatServiceDepositPreview(service.price, this.depositPercent());
+  }
+
+  protected serviceDepositQuote(): ServiceDepositQuote | null {
+    const service = this.selectedService();
+    if (!service || !this.depositEnabled()) {
+      return null;
+    }
+    return buildServiceDepositQuote(service.name, service.price, this.depositPercent());
+  }
+
+  protected formatDepositMoney(amount: number): string {
+    return formatDepositMoney(amount);
   }
 
   protected businessDepositBanner(): string | null {

@@ -413,11 +413,33 @@
               </div>
             }
 
-            @if (serviceDepositPreview(); as preview) {
-              <div class="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-6 py-4 space-y-2" data-testid="booking-deposit-required-notice">
-                <p class="text-sm font-semibold text-amber-200">{{ preview }}</p>
-                <p class="text-xs font-medium text-slate-400">Este servicio requiere seña. Si no se confirma la seña, el horario se libera.</p>
-              </div>
+            @if (serviceDepositQuote(); as quote) {
+              <section
+                class="rounded-[28px] border border-white/10 bg-black/30 px-5 py-5 space-y-4"
+                data-testid="booking-deposit-required-notice"
+              >
+                <p class="flex items-center gap-2 text-sm font-semibold text-white">
+                  <i class="ri-wallet-3-line text-[#7C3AED]"></i>
+                  Este servicio requiere seña
+                </p>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="font-medium text-white">{{ quote.serviceName }}</span>
+                  <span class="shrink-0 tabular-nums text-slate-300">{{ formatDepositMoney(quote.servicePrice) }}</span>
+                </div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="font-semibold text-white">Seña a pagar ahora ({{ quote.percent }}%)</span>
+                  <span class="shrink-0 tabular-nums font-semibold text-white">{{ formatDepositMoney(quote.holdAmount) }}</span>
+                </div>
+                <div class="border-t border-dashed border-white/15"></div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="text-slate-400">Resto, a pagar en el local</span>
+                  <span class="shrink-0 tabular-nums text-slate-300">{{ formatDepositMoney(quote.remainderAmount) }}</span>
+                </div>
+                <p class="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
+                  <i class="ri-time-line mt-0.5 shrink-0"></i>
+                  Si no se confirma la seña, el horario se libera.
+                </p>
+              </section>
             }
 
             <button
@@ -429,6 +451,9 @@
               @if (submitting()) {
                 <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <span>{{ rescheduleMode() ? 'Reprogramando...' : 'Confirmando...' }}</span>
+              } @else if (serviceDepositQuote()) {
+                <i class="ri-wallet-3-line text-2xl group-hover:rotate-12 transition-transform"></i>
+                <span>Pagar seña y confirmar</span>
               } @else {
                 <i class="ri-calendar-check-fill text-2xl group-hover:rotate-12 transition-transform"></i>
                 <span>{{ rescheduleMode() ? 'Confirmar reprogramación' : 'Confirmar Reserva' }}</span>
