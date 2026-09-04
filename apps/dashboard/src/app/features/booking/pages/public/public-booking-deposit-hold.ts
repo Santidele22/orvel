@@ -23,7 +23,11 @@ export type PublicDepositHoldSource = {
 } | null | undefined;
 
 export function readPublicDepositHold(data: PublicDepositHoldSource): PublicDepositHoldView | null {
-  const code = data?.depositCode?.trim();
+  if (!data) {
+    return null;
+  }
+
+  const code = data.depositCode?.trim();
   if (!code) {
     return null;
   }
