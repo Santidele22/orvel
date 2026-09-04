@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DEPOSIT_HOLD_RELEASE_COPY,
+  formatServiceDepositPreview,
   readPublicDepositHold
 } from '../../features/booking/pages/public/public-booking-deposit-hold';
 
@@ -99,5 +100,26 @@ describe('public booking deposit hold success copy', () => {
 
     expect(pageSource).toMatch(/readPublicDepositHold\(/);
     expect(pageSource).toMatch(/depositHold\.set\(/);
+  });
+
+  it('warns about seña on the service summary and near Confirmar reserva before submit', () => {
+    expect(formatServiceDepositPreview(10000, 50)).toBe('Seña 50% · $5000');
+    expect(formatServiceDepositPreview(10000, 0)).toBeNull();
+    expect(formatServiceDepositPreview(8000, 25)).toBe('Seña 25% · $2000');
+    expect(formatServiceDepositPreview(8000, 100)).toBe('Seña 100% · $8000');
+
+    expect(pageSource).toMatch(/depositPercent/);
+    expect(pageSource).toMatch(/formatServiceDepositPreview\(/);
+    expect(pageTemplate).toMatch(/serviceDepositPreview\(/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-preview["']/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-notice["']/);
+    expect(pageTemplate).toContain('Confirmar Reserva');
+    expect(pageTemplate).toContain(DEPOSIT_HOLD_RELEASE_COPY);
+
+    const submitIndex = pageTemplate.indexOf('Confirmar Reserva');
+    expect(submitIndex).toBeGreaterThan(0);
+    const beforeSubmit = pageTemplate.slice(Math.max(0, submitIndex - 2500), submitIndex);
+    expect(beforeSubmit).toMatch(/booking-deposit-required-notice/);
+    expect(beforeSubmit).toContain(DEPOSIT_HOLD_RELEASE_COPY);
   });
 });
