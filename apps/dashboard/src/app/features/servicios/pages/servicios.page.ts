@@ -77,7 +77,6 @@ export class ServiciosPage {
     categoria: ['', [Validators.required]],
     duracionMinutos: [30, [Validators.min(5), Validators.max(480)]],
     precio: [0, [Validators.required, Validators.min(0)]],
-    depositPercent: [0],
     activo: [true]
   });
 
@@ -156,7 +155,7 @@ export class ServiciosPage {
     if (reset) {
       this.selectedServiceId.set(null);
       if (type === 'categoria') this.categoryForm.reset();
-      else this.servicioForm.reset({ duracionMinutos: 30, precio: 0, depositPercent: 0, activo: true, nombre: '', categoria: '' });
+      else this.servicioForm.reset({ duracionMinutos: 30, precio: 0, activo: true, nombre: '', categoria: '' });
     }
 
     if (type === 'categoria') this.categoryFieldErrors.set({});
@@ -172,7 +171,6 @@ export class ServiciosPage {
       categoria: suggestion.categoria,
       duracionMinutos: suggestion.duracionMinutos,
       precio: suggestion.precio,
-      depositPercent: 0,
       activo: true
     });
   }
@@ -233,8 +231,7 @@ export class ServiciosPage {
     }
 
     this.loading.set(true);
-    const raw = this.servicioForm.getRawValue();
-    const val = { ...raw, depositPercent: Number(raw.depositPercent ?? 0) };
+    const val = this.servicioForm.getRawValue();
     const serviceId = this.selectedServiceId();
 
     try {
@@ -311,7 +308,6 @@ export class ServiciosPage {
         categoria: service.categoria,
         duracionMinutos: service.duracionMinutos,
         precio: service.precio,
-        depositPercent: service.depositPercent ?? 0,
         activo: service.activo
       });
       // Open without reset

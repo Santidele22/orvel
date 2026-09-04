@@ -60,6 +60,7 @@ export type BusinessSettingsState = {
 
   // Deposit / seña
   depositEnabled: boolean;
+  depositPercent: number;
   depositAmountPesos: number | null;
   depositAlias: string;
   depositCbu: string;
@@ -106,6 +107,7 @@ type BusinessSettingsSupabaseRow = {
 
   // Deposit / seña
   deposit_enabled?: boolean;
+  deposit_percent?: number;
   deposit_amount_pesos?: number | null;
   deposit_alias?: string;
   deposit_cbu?: string;
@@ -350,6 +352,7 @@ export class BusinessSettingsFacade {
           week_start_day: persistedLocal.weekStartDay,
           time_format: persistedLocal.timeFormat,
           deposit_enabled: persistedLocal.depositEnabled,
+          deposit_percent: persistedLocal.depositPercent,
           deposit_alias: persistedLocal.depositAlias,
           deposit_cbu: persistedLocal.depositCbu,
 
@@ -605,6 +608,7 @@ export class BusinessSettingsFacade {
       weekStartDay: row.week_start_day ?? 'monday',
       timeFormat: row.time_format ?? '12h',
       depositEnabled: row.deposit_enabled ?? false,
+      depositPercent: Number(row.deposit_percent ?? 0),
       depositAmountPesos: row.deposit_amount_pesos == null ? null : Number(row.deposit_amount_pesos),
       depositAlias: row.deposit_alias ?? '',
       depositCbu: row.deposit_cbu ?? '',
@@ -656,6 +660,7 @@ export class BusinessSettingsFacade {
       weekStartDay: 'monday',
       timeFormat: '12h',
       depositEnabled: false,
+      depositPercent: 0,
       depositAmountPesos: null,
       depositAlias: '',
       depositCbu: '',
