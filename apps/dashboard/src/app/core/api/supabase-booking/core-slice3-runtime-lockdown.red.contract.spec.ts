@@ -113,7 +113,8 @@ describe('Core Slice 3 frontend booking runtime lockdown RED contracts', () => {
     ['updateAdminBooking', 'update_admin_booking'],
     ['cancelAdminBooking', 'cancel_admin_booking'],
     ['rescheduleAdminBooking', 'reschedule_admin_booking'],
-    ['updateBookingStatus', 'update_booking_status']
+    ['updateBookingStatus', 'update_booking_status'],
+    ['confirmBookingDepositReceived', 'confirm_booking_deposit_received']
   ] as const)('routes %s through the canonical backend RPC without direct bookings mutations', (methodName, rpcName) => {
     const body = methodBody(source('real-gateway.ts'), methodName);
 

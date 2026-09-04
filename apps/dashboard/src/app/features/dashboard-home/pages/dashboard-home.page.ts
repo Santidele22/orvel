@@ -134,6 +134,7 @@ export class DashboardHomeComponent {
   protected readonly copied = signal(false);
   protected readonly copyFailed = signal(false);
   protected readonly receiptSent = signal(false);
+  protected readonly confirmingDepositId = signal<string | null>(null);
   private hydratedUserId: string | null = null;
 
   constructor() {
@@ -267,6 +268,20 @@ export class DashboardHomeComponent {
   protected hasBookingUrl(): boolean {
     const slug = this.businessFacade.settings()?.slug?.trim();
     return Boolean(slug && slug !== 'id-pendiente');
+  }
+
+  protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const userId = this.authService.user()?.id;
+    if (!userId || this.confirmingDepositId()) {
+      return;
+    }
+    this.confirmingDepositId.set(bookingId);
+    try {
+      await this.dashboardService.confirmDepositReceived(bookingId, userId);
+    } finally {
+      this.confirmingDepositId.set(null);
+    }
   }
 
   protected async copyBookingUrl(): Promise<void> {
