@@ -56,6 +56,7 @@ export class PublicBookingPage implements OnInit {
   protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
   protected readonly depositEnabled = signal(false);
   protected readonly depositPercent = signal(0);
+  protected readonly expandedStep = signal<'service' | 'professional' | 'schedule' | 'contact'>('service');
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
@@ -311,6 +312,7 @@ export class PublicBookingPage implements OnInit {
       this.availabilitySlots.set([]);
       this.loadingAvailability.set(false);
     }
+    this.expandedStep.set(this.canShowProfessionalStep() ? 'professional' : 'schedule');
   }
 
   protected async onProfessionalChange(professionalId: string): Promise<void> {
@@ -319,6 +321,40 @@ export class PublicBookingPage implements OnInit {
     this.selectedSlot = '';
     this.loadingAvailability.set(true);
     await this.loadAvailability();
+    this.expandedStep.set('schedule');
+  }
+
+  protected onSlotChange(): void {
+    if (this.selectedSlot) {
+      this.expandedStep.set('contact');
+    }
+  }
+
+  protected openStep(step: 'service' | 'professional' | 'schedule' | 'contact'): void {
+    this.expandedStep.set(step);
+  }
+
+  protected isStepOpen(step: 'service' | 'professional' | 'schedule' | 'contact'): boolean {
+    return this.expandedStep() === step;
+  }
+
+  protected selectedProfessionalLabel(): string {
+    const id = this.selectedProfessionalId();
+    if (!id) {
+      return 'Cualquier profesional';
+    }
+    return this.publicProfessionals().find((professional) => professional.id === id)?.name ?? 'Profesional';
+  }
+
+  protected selectedScheduleLabel(): string {
+    const date = this.selectedDate();
+    const slot = this.selectedSlot;
+    if (!date || !slot) {
+      return 'Elegí día y horario';
+    }
+    const day = this.bookableDays().find((item) => item.date === date);
+    const time = this.formatSlot(slot).split(' - ')[1] || this.formatSlot(slot);
+    return `${day?.weekday ?? date} ${day?.label ?? ''} · ${time}`.trim();
   }
 
   protected canShowProfessionalStep(): boolean {

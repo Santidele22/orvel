@@ -107,9 +107,6 @@
             <p class="text-slate-400 text-base md:text-lg max-w-md mx-auto leading-relaxed font-medium">
               {{ rescheduleMode() ? 'Elegí una nueva fecha y horario disponible para tu cita.' : 'Reserva tu próximo tratamiento en segundos y disfruta de una experiencia premium.' }}
             </p>
-            @if (businessDepositBanner(); as banner) {
-              <p class="mx-auto max-w-md rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200" data-testid="booking-deposit-required-banner">{{ banner }}</p>
-            }
           </div>
         </header>
 
@@ -120,16 +117,27 @@
             <div class="space-y-4">
               <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
                 <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">1</span>
-                @if (selectedService(); as service) {
-                  <span>{{ service.name }} <span class="font-medium text-slate-400">· {{ service.duration }} min · ${{ service.price }}</span>
-                    @if (serviceDepositPreview(); as preview) {
-                      <span class="block font-medium text-amber-300" data-testid="booking-deposit-preview">{{ preview }}</span>
-                    }
-                  </span>
-                } @else {
-                  <span>Elegí servicio</span>
-                }
+                <span>Elegí el servicio</span>
               </label>
+              @if (selectedService(); as service) {
+                @if (!isStepOpen('service')) {
+                  <button
+                    type="button"
+                    class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                    data-testid="booking-service-collapsed"
+                    (click)="openStep('service')"
+                  >
+                    <span class="flex items-center justify-between gap-3">
+                      <span>
+                        <span class="block text-sm font-semibold text-white">{{ service.name }}</span>
+                        <span class="block text-xs text-slate-400">{{ service.duration }} min</span>
+                      </span>
+                      <span class="text-sm tabular-nums text-white">${{ service.price }}</span>
+                    </span>
+                  </button>
+                }
+              }
+              @if (isStepOpen('service') || !selectedService()) {
               <div class="relative group">
                 <select
                   [(ngModel)]="selectedServiceId"
@@ -149,6 +157,7 @@
                   <i class="ri-arrow-down-s-line text-xl"></i>
                 </div>
               </div>
+              }
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
@@ -158,6 +167,17 @@
                     <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">2</span>
                     Elegí profesional
                   </p>
+                  @if (professionalChoiceMade() && !isStepOpen('professional')) {
+                    <button
+                      type="button"
+                      class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                      data-testid="booking-professional-collapsed"
+                      (click)="openStep('professional')"
+                    >
+                      <span class="block text-sm font-semibold text-white">{{ selectedProfessionalLabel() }}</span>
+                    </button>
+                  }
+                  @if (isStepOpen('professional') || !professionalChoiceMade()) {
                   <button type="button"
                     (click)="onProfessionalChange('')"
                     [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (professionalChoiceMade() && !selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
@@ -187,6 +207,7 @@
                       <span class="h-4 w-4 rounded-full border border-white/30" [class.bg-[#7C3AED]]="selectedProfessionalId() === professional.id" [class.border-[#7C3AED]]="selectedProfessionalId() === professional.id"></span>
                     </button>
                   }
+                  }
                 </div>
               }
               @if (serviceErrorMessage()) {
@@ -207,15 +228,26 @@
             <!-- Availability Selection (Date & Time Picker) -->
             @if (canShowScheduleStep()) {
             <div class="space-y-8" data-testid="public-schedule-step">
+              <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">{{ showProfessionalPicker() ? '3' : '2' }}</span>
+                Elegí día y horario
+                @if (loadingAvailability()) {
+                  <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                }
+              </label>
+              @if (selectedSlot && !isStepOpen('schedule')) {
+                <button
+                  type="button"
+                  class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                  data-testid="booking-schedule-collapsed"
+                  (click)="openStep('schedule')"
+                >
+                  <span class="block text-sm font-semibold text-white">{{ selectedScheduleLabel() }}</span>
+                </button>
+              }
+              @if (isStepOpen('schedule') || !selectedSlot) {
               <!-- Horizontal Date Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
-                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">{{ showProfessionalPicker() ? '3' : '2' }}</span>
-                  Elegí día y horario
-                  @if (loadingAvailability()) {
-                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
-                  }
-                </label>
                 
                 <div class="flex gap-3 overflow-x-auto pb-4 scroll-smooth no-scrollbar -mx-2 px-2">
                   @for (day of bookableDays(); track day.date) {
@@ -248,6 +280,7 @@
                 <div class="relative group">
                   <select
                     [(ngModel)]="selectedSlot"
+                    (ngModelChange)="onSlotChange()"
                     name="selectedSlot"
                     required
                     [disabled]="loadingSlots() || availabilitySlots().length === 0"
@@ -297,6 +330,7 @@
                   </p>
                 }
               </div>
+              }
             </div>
             }
             
