@@ -604,7 +604,14 @@ Deno.test("WU2 copy, admin skip, incomplete settings, config, and legacy-only sc
     wu2Name.length > 0 && wu2Name !== wu1MigrationName,
     "WU2 must add a later-timestamp migration instead of editing WU1",
   );
-  const wu2 = await readText(new URL(wu2Name, migrationsDir));
+  const laterSql = (
+    await Promise.all(
+      entries
+        .filter((name) => name.endsWith(".sql") && name > wu1MigrationName)
+        .map((name) => readText(new URL(name, migrationsDir))),
+    )
+  ).join("\n");
+  const wu2 = laterSql;
   assert(
     /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.create_public_booking/i.test(wu2),
     "WU2 migration must redefine create_public_booking",
@@ -736,6 +743,10 @@ Deno.test("percent seña: resolve_business_by_slug exposes business deposit_enab
     /'depositPercent'[\s\S]{0,80}deposit_percent|'deposit_percent'[\s\S]{0,80}deposit_percent/i
       .test(body),
     "public resolve settings must include depositPercent",
+  );
+  assert(
+    /'supportPhone'/i.test(body) && /'depositAlias'/i.test(body),
+    "public resolve settings must include supportPhone and depositAlias for the receipt",
   );
 });
 

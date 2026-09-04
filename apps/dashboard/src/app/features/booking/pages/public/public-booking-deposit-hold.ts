@@ -116,3 +116,28 @@ export function formatDepositHoldExpiry(iso: string, nowMs = Date.now()): string
   const remainingMinutes = Math.max(0, Math.ceil((expires.getTime() - nowMs) / 60000));
   return `${formatted} (quedan ${remainingMinutes} min)`;
 }
+
+export function buildSeñaReceiptWhatsAppUrl(
+  phone: string | null | undefined,
+  details?: { code?: string | null; amountPesos?: number | null }
+): string | null {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (digits.length < 8) {
+    return null;
+  }
+
+  let international = digits;
+  if (!international.startsWith('54')) {
+    international = `54${international.replace(/^0/, '')}`;
+  }
+
+  const parts = ['Hola, te mando el comprobante de la seña'];
+  if (details?.code) {
+    parts.push(details.code);
+  }
+  if (details?.amountPesos) {
+    parts.push(`($${Math.round(details.amountPesos)})`);
+  }
+
+  return `https://wa.me/${international}?text=${encodeURIComponent(`${parts.join(' ')}.`)}`;
+}

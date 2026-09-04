@@ -101,7 +101,8 @@ describe('DashboardHomePage mobile summary visual contract', () => {
   });
 
   it('lets the operator confirm a pending seña from Inicio', () => {
-    expect(templateSource).toContain('Seña recibida');
+    expect(templateSource).toContain('Confirmar seña');
+    expect(templateSource).not.toContain('Seña recibida');
     expect(templateSource).toMatch(/turno\.depositPending/);
     expect(componentSource).toMatch(/confirmDepositReceived\s*\(/);
   });
