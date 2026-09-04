@@ -122,6 +122,10 @@ export class ConfiguracionPage {
     cancelationGracePeriod: [24, [Validators.min(0)]],
     autoConfirm: [true],
     maxAdvanceDays: [90, [Validators.min(1)]],
+    depositEnabled: [false],
+    depositAmountPesos: [null as number | null],
+    depositAlias: [''],
+    depositCbu: [''],
 
     // Logistics
     allowMultipleServices: [true],
@@ -617,6 +621,10 @@ export class ConfiguracionPage {
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
+        depositEnabled: values.depositEnabled,
+        depositAmountPesos: values.depositAmountPesos,
+        depositAlias: values.depositAlias.trim(),
+        depositCbu: values.depositCbu.trim(),
         capacity: values.capacity,
         allowClientProfessionalSelection: values.allowClientProfessionalSelection,
         firstName: values.firstName,

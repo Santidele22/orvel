@@ -35,6 +35,32 @@
       
       <!-- Successful Booking State -->
       @if (bookingConfirmed()) {
+        @if (depositHold(); as hold) {
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-deposit-hold-state">
+           <div class="w-20 h-20 bg-amber-500/20 rounded-[28px] flex items-center justify-center mx-auto text-amber-300 shadow-lg shadow-amber-900/40">
+              <i class="ri-time-line text-4xl"></i>
+           </div>
+           <div class="space-y-3">
+               <h2 class="text-3xl font-black text-white tracking-tight">Seña pendiente</h2>
+                <p class="text-slate-400 font-medium leading-relaxed">Tu horario en <strong class="text-white">{{ businessName() }}</strong> queda reservado hasta que confirmen la seña.</p>
+                <p class="text-white font-semibold tracking-widest" data-testid="booking-deposit-hold-code">{{ hold.code }}</p>
+                <p class="text-white">Monto ${{ hold.amountPesos }}</p>
+                @if (hold.alias) {
+                  <p class="text-slate-300">Alias {{ hold.alias }}</p>
+                }
+                @if (hold.cbu) {
+                  <p class="text-slate-300 break-all">CBU {{ hold.cbu }}</p>
+                }
+                <p class="text-slate-400 text-sm" data-testid="booking-deposit-hold-expiry">Vence {{ depositHoldExpiryLabel() }}</p>
+                <p class="text-amber-200 font-medium leading-relaxed">Si no se confirma la seña, el horario se libera.</p>
+           </div>
+           <div class="pt-8 border-t border-white/5">
+              <button type="button" (click)="dismissBookingSuccess()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+                 Volver
+              </button>
+           </div>
+        </section>
+        } @else {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-confirmed-state">
            <div class="w-20 h-20 bg-[#7C3AED] rounded-[28px] flex items-center justify-center mx-auto text-white shadow-lg shadow-purple-900/40">
               <i class="ri-checkbox-circle-fill text-4xl"></i>
@@ -47,11 +73,12 @@
                 }
            </div>
            <div class="pt-8 border-t border-white/5">
-              <button (click)="bookingConfirmed.set(false); bookingAwaitingApproval.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+              <button type="button" (click)="dismissBookingSuccess()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
                  {{ rescheduleConfirmed() ? 'Volver' : 'Reservar Otro' }}
               </button>
            </div>
         </section>
+        }
       } @else if (errorMessage() && !resolvedBusinessId()) {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-portal-error-state">
           <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-[28px] flex items-center justify-center mx-auto text-amber-300">

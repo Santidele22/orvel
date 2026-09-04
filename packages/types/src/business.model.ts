@@ -44,6 +44,10 @@ export interface BusinessSettings {
   lastName?: string;
   phone?: string;
   slug?: string;
+  depositEnabled?: boolean;
+  depositAmountPesos?: number | null;
+  depositAlias?: string;
+  depositCbu?: string;
 }
 
 export interface BusinessPublicView {
