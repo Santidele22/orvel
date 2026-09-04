@@ -27,7 +27,7 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_QA }}" >> $GITHUB_OUTPUT
             echo "vercel_target=preview" >> $GITHUB_OUTPUT
-            echo "angular_config=qa" >> $GITHUB_OUTPUT
+            echo "angular_config=production" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
             echo "vercel_target=production" >> $GITHUB_OUTPUT
