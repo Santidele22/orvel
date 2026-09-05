@@ -27,10 +27,12 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_QA }}" >> $GITHUB_OUTPUT
             echo "vercel_args=" >> $GITHUB_OUTPUT
+            echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
+            echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch: ${{ github.ref }}" >&2
@@ -75,5 +77,10 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          URL=$(npx vercel@59.11.7 deploy ${{ steps.target.outputs.vercel_args }} --token "$VERCEL_TOKEN" --yes)
+          OUT=dist/salon-de-belleza/browser
+          printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
+          URL=$(npx vercel@59.11.7 deploy "$OUT" ${{ steps.target.outputs.vercel_args }} --token "$VERCEL_TOKEN" --yes)
           echo "deployment-url=$URL" >> "$GITHUB_OUTPUT"
+          if [[ -n "${{ steps.target.outputs.vercel_alias }}" ]]; then
+            npx vercel@59.11.7 alias "$URL" "${{ steps.target.outputs.vercel_alias }}" --token "$VERCEL_TOKEN" --yes
+          fi
