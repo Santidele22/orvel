@@ -226,18 +226,31 @@ export function formatDepositHoldDueLabel(iso: string): string {
   return `${datePart} a las ${timePart}`;
 }
 
-export function buildSeñaReceiptWhatsAppUrl(
-  phone: string | null | undefined,
-  details?: { code?: string | null; amountPesos?: number | null }
-): string | null {
+function toArgentinaWhatsAppDigits(phone: string | null | undefined): string | null {
   const digits = String(phone ?? '').replace(/\D/g, '');
   if (digits.length < 8) {
     return null;
   }
 
-  let international = digits;
-  if (!international.startsWith('54')) {
-    international = `54${international.replace(/^0/, '')}`;
+  if (digits.startsWith('54')) {
+    return digits;
+  }
+
+  return `54${digits.replace(/^0/, '')}`;
+}
+
+export function formatDepositWhatsAppDisplay(phone: string | null | undefined): string | null {
+  const international = toArgentinaWhatsAppDigits(phone);
+  return international ? `+${international}` : null;
+}
+
+export function buildSeñaReceiptWhatsAppUrl(
+  phone: string | null | undefined,
+  details?: { code?: string | null; amountPesos?: number | null }
+): string | null {
+  const international = toArgentinaWhatsAppDigits(phone);
+  if (!international) {
+    return null;
   }
 
   const parts = ['Hola, te mando el comprobante de la seña'];
