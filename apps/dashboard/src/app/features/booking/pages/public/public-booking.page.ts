@@ -16,6 +16,7 @@ import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } fro
 import {
   DEPOSIT_HOLD_NEXT_STEPS_COPY,
   buildSeñaReceiptWhatsAppUrl,
+  formatDepositWhatsAppDisplay,
   buildServiceDepositQuote,
   clearPublicDepositHold,
   depositHoldRingProgress,
@@ -167,6 +168,10 @@ export class PublicBookingPage implements OnInit, OnDestroy {
 
   protected receiptWhatsAppUrl(details?: { code?: string | null; amountPesos?: number | null }): string | null {
     return buildSeñaReceiptWhatsAppUrl(this.supportPhone(), details);
+  }
+
+  protected depositWhatsAppDisplay(): string | null {
+    return formatDepositWhatsAppDisplay(this.supportPhone());
   }
 
   protected readonly depositNextStepsCopy = DEPOSIT_HOLD_NEXT_STEPS_COPY;
