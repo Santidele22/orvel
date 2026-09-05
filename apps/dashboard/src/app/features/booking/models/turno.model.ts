@@ -1,3 +1,5 @@
+import type { BookingDepositStatus } from '@orvel/booking/application';
+
 // Turno - Entity Model
 // Branch scope keeps appointments isolated for same category branches,
 // e.g. branch-barberia-a and branch-barberia-b can both use rubro='barberia'.
@@ -10,6 +12,7 @@ export interface Turno {
   hora: string; // HH:mm format
   duracionMinutos: number;
   estado: TurnoEstado;
+  depositStatus?: BookingDepositStatus;
   notas?: string;
   precio: number;
   professionalId?: string;
