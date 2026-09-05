@@ -44,6 +44,7 @@ const featureCopy: Record<string, { desc: string; items: string[] }> = {
           <article class:list={['landing-card p-7 flex flex-col reveal', featured && 'ring-1 ring-primary']}>
             <h3 class="font-headline font-semibold text-text-primary mb-2">{plan.name}</h3>
             <p class="font-headline font-black text-3xl text-text-primary mb-2">
+              {featured && <span class="block text-sm font-medium text-primary mb-1">14 días gratis</span>}
               {price}
               {plan.code !== 'FREE' && <span class="text-sm font-medium text-text-secondary"> /mes</span>}
             </p>

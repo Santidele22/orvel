@@ -6,12 +6,14 @@ import { firstValueFrom } from 'rxjs';
 import { getSupabaseAuthClient } from '../../../core/auth/route-protection';
 import {
   buildPremiumWhatsAppUrl,
-  copyPremiumAlias,
-  markPremiumReviewPending
+  copyPremiumAlias
 } from '../../../core/billing/premium-alias-receipt';
 import { AuthService } from '../../../services/auth.service';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
+import { startPremiumTrialForCurrentBusiness } from '../start-premium-trial.client';
+import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
+import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
 
 const AGENDA_ROUTE = '/dashboard/turnos';
 
@@ -148,22 +150,31 @@ const AGENDA_ROUTE = '/dashboard/turnos';
             <article class="in-app-auth__plan in-app-auth__plan--premium">
               <header class="in-app-auth__plan-head">
                 <h2 class="in-app-auth__plan-title">Premium</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">Pendiente</span>
+                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">14 días gratis</span>
               </header>
-              <p class="in-app-auth__lede">Lo pedís, lo activamos nosotros.</p>
+              <p class="in-app-auth__lede">14 días gratis, sin tarjeta. Se activa ya.</p>
               <ul class="in-app-auth__plan-list">
                 <li>Agenda sin límites</li>
-                <li>No se cobra ni se activa solo</li>
+                <li>Después, Premium a $25.000/mes o seguís en Gratis</li>
               </ul>
-              <button type="button" class="in-app-auth__cta" (click)="requestPremium()">Pedir Premium y entrar</button>
+              <button type="button" class="in-app-auth__cta" [disabled]="submitting()" (click)="startPremiumTrial()">Probar 14 días</button>
             </article>
           </div>
+          @if (errorMessage()) {
+            <p class="in-app-auth__error" role="alert">{{ errorMessage() }}</p>
+          }
         }
 
         @if (wizard.step === 5) {
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          <p class="in-app-auth__lede">Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.</p>
+          <p class="in-app-auth__lede">
+            @if (wizard.premiumRequested) {
+              Tenés 14 días de Premium activos.
+            } @else {
+              Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.
+            }
+          </p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
         }
 
@@ -579,12 +590,44 @@ export class InAppSignupWizardPage {
     this.triggerSignupSuccessConfetti();
   }
 
-  protected async requestPremium(): Promise<void> {
-    this.wizard.requestPremium();
-    if (typeof window !== 'undefined') {
-      markPremiumReviewPending(window.localStorage);
+  protected async startPremiumTrial(): Promise<void> {
+    if (this.submitting()) return;
+    this.errorMessage.set('');
+    this.submitting.set(true);
+    try {
+      const businessId = await this.resolveCurrentBusinessId();
+      if (!businessId) {
+        this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
+        return;
+      }
+      const supabase = createSupabaseBrowserClient({
+        supabaseUrl: SUPABASE_CONFIG.url,
+        supabaseAnonKey: SUPABASE_CONFIG.anonKey
+      });
+      const started = await startPremiumTrialForCurrentBusiness(businessId, supabase);
+      if (!started.ok) {
+        this.errorMessage.set(started.message);
+        return;
+      }
+      this.wizard.startPremiumTrial();
+      await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+      this.triggerSignupSuccessConfetti();
+    } catch {
+      this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
+    } finally {
+      this.submitting.set(false);
     }
-    await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+  }
+
+  private async resolveCurrentBusinessId(): Promise<string | null> {
+    const auth = getSupabaseAuthClient();
+    const authState = await auth.getDashboardAuthState();
+    if (typeof authState.data?.business_id === 'string' && authState.data.business_id) {
+      return authState.data.business_id;
+    }
+    const session = await auth.getSession();
+    const metadataId = session.data.session?.user.user_metadata?.['business_id'];
+    return typeof metadataId === 'string' && metadataId ? metadataId : null;
   }
 
   protected whatsAppUrl(): string {
