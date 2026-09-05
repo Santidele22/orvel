@@ -11,6 +11,7 @@
     "build:dashboard": "pnpm --dir apps/dashboard run build",
     "build:dashboard:bun": "bun run --cwd apps/dashboard build",
     "build:landing": "pnpm --dir apps/landing run build",
+    "build:backoffices": "pnpm --dir apps/backoffices run build",
     "build:vercel": "node scripts/build-vercel.mjs",
     "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check && pnpm run test:supabase:trial-reminder:ci",
     "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm --dir apps/dashboard run build",
@@ -55,7 +56,8 @@
   },
   "workspaces": [
     "apps/landing",
-    "apps/dashboard"
+    "apps/dashboard",
+    "apps/backoffices"
   ],
   "devDependencies": {
     "@playwright/test": "^1.61.1",
