@@ -1,13 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getActivePlans, calculateBillingPrices } from '../lib/plans';
-import { EARLY_BIRD_OCCUPIED, getCurrentFranja } from '../lib/waitlist';
-import { fetchWaitlistOccupied } from '../lib/waitlist-sheet';
 
 import PrelaunchHeader from '../components/organisms/prelaunch/PrelaunchHeader.astro';
 import PrelaunchHero from '../components/organisms/prelaunch/PrelaunchHero.astro';
 import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
-import EarlyBird from '../components/organisms/prelaunch/EarlyBird.astro';
+import PremiumTrial from '../components/organisms/prelaunch/PremiumTrial.astro';
 import PrelaunchHowItWorks from '../components/organisms/prelaunch/PrelaunchHowItWorks.astro';
 import PrelaunchPublicTurnero from '../components/organisms/prelaunch/PrelaunchPublicTurnero.astro';
 import PrelaunchProductShowcase from '../components/organisms/prelaunch/PrelaunchProductShowcase.astro';
@@ -16,12 +14,6 @@ import PrelaunchFaq from '../components/organisms/prelaunch/PrelaunchFaq.astro';
 import PrelaunchCta from '../components/organisms/prelaunch/PrelaunchCta.astro';
 import Footer from '../components/organisms/Footer.astro';
 
-const occupied =
-  (await fetchWaitlistOccupied({
-    webhookUrl: process.env.WAITLIST_SHEETS_WEBHOOK_URL || import.meta.env.WAITLIST_SHEETS_WEBHOOK_URL,
-    secret: process.env.WAITLIST_SHEETS_SECRET || import.meta.env.WAITLIST_SHEETS_SECRET
-  })) ?? EARLY_BIRD_OCCUPIED;
-const franja = getCurrentFranja(occupied);
 const plans = await getActivePlans();
 const plansWithBilling = plans.map((plan) => calculateBillingPrices(plan));
 const premium = plansWithBilling.find((plan) => plan.code === 'PREMIUM');
@@ -30,12 +22,12 @@ const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` 
 
 <Layout
   title="Orvel — Menos ida y vuelta. Más salón."
-  description="Tu cliente reserva. Vos atendés. Creá tu cuenta. Primeros 50 con descuento en el primer mes de Premium."
+  description="Tu cliente reserva. Vos atendés. Creá tu cuenta. 14 días de Premium gratis, sin tarjeta."
 >
   <PrelaunchHeader />
   <PrelaunchHero />
   <PrelaunchRubros />
-  <EarlyBird occupied={occupied} franja={franja} />
+  <PremiumTrial />
   <PrelaunchHowItWorks />
   <PrelaunchPublicTurnero />
   <PrelaunchProductShowcase />

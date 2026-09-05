@@ -140,6 +140,11 @@ export class InAppSignupWizard {
     this.step = 5;
   }
 
+  startPremiumTrial(): void {
+    this.premiumRequested = true;
+    this.step = 5;
+  }
+
   requestPremium(): void {
     this.premiumRequested = true;
     this.step = 6;
