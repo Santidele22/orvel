@@ -54,4 +54,31 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
     expect(fromDashboard.pathname).toBe('/dashboard/signup');
     expect(fromDashboard.pathname).not.toBe('/auth/signup');
   });
+
+  it('keeps qa.orvel.pro signup on the combined QA host even if PUBLIC_DASHBOARD_URL is production', () => {
+    const redirect = new URL(
+      buildInAppAuthRedirect(
+        new URL('https://qa.orvel.pro/auth/signup/plan'),
+        'signup',
+        'https://dashboard.orvel.pro'
+      )
+    );
+
+    expect(redirect.origin).toBe('https://qa.orvel.pro');
+    expect(redirect.pathname).toBe('/dashboard/signup');
+    expect(redirect.origin).not.toBe('https://dashboard.orvel.pro');
+  });
+
+  it('keeps combined Vercel preview signup on the preview host', () => {
+    const redirect = new URL(
+      buildInAppAuthRedirect(
+        new URL('https://orvel-nbwwjnsuh-santidele22s-projects.vercel.app/auth/signup/plan'),
+        'signup',
+        'https://dashboard.orvel.pro'
+      )
+    );
+
+    expect(redirect.origin).toBe('https://orvel-nbwwjnsuh-santidele22s-projects.vercel.app');
+    expect(redirect.pathname).toBe('/dashboard/signup');
+  });
 });

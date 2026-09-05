@@ -71,6 +71,7 @@ jobs:
         if: ${{ steps.target.outputs.site == 'combined' }}
         env:
           PUBLIC_LANDING_URL: https://qa.orvel.pro
+          PUBLIC_DASHBOARD_URL: https://qa.orvel.pro
         run: pnpm run build:vercel
 
       - name: Build dashboard
