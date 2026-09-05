@@ -12,6 +12,7 @@ import {
   formatBusinessDepositRequiredBanner,
   formatDepositHoldCountdown,
   formatDepositMoney,
+  formatDepositWhatsAppDisplay,
   formatServiceDepositPreview,
   persistPublicDepositHold,
   readPublicDepositHold,
@@ -128,8 +129,13 @@ describe('public booking deposit hold success copy', () => {
     expect(pageTemplate).not.toMatch(/data-testid=["']booking-deposit-required-banner["']/);
     expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-required-notice["']/);
     expect(pageTemplate).toContain('Este servicio requiere seña');
+    expect(pageTemplate).toMatch(/ri-lock-line/);
+    expect(pageTemplate).toMatch(/'Copiado' : 'Copiar'/);
     expect(pageTemplate).toMatch(/booking-deposit-receipt-whatsapp/);
     expect(pageTemplate).toContain('Mandá el comprobante');
+    expect(pageTemplate).toMatch(/depositWhatsAppDisplay\(/);
+    expect(formatDepositWhatsAppDisplay('29466778')).toBe('+5429466778');
+    expect(formatDepositWhatsAppDisplay('+54 294 4667-161')).toBe('+542944667161');
     expect(pageTemplate).toContain('depositNextStepsCopy');
     expect(pageSource).toMatch(/DEPOSIT_HOLD_NEXT_STEPS_COPY/);
     expect(pageTemplate).toMatch(/booking-deposit-copy-alias/);
