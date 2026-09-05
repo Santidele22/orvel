@@ -871,8 +871,6 @@ export class ConfiguracionPage {
         })
       );
       await this.loadTeam();
-      this.formMessage.set('Configuración guardada exitosamente.');
-      this.isSettingsSavedModalOpen.set(true);
     } catch {
       this.formMessage.set('No se pudo guardar el horario. Revisá los valores e intentá nuevamente.');
     }
