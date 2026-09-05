@@ -9,11 +9,16 @@ export type StartPremiumTrialResult =
   | { ok: true; outcome: 'started' | 'already_premium' | 'already_trialing' }
   | { ok: false; outcome: 'trial_already_used' | 'unavailable'; message: string };
 
+export type StartPremiumTrialRpcResult = {
+  data: unknown;
+  error: { message?: string } | null;
+};
+
 export type StartPremiumTrialRpc = {
   rpc: (
     fn: 'start_premium_trial',
     args: { p_business_id: string }
-  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+  ) => PromiseLike<StartPremiumTrialRpcResult>;
 };
 
 const TRIAL_ALREADY_USED_MESSAGE = 'Este negocio ya usó la prueba de Premium.';
