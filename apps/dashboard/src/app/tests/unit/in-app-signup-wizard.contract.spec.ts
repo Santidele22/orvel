@@ -99,7 +99,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(payload).not.toHaveProperty('telefono');
   });
 
-  it('creates Free then starts a Premium trial without the transfer step', () => {
+  it('creates Free then starts a Premium trial without a plan picker or transfer step', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -111,9 +111,11 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.password = '12345678';
     wizard.confirmPassword = '12345678';
 
+    expect(wizard.step).toBe(3);
     wizard.markAccountCreated();
     expect(wizard.createdFree).toBe(true);
-    expect(wizard.step).toBe(4);
+    expect(wizard.step).toBe(3);
+    expect(wizard.premiumRequested).toBe(false);
 
     wizard.startPremiumTrial();
     expect(wizard.premiumRequested).toBe(true);
@@ -124,21 +126,9 @@ describe('Contract: in-app signup wizard (#562)', () => {
         premium_requested: true
       })
     );
-
-    const freeWizard = new InAppSignupWizard();
-    freeWizard.markAccountCreated();
-    freeWizard.chooseFree();
-    expect(freeWizard.premiumRequested).toBe(false);
-    expect(freeWizard.step).toBe(5);
-    expect(freeWizard.premiumRequestMetadata()).toEqual(
-      expect.objectContaining({
-        plan: 'FREE',
-        premium_requested: false
-      })
-    );
   });
 
-  it('backs from steps 2-4 and hides step chrome on success', () => {
+  it('backs from steps 2-3 and hides step chrome on trial success', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -154,19 +144,11 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.password = '12345678';
     wizard.confirmPassword = '12345678';
     wizard.markAccountCreated();
+    expect(wizard.step).toBe(3);
     expect(wizard.canGoBack()).toBe(true);
-    wizard.chooseFree();
+    wizard.startPremiumTrial();
     expect(wizard.canGoBack()).toBe(false);
     expect(wizard.showsStepChrome()).toBe(false);
-
-    const premiumWizard = new InAppSignupWizard();
-    premiumWizard.markAccountCreated();
-    premiumWizard.requestPremium();
-    expect(premiumWizard.step).toBe(6);
-    expect(premiumWizard.canGoBack()).toBe(true);
-    expect(premiumWizard.showsStepChrome()).toBe(true);
-    premiumWizard.back();
-    expect(premiumWizard.step).toBe(4);
   });
 
   it('loads rubros from the dashboard reference catalog instead of a second hardcoded list', () => {
@@ -187,23 +169,19 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).not.toContain('Elegí uno o más');
     expect(page).not.toContain('Más rubros');
     expect(page).toContain('Creá tu acceso');
-    expect(page).toContain('Paso 4 de 4');
-    expect(page).toContain('¿Qué plan querés?');
-    expect(page).toContain('Arrancás gratis igual. Vos decidís cuándo sumar más.');
-    expect(page).toContain('Entrás ahora, sin pagar nada.');
-    expect(page).toContain('Sin pago, sin tarjeta');
-    expect(page).toContain('14 días gratis, sin tarjeta. Se activa ya.');
-    expect(page).toContain('Agenda sin límites');
+    expect(page).toContain('@for (dot of [1, 2, 3]; track dot)');
+    expect(page).not.toContain('Paso 4 de 4');
+    expect(page).not.toContain('¿Qué plan querés?');
+    expect(page).not.toContain('Empezar gratis');
+    expect(page).not.toContain('Probar 14 días');
     expect(page).toContain('Ya estás adentro');
-    expect(page).toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Tenés 14 días de Premium activos.');
+    expect(page).not.toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Crear cuenta');
     expect(page).toContain('Apellido');
     expect(page).toContain('ownerLastName');
     expect(page).toContain('accessError()');
     expect(page).toContain('syncAccessField');
-    expect(page).toContain('Empezar gratis');
-    expect(page).toContain('Probar 14 días');
     expect(page).toContain('Entrar a la agenda');
     expect(page).toContain('PASO FINAL');
     expect(page).toContain('Transferí y mandá el comprobante');
@@ -225,14 +203,15 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('buildPremiumWhatsAppUrl');
     expect(page).not.toContain('Premium pedido · Free activo');
     expect(page).toMatch(/import\('canvas-confetti'\)/);
-    expect(page).toMatch(/chooseFree\(\)[\s\S]*triggerSignupSuccessConfetti/);
-    const premiumHandler = page.match(/protected async startPremiumTrial\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
-    expect(premiumHandler).toContain('startPremiumTrialForCurrentBusiness');
-    expect(premiumHandler).toContain('wizard.startPremiumTrial');
-    expect(premiumHandler).not.toContain('markPremiumReviewPending');
-    expect(premiumHandler).toContain('triggerSignupSuccessConfetti');
-    expect(page).toContain('(click)="startPremiumTrial()"');
+    expect(page).not.toMatch(/chooseFree\(/);
+    const createAccountHandler = page.match(/protected async createAccount\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
+    expect(createAccountHandler).toContain('startPremiumTrialForCurrentBusiness');
+    expect(createAccountHandler).toContain('wizard.startPremiumTrial');
+    expect(createAccountHandler).toContain('triggerSignupSuccessConfetti');
+    expect(createAccountHandler).not.toContain('markPremiumReviewPending');
+    expect(page).not.toContain('(click)="startPremiumTrial()"');
     expect(page).not.toContain('(click)="requestPremium()"');
+    expect(page).not.toContain('(click)="chooseFree()"');
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(page).not.toMatch(/teléfono|telefono|notch|home indicator|phone-frame/i);
     expect(page).toMatch(/prefers-reduced-motion/);
