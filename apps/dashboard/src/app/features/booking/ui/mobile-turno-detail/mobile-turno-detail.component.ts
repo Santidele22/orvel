@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import type { BookingQueries } from '@orvel/booking/application';
+import { isDepositUnpaid, type BookingQueries } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { createIsMobileSignal } from '../../../../core/shell/is-mobile/is-mobile';
 import { getBranchContextService } from '../../../../core/branches/branch-context.service';
@@ -57,6 +57,7 @@ export class MobileTurnoDetailComponent {
 
   readonly telefono = computed(() => this.turno()?.cliente?.telefono ?? null);
   readonly isEmpty = computed(() => this.turno() === undefined);
+  protected readonly isDepositUnpaid = isDepositUnpaid;
 
   back(): void {
     this.router.navigate(['/dashboard/turnos']);
