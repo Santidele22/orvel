@@ -49,6 +49,13 @@ test('deploy-promotion does not pass Vercel CLI --target preview on QA', async (
   );
 });
 
+test('deploy-promotion uses Vercel CLI 47+ instead of vercel-action v25', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.doesNotMatch(source, /amondnet\/vercel-action/);
+  assert.match(source, /npx vercel@47\.2\.2/);
+});
+
 test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
