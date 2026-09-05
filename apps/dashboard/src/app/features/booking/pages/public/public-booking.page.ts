@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, signal, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -17,11 +17,17 @@ import {
   DEPOSIT_HOLD_NEXT_STEPS_COPY,
   buildSeñaReceiptWhatsAppUrl,
   buildServiceDepositQuote,
+  clearPublicDepositHold,
+  depositHoldRingProgress,
   formatBusinessDepositRequiredBanner,
-  formatDepositHoldExpiry,
+  formatDepositHoldCountdown,
+  formatDepositHoldDueLabel,
   formatDepositMoney,
   formatServiceDepositPreview,
+  persistPublicDepositHold,
   readPublicDepositHold,
+  remainingDepositHoldMs,
+  restorePublicDepositHold,
   type PublicDepositHoldView,
   type ServiceDepositQuote
 } from './public-booking-deposit-hold';
@@ -37,7 +43,7 @@ type ReschedulePreload = {
   imports: [CommonModule, FormsModule],
   templateUrl: './public-booking.page.html'
 })
-export class PublicBookingPage implements OnInit {
+export class PublicBookingPage implements OnInit, OnDestroy {
   private readonly servicioService = inject(ServicioService);
   private readonly businessService = inject(BusinessService);
   private readonly publicBookingService = inject(PublicBookingService);
@@ -110,8 +116,29 @@ export class PublicBookingPage implements OnInit {
   private preloadServiceId = '';
   private preloadStartsAtIso = '';
 
+  private depositHoldTimer: number | null = null;
+  private readonly onDepositHoldVisibility = (): void => {
+    this.syncDepositHoldCountdown();
+  };
+  private readonly onDepositHoldFocus = (): void => {
+    this.syncDepositHoldCountdown();
+  };
+
+  protected readonly depositHoldRemainingMs = signal(0);
+  protected readonly depositHoldCountdownLabel = computed(() =>
+    formatDepositHoldCountdown(this.depositHoldRemainingMs())
+  );
+  protected readonly depositHoldRingCircumference = 2 * Math.PI * 54;
+  protected readonly depositHoldRingOffset = computed(
+    () => this.depositHoldRingCircumference * (1 - depositHoldRingProgress(this.depositHoldRemainingMs()))
+  );
+
   async ngOnInit(): Promise<void> {
     await this.loadPortal();
+  }
+
+  ngOnDestroy(): void {
+    this.stopDepositHoldTicker();
   }
 
   protected async retryPortalLoad(): Promise<void> {
@@ -175,13 +202,104 @@ export class PublicBookingPage implements OnInit {
     if (!iso) {
       return '';
     }
-    return formatDepositHoldExpiry(iso);
+    return formatDepositHoldDueLabel(iso);
   }
 
   protected dismissBookingSuccess(): void {
+    this.clearStoredDepositHold();
+    this.stopDepositHoldTicker();
     this.bookingConfirmed.set(false);
     this.bookingAwaitingApproval.set(false);
     this.depositHold.set(null);
+    this.depositHoldRemainingMs.set(0);
+  }
+
+  private publicBookingSlug(): string {
+    return this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '';
+  }
+
+  private depositHoldStorage(): Storage | null {
+    try {
+      return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  private activateDepositHold(hold: PublicDepositHoldView | null): void {
+    this.depositHold.set(hold);
+    if (!hold) {
+      this.depositHoldRemainingMs.set(0);
+      this.stopDepositHoldTicker();
+      return;
+    }
+    this.persistCurrentDepositHold();
+    this.startDepositHoldTicker();
+  }
+
+  private persistCurrentDepositHold(): void {
+    const hold = this.depositHold();
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!hold || !storage || !slug) {
+      return;
+    }
+    persistPublicDepositHold(storage, slug, hold);
+  }
+
+  private restoreStoredDepositHold(): void {
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!storage || !slug) {
+      return;
+    }
+    const hold = restorePublicDepositHold(storage, slug);
+    if (!hold) {
+      return;
+    }
+    this.bookingConfirmed.set(true);
+    this.depositHold.set(hold);
+    this.startDepositHoldTicker();
+  }
+
+  private clearStoredDepositHold(): void {
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!storage || !slug) {
+      return;
+    }
+    clearPublicDepositHold(storage, slug);
+  }
+
+  private startDepositHoldTicker(): void {
+    this.stopDepositHoldTicker();
+    this.syncDepositHoldCountdown();
+    this.depositHoldTimer = window.setInterval(() => this.syncDepositHoldCountdown(), 1000);
+    document.addEventListener('visibilitychange', this.onDepositHoldVisibility);
+    window.addEventListener('focus', this.onDepositHoldFocus);
+  }
+
+  private stopDepositHoldTicker(): void {
+    if (this.depositHoldTimer != null) {
+      window.clearInterval(this.depositHoldTimer);
+      this.depositHoldTimer = null;
+    }
+    document.removeEventListener('visibilitychange', this.onDepositHoldVisibility);
+    window.removeEventListener('focus', this.onDepositHoldFocus);
+  }
+
+  private syncDepositHoldCountdown(): void {
+    const hold = this.depositHold();
+    if (!hold?.expiresAtIso) {
+      this.depositHoldRemainingMs.set(0);
+      return;
+    }
+    const remaining = remainingDepositHoldMs(hold.expiresAtIso);
+    this.depositHoldRemainingMs.set(remaining);
+    if (remaining <= 0) {
+      this.clearStoredDepositHold();
+      this.stopDepositHoldTicker();
+    }
   }
 
   private async loadPortal(): Promise<void> {
@@ -191,7 +309,9 @@ export class PublicBookingPage implements OnInit {
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
     this.bookingAwaitingApproval.set(false);
+    this.stopDepositHoldTicker();
     this.depositHold.set(null);
+    this.depositHoldRemainingMs.set(0);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
@@ -263,6 +383,7 @@ export class PublicBookingPage implements OnInit {
       }
 
       await this.loadServices(response.data.id);
+      this.restoreStoredDepositHold();
     } else {
       emitPublicBookingFailureEvent({
         stage: 'resolver',
@@ -625,7 +746,7 @@ export class PublicBookingPage implements OnInit {
       if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
         this.bookingAwaitingApproval.set(response.data.status === 'pending');
-        this.depositHold.set(readPublicDepositHold(response.data));
+        this.activateDepositHold(readPublicDepositHold(response.data));
         this.confirmedProfessionalName.set(
           response.data.professionalName
           || this.publicProfessionals().find((professional) => professional.id === selectedProfessionalId)?.name
