@@ -44,28 +44,43 @@
                <h2 class="text-3xl font-black text-white tracking-tight">Seña pendiente</h2>
                 <p class="text-slate-400 font-medium leading-relaxed">Tu horario en <strong class="text-white">{{ businessName() }}</strong> queda reservado hasta que confirmen la seña.</p>
                 <p class="text-white font-semibold tracking-widest" data-testid="booking-deposit-hold-code">{{ hold.code }}</p>
-                <p class="text-white">Monto ${{ hold.amountPesos }}</p>
-                @if (hold.alias) {
-                  <p class="text-slate-300">Alias {{ hold.alias }}</p>
-                }
-                @if (hold.cbu) {
-                  <p class="text-slate-300 break-all">CBU {{ hold.cbu }}</p>
-                }
-                <p class="text-slate-400 text-sm" data-testid="booking-deposit-hold-expiry">Vence {{ depositHoldExpiryLabel() }}</p>
-                 <p class="text-amber-200 font-medium leading-relaxed">Si no se confirma la seña, el horario se libera.</p>
-            </div>
-            @if (receiptWhatsAppUrl({ code: hold.code, amountPesos: hold.amountPesos }); as waUrl) {
-              <a
-                data-testid="booking-deposit-receipt-whatsapp"
-                [href]="waUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white"
-              >
-                <i class="ri-whatsapp-line text-lg"></i>
-                Enviar comprobante
-              </a>
-            }
+                 <p class="text-white">Monto ${{ hold.amountPesos }}</p>
+                 @if (hold.alias) {
+                   <button
+                     type="button"
+                     data-testid="booking-deposit-copy-alias"
+                     class="mx-auto block text-slate-300 underline-offset-2 hover:underline"
+                     (click)="copyDepositValue('alias', hold.alias)"
+                   >
+                     Alias {{ hold.alias }} · {{ copiedDepositField() === 'alias' ? 'Copiado' : 'Copiar' }}
+                   </button>
+                 }
+                 @if (hold.cbu) {
+                   <button
+                     type="button"
+                     data-testid="booking-deposit-copy-cbu"
+                     class="mx-auto block break-all text-slate-300 underline-offset-2 hover:underline"
+                     (click)="copyDepositValue('cbu', hold.cbu)"
+                   >
+                     CBU {{ hold.cbu }} · {{ copiedDepositField() === 'cbu' ? 'Copiado' : 'Copiar' }}
+                   </button>
+                 }
+                 <p class="text-slate-400 text-sm" data-testid="booking-deposit-hold-expiry">Vence {{ depositHoldExpiryLabel() }}</p>
+                  <p class="text-amber-200 font-medium leading-relaxed">{{ depositNextStepsCopy }}</p>
+                  <p class="text-slate-500 text-sm leading-relaxed">Si no se confirma la seña, el horario se libera.</p>
+             </div>
+             @if (receiptWhatsAppUrl({ code: hold.code, amountPesos: hold.amountPesos }); as waUrl) {
+               <a
+                 data-testid="booking-deposit-receipt-whatsapp"
+                 [href]="waUrl"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white"
+               >
+                 <i class="ri-whatsapp-line text-lg"></i>
+                 Enviar comprobante
+               </a>
+             }
             <div class="pt-8 border-t border-white/5">
               <button type="button" (click)="dismissBookingSuccess()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
                  Volver
@@ -484,10 +499,24 @@
                   Si no se confirma la seña, el horario se libera.
                 </p>
                 @if (depositAlias()) {
-                  <p class="text-sm text-slate-300">Alias {{ depositAlias() }}</p>
+                  <button
+                    type="button"
+                    data-testid="booking-deposit-copy-alias"
+                    class="text-left text-sm text-slate-300 underline-offset-2 hover:underline"
+                    (click)="copyDepositValue('alias', depositAlias())"
+                  >
+                    Alias {{ depositAlias() }} · {{ copiedDepositField() === 'alias' ? 'Copiado' : 'Copiar' }}
+                  </button>
                 }
                 @if (depositCbu()) {
-                  <p class="text-sm text-slate-300 break-all">CBU {{ depositCbu() }}</p>
+                  <button
+                    type="button"
+                    data-testid="booking-deposit-copy-cbu"
+                    class="break-all text-left text-sm text-slate-300 underline-offset-2 hover:underline"
+                    (click)="copyDepositValue('cbu', depositCbu())"
+                  >
+                    CBU {{ depositCbu() }} · {{ copiedDepositField() === 'cbu' ? 'Copiado' : 'Copiar' }}
+                  </button>
                 }
                 @if (receiptWhatsAppUrl(); as waUrl) {
                   <a
