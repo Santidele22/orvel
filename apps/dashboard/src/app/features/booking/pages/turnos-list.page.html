@@ -146,12 +146,12 @@
               [class.bg-primary]="professionalFilter() === 'todas'"
               [class.text-white]="professionalFilter() === 'todas'"
               (click)="professionalFilter.set('todas')">Todas</button>
-            @for (name of professionalChips(); track name) {
+            @for (chip of professionalChips(); track chip.id) {
             <button type="button"
               class="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
-              [class.bg-primary]="professionalFilter() === name"
-              [class.text-white]="professionalFilter() === name"
-              (click)="professionalFilter.set(name)">{{ name }}</button>
+              [class.bg-primary]="professionalFilter() === chip.id"
+              [class.text-white]="professionalFilter() === chip.id"
+              (click)="professionalFilter.set(chip.id)">{{ chip.name }}</button>
             }
           </div>
           }
