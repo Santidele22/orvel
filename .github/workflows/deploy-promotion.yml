@@ -13,7 +13,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'orvel-prod' || 'orvel-qa' }}
       url: ${{ steps.deploy.outputs.deployment-url }}
@@ -29,11 +29,13 @@ jobs:
             echo "vercel_args=" >> $GITHUB_OUTPUT
             echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
+            echo "site=combined" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
+            echo "site=dashboard" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch: ${{ github.ref }}" >&2
             exit 1
@@ -65,22 +67,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build combined landing+dashboard
+        if: ${{ steps.target.outputs.site == 'combined' }}
+        env:
+          PUBLIC_LANDING_URL: https://qa.orvel.pro
+        run: pnpm run build:vercel
+
       - name: Build dashboard
+        if: ${{ steps.target.outputs.site == 'dashboard' }}
         run: pnpm --dir apps/dashboard exec ng build --configuration=${{ steps.target.outputs.angular_config }}
 
       - name: Deploy to Vercel
         id: deploy
-        working-directory: ./apps/dashboard
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          OUT=dist/salon-de-belleza/browser
-          printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
-          URL=$(npx vercel@59.11.7 deploy "$OUT" ${{ steps.target.outputs.vercel_args }} --token "$VERCEL_TOKEN" --yes)
+          if [[ "${{ steps.target.outputs.site }}" == "combined" ]]; then
+            URL=$(npx vercel@59.11.7 deploy --prebuilt --token "$VERCEL_TOKEN" --yes)
+          else
+            OUT=apps/dashboard/dist/salon-de-belleza/browser
+            printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
+            URL=$(npx vercel@59.11.7 deploy "$OUT" ${{ steps.target.outputs.vercel_args }} --token "$VERCEL_TOKEN" --yes)
+          fi
           echo "deployment-url=$URL" >> "$GITHUB_OUTPUT"
           if [[ -n "${{ steps.target.outputs.vercel_alias }}" ]]; then
-            npx vercel@59.11.7 alias "$URL" "${{ steps.target.outputs.vercel_alias }}" --token "$VERCEL_TOKEN" --yes
+            npx vercel@59.11.7 alias "$URL" "${{ steps.target.outputs.vercel_alias }}" --token "$VERCEL_TOKEN"
           fi
