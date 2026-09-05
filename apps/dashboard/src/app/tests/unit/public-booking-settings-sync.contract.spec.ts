@@ -305,6 +305,20 @@ describe('public booking settings synchronization', () => {
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.resolve_business_by_slug\(text\) TO anon,\s*authenticated/i);
   });
 
+  it('adds business_settings.whatsapp when resolve_business_by_slug reads it', () => {
+    const migrationsDir = join(process.cwd(), '..', '..', 'supabase', 'migrations');
+    const sql = readdirSync(migrationsDir)
+      .filter((entry) => entry.endsWith('.sql'))
+      .sort()
+      .map((entry) => readFileSync(join(migrationsDir, entry), 'utf-8'))
+      .join('\n');
+
+    expect(sql).toMatch(/bs\.whatsapp/);
+    expect(sql).toMatch(
+      /ALTER TABLE[\s\S]*business_settings[\s\S]*ADD COLUMN IF NOT EXISTS whatsapp/i
+    );
+  });
+
   it('formats booking day strings from the business timezone civil date instead of UTC ISO conversion', async () => {
     // Arrange
     const { toLocalCivilDate } = await loadPublicBookingPageModule();
