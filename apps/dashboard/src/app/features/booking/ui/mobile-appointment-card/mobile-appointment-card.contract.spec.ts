@@ -94,6 +94,13 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).toMatch(/bg-warning/);
   });
 
+  it('unpaid seña pill is Pendiente de seña from depositStatus, not confirmado-only', () => {
+    expect(templateSource).toContain('Pendiente de seña');
+    expect(templateSource).toMatch(/depositStatus/);
+    expect(`${componentSource}\n${templateSource}`).toMatch(/isDepositUnpaid/);
+    expect(templateSource).not.toMatch(/turno\(\)\.estado\s*===\s*['"]confirmado['"]\s*\)\s*\{/);
+  });
+
   it('template references bg-primary (Walk-in)', () => {
     expect(templateSource).toMatch(/bg-primary/);
   });

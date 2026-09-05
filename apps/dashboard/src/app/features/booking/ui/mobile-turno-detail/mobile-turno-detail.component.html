@@ -82,6 +82,14 @@
             <div>
               <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Estado</p>
               <div class="mt-1.5">
+                @if (isDepositUnpaid(turno()?.depositStatus) && (turno()?.estado === 'confirmado' || turno()?.estado === 'pendiente')) {
+                  <span
+                    data-testid="status-pill"
+                    class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning border-warning/40"
+                  >
+                    Pendiente de seña
+                  </span>
+                } @else {
                 @switch (turno()?.estado) {
                   @case ('confirmado') {
                     <span
@@ -131,6 +139,7 @@
                       {{ turno()?.estado }}
                     </span>
                   }
+                }
                 }
               </div>
             </div>
