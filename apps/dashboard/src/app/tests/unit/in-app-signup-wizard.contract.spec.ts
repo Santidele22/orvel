@@ -215,6 +215,9 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(page).not.toMatch(/teléfono|telefono|notch|home indicator|phone-frame/i);
     expect(page).toMatch(/prefers-reduced-motion/);
+    expect(page).toContain('[class.is-dimmed]');
+    expect(page).toMatch(/\.in-app-auth__chip\.is-selected[\s\S]{0,120}background:\s*#7C3AED/);
+    expect(page).toMatch(/\.in-app-auth__chip\.is-dimmed[\s\S]{0,80}opacity:\s*0\.(3[5-9]|4[0-5])/);
   });
 
   it('login surface lives in-app with a path to alta', async () => {
