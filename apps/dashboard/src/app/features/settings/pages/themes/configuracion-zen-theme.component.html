@@ -67,7 +67,7 @@
       <div class="sr-only" data-testid="settings-empty-state" role="status">Ready for configuration updates.</div>
 
       <form [formGroup]="settingsForm" data-testid="settings-form" (ngSubmit)="onSubmit()" class="space-y-zen-xl"
-        aria-label="business settings form">
+        novalidate aria-label="business settings form">
 
         @if (activeSettingsTab() === 'perfil') {
 
@@ -603,10 +603,14 @@
                       <input type="checkbox" [checked]="hourForDay(professional, day.dayOfWeek).enabled"
                         (change)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: $any($event.target).checked })" />
                       <input type="time" [value]="hourForDay(professional, day.dayOfWeek).start"
-                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, start: $any($event.target).value })"
+                        [disabled]="!hourForDay(professional, day.dayOfWeek).enabled"
+                        (keydown.enter)="$event.preventDefault()"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { start: $any($event.target).value })"
                         class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
                       <input type="time" [value]="hourForDay(professional, day.dayOfWeek).end"
-                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, end: $any($event.target).value })"
+                        [disabled]="!hourForDay(professional, day.dayOfWeek).enabled"
+                        (keydown.enter)="$event.preventDefault()"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { end: $any($event.target).value })"
                         class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
                     </div>
                     }

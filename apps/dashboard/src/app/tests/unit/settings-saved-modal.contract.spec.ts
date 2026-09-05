@@ -90,4 +90,15 @@ describe('Contract: settings saved modal after Configuraciones persist', () => {
     expect(modal).not.toContain('h-20 w-20');
     expect(modal).not.toContain('text-4xl');
   });
+
+  it('opens the saved modal after Equipo hours persist', () => {
+    const pageTs = readSource('src/app/features/settings/pages/configuracion.page.ts');
+    const saveHours = pageTs.slice(pageTs.indexOf('async saveProfessionalHours('));
+
+    expect(saveHours).toMatch(/replaceProfessionalHours\(/);
+    expect(saveHours).toMatch(/isSettingsSavedModalOpen\.set\(true\)/);
+    expect(saveHours.indexOf('isSettingsSavedModalOpen.set(true)')).toBeGreaterThan(
+      saveHours.indexOf('replaceProfessionalHours(')
+    );
+  });
 });
