@@ -75,6 +75,8 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 type="button"
                 class="in-app-auth__chip"
                 [class.is-selected]="wizard.selectedRubros.includes(rubro.code)"
+                [class.is-dimmed]="wizard.selectedRubros.length === 1 && !wizard.selectedRubros.includes(rubro.code)"
+                [attr.aria-pressed]="wizard.selectedRubros.includes(rubro.code)"
                 (click)="wizard.toggleRubro(rubro.code)"
               >
                 {{ rubro.label }}
@@ -352,9 +354,15 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       align-items: center;
       gap: 8px;
       cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     }
     .in-app-auth__chip.is-selected {
+      background: #7C3AED;
       border-color: #7C3AED;
+      color: #F8F7FF;
+    }
+    .in-app-auth__chip.is-dimmed {
+      opacity: 0.38;
     }
     .in-app-auth__error { margin: 0 0 12px; color: #EF4444; font-weight: 600; }
     .in-app-auth__success-badge {
