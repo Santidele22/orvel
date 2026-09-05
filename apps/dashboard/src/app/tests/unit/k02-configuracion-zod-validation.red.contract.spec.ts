@@ -155,7 +155,9 @@ describe('K02 - Configuración Zod validation RED contract', () => {
       '11 1234-5678',
       '011 15 1234 5678',
       '351 123 4567',
-      '+54 351 123 4567'
+      '+54 351 123 4567',
+      '+54294667788',
+      '0294 15 667788'
     ];
 
     for (const phone of validArgentinaPhones) {
