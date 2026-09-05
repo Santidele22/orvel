@@ -17,6 +17,8 @@ describe('Contract: PremiumTrial public copy', () => {
     expect(source).toMatch(/sin tarjeta/i);
     expect(source).toContain('/auth/signup/plan');
     expect(source).toContain('$25.000');
+    expect(source).toContain('se activa al crear la cuenta');
+    expect(source).not.toMatch(/al elegirla/);
     expect(source).not.toMatch(/Primeros 50/);
     expect(source).not.toMatch(/50 lugares/);
     expect(source).not.toMatch(/js-open-waitlist/);
