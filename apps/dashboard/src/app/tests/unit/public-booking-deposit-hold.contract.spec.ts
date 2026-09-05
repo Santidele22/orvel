@@ -2,13 +2,22 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  DEPOSIT_HOLD_DURATION_MS,
   DEPOSIT_HOLD_NEXT_STEPS_COPY,
   DEPOSIT_HOLD_RELEASE_COPY,
   buildSeñaReceiptWhatsAppUrl,
+  clearPublicDepositHold,
+  depositHoldRingProgress,
+  depositHoldStorageKey,
   formatBusinessDepositRequiredBanner,
+  formatDepositHoldCountdown,
   formatDepositMoney,
   formatServiceDepositPreview,
-  readPublicDepositHold
+  persistPublicDepositHold,
+  readPublicDepositHold,
+  remainingDepositHoldMs,
+  restorePublicDepositHold,
+  type PublicDepositHoldView
 } from '../../features/booking/pages/public/public-booking-deposit-hold';
 
 const FORBIDDEN_REFUND_COPY = 'te devolvemos la plata';
@@ -170,5 +179,101 @@ describe('public booking deposit hold success copy', () => {
     expect(resolverSource).toMatch(/depositEnabled/);
     expect(resolverSource).toMatch(/depositPercent/);
     expect(resolverSource).toMatch(/mapToPublicView/);
+  });
+});
+
+function memoryStorage() {
+  const data = new Map<string, string>();
+  return {
+    getItem(key: string): string | null {
+      return data.get(key) ?? null;
+    },
+    setItem(key: string, value: string): void {
+      data.set(key, value);
+    },
+    removeItem(key: string): void {
+      data.delete(key);
+    }
+  };
+}
+
+function sampleHold(expiresAtIso: string): PublicDepositHoldView {
+  return {
+    code: 'ORV-1A2B3C4D',
+    amountPesos: 15000,
+    alias: 'salon.zen',
+    cbu: '0000003100010000000001',
+    expiresAtIso,
+    message: DEPOSIT_HOLD_RELEASE_COPY
+  };
+}
+
+describe('public booking deposit hold countdown and persistence', () => {
+  const pageSource = readUtf8('src/app/features/booking/pages/public/public-booking.page.ts');
+  const pageTemplate = readUtf8('src/app/features/booking/pages/public/public-booking.page.html');
+
+  it('formats remaining time as MM:SS and clamps expired holds to 00:00', () => {
+    expect(formatDepositHoldCountdown(0)).toBe('00:00');
+    expect(formatDepositHoldCountdown(-1500)).toBe('00:00');
+    expect(formatDepositHoldCountdown(1000)).toBe('00:01');
+    expect(formatDepositHoldCountdown(61_000)).toBe('01:01');
+    expect(formatDepositHoldCountdown(90_000)).toBe('01:30');
+    expect(formatDepositHoldCountdown(DEPOSIT_HOLD_DURATION_MS)).toBe('30:00');
+  });
+
+  it('derives ring progress from remaining vs 30-minute total and hits 0 when expired', () => {
+    expect(DEPOSIT_HOLD_DURATION_MS).toBe(30 * 60 * 1000);
+    expect(depositHoldRingProgress(DEPOSIT_HOLD_DURATION_MS)).toBe(1);
+    expect(depositHoldRingProgress(DEPOSIT_HOLD_DURATION_MS / 2)).toBe(0.5);
+    expect(depositHoldRingProgress(0)).toBe(0);
+    expect(depositHoldRingProgress(-4000)).toBe(0);
+    expect(depositHoldRingProgress(DEPOSIT_HOLD_DURATION_MS * 2)).toBe(1);
+  });
+
+  it('keeps remaining time correct when now jumps forward (leaving the page)', () => {
+    const expiresAtIso = '2026-09-05T12:30:00.000Z';
+    const bookedAt = Date.parse('2026-09-05T12:00:00.000Z');
+    const afterLeaving = Date.parse('2026-09-05T12:10:00.000Z');
+
+    expect(remainingDepositHoldMs(expiresAtIso, bookedAt)).toBe(DEPOSIT_HOLD_DURATION_MS);
+    expect(remainingDepositHoldMs(expiresAtIso, afterLeaving)).toBe(20 * 60 * 1000);
+    expect(formatDepositHoldCountdown(remainingDepositHoldMs(expiresAtIso, afterLeaving))).toBe('20:00');
+    expect(depositHoldRingProgress(remainingDepositHoldMs(expiresAtIso, afterLeaving))).toBeCloseTo(20 / 30);
+    expect(remainingDepositHoldMs(expiresAtIso, Date.parse('2026-09-05T13:00:00.000Z'))).toBe(0);
+    expect(formatDepositHoldCountdown(remainingDepositHoldMs(expiresAtIso, Date.parse('2026-09-05T13:00:00.000Z')))).toBe('00:00');
+  });
+
+  it('persists and restores an unexpired hold, and returns null when expired', () => {
+    const storage = memoryStorage();
+    const slug = 'salon-zen';
+    const future = '2026-09-05T19:21:00.000Z';
+    const hold = sampleHold(future);
+
+    persistPublicDepositHold(storage, slug, hold);
+    expect(storage.getItem(depositHoldStorageKey(slug))).toContain(hold.code);
+    expect(restorePublicDepositHold(storage, slug, Date.parse('2026-09-05T19:00:00.000Z'))).toEqual(hold);
+    expect(restorePublicDepositHold(storage, slug, Date.parse('2026-09-05T19:21:00.000Z'))).toBeNull();
+    expect(storage.getItem(depositHoldStorageKey(slug))).toBeNull();
+
+    persistPublicDepositHold(storage, slug, hold);
+    clearPublicDepositHold(storage, slug);
+    expect(restorePublicDepositHold(storage, slug, Date.parse('2026-09-05T19:00:00.000Z'))).toBeNull();
+  });
+
+  it('wires a live countdown, session restore, and copy-code on the hold card', () => {
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-hold-countdown["']/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-copy-code["']/);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-hold-expiry["']/);
+    expect(pageTemplate).toContain('restantes');
+    expect(pageTemplate).toContain('#F59E0B');
+    expect(pageTemplate).toContain('#7C3AED');
+    expect(pageSource).toMatch(/OnDestroy/);
+    expect(pageSource).toMatch(/setInterval/);
+    expect(pageSource).toMatch(/clearInterval/);
+    expect(pageSource).toMatch(/visibilitychange/);
+    expect(pageSource).toMatch(/persistPublicDepositHold\(/);
+    expect(pageSource).toMatch(/restorePublicDepositHold\(/);
+    expect(pageSource).toMatch(/clearPublicDepositHold\(/);
+    expect(pageSource).toMatch(/dismissBookingSuccess/);
   });
 });
