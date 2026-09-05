@@ -14,6 +14,7 @@ import { emitPublicBookingFailureEvent } from '../../../../core/observability/pu
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import {
+  DEPOSIT_HOLD_NEXT_STEPS_COPY,
   buildSeñaReceiptWhatsAppUrl,
   buildServiceDepositQuote,
   formatBusinessDepositRequiredBanner,
@@ -139,6 +140,27 @@ export class PublicBookingPage implements OnInit {
 
   protected receiptWhatsAppUrl(details?: { code?: string | null; amountPesos?: number | null }): string | null {
     return buildSeñaReceiptWhatsAppUrl(this.supportPhone(), details);
+  }
+
+  protected readonly depositNextStepsCopy = DEPOSIT_HOLD_NEXT_STEPS_COPY;
+  protected readonly copiedDepositField = signal<string | null>(null);
+
+  protected async copyDepositValue(field: string, value: string | null | undefined): Promise<void> {
+    const text = value?.trim();
+    if (!text || !navigator.clipboard?.writeText) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedDepositField.set(field);
+      window.setTimeout(() => {
+        if (this.copiedDepositField() === field) {
+          this.copiedDepositField.set(null);
+        }
+      }, 2000);
+    } catch {
+      this.copiedDepositField.set(null);
+    }
   }
 
   protected businessDepositBanner(): string | null {

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  DEPOSIT_HOLD_NEXT_STEPS_COPY,
   DEPOSIT_HOLD_RELEASE_COPY,
   buildSeñaReceiptWhatsAppUrl,
   formatBusinessDepositRequiredBanner,
@@ -120,6 +121,11 @@ describe('public booking deposit hold success copy', () => {
     expect(pageTemplate).toContain('Este servicio requiere seña');
     expect(pageTemplate).toMatch(/booking-deposit-receipt-whatsapp/);
     expect(pageTemplate).toContain('Mandá el comprobante');
+    expect(pageTemplate).toContain('depositNextStepsCopy');
+    expect(pageSource).toMatch(/DEPOSIT_HOLD_NEXT_STEPS_COPY/);
+    expect(pageTemplate).toMatch(/booking-deposit-copy-alias/);
+    expect(pageSource).toMatch(/copyDepositValue\(/);
+    expect(DEPOSIT_HOLD_NEXT_STEPS_COPY).toContain('No hace falta volver acá');
     expect(buildSeñaReceiptWhatsAppUrl('2944667161')).toContain('https://wa.me/542944667161');
     expect(pageTemplate).toContain('Seña a pagar ahora');
     expect(pageTemplate).toContain('Resto, a pagar en el local');
@@ -131,7 +137,7 @@ describe('public booking deposit hold success copy', () => {
 
     const submitIndex = pageTemplate.indexOf('Pagar seña y confirmar');
     expect(submitIndex).toBeGreaterThan(0);
-    const beforeSubmit = pageTemplate.slice(Math.max(0, submitIndex - 4000), submitIndex);
+    const beforeSubmit = pageTemplate.slice(Math.max(0, submitIndex - 6000), submitIndex);
     expect(beforeSubmit).toMatch(/booking-deposit-required-notice/);
     expect(beforeSubmit).toContain(DEPOSIT_HOLD_RELEASE_COPY);
   });
