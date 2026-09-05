@@ -105,12 +105,11 @@ export class InAppSignupWizard {
     if (!this.canGoBack()) return;
     if (this.step === 2) this.step = 1;
     else if (this.step === 3) this.step = 2;
-    else if (this.step === 4) this.step = 3;
-    else if (this.step === 6) this.step = 4;
+    else if (this.step === 6) this.step = 3;
   }
 
   canGoBack(): boolean {
-    return this.step === 2 || this.step === 3 || this.step === 4 || this.step === 6;
+    return this.step === 2 || this.step === 3 || this.step === 6;
   }
 
   showsStepChrome(): boolean {
@@ -132,12 +131,6 @@ export class InAppSignupWizard {
 
   markAccountCreated(): void {
     this.createdFree = true;
-    this.step = 4;
-  }
-
-  chooseFree(): void {
-    this.premiumRequested = false;
-    this.step = 5;
   }
 
   startPremiumTrial(): void {

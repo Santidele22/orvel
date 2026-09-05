@@ -37,7 +37,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
             }
             @if (wizard.step !== 6) {
               <div class="in-app-auth__dots" aria-label="Progreso">
-                @for (dot of [1, 2, 3, 4]; track dot) {
+                @for (dot of [1, 2, 3]; track dot) {
                   <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
                 }
               </div>
@@ -129,52 +129,10 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           </button>
         }
 
-        @if (wizard.step === 4) {
-          <p class="in-app-auth__step-pill">Paso 4 de 4</p>
-          <h1>¿Qué plan querés?</h1>
-          <p class="in-app-auth__lede">Arrancás gratis igual. Vos decidís cuándo sumar más.</p>
-          <div class="in-app-auth__plans">
-            <article class="in-app-auth__plan">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Free</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--free">Activo ya</span>
-              </header>
-              <p class="in-app-auth__lede">Entrás ahora, sin pagar nada.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>1 local</li>
-                <li>1 rubro</li>
-                <li>Sin pago, sin tarjeta</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta in-app-auth__cta--light" (click)="chooseFree()">Empezar gratis</button>
-            </article>
-            <article class="in-app-auth__plan in-app-auth__plan--premium">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Premium</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">14 días gratis</span>
-              </header>
-              <p class="in-app-auth__lede">14 días gratis, sin tarjeta. Se activa ya.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>Agenda sin límites</li>
-                <li>Después, Premium a $25.000/mes o seguís en Gratis</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta" [disabled]="submitting()" (click)="startPremiumTrial()">Probar 14 días</button>
-            </article>
-          </div>
-          @if (errorMessage()) {
-            <p class="in-app-auth__error" role="alert">{{ errorMessage() }}</p>
-          }
-        }
-
         @if (wizard.step === 5) {
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          <p class="in-app-auth__lede">
-            @if (wizard.premiumRequested) {
-              Tenés 14 días de Premium activos.
-            } @else {
-              Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.
-            }
-          </p>
+          <p class="in-app-auth__lede">Tenés 14 días de Premium activos.</p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
         }
 
@@ -570,31 +528,16 @@ export class InAppSignupWizardPage {
     this.errorMessage.set('');
     this.submitting.set(true);
     try {
-      const payload = this.wizard.buildCreateAccountPayload();
-      const created = await createFreeAccountBusiness(payload);
-      if (!created.ok) {
-        this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
-        return;
+      if (!this.wizard.createdFree) {
+        const payload = this.wizard.buildCreateAccountPayload();
+        const created = await createFreeAccountBusiness(payload);
+        if (!created.ok) {
+          this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
+          return;
+        }
+        await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
+        this.wizard.markAccountCreated();
       }
-      await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
-      this.wizard.markAccountCreated();
-    } catch {
-      this.errorMessage.set('No pudimos crear la cuenta. Reintentá en unos segundos.');
-    } finally {
-      this.submitting.set(false);
-    }
-  }
-
-  protected chooseFree(): void {
-    this.wizard.chooseFree();
-    this.triggerSignupSuccessConfetti();
-  }
-
-  protected async startPremiumTrial(): Promise<void> {
-    if (this.submitting()) return;
-    this.errorMessage.set('');
-    this.submitting.set(true);
-    try {
       const businessId = await this.resolveCurrentBusinessId();
       if (!businessId) {
         this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
@@ -613,7 +556,11 @@ export class InAppSignupWizardPage {
       await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
       this.triggerSignupSuccessConfetti();
     } catch {
-      this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
+      this.errorMessage.set(
+        this.wizard.createdFree
+          ? 'No pudimos activar la prueba. Reintentá en unos segundos.'
+          : 'No pudimos crear la cuenta. Reintentá en unos segundos.'
+      );
     } finally {
       this.submitting.set(false);
     }
