@@ -21,8 +21,9 @@ function readConfiguracionSources(): { pageTs: string; themeHtml: string; merged
 
 describe('K03 - Configuración submit validation integration RED contract', () => {
   it('blocks submit via validation contract before persistence side effects', () => {
-    const { pageTs } = readConfiguracionSources();
+    const { pageTs, themeHtml } = readConfiguracionSources();
 
+    expect(themeHtml).toMatch(/<form\b[^>]*novalidate/);
     expect(pageTs).toMatch(/import\s*\{\s*validateConfiguracionForm\s*\}\s*from\s*['"]\.\/configuracion\.validation['"]/);
     expect(pageTs).toMatch(/const\s+validation\s*=\s*validateConfiguracionForm\(.*settingsForm\.getRawValue\(\).*\)/s);
     expect(pageTs).toMatch(/if\s*\(!validation\.isValid\)\s*\{[\s\S]*markAllAsTouched\([\s\S]*return\s*;[\s\S]*\}/);

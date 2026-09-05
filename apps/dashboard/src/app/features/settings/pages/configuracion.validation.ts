@@ -62,6 +62,16 @@ function timeToMinutes(value: string): number {
   return hour * 60 + minute;
 }
 
+function coerceNumber(fallback: number, min: number, message: string) {
+  return z.preprocess((value) => {
+    if (value == null || value === '') return fallback;
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+      return Number(value);
+    }
+    return value;
+  }, z.number().min(min, message));
+}
+
 const optionalTimeSchema = z.union([
   z.literal(''),
   z.string().regex(timeRegex, 'Formato de hora inválido')
@@ -80,30 +90,30 @@ const workingDaySchema = z.object({
 });
 
 const configuracionSchema = z.object({
-  businessName: z.string().trim().min(1, 'Nombre del negocio requerido').max(80, 'Máximo 80 caracteres'),
-  firstName: z.string().trim().optional().or(z.literal('')),
-  lastName: z.string().trim().optional().or(z.literal('')),
-  supportEmail: z.string().trim().optional().or(z.literal('')).refine((value) => !value || z.string().email().safeParse(value).success, {
+  businessName: z.preprocess((value) => (value == null ? '' : value), z.string().trim().min(1, 'Nombre del negocio requerido').max(80, 'Máximo 80 caracteres')),
+  firstName: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))),
+  lastName: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))),
+  supportEmail: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))).refine((value) => !value || z.string().email().safeParse(value).success, {
     message: 'Email inválido'
   }),
-  phone: z.string().trim().optional().or(z.literal('')).refine((value) => !value || isValidArgentinaPhone(value), {
+  phone: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))).refine((value) => !value || isValidArgentinaPhone(value), {
     message: 'Teléfono inválido'
   }),
-  whatsapp: z.string().trim().optional().or(z.literal('')).refine((value) => !value || isValidArgentinaPhone(value), {
+  whatsapp: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))).refine((value) => !value || isValidArgentinaPhone(value), {
     message: 'WhatsApp inválido'
   }),
-  instagram: z.string().trim().optional().or(z.literal('')).refine((value) => !value || instagramRegex.test(value), {
+  instagram: z.preprocess((value) => (value == null ? '' : value), z.string().trim().optional().or(z.literal(''))).refine((value) => !value || instagramRegex.test(value), {
     message: 'Instagram inválido'
   }),
-  logoUrl: z.string().optional(),
-  coverUrl: z.string().optional(),
-  bufferMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
-  minNoticeMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
-  slotIntervalMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
-  cancelationGracePeriod: z.number().min(0, 'Debe ser mayor o igual a 0'),
-  maxAdvanceDays: z.number().min(1, 'Debe ser mayor o igual a 1'),
-  cleanupTimeMinutes: z.number().min(0, 'Debe ser mayor o igual a 0'),
-  capacity: z.number().min(1, 'Debe ser mayor o igual a 1'), // Employee count for bookings
+  logoUrl: z.preprocess((value) => (value == null ? '' : value), z.string().optional()),
+  coverUrl: z.preprocess((value) => (value == null ? '' : value), z.string().optional()),
+  bufferMinutes: coerceNumber(0, 0, 'Debe ser mayor o igual a 0'),
+  minNoticeMinutes: coerceNumber(0, 0, 'Debe ser mayor o igual a 0'),
+  slotIntervalMinutes: coerceNumber(0, 0, 'Debe ser mayor o igual a 0'),
+  cancelationGracePeriod: coerceNumber(0, 0, 'Debe ser mayor o igual a 0'),
+  maxAdvanceDays: coerceNumber(1, 1, 'Debe ser mayor o igual a 1'),
+  cleanupTimeMinutes: coerceNumber(0, 0, 'Debe ser mayor o igual a 0'),
+  capacity: coerceNumber(1, 1, 'Debe ser mayor o igual a 1'),
   workingHours: z.record(z.string(), workingDaySchema)
     .refine((days) => Object.values(days).every((day) => {
       if (!day.enabled) return true;
