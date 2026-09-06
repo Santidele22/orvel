@@ -109,6 +109,19 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "prebundle": {
+              "exclude": [
+                "@orvel/auth",
+                "@orvel/billing",
+                "@orvel/booking",
+                "@orvel/config",
+                "@orvel/domain",
+                "@orvel/shared",
+                "@orvel/types"
+              ]
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "salon-de-belleza:build:production"
