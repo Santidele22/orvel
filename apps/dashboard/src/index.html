@@ -166,6 +166,9 @@
           }
         }
         function revealIfNeeded() {
+          if (window.__ORVEL_BOOTED) {
+            return;
+          }
           if (shouldReveal()) {
             reveal();
           }

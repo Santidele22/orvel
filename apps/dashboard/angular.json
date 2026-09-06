@@ -56,7 +56,17 @@
                 "input": "src/icons",
                 "output": "icons"
               },
+              {
+                "glob": "**/*",
+                "input": "src/icons",
+                "output": "dashboard/icons"
+              },
               "src/manifest.webmanifest",
+              {
+                "glob": "manifest.webmanifest",
+                "input": "src",
+                "output": "dashboard"
+              },
               "src/orvel-push-sw.js"
             ],
             "styles": [
