@@ -402,11 +402,11 @@ describe('public booking settings synchronization', () => {
     // Assert
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
-    const slotSelect = fixture.nativeElement.querySelector('select[name="selectedSlot"]') as HTMLSelectElement | null;
+    const slotChips = fixture.nativeElement.querySelectorAll('[data-testid="booking-availability-slot"]');
     expect(dayButtons).toHaveLength(0);
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).toContain('Reintentar');
-    expect(slotSelect?.textContent).not.toContain('No hay turnos disponibles para este día');
+    expect(slotChips.length).toBe(0);
     expect(console.warn).toHaveBeenCalled();
   });
 
@@ -1052,12 +1052,12 @@ describe('public booking settings synchronization', () => {
 
     // Assert
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
-    const slotSelect = fixture.nativeElement.querySelector('select[name="selectedSlot"]') as HTMLSelectElement | null;
+    const slotTrigger = fixture.nativeElement.querySelector('[data-testid="booking-slot-trigger"]') as HTMLButtonElement | null;
     const slotOptions = fixture.nativeElement.querySelectorAll('[data-testid="booking-availability-slot"]');
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).toContain('Reintentar');
     expect(availabilityError?.textContent).not.toContain('provider stack trace');
-    expect(slotSelect?.disabled).toBe(true);
+    expect(slotTrigger?.disabled).toBe(true);
     expect(slotOptions.length).toBe(0);
     expect(publicBookingFailureEvents()).toContainEqual({
       feature: 'public-booking',
