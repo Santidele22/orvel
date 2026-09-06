@@ -67,26 +67,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build combined landing+dashboard
+      - name: Mark combined deploy as git branch qa
         if: ${{ steps.target.outputs.site == 'combined' }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          PUBLIC_LANDING_URL: https://qa.orvel.pro
-          PUBLIC_DASHBOARD_URL: https://qa.orvel.pro
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          npx vercel@59.11.7 env pull .vercel/qa.env --yes --environment=preview --git-branch=qa
-          set -a
-          # shellcheck disable=SC1091
-          source .vercel/qa.env
-          set +a
-          rm -f .vercel/qa.env
-          export PUBLIC_LANDING_URL=https://qa.orvel.pro
-          export PUBLIC_DASHBOARD_URL=https://qa.orvel.pro
-          pnpm run build:vercel
+        run: git switch -C qa
 
       - name: Build dashboard
         if: ${{ steps.target.outputs.site == 'dashboard' }}
@@ -101,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ steps.target.outputs.site }}" == "combined" ]]; then
-            URL=$(npx vercel@59.11.7 deploy --prebuilt --token "$VERCEL_TOKEN" --yes)
+            URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
           else
             OUT=apps/dashboard/dist/salon-de-belleza/browser
             printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
