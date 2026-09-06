@@ -3,7 +3,7 @@ import { Component, computed, inject, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
 import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import {
@@ -54,6 +54,7 @@ type WorkingHoursTimeField = 'start' | 'end' | 'start2' | 'end2';
 export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly facade = inject(BusinessService);
   private readonly servicioService = inject(ServicioService);
   protected readonly themeService = inject(ThemeService);
@@ -121,6 +122,10 @@ export class ConfiguracionPage {
     cancelationGracePeriod: [24, [Validators.min(0)]],
     autoConfirm: [true],
     maxAdvanceDays: [90, [Validators.min(1)]],
+    depositEnabled: [false],
+    depositPercent: [0],
+    depositAlias: [''],
+    depositCbu: [''],
 
     // Logistics
     allowMultipleServices: [true],
@@ -323,6 +328,10 @@ export class ConfiguracionPage {
     this.isAccountSettingsModalOpen.set(true);
   }
 
+  openManualPremium(): void {
+    void this.router.navigateByUrl('/billing/subscription');
+  }
+
   cancelAccountSettingsModal(): void {
     this.isAccountSettingsModalOpen.set(false);
     // Reset secondary states after animation
@@ -452,7 +461,11 @@ export class ConfiguracionPage {
       supportEmail: saved.supportEmail,
       plan: saved.plan,
       capacity: saved.capacity ?? 1,
-      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false
+      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false,
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? ''
     });
   }
 
@@ -612,6 +625,14 @@ export class ConfiguracionPage {
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
+        depositEnabled: values.depositEnabled,
+        depositPercent: values.depositEnabled && [25, 50, 100].includes(Number(values.depositPercent))
+          ? Number(values.depositPercent)
+          : values.depositEnabled
+            ? 50
+            : 0,
+        depositAlias: values.depositAlias.trim(),
+        depositCbu: values.depositCbu.trim(),
         capacity: values.capacity,
         allowClientProfessionalSelection: values.allowClientProfessionalSelection,
         firstName: values.firstName,
@@ -836,19 +857,23 @@ export class ConfiguracionPage {
     const hours = nextDay.enabled
       ? [...others, { dayOfWeek, start: nextDay.start, end: nextDay.end }]
       : others;
-    await this.facade.replaceProfessionalHours(
-      professional.id,
-      this.teamWeekdays.map((day) => {
-        const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
-        return {
-          dayOfWeek: day.dayOfWeek,
-          start: row?.start || '09:00',
-          end: row?.end || '18:00',
-          enabled: Boolean(row)
-        };
-      })
-    );
-    await this.loadTeam();
+    try {
+      await this.facade.replaceProfessionalHours(
+        professional.id,
+        this.teamWeekdays.map((day) => {
+          const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
+          return {
+            dayOfWeek: day.dayOfWeek,
+            start: row?.start || '09:00',
+            end: row?.end || '18:00',
+            enabled: Boolean(row)
+          };
+        })
+      );
+      await this.loadTeam();
+    } catch {
+      this.formMessage.set('No se pudo guardar el horario. Revisá los valores e intentá nuevamente.');
+    }
   }
 
   async saveTeamProfessional(professional: {
@@ -1043,7 +1068,12 @@ export class ConfiguracionPage {
   private patchHydratedSettings(saved: BusinessSettings): void {
     this.settingsForm.patchValue({
       ...saved,
-      workingHours: workingHoursToFormValue(saved.workingHours)
+      workingHours: workingHoursToFormValue(saved.workingHours),
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? '',
+      phone: saved.phone ?? ''
     } as never);
   }
 

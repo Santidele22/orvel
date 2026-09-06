@@ -1,5 +1,7 @@
 import {
+  PREMIUM_TRANSFER_ALIAS,
   buildPremiumWhatsAppUrl,
+  copyPremiumAlias,
   markPremiumReviewPending
 } from '../../../core/billing/premium-alias-receipt';
 import type { PlanCode } from '../../../core/plans/plan-entitlements';
@@ -18,10 +20,14 @@ import {
 export const BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE =
   'Los pagos online no están disponibles en este momento. Contactá soporte para activar tu plan.';
 
-const BILLING_SUBSCRIPTION_HEADINGS: Record<BillingSubscriptionMode, { kicker: string; title: string }> = {
+const BILLING_SUBSCRIPTION_HEADINGS: Record<
+  BillingSubscriptionMode,
+  { kicker: string; title: string; subtitle?: string }
+> = {
   activation: {
-    kicker: 'Suscripción',
-    title: 'Activación de plan'
+    kicker: 'PASO FINAL',
+    title: 'Transferí y mandá el comprobante',
+    subtitle: 'No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.'
   },
   cancellation: {
     kicker: 'Baja de suscripción',
@@ -94,8 +100,16 @@ export class BillingSubscriptionPage {
     return this.currentMode;
   }
 
-  heading(): { kicker: string; title: string } {
+  heading(): { kicker: string; title: string; subtitle?: string } {
     return BILLING_SUBSCRIPTION_HEADINGS[this.currentMode];
+  }
+
+  premiumAlias(): string {
+    return PREMIUM_TRANSFER_ALIAS;
+  }
+
+  async copyAlias(): Promise<boolean> {
+    return copyPremiumAlias();
   }
 
   async initialize(): Promise<void> {

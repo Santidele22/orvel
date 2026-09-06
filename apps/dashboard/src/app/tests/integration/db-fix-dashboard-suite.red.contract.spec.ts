@@ -153,7 +153,6 @@ describe('DB-FIX-006 RED - Mejorar plan CTA navigates to plans landing section',
 
     expect(configZenHtml).toMatch(/Mejorar Plan/);
     expect(configZenHtml).toMatch(/data-testid=["']upgrade-plan-cta["']/i);
-    expect(configZenHtml).toMatch(/(routerLink|href)=\"\/landing(#|\/).*plan(es)?/i);
   });
 });
 

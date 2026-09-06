@@ -1,35 +1,106 @@
-<main class="billing-subscription" aria-live="polite">
-  <section class="billing-subscription__card">
-    <p class="billing-subscription__kicker">{{ heading().kicker }}</p>
-    <h1>{{ heading().title }}</h1>
-    <p class="billing-subscription__message">{{ state().message }}</p>
+<main
+  class="billing-subscription"
+  [class.billing-subscription--paso-final]="state().status === 'alias_ready'"
+  aria-live="polite"
+>
+  @if (state().status === 'alias_ready') {
+    <section class="billing-subscription__paso">
+      <header class="billing-subscription__paso-header">
+        <p class="billing-subscription__kicker billing-subscription__kicker--pill">PASO FINAL</p>
+        <h1>Transferí y mandá el comprobante</h1>
+        <p class="billing-subscription__subtitle">
+          No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.
+        </p>
+      </header>
 
-    @if (state().status === 'loading') {
-      <div class="billing-subscription__spinner" aria-hidden="true"></div>
-    }
+      <div class="billing-subscription__layout">
+        <article class="billing-subscription__plan-card">
+          <div class="billing-subscription__plan-head">
+            <p class="billing-subscription__plan-label">PLAN PREMIUM</p>
+            <span class="billing-subscription__pending-badge">Pago pendiente</span>
+          </div>
+          <p class="billing-subscription__price">$25.000/mes</p>
+          <ul class="billing-subscription__checks">
+            <li>
+              <span class="billing-subscription__check" aria-hidden="true">✓</span>
+              Turnos ilimitados
+            </li>
+            <li>
+              <span class="billing-subscription__check" aria-hidden="true">✓</span>
+              1 local
+            </li>
+          </ul>
+        </article>
 
-    @if (state().status === 'alias_ready') {
-      <a class="billing-subscription__support" [href]="whatsAppUrl()" target="_blank" rel="noopener noreferrer">
-        Enviar comprobante por WhatsApp
-      </a>
-    }
+        <div class="billing-subscription__transfer">
+          <div class="billing-subscription__alias">
+            <p class="billing-subscription__plan-label">TRANSFERÍ A ESTE ALIAS</p>
+            <div class="billing-subscription__alias-row">
+              <code class="billing-subscription__alias-value">orvel.pagos</code>
+              <button class="billing-subscription__copy" type="button" (click)="copyAlias()">
+                {{ aliasCopied() ? 'Copiado' : 'Copiar' }}
+              </button>
+            </div>
+          </div>
 
-    @if (state().status === 'cancellation_ready') {
-      <button class="billing-subscription__support" type="button" (click)="requestCancellation()">
-        Solicitar baja manual
-      </button>
-    }
+          <ol class="billing-subscription__steps">
+            <li>
+              <span class="billing-subscription__step-num" aria-hidden="true">1</span>
+              Transferí los $25.000 al alias de arriba.
+            </li>
+            <li>
+              <span class="billing-subscription__step-num" aria-hidden="true">2</span>
+              Mandá el comprobante por WhatsApp.
+            </li>
+            <li>
+              <span class="billing-subscription__step-num" aria-hidden="true">3</span>
+              Entrá ya en Gratis, sin esperar a nadie.
+            </li>
+            <li>
+              <span class="billing-subscription__step-num" aria-hidden="true">4</span>
+              Cuando lo validemos, pasás a Premium y te llega un mail.
+            </li>
+          </ol>
 
-    @if (state().status === 'cancellation_loading') {
-      <div class="billing-subscription__spinner" aria-hidden="true"></div>
-    }
+          <a
+            class="billing-subscription__whatsapp"
+            [href]="whatsAppUrl()"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Enviar comprobante por WhatsApp
+          </a>
+          <p class="billing-subscription__gratis-note">Hasta entonces tu cuenta funciona en plan Gratis.</p>
+        </div>
+      </div>
+    </section>
+  } @else {
+    <section class="billing-subscription__card">
+      <p class="billing-subscription__kicker">{{ heading().kicker }}</p>
+      <h1>{{ heading().title }}</h1>
+      <p class="billing-subscription__message">{{ state().message }}</p>
 
-    @if (state().status === 'unavailable' || state().status === 'error') {
-      <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
-    }
+      @if (state().status === 'loading') {
+        <div class="billing-subscription__spinner" aria-hidden="true"></div>
+      }
 
-    @if (state().status === 'cancellation_requested') {
-      <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
-    }
-  </section>
+      @if (state().status === 'cancellation_ready') {
+        <button class="billing-subscription__support" type="button" (click)="requestCancellation()">
+          Solicitar baja manual
+        </button>
+      }
+
+      @if (state().status === 'cancellation_loading') {
+        <div class="billing-subscription__spinner" aria-hidden="true"></div>
+      }
+
+      @if (state().status === 'unavailable' || state().status === 'error') {
+        <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
+      }
+
+      @if (state().status === 'cancellation_requested') {
+        <a class="billing-subscription__support" href="mailto:soporte@orvel.app">Contactar soporte</a>
+      }
+    </section>
+  }
 </main>

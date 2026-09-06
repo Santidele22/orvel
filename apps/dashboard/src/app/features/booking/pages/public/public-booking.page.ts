@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, signal, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -13,6 +13,25 @@ import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublic
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
+import {
+  DEPOSIT_HOLD_NEXT_STEPS_COPY,
+  buildSeñaReceiptWhatsAppUrl,
+  formatDepositWhatsAppDisplay,
+  buildServiceDepositQuote,
+  clearPublicDepositHold,
+  depositHoldRingProgress,
+  formatBusinessDepositRequiredBanner,
+  formatDepositHoldCountdown,
+  formatDepositHoldDueLabel,
+  formatDepositMoney,
+  formatServiceDepositPreview,
+  persistPublicDepositHold,
+  readPublicDepositHold,
+  remainingDepositHoldMs,
+  restorePublicDepositHold,
+  type PublicDepositHoldView,
+  type ServiceDepositQuote
+} from './public-booking-deposit-hold';
 
 type ReschedulePreload = {
   mode: 'reschedule';
@@ -25,7 +44,7 @@ type ReschedulePreload = {
   imports: [CommonModule, FormsModule],
   templateUrl: './public-booking.page.html'
 })
-export class PublicBookingPage implements OnInit {
+export class PublicBookingPage implements OnInit, OnDestroy {
   private readonly servicioService = inject(ServicioService);
   private readonly businessService = inject(BusinessService);
   private readonly publicBookingService = inject(PublicBookingService);
@@ -38,11 +57,18 @@ export class PublicBookingPage implements OnInit {
   protected readonly businessName = signal('');
   protected readonly bookingConfirmed = signal(false);
   protected readonly bookingAwaitingApproval = signal(false);
+  protected readonly depositHold = signal<PublicDepositHoldView | null>(null);
   protected readonly errorMessage = signal('');
   protected readonly availabilityErrorMessage = signal('');
   protected readonly serviceErrorMessage = signal('');
   
   protected readonly publicServices = signal<Array<{ id: string; name: string; price: number; duration: number }>>([]);
+  protected readonly depositEnabled = signal(false);
+  protected readonly depositPercent = signal(0);
+  protected readonly depositAlias = signal<string | null>(null);
+  protected readonly depositCbu = signal<string | null>(null);
+  protected readonly supportPhone = signal<string | null>(null);
+  protected readonly expandedStep = signal<'service' | 'professional' | 'schedule' | 'contact'>('service');
   protected readonly selectedServiceId = signal<string>('');
   protected readonly availabilitySlots = signal<Array<Pick<PublicSlot, 'startsAtIso'> & { remainingCapacity: number }>>([]);
   protected readonly resolvedSlug = signal<string>('');
@@ -91,12 +117,194 @@ export class PublicBookingPage implements OnInit {
   private preloadServiceId = '';
   private preloadStartsAtIso = '';
 
+  private depositHoldTimer: number | null = null;
+  private readonly onDepositHoldVisibility = (): void => {
+    this.syncDepositHoldCountdown();
+  };
+  private readonly onDepositHoldFocus = (): void => {
+    this.syncDepositHoldCountdown();
+  };
+
+  protected readonly depositHoldRemainingMs = signal(0);
+  protected readonly depositHoldCountdownLabel = computed(() =>
+    formatDepositHoldCountdown(this.depositHoldRemainingMs())
+  );
+  protected readonly depositHoldRingCircumference = 2 * Math.PI * 54;
+  protected readonly depositHoldRingOffset = computed(
+    () => this.depositHoldRingCircumference * (1 - depositHoldRingProgress(this.depositHoldRemainingMs()))
+  );
+
   async ngOnInit(): Promise<void> {
     await this.loadPortal();
   }
 
+  ngOnDestroy(): void {
+    this.stopDepositHoldTicker();
+  }
+
   protected async retryPortalLoad(): Promise<void> {
     await this.loadPortal();
+  }
+
+  protected serviceDepositPreview(): string | null {
+    const service = this.selectedService();
+    if (!service || !this.depositEnabled()) {
+      return null;
+    }
+    return formatServiceDepositPreview(service.price, this.depositPercent());
+  }
+
+  protected serviceDepositQuote(): ServiceDepositQuote | null {
+    const service = this.selectedService();
+    if (!service || !this.depositEnabled()) {
+      return null;
+    }
+    return buildServiceDepositQuote(service.name, service.price, this.depositPercent());
+  }
+
+  protected formatDepositMoney(amount: number): string {
+    return formatDepositMoney(amount);
+  }
+
+  protected receiptWhatsAppUrl(details?: { code?: string | null; amountPesos?: number | null }): string | null {
+    return buildSeñaReceiptWhatsAppUrl(this.supportPhone(), details);
+  }
+
+  protected depositWhatsAppDisplay(): string | null {
+    return formatDepositWhatsAppDisplay(this.supportPhone());
+  }
+
+  protected readonly depositNextStepsCopy = DEPOSIT_HOLD_NEXT_STEPS_COPY;
+  protected readonly copiedDepositField = signal<string | null>(null);
+
+  protected async copyDepositValue(field: string, value: string | null | undefined): Promise<void> {
+    const text = value?.trim();
+    if (!text || !navigator.clipboard?.writeText) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedDepositField.set(field);
+      window.setTimeout(() => {
+        if (this.copiedDepositField() === field) {
+          this.copiedDepositField.set(null);
+        }
+      }, 2000);
+    } catch {
+      this.copiedDepositField.set(null);
+    }
+  }
+
+  protected businessDepositBanner(): string | null {
+    if (!this.depositEnabled()) {
+      return null;
+    }
+    return formatBusinessDepositRequiredBanner(this.depositPercent());
+  }
+
+  protected depositHoldExpiryLabel(): string {
+    const iso = this.depositHold()?.expiresAtIso;
+    if (!iso) {
+      return '';
+    }
+    return formatDepositHoldDueLabel(iso);
+  }
+
+  protected dismissBookingSuccess(): void {
+    this.clearStoredDepositHold();
+    this.stopDepositHoldTicker();
+    this.bookingConfirmed.set(false);
+    this.bookingAwaitingApproval.set(false);
+    this.depositHold.set(null);
+    this.depositHoldRemainingMs.set(0);
+  }
+
+  private publicBookingSlug(): string {
+    return this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '';
+  }
+
+  private depositHoldStorage(): Storage | null {
+    try {
+      return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  private activateDepositHold(hold: PublicDepositHoldView | null): void {
+    this.depositHold.set(hold);
+    if (!hold) {
+      this.depositHoldRemainingMs.set(0);
+      this.stopDepositHoldTicker();
+      return;
+    }
+    this.persistCurrentDepositHold();
+    this.startDepositHoldTicker();
+  }
+
+  private persistCurrentDepositHold(): void {
+    const hold = this.depositHold();
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!hold || !storage || !slug) {
+      return;
+    }
+    persistPublicDepositHold(storage, slug, hold);
+  }
+
+  private restoreStoredDepositHold(): void {
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!storage || !slug) {
+      return;
+    }
+    const hold = restorePublicDepositHold(storage, slug);
+    if (!hold) {
+      return;
+    }
+    this.bookingConfirmed.set(true);
+    this.depositHold.set(hold);
+    this.startDepositHoldTicker();
+  }
+
+  private clearStoredDepositHold(): void {
+    const storage = this.depositHoldStorage();
+    const slug = this.publicBookingSlug();
+    if (!storage || !slug) {
+      return;
+    }
+    clearPublicDepositHold(storage, slug);
+  }
+
+  private startDepositHoldTicker(): void {
+    this.stopDepositHoldTicker();
+    this.syncDepositHoldCountdown();
+    this.depositHoldTimer = window.setInterval(() => this.syncDepositHoldCountdown(), 1000);
+    document.addEventListener('visibilitychange', this.onDepositHoldVisibility);
+    window.addEventListener('focus', this.onDepositHoldFocus);
+  }
+
+  private stopDepositHoldTicker(): void {
+    if (this.depositHoldTimer != null) {
+      window.clearInterval(this.depositHoldTimer);
+      this.depositHoldTimer = null;
+    }
+    document.removeEventListener('visibilitychange', this.onDepositHoldVisibility);
+    window.removeEventListener('focus', this.onDepositHoldFocus);
+  }
+
+  private syncDepositHoldCountdown(): void {
+    const hold = this.depositHold();
+    if (!hold?.expiresAtIso) {
+      this.depositHoldRemainingMs.set(0);
+      return;
+    }
+    const remaining = remainingDepositHoldMs(hold.expiresAtIso);
+    this.depositHoldRemainingMs.set(remaining);
+    if (remaining <= 0) {
+      this.clearStoredDepositHold();
+      this.stopDepositHoldTicker();
+    }
   }
 
   private async loadPortal(): Promise<void> {
@@ -106,6 +314,9 @@ export class PublicBookingPage implements OnInit {
     this.serviceErrorMessage.set('');
     this.bookingConfirmed.set(false);
     this.bookingAwaitingApproval.set(false);
+    this.stopDepositHoldTicker();
+    this.depositHold.set(null);
+    this.depositHoldRemainingMs.set(0);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');
@@ -116,6 +327,11 @@ export class PublicBookingPage implements OnInit {
     this.businessName.set('');
     this.workingHours.set(null);
     this.maxAdvanceDays.set(30);
+    this.depositEnabled.set(false);
+    this.depositPercent.set(0);
+    this.depositAlias.set(null);
+    this.depositCbu.set(null);
+    this.supportPhone.set(null);
     this.selectedSlot = '';
     this.allowClientProfessionalSelection.set(false);
     this.publicProfessionals.set([]);
@@ -139,6 +355,11 @@ export class PublicBookingPage implements OnInit {
       
       this.workingHours.set(response.data.settings.workingHours);
       this.maxAdvanceDays.set(response.data.settings.maxAdvanceDays ?? 30);
+      this.depositEnabled.set(response.data.settings.depositEnabled === true);
+      this.depositPercent.set(Number(response.data.settings.depositPercent ?? 0));
+      this.depositAlias.set(response.data.settings.depositAlias?.trim() || null);
+      this.depositCbu.set(response.data.settings.depositCbu?.trim() || null);
+      this.supportPhone.set(response.data.settings.supportPhone?.trim() || null);
       this.allowClientProfessionalSelection.set(
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
@@ -167,6 +388,7 @@ export class PublicBookingPage implements OnInit {
       }
 
       await this.loadServices(response.data.id);
+      this.restoreStoredDepositHold();
     } else {
       emitPublicBookingFailureEvent({
         stage: 'resolver',
@@ -222,6 +444,7 @@ export class PublicBookingPage implements OnInit {
         if (this.canShowScheduleStep()) {
           await this.loadAvailability();
         }
+        this.expandedStep.set(this.canShowProfessionalStep() ? 'professional' : 'schedule');
       } else {
         this.serviceErrorMessage.set('No hay servicios disponibles para reservar en este momento.');
       }
@@ -252,6 +475,7 @@ export class PublicBookingPage implements OnInit {
       this.availabilitySlots.set([]);
       this.loadingAvailability.set(false);
     }
+    this.expandedStep.set(this.canShowProfessionalStep() ? 'professional' : 'schedule');
   }
 
   protected async onProfessionalChange(professionalId: string): Promise<void> {
@@ -260,6 +484,143 @@ export class PublicBookingPage implements OnInit {
     this.selectedSlot = '';
     this.loadingAvailability.set(true);
     await this.loadAvailability();
+    this.expandedStep.set('schedule');
+  }
+
+  protected onSlotChange(): void {
+    if (this.selectedSlot) {
+      this.expandedStep.set('contact');
+    }
+  }
+
+  protected openStep(step: 'service' | 'professional' | 'schedule' | 'contact'): void {
+    this.expandedStep.set(step);
+  }
+
+  protected isStepOpen(step: 'service' | 'professional' | 'schedule' | 'contact'): boolean {
+    return this.expandedStep() === step;
+  }
+
+  protected selectedProfessionalLabel(): string {
+    const id = this.selectedProfessionalId();
+    if (!id) {
+      return 'Cualquier profesional';
+    }
+    return this.publicProfessionals().find((professional) => professional.id === id)?.name ?? 'Profesional';
+  }
+
+  protected selectedScheduleLabel(): string {
+    const date = this.selectedDate();
+    const slot = this.selectedSlot;
+    if (!date || !slot) {
+      return 'Elegí día y horario';
+    }
+    const day = this.bookableDays().find((item) => item.date === date);
+    const time = this.formatSlot(slot).split(' - ')[1] || this.formatSlot(slot);
+    return `${day?.weekday ?? date} ${day?.label ?? ''} · ${time}`.trim();
+  }
+
+  protected canShowProfessionalTitle(): boolean {
+    return !this.lockedProfessionalSlug() && this.allowClientProfessionalSelection();
+  }
+
+  protected canShowProfessionalStep(): boolean {
+    return Boolean(this.selectedServiceId()) && this.showProfessionalPicker();
+  }
+
+  protected scheduleStepNumber(): number {
+    return this.canShowProfessionalTitle() ? 3 : 2;
+  }
+
+  protected contactStepNumber(): number {
+    return this.canShowProfessionalTitle() ? 4 : 3;
+  }
+
+  protected stepBadgeClass(active: boolean): string {
+    return active
+      ? 'flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black text-white'
+      : 'flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-[11px] font-black text-slate-500';
+  }
+
+  protected canShowScheduleStep(): boolean {
+    if (!this.selectedServiceId()) return false;
+    if (this.showProfessionalPicker() && !this.professionalChoiceMade()) return false;
+    return true;
+  }
+
+  protected canShowContactStep(): boolean {
+    return this.canShowScheduleStep() && Boolean(this.selectedSlot) && this.expandedStep() === 'contact';
+  }
+
+  private resolveSelectedSlot(slots: Array<{ startsAtIso: string }>): string {
+    const preloadedSlot = this.preloadStartsAtIso && slots.some((slot) => slot.startsAtIso === this.preloadStartsAtIso)
+      ? this.preloadStartsAtIso
+      : '';
+    if (preloadedSlot) return preloadedSlot;
+    if (this.selectedSlot && slots.some((slot) => slot.startsAtIso === this.selectedSlot)) {
+      return this.selectedSlot;
+    }
+    return '';
+  }
+
+  private async loadProfessionalsForSelectedService(): Promise<void> {
+    const slug = this.resolvedSlug();
+    const serviceId = this.selectedServiceId();
+    if (!slug || !serviceId || !this.allowClientProfessionalSelection() || this.lockedProfessionalSlug()) {
+      this.publicProfessionals.set([]);
+      return;
+    }
+
+    const professionals = await this.businessService.listPublicProfessionalsForService(slug, serviceId);
+    this.publicProfessionals.set(professionals);
+    if (!this.lockedProfessionalSlug()) {
+      this.selectedProfessionalId.set('');
+      this.professionalChoiceMade.set(false);
+    }
+    void this.refreshProfessionalHints(professionals);
+  }
+
+  private async refreshProfessionalHints(professionals: Array<{ id: string; name: string }>): Promise<void> {
+    const serviceId = this.selectedServiceId();
+    if (!serviceId || professionals.length === 0) {
+      this.professionalHints.set({});
+      return;
+    }
+
+    const days = this.availableDays().filter((day) => day.isWorkingDay).slice(0, 7);
+    const today = toLocalCivilDate(new Date(), this.businessTimezone());
+    const hints = await Promise.all(professionals.map(async (professional) => {
+      for (const day of days) {
+        const response = await this.publicBookingService.queryPublicSlotAvailability(
+          this.availabilityQuery(serviceId, day.date, professional.id)
+        );
+        const slot = response.data?.slots?.find((item) => (item.remainingCapacity ?? 0) > 0);
+        if (slot) {
+          const time = this.formatSlot(slot.startsAtIso);
+          const when = day.date === today ? `hoy ${time}` : `${day.weekday} ${day.label} · ${time}`;
+          return [professional.id, `Próximo lugar: ${when}`] as const;
+        }
+      }
+      return [professional.id, 'Sin turnos esta semana'] as const;
+    }));
+
+    this.professionalHints.set(Object.fromEntries(hints));
+  }
+
+  protected professionalInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+
+  private availabilityQuery(serviceId: string, dateIso: string, professionalId = this.selectedProfessionalId().trim()) {
+    return {
+      businessSlug: this.resolvedSlug() || this.route.snapshot.paramMap.get('slug') || '',
+      serviceId,
+      dateIso,
+      ...(professionalId ? { professionalId } : {})
+    };
   }
 
   protected canShowProfessionalStep(): boolean {
@@ -387,10 +748,7 @@ export class PublicBookingPage implements OnInit {
         }));
         this.availabilitySlots.set(slots);
         this.updateDayAvailability(date, true);
-        const preloadedSlot = this.preloadStartsAtIso && slots.some(slot => slot.startsAtIso === this.preloadStartsAtIso)
-          ? this.preloadStartsAtIso
-          : '';
-        this.selectedSlot = preloadedSlot || slots[0]?.startsAtIso || '';
+        this.selectedSlot = this.resolveSelectedSlot(slots);
       } else {
         // No slots available for this date - clear slots but don't block the dropdown
         this.availabilitySlots.set([]);
@@ -493,6 +851,7 @@ export class PublicBookingPage implements OnInit {
       if (response.data?.status === 'confirmed' || response.data?.status === 'pending') {
         this.bookingConfirmed.set(true);
         this.bookingAwaitingApproval.set(response.data.status === 'pending');
+        this.activateDepositHold(readPublicDepositHold(response.data));
         this.confirmedProfessionalName.set(
           response.data.professionalName
           || this.publicProfessionals().find((professional) => professional.id === selectedProfessionalId)?.name
@@ -659,7 +1018,7 @@ export class PublicBookingPage implements OnInit {
         }));
         this.availabilitySlots.set(slots);
         this.updateDayAvailability(date, true);
-        this.selectedSlot = slots[0]?.startsAtIso || '';
+        this.selectedSlot = this.resolveSelectedSlot(slots);
       } else {
         this.availabilitySlots.set([]);
         this.updateDayAvailability(date, false);

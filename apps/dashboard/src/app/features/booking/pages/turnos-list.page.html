@@ -146,12 +146,12 @@
               [class.bg-primary]="professionalFilter() === 'todas'"
               [class.text-white]="professionalFilter() === 'todas'"
               (click)="professionalFilter.set('todas')">Todas</button>
-            @for (name of professionalChips(); track name) {
+            @for (chip of professionalChips(); track chip.id) {
             <button type="button"
               class="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
-              [class.bg-primary]="professionalFilter() === name"
-              [class.text-white]="professionalFilter() === name"
-              (click)="professionalFilter.set(name)">{{ name }}</button>
+              [class.bg-primary]="professionalFilter() === chip.id"
+              [class.text-white]="professionalFilter() === chip.id"
+              (click)="professionalFilter.set(chip.id)">{{ chip.name }}</button>
             }
           </div>
           }
@@ -183,9 +183,13 @@
                       <div class="flex items-center gap-2 mb-2">
                         <h3 class="font-bold text-xl tracking-tight leading-tight">{{ turno.servicioNombre }}</h3>
                         <span
-                          class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-primary text-white shadow-lg shadow-primary/30"
-                          [class.bg-accent]="turno.estado === 'en-proceso'">
-                          {{ turno.estado }}
+                          class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
+                          [ngClass]="{
+                            'bg-amber-400/10 text-amber-300 border border-amber-400/20': depositPending(turno),
+                            'bg-primary text-white shadow-lg shadow-primary/30': !depositPending(turno) && turno.estado !== 'en-proceso',
+                            'bg-accent text-white shadow-lg shadow-primary/30': !depositPending(turno) && turno.estado === 'en-proceso'
+                          }">
+                          {{ appointmentBadgeLabel(turno) }}
                         </span>
                       </div>
                       <p class="text-sm font-medium opacity-80 flex items-center gap-2">

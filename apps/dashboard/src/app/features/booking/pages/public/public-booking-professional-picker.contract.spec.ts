@@ -7,6 +7,7 @@ const pageHtml = readFileSync(new URL('./public-booking.page.html', import.meta.
 describe('Public booking professional picker', () => {
   it('hides the picker unless allowClientProfessionalSelection is on', () => {
     expect(pageHtml).toMatch(/data-testid=["']public-professional-picker["']/);
+    expect(pageHtml).toMatch(/canShowProfessionalTitle\(\)/);
     expect(pageHtml).toMatch(/@if\s*\(canShowProfessionalStep\(\)\)[\s\S]{0,240}data-testid=["']public-professional-picker["']/);
     expect(pageTs).toMatch(/allowClientProfessionalSelection/);
     expect(pageTs).toMatch(/list_public_professionals_for_service|listPublicProfessionalsForService/);
@@ -31,5 +32,22 @@ describe('Public booking professional picker', () => {
     expect(pageTs).toMatch(/professionalChoiceMade/);
     expect(pageHtml).toMatch(/canShowScheduleStep\(\)/);
     expect(pageHtml).toMatch(/canShowContactStep\(\)/);
+  });
+
+  it('does not show contact or seña until the client advances from schedule', () => {
+    expect(pageTs).toMatch(/canShowContactStep\(\)[\s\S]{0,180}expandedStep\(\) === 'contact'/);
+    expect(pageTs).not.toMatch(/preloadedSlot \|\| slots\[0\]/);
+    expect(pageTs).not.toMatch(/this\.selectedSlot = slots\[0\]\?\.startsAtIso/);
+    expect(pageHtml).toMatch(/canShowContactStep\(\)[\s\S]{0,400}booking-deposit-required-notice/);
+    expect(pageHtml).toMatch(/rescheduleMode\(\) \|\| canShowContactStep\(\)[\s\S]{0,240}booking-submit-action/);
+  });
+
+  it('keeps later step titles visible while content stays gated', () => {
+    expect(pageHtml).toMatch(/data-testid=["']public-schedule-step["'][\s\S]{0,500}Elegí día y horario[\s\S]{0,250}canShowScheduleStep\(\)/);
+    expect(pageHtml).toMatch(/data-testid=["']public-contact-step["']/);
+    expect(pageHtml).toMatch(/Tus datos/);
+    expect(pageTs).toMatch(/canShowProfessionalTitle/);
+    expect(pageTs).toMatch(/scheduleStepNumber/);
+    expect(pageTs).toMatch(/contactStepNumber/);
   });
 });

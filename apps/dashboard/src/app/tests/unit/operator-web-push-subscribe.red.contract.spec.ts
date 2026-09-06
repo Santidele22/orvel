@@ -128,6 +128,9 @@ describe('Issue #344 slice 1 — operator web push subscribe', () => {
     expect(perfilTab).toContain(
       'Te avisamos con la app cerrada si entra, se cancela o se reprograma un turno.',
     );
+    expect(perfilTab).toMatch(
+      /<div\b[^>]*class=["'][^"']*\bmd:hidden\b[^"']*["'][^>]*>[\s\S]*data-testid=["']settings-web-push-toggle["']/i,
+    );
     expect(perfilTab).toMatch(/peer sr-only[\s\S]*role=["']switch["']/);
     expect(perfilTab).toMatch(/ngModelOptions[\s\S]*standalone:\s*true|standalone:\s*true/);
     expect(equipoTab).not.toContain('data-testid="settings-web-push-toggle"');

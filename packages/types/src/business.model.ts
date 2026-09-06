@@ -44,6 +44,11 @@ export interface BusinessSettings {
   lastName?: string;
   phone?: string;
   slug?: string;
+  depositEnabled?: boolean;
+  depositPercent?: number;
+  depositAmountPesos?: number | null;
+  depositAlias?: string;
+  depositCbu?: string;
 }
 
 export interface BusinessPublicView {
@@ -57,6 +62,11 @@ export interface BusinessPublicView {
     slotIntervalMinutes: number;
     maxAdvanceDays: number;
     workingHours: Record<WeekdayKey, WorkingDayHours>;
+    depositEnabled?: boolean;
+    depositPercent?: number;
+    depositAlias?: string | null;
+    depositCbu?: string | null;
+    supportPhone?: string | null;
   };
   bookingPolicy: {
     autoConfirm: boolean;

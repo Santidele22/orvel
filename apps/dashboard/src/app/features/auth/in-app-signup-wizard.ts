@@ -1,6 +1,6 @@
 import { getRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
 
-export type SignupWizardStep = 1 | 2 | 3 | 4 | 5;
+export type SignupWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type SignupRubroOption = {
   code: string;
@@ -44,12 +44,11 @@ export class InAppSignupWizard {
   }
 
   toggleRubro(code: string): void {
-    const index = this.selectedRubros.indexOf(code);
-    if (index >= 0) {
-      this.selectedRubros = this.selectedRubros.filter(item => item !== code);
+    if (this.selectedRubros.length === 1 && this.selectedRubros[0] === code) {
+      this.selectedRubros = [];
       return;
     }
-    this.selectedRubros = [...this.selectedRubros, code];
+    this.selectedRubros = [code];
   }
 
   canContinue(): boolean {
@@ -61,7 +60,7 @@ export class InAppSignupWizard {
       );
     }
     if (this.step === 2) {
-      return this.selectedRubros.length >= 1;
+      return this.selectedRubros.length === 1;
     }
     if (this.step === 3) {
       return this.canCreateAccess();
@@ -106,11 +105,11 @@ export class InAppSignupWizard {
     if (!this.canGoBack()) return;
     if (this.step === 2) this.step = 1;
     else if (this.step === 3) this.step = 2;
-    else if (this.step === 4) this.step = 3;
+    else if (this.step === 6) this.step = 3;
   }
 
   canGoBack(): boolean {
-    return this.step === 2 || this.step === 3 || this.step === 4;
+    return this.step === 2 || this.step === 3 || this.step === 6;
   }
 
   showsStepChrome(): boolean {
@@ -132,17 +131,16 @@ export class InAppSignupWizard {
 
   markAccountCreated(): void {
     this.createdFree = true;
-    this.step = 4;
   }
 
-  chooseFree(): void {
-    this.premiumRequested = false;
+  startPremiumTrial(): void {
+    this.premiumRequested = true;
     this.step = 5;
   }
 
   requestPremium(): void {
     this.premiumRequested = true;
-    this.step = 5;
+    this.step = 6;
   }
 
   premiumRequestMetadata(): { plan: 'FREE'; premium_requested: boolean } {

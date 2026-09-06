@@ -35,6 +35,115 @@
       
       <!-- Successful Booking State -->
       @if (bookingConfirmed()) {
+        @if (depositHold(); as hold) {
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[32px] p-6 md:p-8 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in duration-700" data-testid="booking-deposit-hold-state">
+           <div class="relative mx-auto h-[120px] w-[120px]">
+              <svg width="120" height="120" viewBox="0 0 120 120" class="-rotate-90" aria-hidden="true">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#F59E0B"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  [attr.stroke-dasharray]="depositHoldRingCircumference"
+                  [attr.stroke-dashoffset]="depositHoldRingOffset()"
+                ></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-2xl font-black tabular-nums tracking-tight text-[#F1F5F9]" data-testid="booking-deposit-hold-countdown">{{ depositHoldCountdownLabel() }}</span>
+                <span class="text-[11px] font-medium text-[#94A3B8]">restantes</span>
+              </div>
+           </div>
+           <div class="space-y-2">
+               <h2 class="text-2xl font-black text-[#F1F5F9] tracking-tight">Seña pendiente</h2>
+               <p class="text-sm font-medium leading-relaxed text-[#94A3B8]">Tu horario en <strong class="text-[#F1F5F9]">{{ businessName() }}</strong> queda reservado hasta que confirmen la seña.</p>
+           </div>
+           <div class="border-t border-dashed border-white/15"></div>
+           <div class="space-y-3 text-sm">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Código</span>
+                <span class="flex min-w-0 items-center gap-2 font-semibold tracking-wide text-[#F1F5F9]" data-testid="booking-deposit-hold-code">
+                  {{ hold.code }}
+                  <button
+                    type="button"
+                    data-testid="booking-deposit-copy-code"
+                    class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                    (click)="copyDepositValue('code', hold.code)"
+                    [attr.aria-label]="copiedDepositField() === 'code' ? 'Código copiado' : 'Copiar código'"
+                  >
+                    <i [class]="copiedDepositField() === 'code' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                  </button>
+                </span>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Monto</span>
+                <span class="font-semibold tabular-nums text-[#F1F5F9]">{{ formatDepositMoney(hold.amountPesos) }}</span>
+              </div>
+              @if (hold.alias) {
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-[#94A3B8]">Alias</span>
+                  <span class="flex min-w-0 items-center gap-2 font-semibold text-[#F1F5F9]">
+                    <span class="truncate">{{ hold.alias }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-alias"
+                      class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                      (click)="copyDepositValue('alias', hold.alias)"
+                      [attr.aria-label]="copiedDepositField() === 'alias' ? 'Alias copiado' : 'Copiar alias'"
+                    >
+                      <i [class]="copiedDepositField() === 'alias' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                    </button>
+                  </span>
+                </div>
+              }
+              @if (hold.cbu) {
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-[#94A3B8]">CBU</span>
+                  <span class="flex min-w-0 items-center gap-2 font-semibold text-[#F1F5F9]">
+                    <span class="truncate">{{ hold.cbu }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-cbu"
+                      class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                      (click)="copyDepositValue('cbu', hold.cbu)"
+                      [attr.aria-label]="copiedDepositField() === 'cbu' ? 'CBU copiado' : 'Copiar CBU'"
+                    >
+                      <i [class]="copiedDepositField() === 'cbu' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                    </button>
+                  </span>
+                </div>
+              }
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Vence</span>
+                <span class="font-semibold text-[#F1F5F9]" data-testid="booking-deposit-hold-expiry">{{ depositHoldExpiryLabel() }}</span>
+              </div>
+           </div>
+           <div class="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm leading-relaxed text-[#94A3B8] space-y-2">
+              <p>{{ depositNextStepsCopy }}</p>
+              <p>Si no se confirma la seña, el horario se libera.</p>
+           </div>
+           <div class="space-y-3">
+             @if (receiptWhatsAppUrl({ code: hold.code, amountPesos: hold.amountPesos }); as waUrl) {
+               <a
+                 data-testid="booking-deposit-receipt-whatsapp"
+                 [href]="waUrl"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[#6D28D9] active:scale-95"
+               >
+                 <i class="ri-whatsapp-line text-lg"></i>
+                 Enviar comprobante
+               </a>
+             }
+             <button type="button" (click)="dismissBookingSuccess()" class="w-full rounded-2xl border border-white/15 px-8 py-3.5 text-xs font-black uppercase tracking-widest text-[#F1F5F9] transition-all hover:bg-white/5 active:scale-95">
+                Volver
+             </button>
+           </div>
+        </section>
+        } @else {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-confirmed-state">
            <div class="w-20 h-20 bg-[#7C3AED] rounded-[28px] flex items-center justify-center mx-auto text-white shadow-lg shadow-purple-900/40">
               <i class="ri-checkbox-circle-fill text-4xl"></i>
@@ -47,11 +156,12 @@
                 }
            </div>
            <div class="pt-8 border-t border-white/5">
-              <button (click)="bookingConfirmed.set(false); bookingAwaitingApproval.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+              <button type="button" (click)="dismissBookingSuccess()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
                  {{ rescheduleConfirmed() ? 'Volver' : 'Reservar Otro' }}
               </button>
            </div>
         </section>
+        }
       } @else if (errorMessage() && !resolvedBusinessId()) {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-portal-error-state">
           <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-[28px] flex items-center justify-center mx-auto text-amber-300">
@@ -90,13 +200,27 @@
             <div class="space-y-4">
               <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
                 <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">1</span>
-                @if (selectedService(); as service) {
-                  <span>{{ service.name }} <span class="font-medium text-slate-400">· {{ service.duration }} min · ${{ service.price }}</span></span>
-                } @else {
-                  <span>Elegí servicio</span>
-                }
+                <span>Elegí el servicio</span>
               </label>
-              <div class="relative group">
+              @if (selectedService(); as service) {
+                @if (!isStepOpen('service')) {
+                  <button
+                    type="button"
+                    class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                    data-testid="booking-service-collapsed"
+                    (click)="openStep('service')"
+                  >
+                    <span class="flex items-center justify-between gap-3">
+                      <span>
+                        <span class="block text-sm font-semibold text-white">{{ service.name }}</span>
+                        <span class="block text-xs text-slate-400">{{ service.duration }} min</span>
+                      </span>
+                      <span class="text-sm tabular-nums text-white">${{ service.price }}</span>
+                    </span>
+                  </button>
+                }
+              }
+              <div class="relative group" [class.hidden]="!!selectedService() && !isStepOpen('service')">
                 <select
                   [(ngModel)]="selectedServiceId"
                   (change)="onServiceChange()"
@@ -118,12 +242,25 @@
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
-              @if (canShowProfessionalStep()) {
-                <div class="space-y-3 pt-2" data-testid="public-professional-picker">
-                  <p class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
-                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">2</span>
+              @if (canShowProfessionalTitle()) {
+                <div class="space-y-3 pt-2">
+                  <p class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowProfessionalStep()" [class.text-slate-500]="!canShowProfessionalStep()">
+                    <span [class]="stepBadgeClass(canShowProfessionalStep())">2</span>
                     Elegí profesional
                   </p>
+                  @if (canShowProfessionalStep()) {
+                  <div class="space-y-3" data-testid="public-professional-picker">
+                  @if (professionalChoiceMade() && !isStepOpen('professional')) {
+                    <button
+                      type="button"
+                      class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                      data-testid="booking-professional-collapsed"
+                      (click)="openStep('professional')"
+                    >
+                      <span class="block text-sm font-semibold text-white">{{ selectedProfessionalLabel() }}</span>
+                    </button>
+                  }
+                  @if (isStepOpen('professional') || !professionalChoiceMade()) {
                   <button type="button"
                     (click)="onProfessionalChange('')"
                     [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (professionalChoiceMade() && !selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
@@ -153,6 +290,9 @@
                       <span class="h-4 w-4 rounded-full border border-white/30" [class.bg-[#7C3AED]]="selectedProfessionalId() === professional.id" [class.border-[#7C3AED]]="selectedProfessionalId() === professional.id"></span>
                     </button>
                   }
+                  }
+                  </div>
+                  }
                 </div>
               }
               @if (serviceErrorMessage()) {
@@ -171,17 +311,28 @@
             </div>
 
             <!-- Availability Selection (Date & Time Picker) -->
-            @if (canShowScheduleStep()) {
             <div class="space-y-8" data-testid="public-schedule-step">
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowScheduleStep()" [class.text-slate-500]="!canShowScheduleStep()">
+                <span [class]="stepBadgeClass(canShowScheduleStep())">{{ scheduleStepNumber() }}</span>
+                Elegí día y horario
+                @if (canShowScheduleStep() && loadingAvailability()) {
+                  <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                }
+              </label>
+            @if (canShowScheduleStep()) {
+              @if (selectedSlot && !isStepOpen('schedule')) {
+                <button
+                  type="button"
+                  class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                  data-testid="booking-schedule-collapsed"
+                  (click)="openStep('schedule')"
+                >
+                  <span class="block text-sm font-semibold text-white">{{ selectedScheduleLabel() }}</span>
+                </button>
+              }
+              @if (isStepOpen('schedule') || !selectedSlot) {
               <!-- Horizontal Date Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
-                  <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">{{ showProfessionalPicker() ? '3' : '2' }}</span>
-                  Elegí día y horario
-                  @if (loadingAvailability()) {
-                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
-                  }
-                </label>
                 
                 <div class="flex gap-3 overflow-x-auto pb-4 scroll-smooth no-scrollbar -mx-2 px-2">
                   @for (day of bookableDays(); track day.date) {
@@ -214,6 +365,7 @@
                 <div class="relative group">
                   <select
                     [(ngModel)]="selectedSlot"
+                    (ngModelChange)="onSlotChange()"
                     name="selectedSlot"
                     required
                     [disabled]="loadingSlots() || availabilitySlots().length === 0"
@@ -263,10 +415,18 @@
                   </p>
                 }
               </div>
+              }
+            }
             </div>
             }
             
-            @if (!rescheduleMode() && canShowContactStep()) {
+            @if (!rescheduleMode()) {
+            <div class="space-y-8" data-testid="public-contact-step">
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowContactStep()" [class.text-slate-500]="!canShowContactStep()">
+                <span [class]="stepBadgeClass(canShowContactStep())">{{ contactStepNumber() }}</span>
+                Tus datos
+              </label>
+            @if (canShowContactStep()) {
             <!-- Client Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div class="space-y-4">
@@ -370,6 +530,8 @@
               ></textarea>
             </div>
             }
+            </div>
+            }
 
             <!-- Error Message -->
             @if (errorMessage()) {
@@ -379,6 +541,74 @@
               </div>
             }
 
+            @if (!rescheduleMode() && canShowContactStep() && serviceDepositQuote(); as quote) {
+              <section
+                class="rounded-2xl border border-white/10 bg-[#0B1220] px-4 py-4 space-y-3"
+                data-testid="booking-deposit-required-notice"
+              >
+                <p class="flex items-center gap-2 text-sm font-semibold text-[#F1F5F9]">
+                  <i class="ri-lock-line text-[#94A3B8]"></i>
+                  Este servicio requiere seña
+                </p>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="text-[#F1F5F9]">{{ quote.serviceName }}</span>
+                  <span class="shrink-0 tabular-nums text-[#F1F5F9]">{{ formatDepositMoney(quote.servicePrice) }}</span>
+                </div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="font-semibold text-[#F1F5F9]">Seña a pagar ahora ({{ quote.percent }}%)</span>
+                  <span class="shrink-0 tabular-nums font-semibold text-[#F1F5F9]">{{ formatDepositMoney(quote.holdAmount) }}</span>
+                </div>
+                <div class="border-t border-dashed border-white/15"></div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="text-[#94A3B8]">Resto, a pagar en el local</span>
+                  <span class="shrink-0 tabular-nums text-[#94A3B8]">{{ formatDepositMoney(quote.remainderAmount) }}</span>
+                </div>
+                <p class="flex items-center gap-2 rounded-xl bg-[#1E3A5F]/70 px-3 py-2 text-xs leading-relaxed text-[#93C5FD]">
+                  <i class="ri-time-line shrink-0"></i>
+                  Si no se confirma la seña, el horario se libera.
+                </p>
+                @if (depositAlias()) {
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="min-w-0 truncate text-sm text-[#F1F5F9]">Alias {{ depositAlias() }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-alias"
+                      class="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-[#F1F5F9] hover:bg-white/5"
+                      (click)="copyDepositValue('alias', depositAlias())"
+                    >
+                      {{ copiedDepositField() === 'alias' ? 'Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                }
+                @if (depositCbu()) {
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="min-w-0 truncate text-sm text-[#F1F5F9]">CBU {{ depositCbu() }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-cbu"
+                      class="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-[#F1F5F9] hover:bg-white/5"
+                      (click)="copyDepositValue('cbu', depositCbu())"
+                    >
+                      {{ copiedDepositField() === 'cbu' ? 'Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                }
+                @if (receiptWhatsAppUrl(); as waUrl) {
+                  <a
+                    data-testid="booking-deposit-receipt-whatsapp"
+                    [href]="waUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-[#25D366]"
+                  >
+                    <i class="ri-whatsapp-line"></i>
+                    Mandá el comprobante a {{ depositWhatsAppDisplay() }}
+                  </a>
+                }
+              </section>
+            }
+
+            @if (rescheduleMode() || canShowContactStep()) {
             <button
               type="submit"
               data-testid="booking-submit-action"
@@ -388,11 +618,15 @@
               @if (submitting()) {
                 <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <span>{{ rescheduleMode() ? 'Reprogramando...' : 'Confirmando...' }}</span>
+              } @else if (serviceDepositQuote()) {
+                <i class="ri-wallet-3-line text-2xl group-hover:rotate-12 transition-transform"></i>
+                <span>Pagar seña y confirmar</span>
               } @else {
                 <i class="ri-calendar-check-fill text-2xl group-hover:rotate-12 transition-transform"></i>
                 <span>{{ rescheduleMode() ? 'Confirmar reprogramación' : 'Confirmar Reserva' }}</span>
               }
             </button>
+            }
           </form>
 
           <footer class="mt-12 md:mt-16 pt-8 border-t border-white/5 text-center">

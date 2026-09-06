@@ -67,7 +67,7 @@
       <div class="sr-only" data-testid="settings-empty-state" role="status">Ready for configuration updates.</div>
 
       <form [formGroup]="settingsForm" data-testid="settings-form" (ngSubmit)="onSubmit()" class="space-y-zen-xl"
-        aria-label="business settings form">
+        novalidate aria-label="business settings form">
 
         @if (activeSettingsTab() === 'perfil') {
 
@@ -111,7 +111,7 @@
           </div>
         </article>
 
-        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+        <div class="md:hidden flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
           <div class="space-y-1 pr-3">
             <p class="text-sm font-semibold text-white">Avisos push</p>
             <p class="text-[11px] text-tertiary leading-tight">Te avisamos con la app cerrada si entra, se cancela o se reprograma un turno.</p>
@@ -187,9 +187,9 @@
                 </div>
                 <p class="text-xs text-secondary mt-2">Premium se activa a mano: te pasamos el alias, enviá el comprobante y Santi lo activa.</p>
               </div>
-              <button type="button" data-testid="upgrade-plan-cta" disabled
-                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20 opacity-60 cursor-not-allowed'"
-                aria-disabled="true">
+              <button type="button" data-testid="upgrade-plan-cta"
+                [class]="ui.primaryAction + ' w-full h-12 px-0! text-center shadow-lg shadow-primary/20'"
+                (click)="openManualPremium()">
                 Mejorar Plan a mano
               </button>
             </div>
@@ -311,7 +311,54 @@
                 <input type="checkbox" formControlName="autoConfirm" class="h-5 w-5 accent-primary cursor-pointer" />
               </div>
             </div>
+            <div class="space-y-zen-md">
+              <p [class]="ui.labelMicro + ' text-secondary'">Seña</p>
+              <div
+                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
+                <div class="space-y-1">
+                  <p class="text-sm font-semibold text-primary">Pedir seña para reservar</p>
+                  <p class="text-[10px] text-tertiary leading-tight">Si no se confirma la seña, el horario se libera.</p>
+                </div>
+                <input type="checkbox" formControlName="depositEnabled" class="h-5 w-5 accent-primary cursor-pointer" />
+              </div>
+            </div>
           </div>
+
+          @if (settingsForm.get('depositEnabled')?.value) {
+          <div class="space-y-zen-md">
+            <div class="space-y-zen-sm">
+              <label [class]="ui.labelMicro + ' text-secondary'">Porcentaje de seña</label>
+              <div
+                class="inline-flex rounded-full border border-white/10 bg-black/40 p-0.5"
+                role="group"
+                aria-label="Porcentaje de seña"
+                data-testid="deposit-percent-segment"
+              >
+                @for (pct of [25, 50, 100]; track pct) {
+                  <label
+                    class="cursor-pointer select-none rounded-full px-4 py-1.5 text-sm font-semibold transition-colors"
+                    [class.bg-primary]="settingsForm.get('depositPercent')?.value === pct"
+                    [class.text-white]="settingsForm.get('depositPercent')?.value === pct"
+                    [class.text-secondary]="settingsForm.get('depositPercent')?.value !== pct"
+                  >
+                    <input type="radio" formControlName="depositPercent" [value]="pct" class="sr-only" />
+                    {{ pct }}%
+                  </label>
+                }
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
+              <div class="space-y-zen-sm">
+                <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
+                <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
+              </div>
+              <div class="space-y-zen-sm">
+                <label [class]="ui.labelMicro + ' text-secondary'">CBU / CVU</label>
+                <input type="text" formControlName="depositCbu" [class]="ui.input" />
+              </div>
+            </div>
+          </div>
+          }
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
             <div class="space-y-zen-sm">
@@ -350,16 +397,6 @@
             <div class="space-y-zen-sm">
               <label [class]="ui.labelMicro + ' text-secondary'">Frecuencia de horarios</label>
               <input type="number" formControlName="slotIntervalMinutes" [class]="ui.input" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md pt-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Capacidad (empleados)</label>
-              <input type="number" formControlName="capacity" [class]="ui.input" min="1" />
-              @if (fieldErrors().capacity) {
-              <p [class]="ui.fieldError" data-testid="config-field-error-capacity">{{ fieldErrors().capacity }}</p>
-              }
             </div>
           </div>
 
@@ -499,7 +536,7 @@
 
         @if (activeSettingsTab() === 'equipo') {
         <article class="space-y-4" data-testid="settings-equipo-section">
-          <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
+        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
             <div class="space-y-1 pr-3">
               <p class="text-sm font-semibold text-white">Cliente elige profesional</p>
               <p class="text-[11px] text-tertiary leading-tight">Si está apagado, Orvel asigna automático</p>
@@ -566,10 +603,14 @@
                       <input type="checkbox" [checked]="hourForDay(professional, day.dayOfWeek).enabled"
                         (change)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: $any($event.target).checked })" />
                       <input type="time" [value]="hourForDay(professional, day.dayOfWeek).start"
-                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, start: $any($event.target).value })"
+                        [disabled]="!hourForDay(professional, day.dayOfWeek).enabled"
+                        (keydown.enter)="$event.preventDefault()"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { start: $any($event.target).value })"
                         class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
                       <input type="time" [value]="hourForDay(professional, day.dayOfWeek).end"
-                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { enabled: true, end: $any($event.target).value })"
+                        [disabled]="!hourForDay(professional, day.dayOfWeek).enabled"
+                        (keydown.enter)="$event.preventDefault()"
+                        (blur)="saveProfessionalHours(professional, day.dayOfWeek, { end: $any($event.target).value })"
                         class="h-8 rounded-lg border border-white/10 bg-bg-primary px-2" />
                     </div>
                     }

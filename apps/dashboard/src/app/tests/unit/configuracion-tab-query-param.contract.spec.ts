@@ -4,7 +4,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
@@ -33,6 +33,10 @@ describe('ConfiguracionPage tab query param behavior', () => {
           useValue: {
             queryParamMap: queryParamMap.asObservable()
           }
+        },
+        {
+          provide: Router,
+          useValue: { navigateByUrl: () => undefined }
         },
         {
           provide: BusinessService,
