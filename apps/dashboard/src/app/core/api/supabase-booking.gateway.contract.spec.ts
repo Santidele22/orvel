@@ -33,7 +33,8 @@ describe('createSupabaseBookingGateway contract surface', () => {
       'updateAdminBooking',
       'cancelAdminBooking',
       'rescheduleAdminBooking',
-      'updateBookingStatus'
+      'updateBookingStatus',
+      'confirmBookingDepositReceived'
     ] as const;
 
     for (const methodName of expectedMethodNames) {

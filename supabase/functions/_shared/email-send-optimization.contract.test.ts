@@ -29,6 +29,12 @@ Deno.test("premium activation email is enqueued on plan_code update and rendered
   assertMatch(sql, /template_key = 'premium_activated'/);
   assertMatch(sql, /AFTER UPDATE OF plan_code ON public\.business_subscriptions/);
   assertMatch(templates, /export function renderPremiumActivatedEmail/);
+  assertStringIncludes(templates, "Tu plan Premium de Orvel ya está activo");
+  assertStringIncludes(templates, "Revisamos el comprobante que nos mandaste por WhatsApp y ya está todo en orden.");
+  assertStringIncludes(templates, "pasó a Premium");
+  assertStringIncludes(templates, "turnos ilimitados");
+  assertStringIncludes(templates, "sin el tope de 30 por mes");
+  assertStringIncludes(templates, "Entrar al dashboard");
   assertStringIncludes(outbox, 'template_key === "premium_activated"');
   assertStringIncludes(outbox, "renderPremiumActivatedEmail");
 });

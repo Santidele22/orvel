@@ -100,6 +100,13 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(componentSource).not.toMatch(/length:\s*18/);
   });
 
+  it('lets the operator confirm a pending seña from Inicio', () => {
+    expect(templateSource).toContain('Confirmar seña');
+    expect(templateSource).not.toContain('Seña recibida');
+    expect(templateSource).toMatch(/turno\.depositPending/);
+    expect(componentSource).toMatch(/confirmDepositReceived\s*\(/);
+  });
+
   it('renders Próximo turno from featuredAppointments without mock names or times', () => {
     const mobile = mobileSummaryBlock(templateSource);
     expect(mobile).toContain('Próximo turno');

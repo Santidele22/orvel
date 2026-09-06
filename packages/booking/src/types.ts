@@ -101,6 +101,12 @@ export type PublicBookingConfirmation = {
   manageToken?: string;
   professionalId?: string;
   professionalName?: string;
+  depositCode?: string;
+  depositAmount?: number;
+  depositAlias?: string;
+  depositCbu?: string;
+  depositHoldExpiresAt?: string;
+  depositHoldMessage?: string;
 };
 
 export type ManageBookingDetails = {
@@ -165,4 +171,9 @@ export type AdminStatusUpdatePayload = {
   bookingId: string;
   status: string;
   performedBy: string;
+};
+
+export type ConfirmBookingDepositPayload = {
+  bookingId: string;
+  performedBy?: string;
 };

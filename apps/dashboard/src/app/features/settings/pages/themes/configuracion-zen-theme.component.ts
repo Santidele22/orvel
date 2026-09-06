@@ -83,4 +83,5 @@ export class ConfiguracionZenThemeComponent {
   get expandedSalonDay() { return this.ctx.expandedSalonDay; }
   openAccountSettingsModal(): void { this.ctx.openAccountSettingsModal(); }
   openAccountCancellationModal(): void { this.ctx.openAccountCancellationModal(); }
+  openManualPremium(): void { this.ctx.openManualPremium(); }
 }

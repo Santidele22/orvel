@@ -130,6 +130,11 @@ type AdminStatusUpdatePayload = {
   performedBy: string
 }
 
+type ConfirmBookingDepositPayload = {
+  bookingId: string
+  performedBy?: string
+}
+
 const ALLOWED_BOOKING_STATUSES = ['booked', 'confirmed', 'completed', 'cancelled', 'canceled'] as readonly string[]
 
 type SupabaseRpcError = {
@@ -840,6 +845,31 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       return {
         status: 200,
         data: result.data as { bookingId: string; status: string }
+      }
+    },
+
+    async confirmBookingDepositReceived(
+      payload: ConfirmBookingDepositPayload
+    ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
+      const result = await client.rpc('confirm_booking_deposit_received', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      })
+
+      if (result.error) {
+        return {
+          status: 422,
+          error: mapRpcError(result.error, {})
+        }
+      }
+
+      const row = result.data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
+        }
       }
     }
   }

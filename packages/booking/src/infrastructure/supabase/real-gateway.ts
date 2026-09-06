@@ -20,7 +20,8 @@ import type {
   AdminUpdateBookingPayload,
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
-  AdminStatusUpdatePayload
+  AdminStatusUpdatePayload,
+  ConfirmBookingDepositPayload
 } from '../../types';
 
 type BookingNotificationRow = {
@@ -292,6 +293,18 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         db_atomic_visibility_notifications?: boolean;
         professional_id?: string;
         professional_name?: string;
+        deposit_code?: string;
+        depositCode?: string;
+        deposit_amount?: number | string;
+        depositAmount?: number | string;
+        deposit_alias?: string;
+        depositAlias?: string;
+        deposit_cbu?: string;
+        depositCbu?: string;
+        deposit_hold_expires_at?: string;
+        depositHoldExpiresAt?: string;
+        deposit_hold_message?: string;
+        depositHoldMessage?: string;
       };
       const bookingId = bookingResult.booking_id;
       const branchId = bookingResult.branch_id;
@@ -330,6 +343,34 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       }
       if (bookingResult.professional_name) {
         responseData.professionalName = bookingResult.professional_name;
+      }
+
+      const depositCode = bookingResult.deposit_code ?? bookingResult.depositCode;
+      if (depositCode) {
+        responseData.depositCode = String(depositCode);
+        const depositAmount = bookingResult.deposit_amount ?? bookingResult.depositAmount;
+        if (depositAmount != null && depositAmount !== '') {
+          const amount = Number(depositAmount);
+          if (Number.isFinite(amount)) {
+            responseData.depositAmount = amount;
+          }
+        }
+        const depositAlias = bookingResult.deposit_alias ?? bookingResult.depositAlias;
+        if (depositAlias) {
+          responseData.depositAlias = String(depositAlias);
+        }
+        const depositCbu = bookingResult.deposit_cbu ?? bookingResult.depositCbu;
+        if (depositCbu) {
+          responseData.depositCbu = String(depositCbu);
+        }
+        const depositHoldExpiresAt = bookingResult.deposit_hold_expires_at ?? bookingResult.depositHoldExpiresAt;
+        if (depositHoldExpiresAt) {
+          responseData.depositHoldExpiresAt = String(depositHoldExpiresAt);
+        }
+        const depositHoldMessage = bookingResult.deposit_hold_message ?? bookingResult.depositHoldMessage;
+        if (depositHoldMessage) {
+          responseData.depositHoldMessage = String(depositHoldMessage);
+        }
       }
 
       return {
@@ -721,6 +762,38 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         data: {
           bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
           status: (data as { status?: string })?.status ?? payload.status
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async confirmBookingDepositReceived(
+    payload: ConfirmBookingDepositPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('confirm_booking_deposit_received', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
         }
       };
     } catch (err) {

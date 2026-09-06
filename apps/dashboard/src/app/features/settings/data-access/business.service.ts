@@ -333,12 +333,16 @@ export class BusinessService {
 
     const { error: profileError } = await this.supabaseClient
       .from('profiles')
-      .update({
-        first_name: settings.firstName ?? '',
-        last_name: settings.lastName ?? '',
-        phone: settings.phone ?? ''
-      })
-      .eq('id', context.ownerId);
+      .upsert(
+        {
+          id: context.ownerId,
+          first_name: settings.firstName ?? '',
+          last_name: settings.lastName ?? '',
+          phone: settings.phone ?? '',
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'id' }
+      );
 
     if (profileError) {
       throw this.failLoad('No se pudo guardar el perfil.', 'PROFILE_SAVE_FAILED');
@@ -382,7 +386,12 @@ export class BusinessService {
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
         capacity: settings.capacity,
-        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false
+        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false,
+        deposit_enabled: settings.depositEnabled ?? false,
+        deposit_percent: settings.depositPercent ?? 0,
+        deposit_alias: settings.depositAlias ?? '',
+        deposit_cbu: settings.depositCbu ?? '',
+        support_phone: settings.phone ?? ''
       });
 
     if (error) {
@@ -525,6 +534,11 @@ export class BusinessService {
       cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
       capacity: formDefaults.capacity,
       allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false,
+      depositEnabled: settings?.deposit_enabled ?? false,
+      depositPercent: Number(settings?.deposit_percent ?? 0),
+      depositAmountPesos: settings?.deposit_amount_pesos == null ? null : Number(settings.deposit_amount_pesos),
+      depositAlias: settings?.deposit_alias ?? '',
+      depositCbu: settings?.deposit_cbu ?? '',
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',
@@ -642,7 +656,12 @@ export class BusinessService {
         workingHours: resolveWorkingHours(
           settings?.workingHours ?? settings?.working_hours,
           this.getDefaultWorkingHours()
-        )
+        ),
+        depositEnabled: settings?.depositEnabled ?? settings?.deposit_enabled ?? false,
+        depositPercent: Number(settings?.depositPercent ?? settings?.deposit_percent ?? 0),
+        depositAlias: settings?.depositAlias ?? settings?.deposit_alias ?? null,
+        depositCbu: settings?.depositCbu ?? settings?.deposit_cbu ?? null,
+        supportPhone: settings?.supportPhone ?? settings?.support_phone ?? null
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,

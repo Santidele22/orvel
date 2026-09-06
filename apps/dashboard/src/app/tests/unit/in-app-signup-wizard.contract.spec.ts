@@ -30,7 +30,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(wizard.step).toBe(2);
   });
 
-  it('requires at least one rubro and treats the first selected as principal', () => {
+  it('requires exactly one rubro and replaces instead of accumulating', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -38,12 +38,21 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.continue();
 
     expect(wizard.canContinue()).toBe(false);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual([]);
+
     wizard.toggleRubro('unas');
     wizard.toggleRubro('peluqueria');
 
     expect(wizard.canContinue()).toBe(true);
-    expect(wizard.selectedRubros[0]).toBe('unas');
-    expect(wizard.principalRubro()).toBe('unas');
+    expect(wizard.selectedRubros).toEqual(['peluqueria']);
+    expect(wizard.principalRubro()).toBe('peluqueria');
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual(['peluqueria']);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toHaveLength(1);
+
+    wizard.toggleRubro('peluqueria');
+    expect(wizard.selectedRubros).toEqual([]);
+    expect(wizard.canContinue()).toBe(false);
+    expect(wizard.buildCreateAccountPayload().selected_business_types).toEqual([]);
   });
 
   it('rejects password shorter than 8 characters or a mismatch before creating the Free account', () => {
@@ -85,10 +94,12 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(payload.apellido).toBe('Delebeq');
     expect(payload.negocioNombre).toBe('Studio Norte');
     expect(payload.rubro).toBe('peluqueria');
+    expect(payload.selected_business_types).toEqual(['peluqueria']);
+    expect(payload.selected_business_types).toHaveLength(1);
     expect(payload).not.toHaveProperty('telefono');
   });
 
-  it('creates Free then lets Premium request keep the account Free', () => {
+  it('creates Free then starts a Premium trial without a plan picker or transfer step', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -100,11 +111,13 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.password = '12345678';
     wizard.confirmPassword = '12345678';
 
+    expect(wizard.step).toBe(3);
     wizard.markAccountCreated();
     expect(wizard.createdFree).toBe(true);
-    expect(wizard.step).toBe(4);
+    expect(wizard.step).toBe(3);
+    expect(wizard.premiumRequested).toBe(false);
 
-    wizard.requestPremium();
+    wizard.startPremiumTrial();
     expect(wizard.premiumRequested).toBe(true);
     expect(wizard.step).toBe(5);
     expect(wizard.premiumRequestMetadata()).toEqual(
@@ -113,21 +126,9 @@ describe('Contract: in-app signup wizard (#562)', () => {
         premium_requested: true
       })
     );
-
-    const freeWizard = new InAppSignupWizard();
-    freeWizard.markAccountCreated();
-    freeWizard.chooseFree();
-    expect(freeWizard.premiumRequested).toBe(false);
-    expect(freeWizard.step).toBe(5);
-    expect(freeWizard.premiumRequestMetadata()).toEqual(
-      expect.objectContaining({
-        plan: 'FREE',
-        premium_requested: false
-      })
-    );
   });
 
-  it('backs from steps 2-4 and hides step chrome on success', () => {
+  it('backs from steps 2-3 and hides step chrome on trial success', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -143,8 +144,9 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.password = '12345678';
     wizard.confirmPassword = '12345678';
     wizard.markAccountCreated();
+    expect(wizard.step).toBe(3);
     expect(wizard.canGoBack()).toBe(true);
-    wizard.chooseFree();
+    wizard.startPremiumTrial();
     expect(wizard.canGoBack()).toBe(false);
     expect(wizard.showsStepChrome()).toBe(false);
   });
@@ -163,30 +165,59 @@ describe('Contract: in-app signup wizard (#562)', () => {
 
     expect(page).toContain('¿Cómo te llamás?');
     expect(page).toContain('¿Qué rubro tenés?');
+    expect(page).toContain('Elegí un rubro.');
+    expect(page).not.toContain('Elegí uno o más');
+    expect(page).not.toContain('Más rubros');
     expect(page).toContain('Creá tu acceso');
-    expect(page).toContain('Paso 4 de 4');
-    expect(page).toContain('¿Qué plan querés?');
-    expect(page).toContain('Arrancás gratis igual. Vos decidís cuándo sumar más.');
-    expect(page).toContain('Entrás ahora, sin pagar nada.');
-    expect(page).toContain('Sin pago, sin tarjeta');
-    expect(page).toContain('Lo pedís, lo activamos nosotros.');
-    expect(page).toContain('Agenda sin límites');
-    expect(page).toContain('No se cobra ni se activa solo');
+    expect(page).toContain('@for (dot of [1, 2, 3]; track dot)');
+    expect(page).not.toContain('Paso 4 de 4');
+    expect(page).not.toContain('¿Qué plan querés?');
+    expect(page).not.toContain('Empezar gratis');
+    expect(page).not.toContain('Probar 14 días');
     expect(page).toContain('Ya estás adentro');
-    expect(page).toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
+    expect(page).toContain('Tenés 14 días de Premium activos.');
+    expect(page).not.toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Crear cuenta');
     expect(page).toContain('Apellido');
     expect(page).toContain('ownerLastName');
     expect(page).toContain('accessError()');
     expect(page).toContain('syncAccessField');
-    expect(page).toContain('Empezar gratis');
-    expect(page).toContain('Pedir Premium y entrar');
     expect(page).toContain('Entrar a la agenda');
+    expect(page).toContain('PASO FINAL');
+    expect(page).toContain('Transferí y mandá el comprobante');
+    expect(page).toContain('No usamos Mercado Pago ni tarjeta');
+    expect(page).toContain('orvel.pagos');
+    expect(page).toContain('Copiar');
+    expect(page).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(page).toContain('Mandá el comprobante por WhatsApp.');
+    expect(page).toContain('Entrá ya en Gratis, sin esperar a nadie.');
+    expect(page).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');
+    expect(page).toContain('Enviar comprobante por WhatsApp');
+    expect(page).toContain('Hasta entonces tu cuenta funciona en plan Gratis.');
+    expect(page).toContain('Pago pendiente');
+    expect(page).toContain('$25.000/mes');
+    expect(page).toContain('Turnos ilimitados');
+    expect(page).toContain('1 local');
+    expect(page).toContain('PLAN PREMIUM');
+    expect(page).toContain('copyPremiumAlias');
+    expect(page).toContain('buildPremiumWhatsAppUrl');
     expect(page).not.toContain('Premium pedido · Free activo');
     expect(page).toMatch(/import\('canvas-confetti'\)/);
+    expect(page).not.toMatch(/chooseFree\(/);
+    const createAccountHandler = page.match(/protected async createAccount\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
+    expect(createAccountHandler).toContain('startPremiumTrialForCurrentBusiness');
+    expect(createAccountHandler).toContain('wizard.startPremiumTrial');
+    expect(createAccountHandler).toContain('triggerSignupSuccessConfetti');
+    expect(createAccountHandler).not.toContain('markPremiumReviewPending');
+    expect(page).not.toContain('(click)="startPremiumTrial()"');
+    expect(page).not.toContain('(click)="requestPremium()"');
+    expect(page).not.toContain('(click)="chooseFree()"');
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(page).not.toMatch(/teléfono|telefono|notch|home indicator|phone-frame/i);
     expect(page).toMatch(/prefers-reduced-motion/);
+    expect(page).toContain('[class.is-dimmed]');
+    expect(page).toMatch(/\.in-app-auth__chip\.is-selected[\s\S]{0,120}background:\s*#7C3AED/);
+    expect(page).toMatch(/\.in-app-auth__chip\.is-dimmed[\s\S]{0,80}opacity:\s*0\.(3[5-9]|4[0-5])/);
   });
 
   it('login surface lives in-app with a path to alta', async () => {
@@ -213,12 +244,12 @@ describe('Contract: in-app signup wizard (#562)', () => {
     }
   });
 
-  it('marks Principal as a chip badge, not concatenated inline text', async () => {
+  it('does not render Principal-vs-secondary chip chrome', async () => {
     const page = await readFile(WIZARD_PAGE, 'utf8');
 
     expect(page).toContain('{{ rubro.label }}');
-    expect(page).toMatch(/in-app-auth__chip-badge/);
-    expect(page).not.toMatch(/<span>Principal<\/span>/);
+    expect(page).not.toContain('Principal');
+    expect(page).not.toMatch(/in-app-auth__chip-badge/);
   });
 });
 
