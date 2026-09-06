@@ -520,8 +520,26 @@ export class PublicBookingPage implements OnInit, OnDestroy {
     return `${day?.weekday ?? date} ${day?.label ?? ''} · ${time}`.trim();
   }
 
+  protected canShowProfessionalTitle(): boolean {
+    return !this.lockedProfessionalSlug() && this.allowClientProfessionalSelection();
+  }
+
   protected canShowProfessionalStep(): boolean {
     return Boolean(this.selectedServiceId()) && this.showProfessionalPicker();
+  }
+
+  protected scheduleStepNumber(): number {
+    return this.canShowProfessionalTitle() ? 3 : 2;
+  }
+
+  protected contactStepNumber(): number {
+    return this.canShowProfessionalTitle() ? 4 : 3;
+  }
+
+  protected stepBadgeClass(active: boolean): string {
+    return active
+      ? 'flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black text-white'
+      : 'flex h-6 w-6 items-center justify-center rounded-full border border-white/20 text-[11px] font-black text-slate-500';
   }
 
   protected canShowScheduleStep(): boolean {
