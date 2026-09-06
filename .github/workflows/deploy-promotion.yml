@@ -70,9 +70,23 @@ jobs:
       - name: Build combined landing+dashboard
         if: ${{ steps.target.outputs.site == 'combined' }}
         env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PUBLIC_LANDING_URL: https://qa.orvel.pro
           PUBLIC_DASHBOARD_URL: https://qa.orvel.pro
-        run: pnpm run build:vercel
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          npx vercel@59.11.7 env pull .vercel/qa.env --yes --environment=preview --git-branch=qa
+          set -a
+          # shellcheck disable=SC1091
+          source .vercel/qa.env
+          set +a
+          rm -f .vercel/qa.env
+          export PUBLIC_LANDING_URL=https://qa.orvel.pro
+          export PUBLIC_DASHBOARD_URL=https://qa.orvel.pro
+          pnpm run build:vercel
 
       - name: Build dashboard
         if: ${{ steps.target.outputs.site == 'dashboard' }}
