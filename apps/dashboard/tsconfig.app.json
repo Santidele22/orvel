@@ -7,9 +7,16 @@
     "types": ["node"]
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../../packages/auth/src/**/*.ts",
+    "../../packages/billing/src/**/*.ts",
+    "../../packages/booking/src/**/*.ts",
+    "../../packages/config/src/**/*.ts",
+    "../../packages/domain/src/**/*.ts",
+    "../../packages/types/src/**/*.ts"
   ],
   "exclude": [
-    "src/**/*.spec.ts"
+    "src/**/*.spec.ts",
+    "../../packages/**/*.spec.ts"
   ]
 }

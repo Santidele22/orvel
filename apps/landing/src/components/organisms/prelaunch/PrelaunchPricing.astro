@@ -16,11 +16,25 @@ function formatPrice(plan: PlanWithBilling): string {
 const featureCopy: Record<string, { desc: string; items: string[] }> = {
   FREE: {
     desc: 'Para empezar con 1 local principal y hasta 30 turnos por mes.',
-    items: ['1 agenda', 'Hasta 30 turnos/mes', 'Link de reservas', 'Servicios y horarios', 'Gestión básica de clientes']
+    items: [
+      '1 agenda',
+      'Hasta 30 turnos/mes',
+      'Link de reservas',
+      'Equipo con varios profesionales',
+      'Seña opcional en el turnero',
+      'Servicios, horarios y clientes'
+    ]
   },
   PREMIUM: {
-    desc: 'Turnos ilimitados para 1 local principal. Mismas funciones core del plan Gratis.',
-    items: ['Turnos ilimitados', 'Clientes y servicios', 'Horarios, descansos y bloqueos', 'Reprogramaciones', 'Link de reservas']
+    desc: 'Turnos ilimitados para 1 local principal. Mismas funciones que Gratis, sin el tope mensual.',
+    items: [
+      'Turnos ilimitados',
+      'Equipo con varios profesionales',
+      'Seña opcional en el turnero',
+      'Horarios, descansos y bloqueos',
+      'Reprogramaciones',
+      'Link de reservas'
+    ]
   }
 };
 ---
