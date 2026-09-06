@@ -35,7 +35,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     const parsed = new URL(redirect);
 
     expect(parsed.origin).toBe('https://orvel.pro');
-    expect(parsed.pathname).toBe('/auth/login');
+    expect(parsed.pathname).toBe('/dashboard/login');
     expect(parsed.searchParams.get('returnTo')).toBe('/dashboard/agenda?date=2026-05-13&view=week');
   });
 
@@ -51,7 +51,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
       const parsed = new URL(redirect);
 
       expect(parsed.origin).toBe('http://localhost:4321');
-      expect(parsed.pathname).toBe('/auth/login');
+      expect(parsed.pathname).toBe('/dashboard/login');
       expect(parsed.searchParams.get('returnTo')).toBe('/dashboard/inicio');
     } finally {
       restoreRuntime();
@@ -70,7 +70,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
       const plan = new URL(buildLandingPlanSelectionRedirect('/dashboard/inicio'));
 
       expect(login.origin).toBe('https://qa.orvel.pro');
-      expect(login.pathname).toBe('/auth/login');
+      expect(login.pathname).toBe('/dashboard/login');
       expect(plan.origin).toBe('https://qa.orvel.pro');
       expect(plan.pathname).toBe('/auth/signup/plan');
     } finally {
@@ -84,7 +84,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     try {
       const redirect = buildLandingLoginRedirect('/dashboard');
 
-      expect(redirect).toBe('http://127.0.0.1:4321/auth/login?returnTo=%2Fdashboard');
+      expect(redirect).toBe('http://127.0.0.1:4321/dashboard/login?returnTo=%2Fdashboard');
     } finally {
       restoreRuntime();
     }
@@ -100,7 +100,7 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     ]) {
       expect(sanitizeReturnTo(unsafeReturnTo)).toBe('/dashboard');
       expect(buildLandingLoginRedirect(unsafeReturnTo)).toBe(
-        'https://orvel.pro/auth/login?returnTo=%2Fdashboard'
+        'https://orvel.pro/dashboard/login?returnTo=%2Fdashboard'
       );
     }
   });

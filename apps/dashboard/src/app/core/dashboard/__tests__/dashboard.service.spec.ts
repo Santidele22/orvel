@@ -130,6 +130,17 @@ describe('DashboardService BookingQueries consumer', () => {
     expect(service.agendaStatus().totalAppointments).toBe(1);
   });
 
+  it('labels unpaid seña bookings as Pendiente de seña instead of confirmado', async () => {
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'pending' })]);
+    const service = createService(queries);
+    await flush();
+    expect(service.featuredAppointments()[0]).toMatchObject({
+      estado: 'confirmado',
+      badgeLabel: 'Pendiente de seña',
+      depositPending: true
+    });
+  });
+
     it('computes completed-today ticket average from BookingQueries rows', async () => {
     const queries = new InMemoryBookingQueries([todayRecord({ estado: 'completado' })]);
     const service = createService(queries);
@@ -220,6 +231,52 @@ describe('DashboardService BookingQueries consumer', () => {
     await flush();
     expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
     expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('refreshes bookings when operator.agenda.sync is dispatched', async () => {
+    const queries = new QueuedBookingQueries([
+      [],
+      [todayRecord({ hora: '00:00', duracionMinutos: 1 })]
+    ]);
+    const service = createService(queries);
+    await flush();
+    setAfternoonNow(service);
+    expect(service.agendaStatus().totalAppointments).toBe(0);
+
+    window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
+    expect(service.agendaStatus().totalAppointments).toBe(1);
+  });
+
+  it('refetches when visibilitychange is visible after a warm empty list', async () => {
+    const queries = new InMemoryBookingQueries([]);
+    createService(queries);
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible'
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not refetch when visibilitychange is hidden', async () => {
+    const queries = new InMemoryBookingQueries([]);
+    createService(queries);
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden'
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+    expect(queries.listBookingsByBranch).toHaveBeenCalledTimes(1);
   });
 
   it('DashboardHomeComponent keeps constructor-driven freshness; ngOnInit must not require a refetch on every enter', () => {

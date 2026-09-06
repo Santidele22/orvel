@@ -136,58 +136,50 @@ describe('TurnoFormPage walk-in behavior', () => {
     return fixture;
   }
 
-  it('reveals the manual walk-in name field only after choosing “No tiene ficha”', async () => {
+  it('does not expose walk-in start or name controls', async () => {
     const fixture = await renderTurnoForm();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]')).toBeNull();
-
-    const startWalkIn = fixture.nativeElement.querySelector('[data-testid="turno-admin-start-walk-in"]') as HTMLButtonElement | null;
-    expect(startWalkIn).not.toBeNull();
-
-    startWalkIn?.click();
-    fixture.detectChanges();
-
-    const walkInName = fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]') as HTMLInputElement | null;
-    expect(walkInName).not.toBeNull();
-    expect(walkInName?.placeholder).toBe('Nombre de la persona');
-  });
-
-  it('hides and clears the walk-in path after selecting an existing client', async () => {
-    const fixture = await renderTurnoForm();
-
-    (fixture.nativeElement.querySelector('[data-testid="turno-admin-start-walk-in"]') as HTMLButtonElement).click();
-    fixture.detectChanges();
-
-    const walkInName = fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]') as HTMLInputElement;
-    walkInName.value = 'Cliente sin ficha';
-    walkInName.dispatchEvent(new Event('input', { bubbles: true }));
-    fixture.detectChanges();
-
-    const clientSelect = fixture.nativeElement.querySelector('[data-testid="turno-admin-client-select"]') as HTMLSelectElement;
-    clientSelect.value = 'cliente-1';
-    clientSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-start-walk-in"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Atención sin ficha');
   });
 
-  it('keeps a recoverable client path after an invalid submit without client data', async () => {
+  it('keeps canSave false without a client even when other save conditions are met', async () => {
+    const fixture = await renderTurnoForm();
+    const page = fixture.componentInstance;
+    const availableStarts = (page as unknown as { availableStarts: { set: (value: string[]) => void } }).availableStarts;
+
+    page.clienteId.set('');
+    page.servicioId.set('servicio-1');
+    page.hora.set('10:00');
+    availableStarts.set(['10:00']);
+    page.hasLoadedAvailability.set(true);
+    page.availabilityStale.set(false);
+    page.availabilityLoading.set(false);
+    page.availabilityError.set(null);
+    page.availabilityEmpty.set(false);
+    page.defaultBranchScopeReady.set(true);
+    page.defaultBranchSetupError.set(null);
+    page.conflictError.set(null);
+    fixture.detectChanges();
+
+    expect(page.canSave()).toBe(false);
+
+    page.clienteId.set('cliente-1');
+    fixture.detectChanges();
+    expect(page.canSave()).toBe(true);
+  });
+
+  it('shows a client-required error when saving without a client', async () => {
     const fixture = await renderTurnoForm();
 
     const form = fixture.nativeElement.querySelector('[data-testid="turno-admin-new-modal-form"]') as HTMLFormElement;
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Elegí un cliente o cargá el nombre para una atención sin ficha.');
-
-    const startWalkIn = fixture.nativeElement.querySelector('[data-testid="turno-admin-start-walk-in"]') as HTMLButtonElement | null;
-    expect(startWalkIn).not.toBeNull();
-
-    startWalkIn?.click();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Seleccioná un cliente');
     expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-client-select"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-start-walk-in"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="turno-admin-walk-in-name"]')).toBeNull();
   });
 });

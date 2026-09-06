@@ -25,7 +25,8 @@ const PERSISTABLE_FORM_CONTROLS = [
   'autoConfirm',
   'maxAdvanceDays',
   'capacity',
-  'cancelationGracePeriod'
+  'cancelationGracePeriod',
+  'allowClientProfessionalSelection'
 ] as const;
 
 const GHOST_UPSERT_COLUMNS = [

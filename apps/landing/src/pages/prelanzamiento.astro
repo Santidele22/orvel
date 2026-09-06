@@ -1,29 +1,19 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getActivePlans, calculateBillingPrices } from '../lib/plans';
-import { EARLY_BIRD_OCCUPIED, getCurrentFranja } from '../lib/waitlist';
-import { fetchWaitlistOccupied } from '../lib/waitlist-sheet';
 
 import PrelaunchHeader from '../components/organisms/prelaunch/PrelaunchHeader.astro';
 import PrelaunchHero from '../components/organisms/prelaunch/PrelaunchHero.astro';
-import EarlyBird from '../components/organisms/prelaunch/EarlyBird.astro';
-import PrelaunchProblem from '../components/organisms/prelaunch/PrelaunchProblem.astro';
-import PrelaunchFeatures from '../components/organisms/prelaunch/PrelaunchFeatures.astro';
 import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
-import PrelaunchNovedades from '../components/organisms/prelaunch/PrelaunchNovedades.astro';
+import PremiumTrial from '../components/organisms/prelaunch/PremiumTrial.astro';
+import PrelaunchHowItWorks from '../components/organisms/prelaunch/PrelaunchHowItWorks.astro';
+import PrelaunchPublicTurnero from '../components/organisms/prelaunch/PrelaunchPublicTurnero.astro';
+import PrelaunchProductShowcase from '../components/organisms/prelaunch/PrelaunchProductShowcase.astro';
 import PrelaunchPricing from '../components/organisms/prelaunch/PrelaunchPricing.astro';
 import PrelaunchFaq from '../components/organisms/prelaunch/PrelaunchFaq.astro';
 import PrelaunchCta from '../components/organisms/prelaunch/PrelaunchCta.astro';
-import WaitlistModal from '../components/organisms/prelaunch/WaitlistModal.astro';
-import StickyWaitlistCta from '../components/organisms/prelaunch/StickyWaitlistCta.astro';
 import Footer from '../components/organisms/Footer.astro';
 
-const occupied =
-  (await fetchWaitlistOccupied({
-    webhookUrl: process.env.WAITLIST_SHEETS_WEBHOOK_URL || import.meta.env.WAITLIST_SHEETS_WEBHOOK_URL,
-    secret: process.env.WAITLIST_SHEETS_SECRET || import.meta.env.WAITLIST_SHEETS_SECRET
-  })) ?? EARLY_BIRD_OCCUPIED;
-const franja = getCurrentFranja(occupied);
 const plans = await getActivePlans();
 const plansWithBilling = plans.map((plan) => calculateBillingPrices(plan));
 const premium = plansWithBilling.find((plan) => plan.code === 'PREMIUM');
@@ -31,20 +21,18 @@ const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` 
 ---
 
 <Layout
-  title="Orvel — Pre-lanzamiento · Lista de espera"
-  description="Menos ida y vuelta. Más salón. Anotate a la lista de espera. Primeros 50 con beneficio de fundador."
+  title="Orvel — Menos ida y vuelta. Más salón."
+  description="Tu cliente reserva. Vos atendés. Creá tu cuenta. 14 días de Premium gratis, sin tarjeta."
 >
   <PrelaunchHeader />
   <PrelaunchHero />
-  <EarlyBird occupied={occupied} franja={franja} />
-  <PrelaunchProblem />
-  <PrelaunchFeatures />
   <PrelaunchRubros />
-  <PrelaunchNovedades />
+  <PremiumTrial />
+  <PrelaunchHowItWorks />
+  <PrelaunchPublicTurnero />
+  <PrelaunchProductShowcase />
   <PrelaunchPricing plansWithBilling={plansWithBilling} />
   <PrelaunchFaq premiumPriceLabel={premiumPriceLabel} />
   <PrelaunchCta />
   <Footer />
-  <StickyWaitlistCta franja={franja} />
-  <WaitlistModal franja={franja} />
 </Layout>

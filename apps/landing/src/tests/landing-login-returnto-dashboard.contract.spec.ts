@@ -79,9 +79,11 @@ describe('Contract: landing login returnTo resolves to dashboard app', () => {
     }
   });
 
-  it('does not expose a Google login entrypoint from the user-facing login page', () => {
+  it('does not expose a Google login entrypoint from the landing login redirect page', () => {
     const loginPage = readFileSync(resolve(process.cwd(), 'src/pages/auth/login.astro'), 'utf8');
 
+    expect(loginPage).toMatch(/buildInAppAuthRedirect/);
+    expect(loginPage).toMatch(/Astro\.redirect/);
     expect(loginPage).not.toContain('id="googleBtn"');
     expect(loginPage).not.toContain("id='googleBtn'");
     expect(loginPage).not.toMatch(/Continuar\s+con\s+Google|Google disponible|Registrarse\s+con\s+Google/i);

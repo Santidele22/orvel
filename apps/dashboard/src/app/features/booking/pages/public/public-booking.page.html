@@ -35,20 +35,133 @@
       
       <!-- Successful Booking State -->
       @if (bookingConfirmed()) {
+        @if (depositHold(); as hold) {
+        <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[32px] p-6 md:p-8 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in duration-700" data-testid="booking-deposit-hold-state">
+           <div class="relative mx-auto h-[120px] w-[120px]">
+              <svg width="120" height="120" viewBox="0 0 120 120" class="-rotate-90" aria-hidden="true">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#F59E0B"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  [attr.stroke-dasharray]="depositHoldRingCircumference"
+                  [attr.stroke-dashoffset]="depositHoldRingOffset()"
+                ></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-2xl font-black tabular-nums tracking-tight text-[#F1F5F9]" data-testid="booking-deposit-hold-countdown">{{ depositHoldCountdownLabel() }}</span>
+                <span class="text-[11px] font-medium text-[#94A3B8]">restantes</span>
+              </div>
+           </div>
+           <div class="space-y-2">
+               <h2 class="text-2xl font-black text-[#F1F5F9] tracking-tight">Seña pendiente</h2>
+               <p class="text-sm font-medium leading-relaxed text-[#94A3B8]">Tu horario en <strong class="text-[#F1F5F9]">{{ businessName() }}</strong> queda reservado hasta que confirmen la seña.</p>
+           </div>
+           <div class="border-t border-dashed border-white/15"></div>
+           <div class="space-y-3 text-sm">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Código</span>
+                <span class="flex min-w-0 items-center gap-2 font-semibold tracking-wide text-[#F1F5F9]" data-testid="booking-deposit-hold-code">
+                  {{ hold.code }}
+                  <button
+                    type="button"
+                    data-testid="booking-deposit-copy-code"
+                    class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                    (click)="copyDepositValue('code', hold.code)"
+                    [attr.aria-label]="copiedDepositField() === 'code' ? 'Código copiado' : 'Copiar código'"
+                  >
+                    <i [class]="copiedDepositField() === 'code' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                  </button>
+                </span>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Monto</span>
+                <span class="font-semibold tabular-nums text-[#F1F5F9]">{{ formatDepositMoney(hold.amountPesos) }}</span>
+              </div>
+              @if (hold.alias) {
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-[#94A3B8]">Alias</span>
+                  <span class="flex min-w-0 items-center gap-2 font-semibold text-[#F1F5F9]">
+                    <span class="truncate">{{ hold.alias }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-alias"
+                      class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                      (click)="copyDepositValue('alias', hold.alias)"
+                      [attr.aria-label]="copiedDepositField() === 'alias' ? 'Alias copiado' : 'Copiar alias'"
+                    >
+                      <i [class]="copiedDepositField() === 'alias' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                    </button>
+                  </span>
+                </div>
+              }
+              @if (hold.cbu) {
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-[#94A3B8]">CBU</span>
+                  <span class="flex min-w-0 items-center gap-2 font-semibold text-[#F1F5F9]">
+                    <span class="truncate">{{ hold.cbu }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-cbu"
+                      class="shrink-0 text-[#A78BFA] hover:text-[#F1F5F9]"
+                      (click)="copyDepositValue('cbu', hold.cbu)"
+                      [attr.aria-label]="copiedDepositField() === 'cbu' ? 'CBU copiado' : 'Copiar CBU'"
+                    >
+                      <i [class]="copiedDepositField() === 'cbu' ? 'ri-check-line' : 'ri-file-copy-line'"></i>
+                    </button>
+                  </span>
+                </div>
+              }
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-[#94A3B8]">Vence</span>
+                <span class="font-semibold text-[#F1F5F9]" data-testid="booking-deposit-hold-expiry">{{ depositHoldExpiryLabel() }}</span>
+              </div>
+           </div>
+           <div class="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left text-sm leading-relaxed text-[#94A3B8] space-y-2">
+              <p>{{ depositNextStepsCopy }}</p>
+              <p>Si no se confirma la seña, el horario se libera.</p>
+           </div>
+           <div class="space-y-3">
+             @if (receiptWhatsAppUrl({ code: hold.code, amountPesos: hold.amountPesos }); as waUrl) {
+               <a
+                 data-testid="booking-deposit-receipt-whatsapp"
+                 [href]="waUrl"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[#6D28D9] active:scale-95"
+               >
+                 <i class="ri-whatsapp-line text-lg"></i>
+                 Enviar comprobante
+               </a>
+             }
+             <button type="button" (click)="dismissBookingSuccess()" class="w-full rounded-2xl border border-white/15 px-8 py-3.5 text-xs font-black uppercase tracking-widest text-[#F1F5F9] transition-all hover:bg-white/5 active:scale-95">
+                Volver
+             </button>
+           </div>
+        </section>
+        } @else {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-confirmed-state">
            <div class="w-20 h-20 bg-[#7C3AED] rounded-[28px] flex items-center justify-center mx-auto text-white shadow-lg shadow-purple-900/40">
               <i class="ri-checkbox-circle-fill text-4xl"></i>
            </div>
            <div class="space-y-3">
                <h2 class="text-3xl font-black text-white tracking-tight">{{ rescheduleConfirmed() ? 'Reserva reprogramada' : (bookingAwaitingApproval() ? 'Reserva pendiente de aprobación' : 'Reserva confirmada') }}</h2>
-               <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : (bookingAwaitingApproval() ? 'quedó registrada y está esperando la aprobación del negocio' : 'ha sido confirmada') }}. Te esperamos para brindarte la mejor atención.</p>
+                <p class="text-slate-400 font-medium leading-relaxed">Tu cita en <strong class="text-white">{{ businessName() }}</strong> {{ rescheduleConfirmed() ? 'ha sido reprogramada' : (bookingAwaitingApproval() ? 'quedó registrada y está esperando la aprobación del negocio' : 'ha sido confirmada') }}. Te esperamos para brindarte la mejor atención.</p>
+                @if (confirmedProfessionalName()) {
+                  <p class="text-white font-semibold" data-testid="booking-confirmed-professional">Te atiende {{ confirmedProfessionalName() }}</p>
+                }
            </div>
            <div class="pt-8 border-t border-white/5">
-              <button (click)="bookingConfirmed.set(false); bookingAwaitingApproval.set(false)" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
+              <button type="button" (click)="dismissBookingSuccess()" class="px-8 py-3.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95">
                  {{ rescheduleConfirmed() ? 'Volver' : 'Reservar Otro' }}
               </button>
            </div>
         </section>
+        }
       } @else if (errorMessage() && !resolvedBusinessId()) {
         <section class="or-card backdrop-blur-xl bg-white/[0.03] border border-white/5 rounded-[40px] p-10 md:p-14 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in duration-700" data-testid="booking-portal-error-state">
           <div class="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-[28px] flex items-center justify-center mx-auto text-amber-300">
@@ -85,18 +198,36 @@
             
             <!-- Service Selection -->
             <div class="space-y-4">
-              <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                <i class="ri-customer-service-2-line text-purple-500 text-base"></i>
-                ¿Qué servicio necesitas?
+              <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">1</span>
+                <span>Elegí el servicio</span>
               </label>
-              <div class="relative group">
+              @if (selectedService(); as service) {
+                @if (!isStepOpen('service')) {
+                  <button
+                    type="button"
+                    class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                    data-testid="booking-service-collapsed"
+                    (click)="openStep('service')"
+                  >
+                    <span class="flex items-center justify-between gap-3">
+                      <span>
+                        <span class="block text-sm font-semibold text-white">{{ service.name }}</span>
+                        <span class="block text-xs text-slate-400">{{ service.duration }} min</span>
+                      </span>
+                      <span class="text-sm tabular-nums text-white">${{ service.price }}</span>
+                    </span>
+                  </button>
+                }
+              }
+              <div class="relative group" [class.hidden]="!!selectedService() && !isStepOpen('service')">
                 <select
                   [(ngModel)]="selectedServiceId"
                   (change)="onServiceChange()"
                   name="selectedService"
                   required
                   [disabled]="!!serviceErrorMessage() || publicServices().length === 0"
-                  [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
+                  [class]="'w-full h-12 bg-black/20 border rounded-2xl px-5 text-sm font-medium text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer ' + 
                           (fieldErrors()['service'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
                 >
                   <option value="" disabled class="bg-[#1E293B]">Selecciona un servicio</option>
@@ -104,12 +235,65 @@
                     <option [value]="svc.id" class="bg-[#1E293B]">{{ svc.name }} ({{ svc.duration }} min) - ${{ svc.price }}</option>
                   }
                 </select>
-                <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
+                <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
                   <i class="ri-arrow-down-s-line text-xl"></i>
                 </div>
               </div>
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
+              }
+              @if (canShowProfessionalTitle()) {
+                <div class="space-y-3 pt-2">
+                  <p class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowProfessionalStep()" [class.text-slate-500]="!canShowProfessionalStep()">
+                    <span [class]="stepBadgeClass(canShowProfessionalStep())">2</span>
+                    Elegí profesional
+                  </p>
+                  @if (canShowProfessionalStep()) {
+                  <div class="space-y-3" data-testid="public-professional-picker">
+                  @if (professionalChoiceMade() && !isStepOpen('professional')) {
+                    <button
+                      type="button"
+                      class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                      data-testid="booking-professional-collapsed"
+                      (click)="openStep('professional')"
+                    >
+                      <span class="block text-sm font-semibold text-white">{{ selectedProfessionalLabel() }}</span>
+                    </button>
+                  }
+                  @if (isStepOpen('professional') || !professionalChoiceMade()) {
+                  <button type="button"
+                    (click)="onProfessionalChange('')"
+                    [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (professionalChoiceMade() && !selectedProfessionalId() ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
+                    data-testid="public-professional-none">
+                    <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#1E293B] text-[#7C3AED]">
+                      <i class="ri-user-line text-xl"></i>
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold text-white">Cualquier profesional</span>
+                      <span class="block text-xs font-medium text-emerald-400">Más horarios disponibles</span>
+                    </span>
+                  </button>
+                  @for (professional of publicProfessionals(); track professional.id) {
+                    <button type="button"
+                      (click)="onProfessionalChange(professional.id)"
+                      [class]="'w-full flex items-center gap-4 rounded-2xl border px-4 py-3 text-left transition-all ' + (selectedProfessionalId() === professional.id ? 'border-[#7C3AED] bg-[#7C3AED]/10 shadow-[0_0_0_1px_#7C3AED]' : 'border-white/10 bg-black/20')"
+                      [attr.data-testid]="'public-professional-' + professional.id">
+                      <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#7C3AED] text-sm font-black text-white">
+                        {{ professionalInitials(professional.name) }}
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-semibold text-white">{{ professional.name }}</span>
+                        <span class="block text-xs" [class]="professionalHints()[professional.id] === 'Sin turnos esta semana' ? 'text-rose-400/80' : 'text-slate-400'">
+                          {{ professionalHints()[professional.id] || 'Buscando horarios…' }}
+                        </span>
+                      </span>
+                      <span class="h-4 w-4 rounded-full border border-white/30" [class.bg-[#7C3AED]]="selectedProfessionalId() === professional.id" [class.border-[#7C3AED]]="selectedProfessionalId() === professional.id"></span>
+                    </button>
+                  }
+                  }
+                  </div>
+                  }
+                </div>
               }
               @if (serviceErrorMessage()) {
                 <div class="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-5 py-4 rounded-2xl text-xs font-bold flex items-start gap-3" role="status" aria-live="polite" data-testid="booking-services-error">
@@ -127,29 +311,38 @@
             </div>
 
             <!-- Availability Selection (Date & Time Picker) -->
-            <div class="space-y-8">
+            <div class="space-y-8" data-testid="public-schedule-step">
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowScheduleStep()" [class.text-slate-500]="!canShowScheduleStep()">
+                <span [class]="stepBadgeClass(canShowScheduleStep())">{{ scheduleStepNumber() }}</span>
+                Elegí día y horario
+                @if (canShowScheduleStep() && loadingAvailability()) {
+                  <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                }
+              </label>
+            @if (canShowScheduleStep()) {
+              @if (selectedSlot && !isStepOpen('schedule')) {
+                <button
+                  type="button"
+                  class="w-full rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-left"
+                  data-testid="booking-schedule-collapsed"
+                  (click)="openStep('schedule')"
+                >
+                  <span class="block text-sm font-semibold text-white">{{ selectedScheduleLabel() }}</span>
+                </button>
+              }
+              @if (isStepOpen('schedule') || !selectedSlot) {
               <!-- Horizontal Date Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                  <i class="ri-calendar-2-line text-purple-500 text-base"></i>
-                  1. Selecciona el día
-                  @if (loadingAvailability()) {
-                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
-                  }
-                </label>
                 
                 <div class="flex gap-3 overflow-x-auto pb-4 scroll-smooth no-scrollbar -mx-2 px-2">
-                  @for (day of availableDays(); track day.date) {
+                  @for (day of bookableDays(); track day.date) {
                     <button
                       type="button"
                       data-testid="booking-day-option"
                       (click)="selectDate(day.date)"
-                      [disabled]="isDayDisabled(day)"
                       [class]="'flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center transition-all border ' + 
-                              (selectedDate() === day.date && day.hasAvailability ?
-                               'bg-[#7C3AED] border-[#7C3AED] text-white shadow-lg shadow-purple-900/40 scale-105' : 
-                               !day.hasAvailability ?
-                               'bg-red-500/5 border-red-500/20 text-red-400 cursor-not-allowed opacity-50' :
+                              (selectedDate() === day.date ?
+                               'bg-[#7C3AED] border-[#7C3AED] text-white shadow-lg shadow-purple-900/40 scale-105' :
                                'bg-black/20 border-white/5 text-slate-400 hover:border-purple-500/30 hover:bg-purple-500/5')"
                     >
                       <span class="text-[9px] font-black uppercase tracking-tighter mb-1 opacity-60">{{ day.weekday }}</span>
@@ -161,38 +354,62 @@
 
               <!-- Time Slot Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                  <i class="ri-time-line text-purple-500 text-base"></i>
-                  2. Elige tu horario
+                <label class="ml-1 flex items-center gap-2 text-sm font-medium text-slate-400">
+                  <i class="ri-time-line text-base text-purple-500"></i>
+                  Horario
                   @if (loadingSlots()) {
-                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                    <i class="ri-loader-4-line ml-auto animate-spin text-purple-500"></i>
                   }
                 </label>
-                
-                <div class="relative group">
-                  <select
-                    [(ngModel)]="selectedSlot"
-                    name="selectedSlot"
-                    required
-                    [disabled]="loadingSlots() || availabilitySlots().length === 0"
-                    [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer disabled:opacity-30 ' + 
-                            (fieldErrors()['slot'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
+
+                <div class="space-y-3">
+                  <button
+                    type="button"
+                    data-testid="booking-slot-trigger"
+                    class="flex h-14 min-h-11 w-full items-center justify-between rounded-2xl border bg-black/20 px-6 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-30"
+                    [class]="fieldErrors()['slot']
+                      ? 'border-red-500/50 text-white focus-visible:ring-red-500/40'
+                      : 'border-white/5 text-white focus-visible:ring-[#7C3AED]'"
+                    [disabled]="loadingSlots() || !!availabilityErrorMessage() || availabilitySlots().length === 0"
+                    [attr.aria-expanded]="slotPickerOpen()"
+                    aria-haspopup="listbox"
+                    (click)="toggleSlotPicker()"
                   >
-                    @if (availabilityErrorMessage() && !loadingSlots()) {
-                      <option value="" class="bg-[#1E293B]">No pudimos consultar los horarios. Intentá nuevamente.</option>
-                    } @else if (availabilitySlots().length === 0 && !loadingSlots()) {
-                      <option value="" class="bg-[#1E293B]">No hay turnos disponibles para este día</option>
-                    } @else {
-                      <option value="" disabled class="bg-[#1E293B]">Selecciona un horario disponible</option>
+                    <span class="truncate" [class.text-slate-400]="!selectedSlot">
+                      @if (selectedSlot) {
+                        {{ formatSlot(selectedSlot).split(' - ')[1] || formatSlot(selectedSlot) }} hs
+                      } @else if (!availabilityErrorMessage() && availabilitySlots().length === 0 && !loadingSlots()) {
+                        No hay turnos disponibles para este día
+                      } @else if (availabilityErrorMessage() && !loadingSlots()) {
+                        No pudimos consultar los horarios. Intentá nuevamente.
+                      } @else {
+                        Seleccioná un horario disponible
+                      }
+                    </span>
+                    <i class="ri-arrow-down-s-line text-xl text-slate-500 transition-transform" [class.rotate-180]="slotPickerOpen()"></i>
+                  </button>
+
+                  @if (slotPickerOpen() && !availabilityErrorMessage() && availabilitySlots().length > 0) {
+                    <div class="grid grid-cols-3 gap-2 rounded-2xl bg-black/30 p-3" role="listbox" aria-label="Horarios disponibles">
                       @for (slot of availabilitySlots(); track slot.startsAtIso) {
                         @let remainingCapacity = slot.remainingCapacity;
-                        <option [value]="slot.startsAtIso" class="bg-[#1E293B]" data-testid="booking-availability-slot">{{ formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso) }} · Quedan {{ remainingCapacity }} lugares</option>
+                        <button
+                          type="button"
+                          role="option"
+                          data-testid="booking-availability-slot"
+                          class="min-h-11 rounded-xl px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                          [class]="selectedSlot === slot.startsAtIso
+                            ? 'bg-[#7C3AED] text-white'
+                            : 'bg-black/40 text-slate-400 hover:bg-white/5 hover:text-slate-200'"
+                          [attr.aria-selected]="selectedSlot === slot.startsAtIso"
+                          [attr.aria-label]="(formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso)) + ' hs, quedan ' + remainingCapacity + ' lugares'"
+                          (click)="selectSlot(slot.startsAtIso)"
+                        >
+                          {{ formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso) }}
+                        </button>
                       }
-                    }
-                  </select>
-                  <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
-                    <i class="ri-arrow-down-s-line text-xl"></i>
-                  </div>
+                    </div>
+                  }
                 </div>
                 
                 @if (fieldErrors()['slot']) {
@@ -211,15 +428,27 @@
                   </div>
                 }
 
-                @if (availabilitySlots().length > 0) {
+                @if (professionalChoiceMade() && !selectedProfessionalId()) {
+                  <p class="text-[11px] text-slate-500 ml-1 font-medium">
+                    Elegí “Cualquier profesional” → esta grilla te muestra todos los huecos combinados de todo el equipo.
+                  </p>
+                } @else if (availabilitySlots().length > 0) {
                   <p class="text-[10px] text-slate-500 ml-1 italic font-medium">
                     * Todos los horarios se muestran en hora local.
                   </p>
                 }
               </div>
+              }
+            }
             </div>
             
             @if (!rescheduleMode()) {
+            <div class="space-y-8" data-testid="public-contact-step">
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowContactStep()" [class.text-slate-500]="!canShowContactStep()">
+                <span [class]="stepBadgeClass(canShowContactStep())">{{ contactStepNumber() }}</span>
+                Tus datos
+              </label>
+            @if (canShowContactStep()) {
             <!-- Client Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div class="space-y-4">
@@ -323,6 +552,8 @@
               ></textarea>
             </div>
             }
+            </div>
+            }
 
             <!-- Error Message -->
             @if (errorMessage()) {
@@ -332,6 +563,74 @@
               </div>
             }
 
+            @if (!rescheduleMode() && canShowContactStep() && serviceDepositQuote(); as quote) {
+              <section
+                class="rounded-2xl border border-white/10 bg-[#0B1220] px-4 py-4 space-y-3"
+                data-testid="booking-deposit-required-notice"
+              >
+                <p class="flex items-center gap-2 text-sm font-semibold text-[#F1F5F9]">
+                  <i class="ri-lock-line text-[#94A3B8]"></i>
+                  Este servicio requiere seña
+                </p>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="text-[#F1F5F9]">{{ quote.serviceName }}</span>
+                  <span class="shrink-0 tabular-nums text-[#F1F5F9]">{{ formatDepositMoney(quote.servicePrice) }}</span>
+                </div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="font-semibold text-[#F1F5F9]">Seña a pagar ahora ({{ quote.percent }}%)</span>
+                  <span class="shrink-0 tabular-nums font-semibold text-[#F1F5F9]">{{ formatDepositMoney(quote.holdAmount) }}</span>
+                </div>
+                <div class="border-t border-dashed border-white/15"></div>
+                <div class="flex items-start justify-between gap-4 text-sm">
+                  <span class="text-[#94A3B8]">Resto, a pagar en el local</span>
+                  <span class="shrink-0 tabular-nums text-[#94A3B8]">{{ formatDepositMoney(quote.remainderAmount) }}</span>
+                </div>
+                <p class="flex items-center gap-2 rounded-xl bg-[#1E3A5F]/70 px-3 py-2 text-xs leading-relaxed text-[#93C5FD]">
+                  <i class="ri-time-line shrink-0"></i>
+                  Si no se confirma la seña, el horario se libera.
+                </p>
+                @if (depositAlias()) {
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="min-w-0 truncate text-sm text-[#F1F5F9]">Alias {{ depositAlias() }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-alias"
+                      class="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-[#F1F5F9] hover:bg-white/5"
+                      (click)="copyDepositValue('alias', depositAlias())"
+                    >
+                      {{ copiedDepositField() === 'alias' ? 'Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                }
+                @if (depositCbu()) {
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="min-w-0 truncate text-sm text-[#F1F5F9]">CBU {{ depositCbu() }}</span>
+                    <button
+                      type="button"
+                      data-testid="booking-deposit-copy-cbu"
+                      class="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-[#F1F5F9] hover:bg-white/5"
+                      (click)="copyDepositValue('cbu', depositCbu())"
+                    >
+                      {{ copiedDepositField() === 'cbu' ? 'Copiado' : 'Copiar' }}
+                    </button>
+                  </div>
+                }
+                @if (receiptWhatsAppUrl(); as waUrl) {
+                  <a
+                    data-testid="booking-deposit-receipt-whatsapp"
+                    [href]="waUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-sm font-semibold text-[#25D366]"
+                  >
+                    <i class="ri-whatsapp-line"></i>
+                    Mandá el comprobante a {{ depositWhatsAppDisplay() }}
+                  </a>
+                }
+              </section>
+            }
+
+            @if (rescheduleMode() || canShowContactStep()) {
             <button
               type="submit"
               data-testid="booking-submit-action"
@@ -341,11 +640,15 @@
               @if (submitting()) {
                 <div class="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <span>{{ rescheduleMode() ? 'Reprogramando...' : 'Confirmando...' }}</span>
+              } @else if (serviceDepositQuote()) {
+                <i class="ri-wallet-3-line text-2xl group-hover:rotate-12 transition-transform"></i>
+                <span>Pagar seña y confirmar</span>
               } @else {
                 <i class="ri-calendar-check-fill text-2xl group-hover:rotate-12 transition-transform"></i>
                 <span>{{ rescheduleMode() ? 'Confirmar reprogramación' : 'Confirmar Reserva' }}</span>
               }
             </button>
+            }
           </form>
 
           <footer class="mt-12 md:mt-16 pt-8 border-t border-white/5 text-center">

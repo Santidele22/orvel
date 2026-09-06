@@ -67,7 +67,7 @@ export class NotificacionesPage {
     }
 
     try {
-      await this.notifications.refreshForAdmin();
+      await this.notifications.refreshForAdmin(undefined, { force: true });
       this.refreshFailed.set(false);
     } catch {
       this.refreshFailed.set(true);

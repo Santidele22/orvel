@@ -11,6 +11,8 @@ import {
   BookingCrudService,
   BookingNotificationsService,
   BookingSchedulingService,
+  appointmentStatusLabel,
+  isDepositUnpaid,
   type BookingRecord
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
@@ -37,6 +39,11 @@ import {
   localDateFromDateKey,
   readArgentinaClock,
 } from '../../../core/time/argentina-clock';
+import {
+  buildProfessionalFilterChips,
+  turnoMatchesProfessionalFilter,
+  type ProfessionalChipMember
+} from './turnos-professional-chips';
 
 type BlockedTimeFormState = {
   date: string;
@@ -143,6 +150,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
   protected loading = signal<boolean>(false);
   protected viewMode = signal<'list' | 'calendar'>('list');
   protected filterStatus = signal<TurnoEstado | 'todos'>('todos');
+  protected professionalFilter = signal<string>('todas');
+  private readonly teamProfessionals = signal<ProfessionalChipMember[]>([]);
+  protected readonly professionalChips = computed(() =>
+    buildProfessionalFilterChips(
+      this.teamProfessionals(),
+      this.turnos().map((turno) => turno.professionalNombre ?? '')
+    )
+  );
   protected filterFecha = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
   protected selectedDate = signal<Date>(localDateFromDateKey(readArgentinaClock(new Date()).dateKey));
 
@@ -234,8 +249,12 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const filtered = status === 'todos' 
       ? daily 
       : daily.filter(t => t.estado === status);
+    const professionalId = this.professionalFilter();
+    const byProfessional = filtered.filter((turno) =>
+      turnoMatchesProfessionalFilter(turno, professionalId, this.professionalChips())
+    );
       
-    return filtered.slice(0, this.visibleLimit());
+    return byProfessional.slice(0, this.visibleLimit());
   });
 
   /**
@@ -288,6 +307,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   async ngOnInit() {
     window.addEventListener('booking.created', this.onBookingCreated as EventListener);
+    window.addEventListener('operator.agenda.sync', this.onBookingCreated as EventListener);
     
     try {
       await this.branchContext.ensureLoaded();
@@ -332,6 +352,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     window.removeEventListener('booking.created', this.onBookingCreated as EventListener);
+    window.removeEventListener('operator.agenda.sync', this.onBookingCreated as EventListener);
   }
 
   private async refreshTurnosFromSource() {
@@ -354,6 +375,19 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
     this.clientes.set(clientesResult.status === 'fulfilled' ? this.clienteService.items() : []);
     this.servicios.set(serviciosResult.status === 'fulfilled' ? this.servicioService.items() : []);
+
+    const businessId = (await this.branchContext.getActiveBusinessId()) ?? '';
+    if (!businessId) {
+      this.teamProfessionals.set([]);
+      return;
+    }
+
+    try {
+      const team = await this.settingsFacade.listBusinessProfessionals(businessId);
+      this.teamProfessionals.set(team);
+    } catch {
+      this.teamProfessionals.set([]);
+    }
   }
 
   private async processTurnos() {
@@ -705,6 +739,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
     return this.addMinutes(turno.hora, turno.duracionMinutos);
   }
 
+  protected appointmentBadgeLabel(turno: TurnoWithRelations): string {
+    return appointmentStatusLabel(turno.estado, turno.depositStatus);
+  }
+
+  protected depositPending(turno: TurnoWithRelations): boolean {
+    return isDepositUnpaid(turno.depositStatus);
+  }
+
   protected formatFecha(fecha: Date): string {
     return fecha.toLocaleDateString('es-AR', {
       weekday: 'short',
@@ -934,7 +976,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
       const sStr = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
       const isSameDay = tStr === sStr;
       const tHourPrefix = t.hora.split(':')[0];
-      return isSameDay && tHourPrefix === hourPrefix;
+      const professionalId = this.professionalFilter();
+      const matchesProfessional = turnoMatchesProfessionalFilter(t, professionalId, this.professionalChips());
+      return isSameDay && tHourPrefix === hourPrefix && matchesProfessional;
     });
   }
 }

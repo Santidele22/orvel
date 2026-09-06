@@ -61,13 +61,14 @@ describe('Dashboard corrective UI actions contract', () => {
     expect(serviciosHtml).toMatch(/¿Eliminar este servicio\?|Eliminar servicio/i);
   });
 
-  it('keeps walk-in booking as an intentional secondary action with visible helper copy', () => {
+  it('walk-in UI is absent from the operator turno form', () => {
     const turnoHtml = readAppFile('src/app/features/booking/pages/turno-form.page.html');
     const turnoScss = readAppFile('src/app/features/booking/pages/turno-form.page.scss');
 
-    expect(turnoHtml).toMatch(/data-testid=["']turno-admin-start-walk-in["'][\s\S]{0,700}Atención sin ficha/i);
-    expect(turnoHtml).toMatch(/data-testid=["']turno-admin-start-walk-in["'][\s\S]{0,700}Ingresá el nombre manualmente/i);
-    expect(turnoScss).toMatch(/\.walk-in-link[\s\S]{0,260}(?:border-primary\/20|bg-primary\/5|rounded-2xl)/i);
+    expect(turnoHtml).not.toMatch(/data-testid=["']turno-admin-start-walk-in["']/i);
+    expect(turnoHtml).not.toMatch(/data-testid=["']turno-admin-walk-in-name["']/i);
+    expect(turnoHtml).not.toMatch(/Atención sin ficha|Agregar walk-in|atención sin ficha/i);
+    expect(turnoScss).not.toMatch(/\.walk-in-link/);
   });
 
   it('keeps the dashboard notification bell high-contrast and fully opaque', () => {

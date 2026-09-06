@@ -9,7 +9,6 @@ vi.mock('@supabase/supabase-js', () => ({
 
 const { POST } = await import('../pages/api/signup/create-account-business');
 
-const ACCOUNT_CONTROLLER_PATH = new URL('../lib/signup-account-page-controller.ts', import.meta.url);
 const CREATE_SUBSCRIPTION_AUTH_HELPER_PATH = new URL('../../../../supabase/functions/_shared/create-subscription-auth.ts', import.meta.url);
 
 function validPayload(plan = 'FREE') {
@@ -231,17 +230,26 @@ describe('legacy create-account-business boundary', () => {
     expect(supabase.tableCalls).toEqual([]);
   });
 
-  it('paid signup account controller does not call the legacy create-account-business endpoint', async () => {
-    const source = await readFile(ACCOUNT_CONTROLLER_PATH, 'utf8');
-    const paidBranch = source.slice(source.indexOf('try {', source.indexOf('if (!isPaidPlan)')), source.lastIndexOf('});'));
+  it('accepts in-app Free signup without apellido or phone', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    createClientMock.mockReturnValue(supabase.client);
 
-    expect(source).toContain('/api/signup/create-account-business');
-    expect(source).toContain('/api/signup/pending-intent/protect');
-    expect(paidBranch).toContain('createProtectedPendingSignupIntent({');
-    expect(paidBranch).toContain('SIGNUP_STORAGE_KEYS.pendingSignupIntent');
-    expect(paidBranch).not.toContain('createAccountAndBusiness(accountBusinessPayload)');
-    expect(paidBranch).not.toContain('account_first_intent_id');
-    expect(paidBranch).not.toContain('account_first_session');
+    const { apellido: _apellido, telefono: _telefono, ...withoutApellido } = validPayload('FREE');
+    const response = await postCreateAccountBusiness(withoutApellido);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, status: 'signup_ready' });
+    expect(supabase.authCreateUser).toHaveBeenCalled();
+  });
+
+  it('allows CORS preflight and POST from dashboard origins', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+
+    expect(source).toMatch(/export const OPTIONS/);
+    expect(source).toContain('https://dashboard.orvel.pro');
+    expect(source).toContain('Access-Control-Allow-Origin');
+    expect(source).toMatch(/localhost:4200|localhost:3000/);
   });
 
   it('subscription auth helper no longer treats legacy account-first signup as a payment-first path', async () => {
@@ -251,5 +259,82 @@ describe('legacy create-account-business boundary', () => {
     expect(source).not.toContain('account_first_signup');
     expect(source).not.toContain('account_first_intent_id');
     expect(source).not.toContain('account_first_session');
+  });
+
+  it('latest expire_signup_email_confirmation expires all pending unused rows without a TTL filter', async () => {
+    const { readdir, readFile } = await import('node:fs/promises');
+    const migrationsDir = new URL('../../../../supabase/migrations/', import.meta.url);
+    const entries = await readdir(migrationsDir, { withFileTypes: true });
+    const sqlFiles = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
+      .map((entry) => entry.name)
+      .sort();
+
+    let latestBody = '';
+    for (const fileName of sqlFiles) {
+      const source = await readFile(new URL(fileName, migrationsDir), 'utf8');
+      const match = source.match(
+        /CREATE OR REPLACE FUNCTION public\.expire_signup_email_confirmation\s*\([\s\S]*?\$\$;/i,
+      );
+      if (match) {
+        latestBody = match[0];
+      }
+    }
+
+    expect(latestBody, 'latest expire_signup_email_confirmation body must exist').toMatch(
+      /expire_signup_email_confirmation/,
+    );
+    expect(latestBody).toMatch(/status\s*=\s*'pending'/);
+    expect(latestBody).toMatch(/consumed_at IS NULL/);
+    expect(latestBody).not.toMatch(/expires_at\s*<=\s*now\(\)/i);
+  });
+
+  it('rate-limit RPC errors return 503 signup_confirmation_retry, while data true still returns 202', async () => {
+    const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+    const rateLimitFunction = /async\s+function\s+isRateLimited[\s\S]*?^}/m.exec(source)?.[0] ?? '';
+
+    expect(rateLimitFunction, 'rate guard helper must be inspectable').toMatch(/isRateLimited/);
+    expect(rateLimitFunction).not.toMatch(/if\s*\(\s*error\s*\)\s*return\s+true/);
+    expect(rateLimitFunction).toMatch(/data\s*===\s*true/);
+    expect(source).toMatch(/guard_signup_request_rate_limit[\s\S]{0,1200}signup_confirmation_retry/);
+    expect(source).toMatch(/status:\s*["']signup_confirmation_requested["'][\s\S]{0,80}202/);
+
+    const rpcError = createFreeSignupSupabaseMock();
+    rpcError.rpc.mockImplementation(async (name: string) => {
+      if (name === 'guard_signup_request_rate_limit') {
+        return { data: null, error: { message: 'rpc failed' } };
+      }
+      if (name === 'provision_default_services_for_business') {
+        return { data: 1, error: null };
+      }
+      return { data: false, error: null };
+    });
+    createClientMock.mockReturnValue(rpcError.client);
+
+    const retryResponse = await postCreateAccountBusiness(validPayload('FREE'));
+    const retryBody = await retryResponse.json();
+
+    expect(retryResponse.status).toBe(503);
+    expect(retryBody).toEqual({
+      error: 'signup_confirmation_retry',
+      message: 'No pudimos preparar la confirmación. Reintentá en unos segundos.',
+    });
+    expect(rpcError.authCreateUser).not.toHaveBeenCalled();
+
+    const limited = createFreeSignupSupabaseMock();
+    limited.rpc.mockImplementation(async (name: string) => {
+      if (name === 'guard_signup_request_rate_limit') {
+        return { data: true, error: null };
+      }
+      return { data: false, error: null };
+    });
+    createClientMock.mockReturnValue(limited.client);
+
+    const limitedResponse = await postCreateAccountBusiness(validPayload('FREE'));
+    const limitedBody = await limitedResponse.json();
+
+    expect(limitedResponse.status).toBe(202);
+    expect(limitedBody).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+    expect(limited.authCreateUser).not.toHaveBeenCalled();
   });
 });

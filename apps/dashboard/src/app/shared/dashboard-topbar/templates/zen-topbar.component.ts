@@ -127,7 +127,7 @@ export class ZenTopbarComponent {
     }
 
     try {
-      await this.notifications.refreshForAdmin();
+      await this.notifications.refreshForAdmin(undefined, { force: true });
       this.notificationRefreshFailed.set(false);
     } catch {
       this.notificationRefreshFailed.set(true);

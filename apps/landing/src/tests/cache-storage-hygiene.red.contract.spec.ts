@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 const SRC_ROOT = resolve(process.cwd(), 'src');
 const STORAGE_KEYS_PATH = resolve(SRC_ROOT, 'lib/browser-storage-keys.ts');
 const CREDENTIALS_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/credentials.astro');
-const CREDENTIALS_CONTROLLER = resolve(SRC_ROOT, 'lib/signup-access-page-controller.ts');
 const COMPLETE_PAGE = resolve(SRC_ROOT, 'pages/auth/signup/complete.astro');
 const SUBSCRIPTION_PAGE = resolve(SRC_ROOT, 'pages/billing/subscription.astro');
 
@@ -35,14 +34,6 @@ async function readProductionSources(): Promise<Array<{ path: string; source: st
   })));
 }
 
-function sliceBetween(source: string, startMarker: string, endMarker?: string): string {
-  const start = source.indexOf(startMarker);
-  expect(start, `Missing start marker: ${startMarker}`).toBeGreaterThanOrEqual(0);
-  const end = endMarker ? source.indexOf(endMarker, start + startMarker.length) : source.length;
-  expect(end, `Missing end marker: ${endMarker}`).toBeGreaterThan(start);
-  return source.slice(start, end);
-}
-
 describe('RED contract: landing signup/subscription browser storage hygiene', () => {
   it('production landing code never clears all browser storage', async () => {
     const offenders = (await readProductionSources())
@@ -63,29 +54,22 @@ describe('RED contract: landing signup/subscription browser storage hygiene', ()
     expect(source).toContain('orvel.subscription.attempt.');
   });
 
-  it('manual signup persists only non-sensitive temporary fields and never stores passwords', async () => {
+  it('auth redirect pages never persist passwords in browser storage', async () => {
     const credentialsSource = await readFile(CREDENTIALS_PAGE, 'utf8');
-    const credentialsControllerSource = await readFile(CREDENTIALS_CONTROLLER, 'utf8');
     const completeSource = await readFile(COMPLETE_PAGE, 'utf8');
-    const signupSources = `${credentialsSource}\n${credentialsControllerSource}\n${completeSource}`;
+    const signupSources = `${credentialsSource}\n${completeSource}`;
 
-    expect(signupSources).toMatch(/password|contraseña/i);
-    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.setItem\([^)]*password/i);
-    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.getItem\([^)]*password/i);
+    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.setItem/);
+    expect(signupSources).not.toMatch(/(?:localStorage|sessionStorage)\.getItem/);
     expect(signupSources).not.toContain('orvel.signup.password');
   });
 
-  it('retains the subscription idempotency key during retry and clears it only after backend materialization', async () => {
+  it('subscription activation stores the premium review pending flag without Mercado Pago attempt keys', async () => {
     const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
-    const buildIdempotencyKey = sliceBetween(source, 'const buildIdempotencyKey', 'const pollSubscriptionStatus');
-    const failedRetryHandling = sliceBetween(source, "if (!response.ok)", 'if (result?.init_point)');
-    const approvedImmediateHandling = sliceBetween(source, "if (paymentStatus === 'approved')", 'const subscriptionAttemptKey');
-    const pollingApprovedHandling = sliceBetween(source, "if (normalizedStatus === 'approved'", "if (normalizedStatus === 'rejected'");
 
-    expect(buildIdempotencyKey).toMatch(/sessionStorage\.getItem\(subscriptionAttemptKey\)/);
-    expect(buildIdempotencyKey).toMatch(/sessionStorage\.setItem\(subscriptionAttemptKey,\s*generated\)/);
-    expect(failedRetryHandling, 'Retry path must reuse the same idempotency key, not clear it after a transient start failure.').not.toMatch(/removeItem\(subscriptionAttemptKey\)|setItem\(subscriptionAttemptKey/);
-    expect(pollingApprovedHandling).toMatch(/sessionStorage\.removeItem\(subscriptionAttemptKey\)/);
-    expect(approvedImmediateHandling, 'Mercado Pago return query params are hints; do not clear the attempt key until backend materialization is verified.').not.toMatch(/sessionStorage\.removeItem\(subscriptionAttemptKey\)/);
+    expect(source).toMatch(/orvel\.premium_review|markPremiumReviewPending|PREMIUM_REVIEW_STORAGE_KEY/);
+    expect(source).not.toMatch(/subscriptionAttemptKey/);
+    expect(source).not.toMatch(/init_point/);
+    expect(source).not.toMatch(/\/api\/subscriptions\/start/);
   });
 });

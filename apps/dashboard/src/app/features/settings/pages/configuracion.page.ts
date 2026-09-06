@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
 import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
 import {
@@ -16,18 +17,28 @@ import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
 import { AuthService } from '../../../services/auth.service';
+import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
+import {
+  persistWorkingHoursRecord,
+  splitWorkingDayForCut,
+  workingDayHoursToFormValue,
+  workingHoursToFormValue
+} from '../data-access/resolve-working-day-intervals';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import {
   requestSubscriptionCancellation,
   RequestSubscriptionCancellationError
 } from '../../billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
+import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 
 type WeekdayRow = {
   key: WeekdayKey;
   label: string;
 };
+
+type WorkingHoursTimeField = 'start' | 'end' | 'start2' | 'end2';
 
 @Component({
   selector: 'app-configuracion-page',
@@ -43,9 +54,42 @@ type WeekdayRow = {
 export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly facade = inject(BusinessService);
+  private readonly servicioService = inject(ServicioService);
   protected readonly themeService = inject(ThemeService);
   protected readonly authService = inject(AuthService);
+  private readonly webPush = inject(OperatorWebPushService);
+  readonly webPushStatus = this.webPush.status;
+  readonly webPushEnabled = computed(() => this.webPush.status() === 'enabled');
+  readonly webPushBusy = signal(false);
+  readonly webPushError = signal<string | null>(null);
+
+  readonly teamProfessionals = signal<Array<{
+    id: string;
+    name: string;
+    slug: string;
+    phone: string | null;
+    email: string | null;
+    active: boolean;
+    serviceIds: string[];
+    hours: Array<{ dayOfWeek: number; start: string; end: string }>;
+  }>>([]);
+  readonly teamWeekdays = [
+    { dayOfWeek: 1, label: 'Lun' },
+    { dayOfWeek: 2, label: 'Mar' },
+    { dayOfWeek: 3, label: 'Mié' },
+    { dayOfWeek: 4, label: 'Jue' },
+    { dayOfWeek: 5, label: 'Vie' },
+    { dayOfWeek: 6, label: 'Sáb' },
+    { dayOfWeek: 0, label: 'Dom' }
+  ] as const;
+  readonly teamServices = signal<Array<{ id: string; name: string }>>([]);
+  readonly teamDraftName = signal('');
+  readonly teamSaving = signal(false);
+  readonly expandedTeamId = signal<string | null>(null);
+  readonly editingTeamHoursId = signal<string | null>(null);
+  readonly teamAvatarColors = ['#7C3AED', '#DB2777', '#0891B2', '#D97706'];
 
   readonly settingsForm = this.formBuilder.nonNullable.group({
     businessName: ['', [Validators.required, Validators.maxLength(80)]],
@@ -78,11 +122,16 @@ export class ConfiguracionPage {
     cancelationGracePeriod: [24, [Validators.min(0)]],
     autoConfirm: [true],
     maxAdvanceDays: [90, [Validators.min(1)]],
+    depositEnabled: [false],
+    depositPercent: [0],
+    depositAlias: [''],
+    depositCbu: [''],
 
     // Logistics
     allowMultipleServices: [true],
     cleanupTimeMinutes: [0, [Validators.min(0)]],
     capacity: [1, [Validators.required, Validators.min(1)]], // Employee count for bookings
+    allowClientProfessionalSelection: [false],
 
     // Regional
     weekStartDay: ['monday' as 'monday' | 'sunday'],
@@ -119,7 +168,7 @@ export class ConfiguracionPage {
       .pipe(takeUntilDestroyed())
       .subscribe((params) => {
         const tab = params.get('tab');
-        if (tab === 'perfil' || tab === 'negocio') {
+        if (tab === 'perfil' || tab === 'negocio' || tab === 'equipo') {
           this.activeSettingsTab.set(tab);
         }
       });
@@ -128,8 +177,28 @@ export class ConfiguracionPage {
       const userId = this.authService.user()?.id;
       if (userId) {
         void this.hydrateBusinessSettings(userId);
+        void this.webPush.refresh();
       }
     });
+  }
+
+  async toggleWebPush(enabled: boolean): Promise<void> {
+    this.webPushError.set(null);
+    this.webPushBusy.set(true);
+    try {
+      if (enabled) {
+        await this.webPush.enable();
+      } else {
+        await this.webPush.disable();
+      }
+    } catch (error) {
+      this.webPushError.set(
+        error instanceof Error ? error.message : 'No se pudieron guardar los avisos push. Intentá de nuevo.',
+      );
+    } finally {
+      this.webPushBusy.set(false);
+      await this.webPush.refresh();
+    }
   }
   async copyBookingUrl(): Promise<void> {
     this.urlCopyFailed.set(false);
@@ -190,14 +259,15 @@ export class ConfiguracionPage {
   readonly ui = ORVEL_SECTION_PRIMITIVES;
   readonly settingsTabs = [
     { key: 'perfil', label: 'Perfil', icon: 'ri-user-line' },
-    { key: 'negocio', label: 'Negocio', icon: 'ri-store-2-line' }
+    { key: 'negocio', label: 'Negocio', icon: 'ri-store-2-line' },
+    { key: 'equipo', label: 'Equipo', icon: 'ri-team-line' }
   ] as const;
-  readonly activeSettingsTab = signal<'perfil' | 'negocio'>('perfil');
+  readonly activeSettingsTab = signal<'perfil' | 'negocio' | 'equipo'>('perfil');
 
   // Time Picker Modal State
   readonly isTimePickerOpen = signal(false);
   readonly editingDay = signal<WeekdayKey | null>(null);
-  protected editingField = signal<'start' | 'end' | null>(null);
+  protected editingField = signal<WorkingHoursTimeField | null>(null);
   readonly selectedAmPm = signal<'AM' | 'PM'>('AM');
   readonly selectedHour = signal<number>(9);
   readonly selectedMinute = signal<number>(0);
@@ -250,12 +320,16 @@ export class ConfiguracionPage {
     // Only handling single business for now via Auth token
   }
 
-  setSettingsTab(tab: 'perfil' | 'negocio'): void {
+  setSettingsTab(tab: 'perfil' | 'negocio' | 'equipo'): void {
     this.activeSettingsTab.set(tab);
   }
 
   openAccountSettingsModal(): void {
     this.isAccountSettingsModalOpen.set(true);
+  }
+
+  openManualPremium(): void {
+    void this.router.navigateByUrl('/billing/subscription');
   }
 
   cancelAccountSettingsModal(): void {
@@ -378,7 +452,7 @@ export class ConfiguracionPage {
       bufferMinutes: saved.bufferMinutes,
       minNoticeMinutes: saved.minNoticeMinutes,
       slotIntervalMinutes: saved.slotIntervalMinutes,
-      workingHours: saved.workingHours,
+      workingHours: workingHoursToFormValue(saved.workingHours),
       firstName: saved.firstName,
       lastName: saved.lastName,
       phone: saved.phone,
@@ -386,7 +460,12 @@ export class ConfiguracionPage {
       instagram: saved.instagram,
       supportEmail: saved.supportEmail,
       plan: saved.plan,
-      capacity: saved.capacity ?? 1
+      capacity: saved.capacity ?? 1,
+      allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false,
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? ''
     });
   }
 
@@ -394,7 +473,7 @@ export class ConfiguracionPage {
     this.restoreSavedAccountSettings();
   }
 
-  openTimePicker(dayKey: WeekdayKey, field: 'start' | 'end'): void {
+  openTimePicker(dayKey: WeekdayKey, field: 'start' | 'end' | 'start2' | 'end2'): void {
     const currentVal = this.settingsForm.get(`workingHours.${dayKey}.${field}`)?.value as string;
     if (currentVal) {
       const [h, m] = currentVal.split(':').map(Number);
@@ -446,14 +525,36 @@ export class ConfiguracionPage {
     return Boolean(control?.hasError('invalidRange') && (control.touched || control.dirty || this.attemptedSubmit()));
   }
 
+  readonly expandedSalonDay = signal<WeekdayKey | null>(null);
+
+  toggleSalonDay(dayKey: WeekdayKey): void {
+    this.expandedSalonDay.set(this.expandedSalonDay() === dayKey ? null : dayKey);
+  }
+
+  salonDayHoursLabel(dayKey: WeekdayKey): string {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group?.get('enabled')?.value) {
+      return 'Cerrado';
+    }
+
+    const start = String(group.get('start')?.value ?? '').slice(0, 5);
+    const end = String(group.get('end')?.value ?? '').slice(0, 5);
+    const start2 = String(group.get('start2')?.value ?? '').slice(0, 5);
+    const end2 = String(group.get('end2')?.value ?? '').slice(0, 5);
+    const first = start && end ? `${start}–${end}` : '';
+    const second = start2 && end2 ? `${start2}–${end2}` : '';
+    if (first && second) return `${first}, ${second}`;
+    return first || 'Cerrado';
+  }
+
   readonly weekdayRows: WeekdayRow[] = [
-    { key: 'monday', label: 'Monday / Lunes' },
-    { key: 'tuesday', label: 'Tuesday / Martes' },
-    { key: 'wednesday', label: 'Wednesday / Miércoles' },
-    { key: 'thursday', label: 'Thursday / Jueves' },
-    { key: 'friday', label: 'Friday / Viernes' },
-    { key: 'saturday', label: 'Saturday / Sábado' },
-    { key: 'sunday', label: 'Sunday / Domingo' }
+    { key: 'monday', label: 'Lunes' },
+    { key: 'tuesday', label: 'Martes' },
+    { key: 'wednesday', label: 'Miércoles' },
+    { key: 'thursday', label: 'Jueves' },
+    { key: 'friday', label: 'Viernes' },
+    { key: 'saturday', label: 'Sábado' },
+    { key: 'sunday', label: 'Domingo' }
   ];
 
 
@@ -481,7 +582,8 @@ export class ConfiguracionPage {
     if (!validation.isValid) {
       this.fieldErrors.set(validation.fieldErrors);
       this.settingsForm.markAllAsTouched();
-      this.formMessage.set('Formulario inválido. Revisa los campos marcados.');
+      const firstError = Object.values(validation.fieldErrors)[0];
+      this.formMessage.set(firstError || 'Formulario inválido. Revisa los campos marcados.');
       return;
     }
 
@@ -516,14 +618,23 @@ export class ConfiguracionPage {
         bufferMinutes: values.bufferMinutes,
         minNoticeMinutes: values.minNoticeMinutes,
         slotIntervalMinutes: values.slotIntervalMinutes,
-        workingHours: values.workingHours,
+        workingHours: persistWorkingHoursRecord(values.workingHours),
         supportEmail: values.supportEmail,
         businessType: values.businessType,
         plan: values.plan,
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
+        depositEnabled: values.depositEnabled,
+        depositPercent: values.depositEnabled && [25, 50, 100].includes(Number(values.depositPercent))
+          ? Number(values.depositPercent)
+          : values.depositEnabled
+            ? 50
+            : 0,
+        depositAlias: values.depositAlias.trim(),
+        depositCbu: values.depositCbu.trim(),
         capacity: values.capacity,
+        allowClientProfessionalSelection: values.allowClientProfessionalSelection,
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone
@@ -545,11 +656,94 @@ export class ConfiguracionPage {
     }
   }
 
+  hasWorkingDayCut(dayKey: WeekdayKey): boolean {
+    const start2 = this.settingsForm.get(`workingHours.${dayKey}.start2`)?.value as string | undefined;
+    const end2 = this.settingsForm.get(`workingHours.${dayKey}.end2`)?.value as string | undefined;
+    return Boolean(start2 && end2);
+  }
+
+  addWorkingDayCut(dayKey: WeekdayKey): void {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group || this.hasWorkingDayCut(dayKey) || !group.get('enabled')?.value) {
+      return;
+    }
+
+    const start = String(group.get('start')?.value ?? '09:00');
+    const end = String(group.get('end')?.value ?? '18:00');
+    const split = splitWorkingDayForCut(start, end);
+    group.get('end')?.setValue(split.end);
+    group.get('start2')?.setValue(split.start2);
+    group.get('end2')?.setValue(split.end2);
+    this.markWorkingDayInteracted(dayKey);
+  }
+
+  removeWorkingDayCut(dayKey: WeekdayKey): void {
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group) {
+      return;
+    }
+
+    group.get('start2')?.setValue('');
+    group.get('end2')?.setValue('');
+    this.markWorkingDayInteracted(dayKey);
+  }
+
+  removeWorkingDayInterval(dayKey: WeekdayKey, slot: 1 | 2): void {
+    if (slot === 2) {
+      this.removeWorkingDayCut(dayKey);
+      return;
+    }
+
+    const group = this.settingsForm.get(`workingHours.${dayKey}`);
+    if (!group) {
+      return;
+    }
+
+    if (this.hasWorkingDayCut(dayKey)) {
+      group.get('start')?.setValue(String(group.get('start2')?.value ?? ''));
+      group.get('end')?.setValue(String(group.get('end2')?.value ?? ''));
+      this.removeWorkingDayCut(dayKey);
+      return;
+    }
+
+    group.get('enabled')?.setValue(false);
+    this.markWorkingDayInteracted(dayKey);
+  }
+
+  copyHoursToAllDays(): void {
+    const source = this.settingsForm.get('workingHours.monday')?.getRawValue() as {
+      enabled: boolean;
+      start: string;
+      end: string;
+      start2: string;
+      end2: string;
+    } | undefined;
+    if (!source) {
+      return;
+    }
+
+    for (const day of this.weekdayRows) {
+      if (day.key === 'monday') {
+        continue;
+      }
+      const group = this.settingsForm.get(`workingHours.${day.key}`);
+      group?.get('enabled')?.setValue(source.enabled);
+      group?.get('start')?.setValue(source.start);
+      group?.get('end')?.setValue(source.end);
+      group?.get('start2')?.setValue(source.start2);
+      group?.get('end2')?.setValue(source.end2);
+      this.markWorkingDayInteracted(day.key);
+    }
+  }
+
   private createDayGroup(day: WorkingDayHours) {
+    const formDay = workingDayHoursToFormValue(day);
     const group = this.formBuilder.nonNullable.group({
-      enabled: [day.enabled],
-      start: [day.start, [Validators.required]],
-      end: [day.end, [Validators.required]]
+      enabled: [formDay.enabled],
+      start: [formDay.start, [Validators.required]],
+      end: [formDay.end, [Validators.required]],
+      start2: [formDay.start2],
+      end2: [formDay.end2]
     });
 
     // Add cross-field validator for start < end
@@ -569,8 +763,23 @@ export class ConfiguracionPage {
       const [eh, em] = end.split(':').map(Number);
       const startMinutes = sh * 60 + sm;
       const endMinutes = eh * 60 + em;
-      
-      return startMinutes < endMinutes ? null : { invalidRange: true };
+      const start2 = g.get('start2')?.value as string | undefined;
+      const end2 = g.get('end2')?.value as string | undefined;
+
+      if (!start2 || !end2) {
+        return startMinutes < endMinutes ? null : { invalidRange: true };
+      }
+
+      const [sh2, sm2] = start2.split(':').map(Number);
+      const [eh2, em2] = end2.split(':').map(Number);
+      const start2Minutes = sh2 * 60 + sm2;
+      const end2Minutes = eh2 * 60 + em2;
+
+      if (!(startMinutes < endMinutes) || !(start2Minutes < end2Minutes) || start2Minutes < endMinutes) {
+        return { invalidRange: true };
+      }
+
+      return null;
     });
 
     return group;
@@ -581,6 +790,207 @@ export class ConfiguracionPage {
     dayGroup?.markAsDirty();
     dayGroup?.markAsTouched();
     dayGroup?.updateValueAndValidity({ onlySelf: true });
+  }
+
+  async loadTeam(businessId?: string): Promise<void> {
+    try {
+      const user = this.authService.user();
+      const activeBusinessId = businessId || (user ? await this.facade.getActiveBusinessId(user.id) : '');
+      if (!activeBusinessId) return;
+
+      const [professionals, services] = await Promise.all([
+        this.facade.listBusinessProfessionals(activeBusinessId),
+        firstValueFrom(this.servicioService.getByBusinessId(activeBusinessId)).catch(() => [])
+      ]);
+
+      const withHours = await Promise.all(
+        professionals.map(async (professional) => ({
+          ...professional,
+          hours: professional.id ? await this.facade.listProfessionalHours(professional.id) : []
+        }))
+      );
+      this.teamProfessionals.set(withHours);
+      this.teamServices.set(
+        (services ?? [])
+          .filter((service) => service.activo !== false)
+          .map((service) => ({ id: service.id, name: service.nombre }))
+      );
+    } catch {
+      this.teamProfessionals.set([]);
+    }
+  }
+
+  professionalBookingUrl(professionalSlug: string): string {
+    const slug = this.publicBookingSlug();
+    if (!slug || !professionalSlug) {
+      return '';
+    }
+    return buildPublicBookingUrl(slug, undefined, professionalSlug);
+  }
+
+  async copyProfessionalBookingUrl(professionalSlug: string): Promise<void> {
+    const url = this.professionalBookingUrl(professionalSlug);
+    if (!url || !navigator.clipboard?.writeText) return;
+    await navigator.clipboard.writeText(url);
+  }
+
+  hourForDay(
+    professional: { hours: Array<{ dayOfWeek: number; start: string; end: string }> },
+    dayOfWeek: number
+  ): { enabled: boolean; start: string; end: string } {
+    const match = professional.hours.find((hour) => hour.dayOfWeek === dayOfWeek);
+    return {
+      enabled: Boolean(match),
+      start: match?.start || '09:00',
+      end: match?.end || '18:00'
+    };
+  }
+
+  async saveProfessionalHours(
+    professional: { id: string; hours: Array<{ dayOfWeek: number; start: string; end: string }> },
+    dayOfWeek: number,
+    patch: { enabled?: boolean; start?: string; end?: string }
+  ): Promise<void> {
+    const current = this.hourForDay(professional, dayOfWeek);
+    const nextDay = { ...current, ...patch, dayOfWeek };
+    const others = professional.hours.filter((hour) => hour.dayOfWeek !== dayOfWeek);
+    const hours = nextDay.enabled
+      ? [...others, { dayOfWeek, start: nextDay.start, end: nextDay.end }]
+      : others;
+    try {
+      await this.facade.replaceProfessionalHours(
+        professional.id,
+        this.teamWeekdays.map((day) => {
+          const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
+          return {
+            dayOfWeek: day.dayOfWeek,
+            start: row?.start || '09:00',
+            end: row?.end || '18:00',
+            enabled: Boolean(row)
+          };
+        })
+      );
+      await this.loadTeam();
+    } catch {
+      this.formMessage.set('No se pudo guardar el horario. Revisá los valores e intentá nuevamente.');
+    }
+  }
+
+  async saveTeamProfessional(professional: {
+    id?: string | null;
+    name: string;
+    slug?: string;
+    phone?: string | null;
+    email?: string | null;
+    active?: boolean;
+    serviceIds?: string[];
+    hours?: Array<{ dayOfWeek: number; start: string; end: string }>;
+  }): Promise<void> {
+    const name = professional.name.trim();
+    if (!name) return;
+
+    const user = this.authService.user();
+    if (!user) return;
+
+    this.teamSaving.set(true);
+    try {
+      const businessId = await this.facade.getActiveBusinessId(user.id);
+      await this.facade.upsertBusinessProfessional({
+        businessId,
+        id: professional.id,
+        name,
+        phone: professional.phone,
+        email: professional.email,
+        active: professional.active,
+        serviceIds: professional.serviceIds
+      });
+      this.teamDraftName.set('');
+      await this.loadTeam(businessId);
+    } finally {
+      this.teamSaving.set(false);
+    }
+  }
+
+  toggleTeamCard(professionalId: string): void {
+    const next = this.expandedTeamId() === professionalId ? null : professionalId;
+    this.expandedTeamId.set(next);
+    if (next !== professionalId) {
+      this.editingTeamHoursId.set(null);
+    }
+  }
+
+  toggleTeamHoursEditor(professionalId: string): void {
+    this.editingTeamHoursId.set(this.editingTeamHoursId() === professionalId ? null : professionalId);
+  }
+
+  professionalInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+
+  professionalAccent(index: number): string {
+    return this.teamAvatarColors[index % this.teamAvatarColors.length];
+  }
+
+  serviceSummary(professional: { serviceIds: string[] }): string {
+    const names = this.teamServices()
+      .filter((service) => professional.serviceIds.includes(service.id))
+      .map((service) => service.name);
+    if (names.length === 0) return 'Sin servicios';
+    const shown = names.slice(0, 3);
+    const extra = names.length - shown.length;
+    return extra > 0 ? `${shown.join(' · ')} · +${extra}` : shown.join(' · ');
+  }
+
+  hoursSummary(professional: { hours: Array<{ dayOfWeek: number; start: string; end: string }> }): Array<{ label: string; value: string }> {
+    if (professional.hours.length === 0) {
+      return [{ label: 'Horario', value: 'Usa el del local' }];
+    }
+
+    const items = this.teamWeekdays.map((day) => {
+      const hour = professional.hours.find((row) => row.dayOfWeek === day.dayOfWeek);
+      return {
+        label: day.label,
+        value: hour ? `${hour.start} – ${hour.end}` : 'Cerrado'
+      };
+    });
+
+    const groups: Array<{ startLabel: string; endLabel: string; value: string }> = [];
+    for (const item of items) {
+      const last = groups[groups.length - 1];
+      if (last && last.value === item.value) {
+        last.endLabel = item.label;
+      } else {
+        groups.push({ startLabel: item.label, endLabel: item.label, value: item.value });
+      }
+    }
+
+    return groups.map((group) => ({
+      label: group.startLabel === group.endLabel ? group.startLabel : `${group.startLabel} – ${group.endLabel}`,
+      value: group.value
+    }));
+  }
+
+  persistAllowClientProfessionalSelection(enabled: boolean): void {
+    this.settingsForm.patchValue({ allowClientProfessionalSelection: enabled });
+    void this.onSubmit();
+  }
+
+  async addTeamProfessional(): Promise<void> {
+    await this.saveTeamProfessional({
+      name: this.teamDraftName(),
+      active: true,
+      serviceIds: []
+    });
+  }
+
+  toggleTeamService(professional: { id: string; name: string; slug: string; phone: string | null; email: string | null; active: boolean; serviceIds: string[]; hours: Array<{ dayOfWeek: number; start: string; end: string }> }, serviceId: string): void {
+    const next = professional.serviceIds.includes(serviceId)
+      ? professional.serviceIds.filter((id) => id !== serviceId)
+      : [...professional.serviceIds, serviceId];
+    void this.saveTeamProfessional({ ...professional, serviceIds: next });
   }
 
   private async loadDefaults(): Promise<void> {
@@ -608,10 +1018,11 @@ export class ConfiguracionPage {
     if (this.facade.hasHydratedSnapshot(userId) && !this.loadError()) {
       const cached = this.facade.getSnapshot();
       if (cached) {
-        this.settingsForm.patchValue(cached);
+        this.patchHydratedSettings(cached);
         this.savedState.set(cached);
       }
       this.loading.set(false);
+      void this.loadTeam();
       return;
     }
 
@@ -643,7 +1054,7 @@ export class ConfiguracionPage {
     const saved = this.facade.getSnapshot();
 
     if (saved) {
-      this.settingsForm.patchValue(saved);
+      this.patchHydratedSettings(saved);
       this.savedState.set(saved);
     } else {
       this.loadError.set('No pudimos cargar la configuración');
@@ -651,6 +1062,19 @@ export class ConfiguracionPage {
     }
 
     this.loading.set(false);
+    void this.loadTeam();
+  }
+
+  private patchHydratedSettings(saved: BusinessSettings): void {
+    this.settingsForm.patchValue({
+      ...saved,
+      workingHours: workingHoursToFormValue(saved.workingHours),
+      depositEnabled: saved.depositEnabled ?? false,
+      depositPercent: Number(saved.depositPercent ?? 0),
+      depositAlias: saved.depositAlias ?? '',
+      depositCbu: saved.depositCbu ?? '',
+      phone: saved.phone ?? ''
+    } as never);
   }
 
   private patchDefaultSettings(): void {

@@ -41,17 +41,23 @@ describe('PerfilPage contract', () => {
     expect(source).toMatch(/\[queryParams\]="\{\s*tab:\s*['"]negocio['"]\s*\}"/);
   });
 
-  it('links Notificaciones with an Activas value', () => {
+  it('shows honest web push status and links Notificaciones to Configuración', () => {
     expect(source).toContain('Notificaciones');
-    expect(source).toMatch(/routerLink=["']\/dashboard\/notificaciones["']/);
-    expect(source).toContain('Activas');
+    expect(source).toMatch(/data-testid=["']perfil-web-push-status["']/);
+    expect(source).toMatch(/Activados/);
+    expect(source).toMatch(/Desactivados/);
+    expect(source).not.toContain('Activas');
+    expect(source).toMatch(/routerLink=["']\/dashboard\/configuracion["']/);
+    expect(source).toMatch(/\[queryParams\]="\{\s*tab:\s*['"]perfil['"]\s*\}"/);
+    expect(source).toMatch(/OperatorWebPushService|webPushStatus|webPush/);
   });
 
   it('opens help via mailto and privacy via the landing terms URL', () => {
     expect(source).toContain('Ayuda y soporte');
     expect(source).toContain('mailto:orvel2026@gmail.com');
     expect(source).toContain('Privacidad y datos');
-    expect(source).toContain('https://orvel.app/terminos-y-condiciones');
+    expect(source).toContain('https://orvel.pro/terminos-y-condiciones');
+    expect(source).not.toContain('https://orvel.app/terminos-y-condiciones');
   });
 
   it('keeps Cerrar sesión as a danger logout action', () => {

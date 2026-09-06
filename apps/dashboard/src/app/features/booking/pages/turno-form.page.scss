@@ -60,10 +60,6 @@
 .warning-text { @apply text-warning; }
 .error-text { @apply text-error; }
 
-.walk-in-link {
-  @apply mt-1 flex w-full items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-left transition-all hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121827];
-}
-
 textarea.form-control {
   @apply resize-y;
   min-height: calc(var(--zen-size-control-lg) * 3);

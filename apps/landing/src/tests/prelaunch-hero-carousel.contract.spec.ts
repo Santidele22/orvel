@@ -34,8 +34,8 @@ describe('Contract: prelaunch hero video carousel', () => {
     expect(source).toMatch(/PRELAUNCH_HERO_MEDIA\.map/);
     expect(source).toMatch(/<video\b/);
     expect(source).toMatch(/data-hero-dot/);
-    expect(source).toContain('js-open-waitlist');
-    expect(source).not.toContain('/auth/signup');
+    expect(source).toContain('/auth/signup/plan');
+    expect(source).not.toContain('js-open-waitlist');
     expect(source).not.toMatch(/\bgsap\b/i);
     expect(source).not.toMatch(/document\.createElement/);
   });

@@ -130,7 +130,7 @@ describe('Legacy mock auth contract - dashboard access fails closed', () => {
 
     it('encodes returnTo into login URL', () => {
       expect(buildLandingLoginRedirect('/dashboard/turnos?filtro=hoy')).toBe(
-        'https://orvel.pro/auth/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
+        'https://orvel.pro/dashboard/login?returnTo=%2Fdashboard%2Fturnos%3Ffiltro%3Dhoy'
       );
     });
   });

@@ -31,6 +31,11 @@ export function getPublicBookingOrigin(currentOrigin = globalThis.location?.orig
   return CANONICAL_PUBLIC_BOOKING_ORIGIN;
 }
 
-export function buildPublicBookingUrl(slug: string, currentOrigin?: string): string {
-  return `${getPublicBookingOrigin(currentOrigin)}/booking/${encodeURIComponent(slug)}`;
+export function buildPublicBookingUrl(slug: string, currentOrigin?: string, professionalSlug?: string): string {
+  const origin = getPublicBookingOrigin(currentOrigin);
+  const professional = professionalSlug?.trim();
+  if (professional) {
+    return `${origin}/booking/${encodeURIComponent(slug)}/${encodeURIComponent(professional)}`;
+  }
+  return `${origin}/booking/${encodeURIComponent(slug)}`;
 }

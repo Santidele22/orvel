@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { of } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -70,6 +70,10 @@ describe('Configuracion account cancellation modal behavior', () => {
         {
           provide: ActivatedRoute,
           useValue: { queryParamMap: of(convertToParamMap({})) },
+        },
+        {
+          provide: Router,
+          useValue: { navigateByUrl: vi.fn() },
         },
         {
           provide: BusinessService,
@@ -137,6 +141,42 @@ describe('Configuracion account cancellation modal behavior', () => {
       )?.[1] ??
       '';
     expect(cardClass).toMatch(/\bmax-w-sm\b/);
+    expect(cardClass).not.toContain('max-w-zen-content');
+    expect(cardClass).not.toContain('p-zen-xxl');
+  });
+
+  it('keeps Seguridad de la cuenta compact with a transparent overlay', async () => {
+    const template = await readFile(CONFIG_PAGE_TEMPLATE, 'utf-8');
+
+    expect(template).toMatch(/data-testid=["']account-settings-modal["']/i);
+    expect(template).toMatch(/data-testid=["']account-settings-modal-overlay["']/i);
+    expect(template).toMatch(/data-testid=["']account-settings-modal-close["']/i);
+    expect(template).toMatch(/data-testid=["']account-settings-cancel["']/i);
+    expect(template).toMatch(/Enviar correo de recuperación/i);
+
+    const overlayClass =
+      template.match(
+        /<button\b[^>]*class=["']([^"']+)["'][^>]*data-testid=["']account-settings-modal-overlay["']/i
+      )?.[1] ??
+      template.match(
+        /<button\b[^>]*data-testid=["']account-settings-modal-overlay["'][^>]*class=["']([^"']+)["']/i
+      )?.[1] ??
+      '';
+    expect(overlayClass).toContain('bg-transparent');
+    expect(overlayClass).not.toContain('bg-text-primary');
+    expect(overlayClass).not.toContain('--zen-overlay-opacity');
+    expect(overlayClass).not.toContain('bg-black/65');
+
+    const cardClass =
+      template.match(
+        /<div\b[^>]*class=["']([^"']+)["'][^>]*data-testid=["']account-settings-modal["']/i
+      )?.[1] ??
+      template.match(
+        /<div\b[^>]*data-testid=["']account-settings-modal["'][^>]*class=["']([^"']+)["']/i
+      )?.[1] ??
+      '';
+    expect(cardClass).toMatch(/\bmax-w-sm\b/);
+    expect(cardClass).toMatch(/\bp-zen-md\b/);
     expect(cardClass).not.toContain('max-w-zen-content');
     expect(cardClass).not.toContain('p-zen-xxl');
   });

@@ -42,7 +42,7 @@ export class DashboardSidebarComponent implements OnChanges {
     onLogout: () => this.openLogoutConfirmModal()
   }));
 
-  protected isLogoutConfirmModalOpen = false;
+  protected readonly isLogoutConfirmModalOpen = signal(false);
 
   ngOnChanges(_changes: SimpleChanges): void {
     this.templateInputVersion.update(version => version + 1);
@@ -53,15 +53,15 @@ export class DashboardSidebarComponent implements OnChanges {
   }
 
   protected openLogoutConfirmModal(): void {
-    this.isLogoutConfirmModalOpen = true;
+    this.isLogoutConfirmModalOpen.set(true);
   }
 
   protected confirmLogout(): void {
-    this.isLogoutConfirmModalOpen = false;
+    this.isLogoutConfirmModalOpen.set(false);
     this.logoutConfirm.emit();
   }
 
   protected cancelLogout(): void {
-    this.isLogoutConfirmModalOpen = false;
+    this.isLogoutConfirmModalOpen.set(false);
   }
 }

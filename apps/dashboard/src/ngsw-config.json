@@ -8,11 +8,24 @@
       "updateMode": "prefetch",
       "resources": {
         "files": [
+          "/index.html",
+          "/manifest.webmanifest"
+        ],
+        "urls": [
+          "/dashboard/icons/icon-192x192.png",
+          "/dashboard/icons/icon-512x512.png"
+        ]
+      }
+    },
+    {
+      "name": "app-lazy",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
           "/**/*.js",
           "/**/*.css",
-          "/**/*.html",
-          "/icons/*.png",
-          "/manifest.webmanifest"
+          "/**/*.html"
         ]
       }
     },

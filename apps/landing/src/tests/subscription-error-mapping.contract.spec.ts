@@ -9,35 +9,13 @@ async function loadSource(path: URL): Promise<string> {
 }
 
 describe('Contract: subscription canonical error mapping', () => {
-  it('maps canonical backend error codes in subscription UI dictionary', async () => {
-    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
-
-    expect(source).toContain('BUSINESS_REQUIRED');
-    expect(source).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
-    expect(source).toContain('PENDING_SIGNUP_PII_INVALID');
-    expect(source).toContain('EMAIL_REQUIRED');
-    expect(source).toContain('PLAN_MAPPING_REQUIRED');
-    expect(source).toContain('PLAN_MAPPING_INVALID');
-    expect(source).toContain('PLAN_IDENTIFIER_INVALID');
-    expect(source).toContain('normalizeSubscriptionErrorCode');
-  });
-
-  it('maps Supabase gateway INVALID_JWT_FORMAT to friendly retry copy without raw backend/JWT wording', async () => {
-    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
-
-    expect(source).toContain('UNAUTHORIZED_INVALID_JWT_FORMAT');
-    expect(source).toContain('No pudimos iniciar la suscripción. Reintentá en unos segundos.');
-    expect(source).not.toContain('|| codeOrMessage');
-    expect(source).not.toMatch(/UNAUTHORIZED_INVALID_JWT_FORMAT['"]:\s*['"][^'"]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)/i);
-  });
-
-  it('keeps subscription error copy user-friendly and announces it as an alert region', async () => {
+  it('alias activation page no longer maps Mercado Pago start errors in the UI', async () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
     const markupBeforeScript = source.split('<script>')[0] ?? source;
 
+    expect(source).not.toMatch(/normalizeSubscriptionErrorCode/);
+    expect(source).not.toMatch(/\/api\/subscriptions\/start/);
     expect(markupBeforeScript).not.toMatch(/>[^<]*(?:backend|JWT|UNAUTHORIZED_INVALID_JWT_FORMAT)[^<]*</i);
-    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*role="alert"/);
-    expect(markupBeforeScript).toMatch(/id="subscriptionError"[^>]*aria-live="polite"/);
   });
 
   it('keeps /api/subscriptions/start aligned with canonical contract errors', async () => {
@@ -53,59 +31,29 @@ describe('Contract: subscription canonical error mapping', () => {
     expect(source).toContain('EMAIL_REQUIRED');
   });
 
-  it('maps pending signup 400 contract errors to friendly non-raw copy', async () => {
-    const pageSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
+  it('maps pending signup 400 contract errors to friendly non-raw copy on the start API', async () => {
     const apiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
 
-    expect(pageSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
-    expect(pageSource).toContain('PENDING_SIGNUP_PII_INVALID');
-    expect(pageSource).toContain('BUSINESS_REQUIRED');
     expect(apiSource).toContain('PENDING_SIGNUP_EMAIL_REQUIRED');
     expect(apiSource).toContain('PENDING_SIGNUP_PII_INVALID');
-    expect(pageSource).toMatch(/Necesitamos proteger tu email antes de iniciar el pago|Volvé al formulario/i);
-    expect(pageSource).toMatch(/No pudimos validar tus datos protegidos|Volvé al formulario/i);
-    expect(pageSource).not.toMatch(/PENDING_SIGNUP_EMAIL_REQUIRED['"]:\s*['"][^'"]*PENDING_SIGNUP_EMAIL_REQUIRED/);
-    expect(pageSource).not.toMatch(/PENDING_SIGNUP_PII_INVALID['"]:\s*['"][^'"]*PENDING_SIGNUP_PII_INVALID/);
+    expect(apiSource).toContain('BUSINESS_REQUIRED');
   });
 
   it('keeps duplicate paid signup email responses generic/accepted without account enumeration copy', async () => {
-    const pageSource = await loadSource(SUBSCRIPTION_PAGE_PATH);
     const apiSource = await loadSource(SUBSCRIPTION_START_API_PATH);
 
-    expect(`${pageSource}\n${apiSource}`).toMatch(/signup_confirmation_requested|confirmation_requested|accepted|pending_signup_missing|ok\s*:\s*true/i);
-    expect(pageSource).not.toMatch(/EMAIL_ALREADY_REGISTERED:\s*'Este email ya tiene una cuenta en Orvel\. Iniciá sesión para continuar\.'/);
+    expect(apiSource).toMatch(/signup_confirmation_requested|confirmation_requested|accepted|pending_signup_missing|ok\s*:\s*true/i);
     expect(apiSource).not.toMatch(/EMAIL_ALREADY_REGISTERED|Este email ya tiene una cuenta|Ya existe un alta paga pendiente/i);
   });
 });
 
 describe('Contract: subscription status and UI guardrails', () => {
-  it('keeps pending polling behavior for subscription_session_id status updates', async () => {
+  it('alias activation page does not poll Mercado Pago subscription status', async () => {
     const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
 
-    expect(source).toContain('pollSubscriptionStatus');
-    expect(source).toContain('pollingIntervalId = window.setInterval(pollSubscriptionStatus, 4000)');
-    expect(source).toContain('MAX_POLLING_ATTEMPTS');
-    expect(source).toContain('stopSubscriptionPolling');
-    expect(source).toContain("setUiState('pending')");
-  });
-
-  it('shows welcome/login handoff on approved/active status from polling', async () => {
-    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
-
-    expect(source).toContain("normalizedStatus === 'approved' || normalizedStatus === 'active'");
-    expect(source).toContain("setUiState('welcome')");
-    expect(source).toContain('showSubscriptionWelcome(handoffUrl)');
-    expect(source).not.toContain('window.location.href = handoffUrl');
-  });
-
-  it('renders non-active UI states for failed/cancelled and preserves retry path', async () => {
-    const source = await loadSource(SUBSCRIPTION_PAGE_PATH);
-
-    expect(source).toContain("setUiState('failed')");
-    expect(source).toContain("setUiState('cancelled')");
-    expect(source).toContain("setUiState('retry')");
-    expect(source).toContain('TERMINAL_NON_SUCCESS_STATES');
-    expect(source).toContain('setSubscriptionButtonDisabled(false)');
-    expect(source).toContain('showSubscriptionError');
+    expect(source).not.toContain('pollSubscriptionStatus');
+    expect(source).not.toContain('/api/subscriptions/status');
+    expect(source).toContain('orvel.pagos');
+    expect(source).toContain('https://wa.me/5492944667161');
   });
 });

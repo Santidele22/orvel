@@ -76,6 +76,32 @@ describe('Contract: PWA install success modal after native install', () => {
     );
   });
 
+  it('hides how-to-install copy after a successful native install', () => {
+    const pageTs = readSource(pagePath);
+    const template = pageTs.match(/template:\s*`([\s\S]*?)`,/)?.[1] ?? '';
+    const installedCopy = template.match(/@if\s*\(\s*alreadyInstalled\(\)\s*\)\s*\{([\s\S]*?)\}\s*@else/)?.[1] ?? '';
+    const howToCopy = template.match(/@else\s*\{([\s\S]*?)\}\s*@if\s*\(\s*installFeedback/)?.[1] ?? '';
+    const onAppInstalled = extractMethod(pageTs, 'protected onAppInstalled()');
+    const runNative = extractMethod(pageTs, 'private async runNativeInstallPrompt()');
+    const closeMethod = extractMethod(pageTs, 'closeInstallSuccessModal');
+
+    expect(installedCopy).toContain('Listo');
+    expect(installedCopy).not.toContain('Instalá la app');
+    expect(installedCopy).not.toContain('pwa-install__steps');
+    expect(howToCopy).toContain('Instalá la app');
+    expect(howToCopy).toContain('Tocá Instalar');
+
+    expect(onAppInstalled).toMatch(/alreadyInstalled\.set\(true\)/);
+    expect(onAppInstalled.indexOf('alreadyInstalled.set(true)')).toBeGreaterThan(-1);
+    expect(onAppInstalled.indexOf('alreadyInstalled.set(true)')).toBeLessThan(
+      onAppInstalled.indexOf('isInstallSuccessModalOpen.set(true)'),
+    );
+
+    expect(runNative).toMatch(/outcome\s*===\s*['"]accepted['"][\s\S]{0,180}alreadyInstalled\.set\(true\)/);
+    expect(runNative).not.toMatch(/dismissed[\s\S]{0,120}alreadyInstalled\.set\(true\)/);
+    expect(closeMethod).not.toMatch(/alreadyInstalled\.set\(false\)/);
+  });
+
   it('never calls prompt() on the iOS path and does not change the manifest start_url', () => {
     const pageTs = readSource(pagePath);
     const installAppStart = pageTs.indexOf('protected async installApp()');

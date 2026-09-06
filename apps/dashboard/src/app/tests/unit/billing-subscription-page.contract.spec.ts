@@ -5,48 +5,51 @@ import { resolve } from 'node:path';
 import {
   BillingSubscriptionPage,
   BILLING_SUBSCRIPTION_CANCELLATION_READY_MESSAGE,
-  BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE,
-  BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
+  BILLING_SUBSCRIPTION_CANCELLATION_REQUESTED_MESSAGE
 } from '../../features/billing/pages/billing-subscription.page';
-import { CreateSubscriptionError } from '../../features/billing/data-access/payments/subscriptions/create-subscription.api';
 import { requestSubscriptionCancellation } from '../../features/billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
 
-describe('BillingSubscriptionPage safe payment unavailable state', () => {
-  it('surfaces a user-safe support message when subscription creation fails closed', async () => {
-    const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'PREMIUM' },
-      createSubscription: vi.fn(async () => {
-        throw new CreateSubscriptionError('SERVER_CONFIG_ERROR', 'internal server config details');
-      }),
-      redirectTo: vi.fn()
-    });
-
-    await page.startSubscription();
-
-    expect(page.state()).toEqual({
-      status: 'unavailable',
-      message: BILLING_SUBSCRIPTION_UNAVAILABLE_MESSAGE
-    });
-  });
-
-  it('does not redirect when the payment boundary returns no init point', async () => {
+describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
+  it('marks premium review pending and does not call createSubscription or redirect to init_point', async () => {
+    const createSubscription = vi.fn();
     const redirectTo = vi.fn();
+    const storage = {
+      getItem: vi.fn((key: string) => (key === 'orvel.signup.plan' ? 'PREMIUM' : null)),
+      setItem: vi.fn()
+    };
+
     const page = new BillingSubscriptionPage({
-      storage: { getItem: () => 'PREMIUM' },
-      createSubscription: vi.fn(async () => ({
-        ok: false,
-        initPoint: null,
-        subscriptionId: '',
-        status: 'pending',
-        message: 'unavailable'
-      })),
+      storage,
+      createSubscription,
       redirectTo
     });
 
     await page.startSubscription();
 
+    expect(createSubscription).not.toHaveBeenCalled();
     expect(redirectTo).not.toHaveBeenCalled();
-    expect(page.state().status).toBe('unavailable');
+    expect(storage.setItem).toHaveBeenCalledWith('orvel.premium_review', 'pending');
+    expect(page.state().status).toBe('alias_ready');
+    expect(page.whatsAppUrl()).toContain('https://wa.me/5492944667161');
+    expect(page.heading()).toEqual({
+      kicker: 'PASO FINAL',
+      title: 'Transferí y mandá el comprobante',
+      subtitle: 'No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.'
+    });
+  });
+
+  it('does not auto-start Mercado Pago checkout on activation initialize', async () => {
+    const createSubscription = vi.fn();
+    const page = new BillingSubscriptionPage({
+      storage: { getItem: () => 'PREMIUM', setItem: vi.fn() },
+      createSubscription,
+      redirectTo: vi.fn()
+    });
+
+    await page.initialize();
+
+    expect(createSubscription).not.toHaveBeenCalled();
+    expect(page.state().status).toBe('alias_ready');
   });
 
   it('does not expose a hidden multi-branch add-on activation prompt from billing', () => {
@@ -54,6 +57,36 @@ describe('BillingSubscriptionPage safe payment unavailable state', () => {
 
     expect('multiBranchAddOn' in page).toBe(false);
     expect('multiBranchAddOnCta' in page).toBe(false);
+  });
+
+  it('pins PASO FINAL alias-transfer copy in the alias_ready template', () => {
+    const template = readFileSync(
+      resolve(process.cwd(), 'src/app/features/billing/pages/billing-subscription.page.html'),
+      'utf8'
+    );
+
+    expect(template).toContain("state().status === 'alias_ready'");
+    expect(template).toContain('PASO FINAL');
+    expect(template).toContain('Transferí y mandá el comprobante');
+    expect(template).toContain('No usamos Mercado Pago ni tarjeta');
+    expect(template).toContain('PLAN PREMIUM');
+    expect(template).toContain('$25.000/mes');
+    expect(template).toContain('Pago pendiente');
+    expect(template).toContain('Turnos ilimitados');
+    expect(template).toContain('1 local');
+    expect(template).toContain('TRANSFERÍ A ESTE ALIAS');
+    expect(template).toContain('orvel.pagos');
+    expect(template).toContain('Copiar');
+    expect(template).toContain('copyAlias()');
+    expect(template).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(template).toContain('Mandá el comprobante por WhatsApp.');
+    expect(template).toContain('Entrá ya en Gratis, sin esperar a nadie.');
+    expect(template).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');
+    expect(template).toContain('Enviar comprobante por WhatsApp');
+    expect(template).toContain('Hasta entonces tu cuenta funciona en plan Gratis.');
+    expect(template).not.toMatch(/init_point/);
+    expect(template).not.toMatch(/createSubscription/);
+    expect(template).not.toMatch(/Mercado Pago checkout/i);
   });
 });
 

@@ -12,6 +12,10 @@ export const routes: Routes = [
     loadChildren: () => import('./public-booking.routes').then(m => m.manageBookingRoutes)
   },
   {
+    path: 'booking/:slug/:professionalSlug',
+    loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
+  },
+  {
     path: 'booking/:slug',
     loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
   },
@@ -45,9 +49,24 @@ export const routes: Routes = [
       import('./features/pwa-install/pages/pwa-install.page').then(m => m.PwaInstallPage)
   },
   {
+    path: 'auth/login',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'auth/signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
+  },
+  {
     path: 'dashboard/login',
     loadComponent: () =>
-      import('./features/pwa-install/pages/operator-sign-in.page').then(m => m.OperatorSignInPage)
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'dashboard/signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
   },
   {
     path: 'dashboard',

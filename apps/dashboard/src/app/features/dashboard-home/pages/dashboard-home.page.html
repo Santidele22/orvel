@@ -71,8 +71,8 @@
       <div class="lg:col-span-2 or-card min-w-0 overflow-hidden !p-0">
         <div class="flex flex-col gap-4 border-b border-white/5 bg-[var(--card-bg)] p-6 sm:flex-row sm:items-center sm:justify-between">
           <div class="min-w-0">
-            <h3 class="text-lg font-semibold tracking-tight">Próximos Turnos</h3>
-            <p class="mt-1 text-xs text-slate-400">Gestión de agenda en tiempo real</p>
+            <h3 class="text-lg font-semibold tracking-tight">Agenda de hoy</h3>
+            <p class="mt-1 text-xs text-slate-400">Gestión en tiempo real</p>
           </div>
           <div class="h-8 w-36 bg-surface-muted/50 rounded-xl"></div>
         </div>
@@ -203,12 +203,12 @@
 
   <!-- Second Row: Turnos & Huecos -->
   <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-3">
-    <!-- Próximos Turnos -->
+    <!-- Agenda de hoy -->
     <div class="lg:col-span-2 or-card min-w-0 overflow-hidden !p-0">
       <div class="flex flex-col gap-4 border-b border-white/5 bg-[var(--card-bg)] p-6 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0">
-          <h3 class="text-lg font-semibold tracking-tight">Próximos Turnos</h3>
-          <p class="mt-1 text-xs text-slate-400">Gestión de agenda en tiempo real</p>
+          <h3 class="text-lg font-semibold tracking-tight">Agenda de hoy</h3>
+          <p class="mt-1 text-xs text-slate-400">Gestión en tiempo real, {{ businessInfo().workingRange }}</p>
         </div>
         <button routerLink="/dashboard/turnos" class="rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
           Ver agenda completa
@@ -247,24 +247,62 @@
             <div class="flex shrink-0 items-center gap-4">
               <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
                 [ngClass]="{
-                  'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20': turno.estado === 'confirmado',
-                  'bg-blue-500/10 text-blue-400 border border-blue-500/20': turno.estado === 'completado'
+                  'bg-amber-400/10 text-amber-300 border border-amber-400/20': turno.depositPending,
+                  'bg-emerald-400/10 text-emerald-400 border border-emerald-400/20': !turno.depositPending && turno.estado === 'confirmado',
+                  'bg-blue-500/10 text-blue-400 border border-blue-500/20': !turno.depositPending && turno.estado === 'completado'
                 }">
-                {{ turno.estado }}
+                {{ turno.badgeLabel }}
               </span>
+              @if (turno.depositPending) {
+                <button
+                  type="button"
+                  class="rounded-xl bg-[#7C3AED] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[#6D28D9]"
+                  [disabled]="confirmingDepositId() === turno.id"
+                  (click)="confirmDepositReceived(turno.id, $event)">
+                  Confirmar seña
+                </button>
+              }
               <button class="w-10 h-10 rounded-xl bg-bg-primary border border-white/5 flex items-center justify-center text-text-tertiary hover:text-white hover:bg-white/5 transition-all">
                 <i class="ri-arrow-right-s-line text-xl"></i>
               </button>
             </div>
           </div>
         } @empty {
-          <div class="px-6 py-16 text-center">
-            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/5 bg-slate-900/70 text-slate-400">
-              <i class="ri-calendar-event-line text-2xl"></i>
-            </div>
-            <h4 class="font-semibold text-slate-200">No hay turnos para hoy</h4>
-            <p class="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">
-              Usá este momento para compartir tu link de reservas o revisar la agenda completa antes de confirmar nuevos horarios.
+          <div class="px-6 py-6">
+            <ol class="space-y-0">
+              @for (tick of todayAgendaTicks(); track tick.isNow ? 'now' : tick.label) {
+                <li class="flex items-center gap-3 py-2">
+                  <span
+                    class="w-12 shrink-0 text-right text-xs tabular-nums"
+                    [class]="tick.isNow ? 'font-semibold text-amber-400' : 'text-slate-500'">
+                    {{ tick.label }}
+                  </span>
+                  <span class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                    @if (!$last) {
+                      <span class="absolute left-1/2 top-3 h-5 w-px -translate-x-1/2 bg-white/10" aria-hidden="true"></span>
+                    }
+                    <span
+                      class="rounded-full"
+                      [class]="tick.isNow ? 'h-2.5 w-2.5 bg-amber-400' : 'h-1.5 w-1.5 bg-slate-500'"
+                      aria-hidden="true"></span>
+                  </span>
+                  @if (tick.isNow) {
+                    <span class="text-xs font-semibold text-amber-400">ahora</span>
+                  }
+                </li>
+              }
+            </ol>
+            <p class="mt-6 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-4 text-sm leading-6 text-slate-400">
+              Todavía no tenés turnos cargados para hoy. Es un buen momento para
+              <button
+                type="button"
+                class="inline p-0 font-semibold text-purple-300 hover:text-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
+                [attr.disabled]="hasBookingUrl() ? null : true"
+                [attr.aria-disabled]="hasBookingUrl() ? null : true"
+                (click)="copyBookingUrl()">
+                compartir tu link de reservas
+              </button>
+              en Instagram o WhatsApp y empezar a llenar los horarios libres.
             </p>
           </div>
         }
@@ -351,7 +389,7 @@
       </a>
     }
   } @else {
-  <div data-testid="dashboard-home-mobile-summary" class="mobile-inicio -mx-4 -mt-6 min-h-full px-5 pb-8 pt-[22px] text-[#F3F1FA]">
+  <div data-testid="dashboard-home-mobile-summary" class="mobile-inicio -mx-4 -mt-6 -mb-10 min-h-dvh px-5 pb-8 pt-[22px] text-[#F3F1FA]">
     <header class="mb-[26px] flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="mb-1.5 block text-[12.5px] font-bold uppercase tracking-[1.1px] text-[#9B7BFF]">{{ eyebrowDate() }}</p>
@@ -367,6 +405,27 @@
         <span class="absolute -bottom-0.5 -right-0.5 h-[13px] w-[13px] rounded-full border-[2.5px] border-[#0A0E1B] bg-[#34D399]" aria-hidden="true"></span>
       </div>
     </header>
+
+    @if (showPremiumReviewBanner()) {
+      <article data-testid="premium-review-banner" class="mb-[18px] rounded-[16px] border border-[rgba(251,191,36,0.22)] bg-[rgba(251,191,36,0.08)] px-4 py-4">
+        <div class="mb-3 flex items-start gap-3">
+          <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#FBBF24]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="text-[14px] font-bold leading-5 text-[#F3F1FA]">Premium en revisión — seguís en Gratis hasta que validemos el comprobante.</p>
+        </div>
+        <div class="mb-3 flex flex-wrap gap-3 text-[13px] font-semibold">
+          <button type="button" class="text-[#9B7BFF] underline-offset-2 hover:underline" (click)="markReceiptSent()">Ya envié el comprobante</button>
+          <a class="text-[#9B7BFF] underline-offset-2 hover:underline" [href]="premiumWhatsAppUrl()" target="_blank" rel="noopener noreferrer">Volver a WhatsApp</a>
+        </div>
+        <div class="rounded-[12px] border border-[rgba(255,255,255,0.045)] bg-[#141A2C] px-3 py-3">
+          <p class="text-[11px] font-bold uppercase tracking-[0.9px] text-[#5D6280]">Turnos este mes</p>
+          <p class="mt-1 text-[22px] font-extrabold text-[#F3F1FA]">{{ monthlyBookingCount() }}/{{ maxMonthlyBookings }}</p>
+          <p class="mt-1 text-[12px] font-medium text-[#9096AE]">Con Premium vas a tener turnos ilimitados.</p>
+        </div>
+      </article>
+    }
 
     <button (click)="copyBookingUrl()"
       [attr.disabled]="hasBookingUrl() ? null : true"
@@ -435,6 +494,15 @@
             {{ relativeTimeBadge(next) }}
           </span>
         </article>
+        @if (next.depositPending) {
+          <button
+            type="button"
+            class="mb-5 w-full rounded-[16px] bg-[#7C3AED] px-4 py-3 text-sm font-bold text-white"
+            [disabled]="confirmingDepositId() === next.id"
+            (click)="confirmDepositReceived(next.id, $event)">
+            Confirmar seña
+          </button>
+        }
       } @else {
         <div class="mb-5 rounded-[16px] border border-dashed border-[rgba(255,255,255,0.045)] bg-[#141A2C] px-4 py-6 text-center">
           <p class="text-sm font-medium text-[#9096AE]">No hay turnos próximos</p>

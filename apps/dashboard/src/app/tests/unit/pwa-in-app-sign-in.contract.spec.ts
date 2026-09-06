@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 const routeBlock = (routesSource: string, path: string) => {
@@ -9,7 +10,7 @@ const routeBlock = (routesSource: string, path: string) => {
 };
 
 describe('Contract: public PWA in-app sign-in', () => {
-  it('exposes dashboard/login as a public top-level route before the guarded dashboard parent', () => {
+  it('loads InAppLoginPage at dashboard/login before the guarded dashboard parent', () => {
     const appRoutes = source('src/app/app.routes.ts');
     const dashboardShell = source('src/app/dashboard-shell.routes.ts');
     const signIn = routeBlock(appRoutes, 'dashboard/login');
@@ -17,28 +18,40 @@ describe('Contract: public PWA in-app sign-in', () => {
     const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
     expect(signIn).toContain('loadComponent');
-    expect(signIn).toContain('OperatorSignInPage');
+    expect(signIn).toContain('in-app-login.page');
+    expect(signIn).toContain('InAppLoginPage');
+    expect(signIn).not.toContain('redirectTo');
     expect(signIn).not.toContain('canActivate');
+    expect(signIn).not.toContain('OperatorSignInPage');
     expect(signInIndex).toBeGreaterThan(-1);
     expect(signInIndex).toBeLessThan(dashboardIndex);
     expect(dashboardShell).toContain('canActivate: [dashboardAuthGuard]');
   });
 
-  it('signs in through AuthService.login and offers Crear cuenta without mounting the dashboard guard', () => {
+  it('loads InAppSignupWizardPage at dashboard/signup before the guarded dashboard parent', () => {
     const appRoutes = source('src/app/app.routes.ts');
-    const signIn = routeBlock(appRoutes, 'dashboard/login');
-    const importPath = signIn.match(/import\('(\.\/[^']+)'\)/)?.[1];
+    const signUp = routeBlock(appRoutes, 'dashboard/signup');
+    const signUpIndex = appRoutes.search(/path:\s*'dashboard\/signup'/);
+    const dashboardIndex = appRoutes.search(/path:\s*'dashboard'\s*,/);
 
-    expect(importPath).toBeTruthy();
+    expect(signUp).toContain('loadComponent');
+    expect(signUp).toContain('in-app-signup-wizard.page');
+    expect(signUp).toContain('InAppSignupWizardPage');
+    expect(signUp).not.toContain('redirectTo');
+    expect(signUp).not.toContain('canActivate');
+    expect(signUpIndex).toBeGreaterThan(-1);
+    expect(signUpIndex).toBeLessThan(dashboardIndex);
+  });
 
-    const pagePath = `src/app/${importPath!.replace(/^\.\//, '')}.ts`;
-    const page = source(pagePath);
+  it('does not keep the duplicate operator sign-in page; in-app login owns the form', () => {
+    expect(existsSync(resolve(process.cwd(), 'src/app/features/pwa-install/pages/operator-sign-in.page.ts'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/app/features/auth/pages/in-app-login.page.ts'))).toBe(true);
+
+    const loginPage = source('src/app/features/auth/pages/in-app-login.page.ts');
     const authService = source('src/app/services/auth.service.ts');
 
-    expect(page).toContain('AuthService');
-    expect(page).toMatch(/\.login\(/);
-    expect(page).toContain('Crear cuenta');
-    expect(page).not.toContain('dashboardAuthGuard');
+    expect(loginPage).toContain('AuthService');
+    expect(loginPage).toMatch(/\.login\(/);
     expect(authService).toContain('signInWithPassword');
   });
 

@@ -14,7 +14,7 @@
   <link rel="manifest" href="/dashboard/manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/dashboard/icons/icon-192x192.png">
 
   <!-- Consolidated Fonts (non-blocking: print + onload swap) -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
@@ -108,6 +108,36 @@
       event.preventDefault();
       window.__ORVEL_DEFERRED_INSTALL_PROMPT = event;
     });
+  </script>
+  <script>
+    (function () {
+      var standaloneMq = window.matchMedia && window.matchMedia('(display-mode: standalone)');
+      function isStandalone() {
+        return (standaloneMq && standaloneMq.matches) || navigator.standalone === true;
+      }
+      function isMobileFirst() {
+        var coarse = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        var compact = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+        return Boolean(coarse || compact);
+      }
+      if (!(isStandalone() || isMobileFirst())) {
+        return;
+      }
+      setTimeout(function () {
+        if (window.__ORVEL_BOOTED) {
+          return;
+        }
+        try {
+          if (sessionStorage['orvel-boot-retry'] === '1') {
+            return;
+          }
+          sessionStorage['orvel-boot-retry'] = '1';
+        } catch (err) {
+          return;
+        }
+        location.reload();
+      }, 8000);
+    })();
   </script>
   <app-root>
     <div class="pwa-boot-splash" data-testid="pwa-boot-splash">

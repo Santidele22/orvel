@@ -96,7 +96,14 @@ describe('PWA: index.html meta tags for iOS', () => {
 
   it('has apple-touch-icon link', async () => {
     const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
-    expect(html).toContain('apple-touch-icon');
+    const appleTouchIcon = html.match(/<link\b[^>]*>/gi)?.find(
+      (tag) =>
+        /\brel=["']apple-touch-icon["']/i.test(tag) &&
+        /\bhref=["']\/dashboard\/icons\/icon-192x192\.png["']/i.test(tag),
+    );
+
+    expect(appleTouchIcon).toBeDefined();
+    expect(html).not.toContain('href="icons/icon-192x192.png"');
   });
 
   it('has theme-color meta tag', async () => {
