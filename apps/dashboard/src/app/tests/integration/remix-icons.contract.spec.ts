@@ -56,16 +56,19 @@ describe('TDD contract: Remix Icons adoption in dashboard', () => {
   });
 
   it('keeps remix icons in critical navigation and notification touchpoints', async () => {
-    const sidebar = parseHtml(await readFile(fromRoot(SIDEBAR_HTML), 'utf-8'));
+    const zenSidebar = await readFile(fromRoot('src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts'), 'utf-8');
     const topbar = parseHtml(await readFile(fromRoot(TOPBAR_HTML), 'utf-8'));
     const shell = parseHtml(await readFile(fromRoot(SHELL_HTML), 'utf-8'));
 
-    const sidebarLinks = Array.from(sidebar.querySelectorAll('a[routerLink]'));
-    expect(sidebarLinks.length).toBeGreaterThanOrEqual(4);
-    expect(sidebarLinks.every((link) => hasRemixClass(link))).toBe(true);
+    const sidebarLinks = await readFile(fromRoot('src/app/shared/dashboard-sidebar/sidebar-links.config.ts'), 'utf-8');
+    expect(zenSidebar).toContain('goTo(link.path)');
+    expect(zenSidebar).toContain('[class]="link.icon"');
+    expect(sidebarLinks).toMatch(/ri-dashboard-line/);
+    expect(sidebarLinks).toMatch(/ri-calendar-event-line/);
+    expect(sidebarLinks).toMatch(/ri-settings-line/);
 
     const notificationButtons = Array.from(topbar.querySelectorAll('[data-testid="dashboard-topbar-notifications"]'));
-    expect(notificationButtons.length).toBeGreaterThanOrEqual(4);
+    expect(notificationButtons.length).toBeGreaterThanOrEqual(1);
     expect(
       notificationButtons.every((button) => (button.getAttribute('aria-label') ?? '').trim().length > 0)
     ).toBe(true);

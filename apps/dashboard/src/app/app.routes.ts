@@ -1,5 +1,10 @@
-import { Routes } from '@angular/router';
+import { CanMatchFn, Routes } from '@angular/router';
 import { dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
+
+const isDashboardShellPath: CanMatchFn = (_route, segments) => {
+  const head = segments[0]?.path;
+  return head !== 'login' && head !== 'signup' && head !== 'auth';
+};
 
 export const routes: Routes = [
   {
@@ -69,11 +74,22 @@ export const routes: Routes = [
       import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
   },
   {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
+  },
+  {
     path: 'dashboard',
     loadChildren: () => import('./dashboard-shell.routes').then(m => m.dashboardShellRoutes)
   },
   {
     path: '',
+    canMatch: [isDashboardShellPath],
     loadChildren: () => import('./dashboard-shell.routes').then(m => m.dashboardShellRoutes)
   }
 ];

@@ -25,7 +25,7 @@ describe('Dashboard contract: admin flow and functional structure', () => {
   });
 
   it('keeps admin sidebar navigation routes for supervision sections', async () => {
-    const sidebarHtml = await readFile(fromRoot(SIDEBAR_HTML), 'utf-8');
+    const sidebarSource = await readFile(fromRoot('src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts'), 'utf-8');
 
     const requiredRoutes = [
       '/dashboard/turnos',
@@ -34,8 +34,10 @@ describe('Dashboard contract: admin flow and functional structure', () => {
       '/dashboard/configuracion'
     ];
 
+    const sidebarLinks = await readFile(fromRoot('src/app/shared/dashboard-sidebar/sidebar-links.config.ts'), 'utf-8');
+    expect(sidebarSource).toContain('goTo(link.path)');
     for (const route of requiredRoutes) {
-      expect(sidebarHtml).toContain(`routerLink="${route}"`);
+      expect(sidebarLinks).toContain(route);
     }
   });
 

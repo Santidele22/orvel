@@ -26,6 +26,14 @@ export class ConfiguracionZenThemeComponent {
   get visibleTemplates() { return this.ctx.visibleTemplates; }
   get activeSettingsTab() { return this.ctx.activeSettingsTab; }
   get settingsTabs() { return this.ctx.settingsTabs; }
+  readonly tabs = [
+    { key: 'perfil' as const, label: 'Perfil', icon: 'ri-user-line' },
+    { key: 'negocio' as const, label: 'Negocio', icon: 'ri-store-2-line' },
+    { key: 'equipo' as const, label: 'Equipo', icon: 'ri-team-line' }
+  ];
+  isActiveTab(key: 'perfil' | 'negocio' | 'equipo'): boolean {
+    return this.ctx.activeSettingsTab() === key;
+  }
   get urlCopied() { return this.ctx.urlCopied; }
   get urlCopyFailed() { return this.ctx.urlCopyFailed; }
   get teamProfessionals() { return this.ctx.teamProfessionals; }

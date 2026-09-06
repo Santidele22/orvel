@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, inject, computed, signal } from '@angular/core';
-import { CommonModule, NgComponentOutlet } from '@angular/common';
+import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { ThemeService } from '../../core/theming/theme.service';
+import { ZenSidebarComponent } from './templates/zen-sidebar.component';
 
 @Component({
   selector: 'app-dashboard-sidebar',
@@ -9,7 +9,7 @@ import { ThemeService } from '../../core/theming/theme.service';
   imports: [
     CommonModule,
     RouterModule,
-    NgComponentOutlet
+    ZenSidebarComponent
   ],
   host: {
     class: 'h-full'
@@ -17,10 +17,7 @@ import { ThemeService } from '../../core/theming/theme.service';
   templateUrl: './dashboard-sidebar.component.html',
   styleUrls: ['./dashboard-sidebar.component.scss']
 })
-export class DashboardSidebarComponent implements OnChanges {
-  private readonly themeService = inject(ThemeService);
-  private readonly templateInputVersion = signal(0);
-
+export class DashboardSidebarComponent {
   @Input() theme: string = 'zen';
   @Input() businessName: string = 'Mi negocio Orvel';
   @Input() dashboards: any[] = [];
@@ -29,24 +26,11 @@ export class DashboardSidebarComponent implements OnChanges {
   @Output() logoutConfirm = new EventEmitter<void>();
   @Output() readonly collapseToggle = new EventEmitter<void>();
 
-  protected readonly activeTemplate = this.themeService.activeTemplate;
-
-  // New: Compute inputs for the dynamic component
-  protected readonly templateInputs = computed(() => ({
-    activeTheme: this.theme,
-    dashboards: (this.templateInputVersion(), this.dashboards),
-    businessName: this.businessName,
-    collapsed: this.collapsed,
-    onThemeChange: (theme: string) => this.selectTheme(theme),
-    onToggleCollapse: () => this.collapseToggle.emit(),
-    onLogout: () => this.openLogoutConfirmModal()
-  }));
-
   protected readonly isLogoutConfirmModalOpen = signal(false);
 
-  ngOnChanges(_changes: SimpleChanges): void {
-    this.templateInputVersion.update(version => version + 1);
-  }
+  protected readonly onThemeChangeBound = (theme: string) => this.selectTheme(theme);
+  protected readonly onToggleCollapseBound = () => this.collapseToggle.emit();
+  protected readonly onLogoutBound = () => this.openLogoutConfirmModal();
 
   selectTheme(theme: string) {
     this.themeChange.emit(theme);
