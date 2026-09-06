@@ -15,4 +15,12 @@ describe('deploy-promotion QA combined site', () => {
     expect(workflow).toMatch(/deploy --prebuilt/);
     expect(workflow).not.toMatch(/alias "\$URL".*--yes/);
   });
+
+  it('loads Preview (qa) Vercel env before the combined prebuilt build', () => {
+    expect(workflow).toMatch(/env pull \.vercel\/qa\.env/);
+    expect(workflow).toMatch(/--environment=preview/);
+    expect(workflow).toMatch(/--git-branch=qa/);
+    expect(workflow).toMatch(/source \.vercel\/qa\.env/);
+    expect(workflow).toMatch(/rm -f \.vercel\/qa\.env/);
+  });
 });
