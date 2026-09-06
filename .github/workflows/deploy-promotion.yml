@@ -35,7 +35,7 @@ jobs:
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
-            echo "site=dashboard" >> $GITHUB_OUTPUT
+            echo "site=combined" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch: ${{ github.ref }}" >&2
             exit 1
@@ -67,8 +67,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Mark combined deploy as git branch qa
-        if: ${{ steps.target.outputs.site == 'combined' }}
+      - name: Mark combined QA deploy as git branch qa
+        if: ${{ steps.target.outputs.site == 'combined' && github.ref == 'refs/heads/qa' }}
         run: git switch -C qa
 
       - name: Build dashboard
@@ -84,7 +84,11 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ steps.target.outputs.site }}" == "combined" ]]; then
-            URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --prod --build-env PUBLIC_LANDING_URL=https://orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://orvel.pro)
+            else
+              URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
+            fi
           else
             OUT=apps/dashboard/dist/salon-de-belleza/browser
             printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
