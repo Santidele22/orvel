@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import '@angular/compiler';
-import { CommonModule, NgComponentOutlet } from '@angular/common';
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
@@ -21,12 +20,11 @@ const dashboardTopbarTemplate = readFileSync(
 
 @Component({
   standalone: true,
-  imports: [CommonModule, NgComponentOutlet],
+  imports: [ZenTopbarComponent],
   template: dashboardTopbarTemplate
 })
 class DashboardTopbarWrapperHostComponent {
-  protected readonly activeTemplate = signal({ topbarComponent: ZenTopbarComponent }).asReadonly();
-  protected readonly templateInputs = signal({ onLogout: vi.fn() }).asReadonly();
+  protected onLogout = vi.fn();
 }
 
 describe('Dashboard topbar rendered behavior', () => {

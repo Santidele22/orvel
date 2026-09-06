@@ -1,6 +1,11 @@
-<ng-container 
-  *ngComponentOutlet="activeTemplate().sidebarComponent; 
-                     inputs: templateInputs()" 
+<app-zen-sidebar
+  [activeTheme]="theme"
+  [businessName]="businessName"
+  [dashboards]="dashboards"
+  [collapsed]="collapsed"
+  [onThemeChange]="onThemeChangeBound"
+  [onToggleCollapse]="onToggleCollapseBound"
+  [onLogout]="onLogoutBound"
 />
 
 <div class="sr-only sm:block md:block lg:block" data-testid="dashboard-sidebar-responsive">
