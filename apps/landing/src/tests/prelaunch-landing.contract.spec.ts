@@ -10,7 +10,6 @@ const COMPOSED_PRELAUNCH = [
   'PrelaunchHeader.astro',
   'PrelaunchHero.astro',
   'PrelaunchRubros.astro',
-  'PremiumTrial.astro',
   'PrelaunchHowItWorks.astro',
   'PrelaunchPublicTurnero.astro',
   'PrelaunchProductShowcase.astro',
@@ -37,7 +36,7 @@ function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHeader/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHero/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchRubros/);
-  expect(page).toMatch(/organisms\/prelaunch\/PremiumTrial/);
+  expect(page).not.toMatch(/organisms\/prelaunch\/PremiumTrial/);
   expect(page).not.toMatch(/organisms\/prelaunch\/EarlyBird/);
   expect(page).not.toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
   expect(page).not.toMatch(/<PrelaunchProblem/);
@@ -52,7 +51,7 @@ function expectUsablePrelaunchComposition(page: string): void {
     /organisms\/prelaunch\/PrelaunchHero[\s\S]*organisms\/prelaunch\/PrelaunchRubros/
   );
   expect(page).toMatch(
-    /organisms\/prelaunch\/PrelaunchRubros[\s\S]*organisms\/prelaunch\/PremiumTrial/
+    /organisms\/prelaunch\/PrelaunchRubros[\s\S]*organisms\/prelaunch\/PrelaunchHowItWorks/
   );
   expect(page).toMatch(
     /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchPublicTurnero[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
