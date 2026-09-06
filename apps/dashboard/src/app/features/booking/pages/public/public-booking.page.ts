@@ -107,6 +107,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
   
   // Form controls for validation
   protected selectedSlot = '';
+  protected readonly slotPickerOpen = signal(false);
   protected firstName = '';
   protected lastName = '';
   protected whatsapp = '';
@@ -491,6 +492,19 @@ export class PublicBookingPage implements OnInit, OnDestroy {
     if (this.selectedSlot) {
       this.expandedStep.set('contact');
     }
+  }
+
+  protected toggleSlotPicker(): void {
+    if (this.loadingSlots() || this.availabilityErrorMessage() || this.availabilitySlots().length === 0) {
+      return;
+    }
+    this.slotPickerOpen.update((open) => !open);
+  }
+
+  protected selectSlot(startsAtIso: string): void {
+    this.selectedSlot = startsAtIso;
+    this.slotPickerOpen.set(false);
+    this.onSlotChange();
   }
 
   protected openStep(step: 'service' | 'professional' | 'schedule' | 'contact'): void {
