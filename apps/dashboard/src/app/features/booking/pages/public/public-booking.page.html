@@ -242,12 +242,14 @@
               @if (fieldErrors()['service']) {
                 <p class="text-red-400 text-[10px] mt-1 ml-1 font-bold uppercase tracking-widest">{{ fieldErrors()['service'] }}</p>
               }
-              @if (canShowProfessionalStep()) {
-                <div class="space-y-3 pt-2" data-testid="public-professional-picker">
-                  <p class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
-                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">2</span>
+              @if (canShowProfessionalTitle()) {
+                <div class="space-y-3 pt-2">
+                  <p class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowProfessionalStep()" [class.text-slate-500]="!canShowProfessionalStep()">
+                    <span [class]="stepBadgeClass(canShowProfessionalStep())">2</span>
                     Elegí profesional
                   </p>
+                  @if (canShowProfessionalStep()) {
+                  <div class="space-y-3" data-testid="public-professional-picker">
                   @if (professionalChoiceMade() && !isStepOpen('professional')) {
                     <button
                       type="button"
@@ -289,6 +291,8 @@
                     </button>
                   }
                   }
+                  </div>
+                  }
                 </div>
               }
               @if (serviceErrorMessage()) {
@@ -307,15 +311,15 @@
             </div>
 
             <!-- Availability Selection (Date & Time Picker) -->
-            @if (canShowScheduleStep()) {
             <div class="space-y-8" data-testid="public-schedule-step">
-              <label class="flex items-center gap-3 text-sm font-semibold text-white ml-1">
-                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-black">{{ showProfessionalPicker() ? '3' : '2' }}</span>
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowScheduleStep()" [class.text-slate-500]="!canShowScheduleStep()">
+                <span [class]="stepBadgeClass(canShowScheduleStep())">{{ scheduleStepNumber() }}</span>
                 Elegí día y horario
-                @if (loadingAvailability()) {
+                @if (canShowScheduleStep() && loadingAvailability()) {
                   <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
                 }
               </label>
+            @if (canShowScheduleStep()) {
               @if (selectedSlot && !isStepOpen('schedule')) {
                 <button
                   type="button"
@@ -412,10 +416,16 @@
                 }
               </div>
               }
-            </div>
             }
+            </div>
             
-            @if (!rescheduleMode() && canShowContactStep()) {
+            @if (!rescheduleMode()) {
+            <div class="space-y-8" data-testid="public-contact-step">
+              <label class="flex items-center gap-3 text-sm font-semibold ml-1" [class.text-white]="canShowContactStep()" [class.text-slate-500]="!canShowContactStep()">
+                <span [class]="stepBadgeClass(canShowContactStep())">{{ contactStepNumber() }}</span>
+                Tus datos
+              </label>
+            @if (canShowContactStep()) {
             <!-- Client Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div class="space-y-4">
@@ -517,6 +527,8 @@
                 placeholder="¿Algún detalle que debamos saber?"
                 class="w-full bg-black/20 border border-white/5 rounded-[32px] p-6 text-sm font-bold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all resize-none"
               ></textarea>
+            </div>
+            }
             </div>
             }
 
