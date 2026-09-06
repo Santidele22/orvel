@@ -178,7 +178,7 @@ describe('Dashboard section skeletons until data is ready', () => {
     expect(countTestId(desktopLoading, 'dashboard-home-skeleton-card')).toBe(3);
     expect(desktopLoading).toMatch(/h-10 w-10 rounded-xl/);
     expect(desktopLoading).toMatch(/w-16 h-14 rounded-2xl/);
-    expect(desktopLoading).toContain('Próximos Turnos');
+    expect(desktopLoading).toContain('Agenda de hoy');
     expect(desktopLoading).toContain('Huecos libres');
     expect(desktopLoading).toContain('Portal de Reservas');
     expect(desktopLoading).toMatch(/lg:grid-cols-3/);
@@ -186,6 +186,7 @@ describe('Dashboard section skeletons until data is ready', () => {
     expect((desktopLoading.match(/w-16 h-14 rounded-2xl/g) ?? []).length).toBeGreaterThanOrEqual(2);
     expect(desktopLoading).not.toMatch(/h-24 bg-surface-muted\/50/);
     expect(desktopLoading).not.toContain('No hay turnos para hoy');
+    expect(desktopLoading).not.toContain('Todavía no tenés turnos cargados para hoy');
     expect(desktopLoading).not.toContain('No hay huecos disponibles hoy');
   });
 
