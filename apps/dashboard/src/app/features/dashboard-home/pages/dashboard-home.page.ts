@@ -23,6 +23,64 @@ import {
 } from '../../../core/billing/premium-alias-receipt';
 import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
 
+const TWO_HOUR_STEP_MINUTES = 120;
+
+function parseClockMinutes(hhmm: string): number {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+  return hours * 60 + minutes;
+}
+
+function formatHhMm(totalMinutes: number): string {
+  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function formatFriendlyClock(hhmm: string): string {
+  const [hoursRaw, minutesRaw = '00'] = hhmm.split(':');
+  const hours = Number(hoursRaw);
+  if (!Number.isFinite(hours)) return hhmm;
+  return `${hours}:${minutesRaw.padStart(2, '0')}`;
+}
+
+function formatWorkingRangeCopy(start: string, end: string): string {
+  return `de ${formatFriendlyClock(start)} a ${formatFriendlyClock(end)}`;
+}
+
+type TodayAgendaTick = { minutes: number; label: string; isNow: boolean };
+
+function buildTodayAgendaTicks(
+  startMinutes: number,
+  endMinutes: number,
+  nowMinutes: number,
+): TodayAgendaTick[] {
+  const ticks: TodayAgendaTick[] = [];
+  if (endMinutes > startMinutes) {
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += TWO_HOUR_STEP_MINUTES) {
+      ticks.push({ minutes, label: formatHhMm(minutes), isNow: false });
+    }
+    if (ticks.at(-1)?.minutes !== endMinutes) {
+      ticks.push({ minutes: endMinutes, label: formatHhMm(endMinutes), isNow: false });
+    }
+  }
+
+  const nowTick: TodayAgendaTick = {
+    minutes: nowMinutes,
+    label: formatHhMm(nowMinutes),
+    isNow: true,
+  };
+  const exact = ticks.findIndex((tick) => tick.minutes === nowMinutes);
+  if (exact >= 0) {
+    ticks[exact] = nowTick;
+  } else {
+    ticks.push(nowTick);
+    ticks.sort((a, b) => a.minutes - b.minutes);
+  }
+  return ticks;
+}
+
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
@@ -208,18 +266,26 @@ export class DashboardHomeComponent {
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayKey = days[now.getDay()];
     const hours = state?.workingHours?.[dayKey] || { start: '09:00', end: '18:00', enabled: true };
-    
-    // Calculate total minutes of the working day
-    const [startH, startM] = hours.start.split(':').map(Number);
-    const [endH, endM] = hours.end.split(':').map(Number);
-    const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    const startMinutes = parseClockMinutes(hours.start);
+    const endMinutes = parseClockMinutes(hours.end);
 
     return {
       name: state?.businessName || 'Sucursal sin nombre',
       slug: state?.slug || '',
-      workingRange: `${hours.start} - ${hours.end}`,
-      totalMinutes: Math.max(0, totalMinutes)
+      workingRange: formatWorkingRangeCopy(hours.start, hours.end),
+      startMinutes,
+      endMinutes,
+      totalMinutes: Math.max(0, endMinutes - startMinutes)
     };
+  });
+
+  protected readonly todayAgendaTicks = computed(() => {
+    const info = this.businessInfo();
+    return buildTodayAgendaTicks(
+      info.startMinutes,
+      info.endMinutes,
+      readArgentinaClock(this.dashboardService.now()).minutes,
+    );
   });
 
   /** Informative message about current occupancy level */
