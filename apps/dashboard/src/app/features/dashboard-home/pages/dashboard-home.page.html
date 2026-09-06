@@ -71,8 +71,8 @@
       <div class="lg:col-span-2 or-card min-w-0 overflow-hidden !p-0">
         <div class="flex flex-col gap-4 border-b border-white/5 bg-[var(--card-bg)] p-6 sm:flex-row sm:items-center sm:justify-between">
           <div class="min-w-0">
-            <h3 class="text-lg font-semibold tracking-tight">Próximos Turnos</h3>
-            <p class="mt-1 text-xs text-slate-400">Gestión de agenda en tiempo real</p>
+            <h3 class="text-lg font-semibold tracking-tight">Agenda de hoy</h3>
+            <p class="mt-1 text-xs text-slate-400">Gestión en tiempo real</p>
           </div>
           <div class="h-8 w-36 bg-surface-muted/50 rounded-xl"></div>
         </div>
@@ -203,12 +203,12 @@
 
   <!-- Second Row: Turnos & Huecos -->
   <div class="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-3">
-    <!-- Próximos Turnos -->
+    <!-- Agenda de hoy -->
     <div class="lg:col-span-2 or-card min-w-0 overflow-hidden !p-0">
       <div class="flex flex-col gap-4 border-b border-white/5 bg-[var(--card-bg)] p-6 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0">
-          <h3 class="text-lg font-semibold tracking-tight">Próximos Turnos</h3>
-          <p class="mt-1 text-xs text-slate-400">Gestión de agenda en tiempo real</p>
+          <h3 class="text-lg font-semibold tracking-tight">Agenda de hoy</h3>
+          <p class="mt-1 text-xs text-slate-400">Gestión en tiempo real, {{ businessInfo().workingRange }}</p>
         </div>
         <button routerLink="/dashboard/turnos" class="rounded-xl border border-purple-400/15 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-300 transition-colors hover:bg-purple-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60">
           Ver agenda completa
@@ -268,13 +268,41 @@
             </div>
           </div>
         } @empty {
-          <div class="px-6 py-16 text-center">
-            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/5 bg-slate-900/70 text-slate-400">
-              <i class="ri-calendar-event-line text-2xl"></i>
-            </div>
-            <h4 class="font-semibold text-slate-200">No hay turnos para hoy</h4>
-            <p class="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">
-              Usá este momento para compartir tu link de reservas o revisar la agenda completa antes de confirmar nuevos horarios.
+          <div class="px-6 py-6">
+            <ol class="space-y-0">
+              @for (tick of todayAgendaTicks(); track tick.isNow ? 'now' : tick.label) {
+                <li class="flex items-center gap-3 py-2">
+                  <span
+                    class="w-12 shrink-0 text-right text-xs tabular-nums"
+                    [class]="tick.isNow ? 'font-semibold text-amber-400' : 'text-slate-500'">
+                    {{ tick.label }}
+                  </span>
+                  <span class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                    @if (!$last) {
+                      <span class="absolute left-1/2 top-3 h-5 w-px -translate-x-1/2 bg-white/10" aria-hidden="true"></span>
+                    }
+                    <span
+                      class="rounded-full"
+                      [class]="tick.isNow ? 'h-2.5 w-2.5 bg-amber-400' : 'h-1.5 w-1.5 bg-slate-500'"
+                      aria-hidden="true"></span>
+                  </span>
+                  @if (tick.isNow) {
+                    <span class="text-xs font-semibold text-amber-400">ahora</span>
+                  }
+                </li>
+              }
+            </ol>
+            <p class="mt-6 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-4 text-sm leading-6 text-slate-400">
+              Todavía no tenés turnos cargados para hoy. Es un buen momento para
+              <button
+                type="button"
+                class="inline p-0 font-semibold text-purple-300 hover:text-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
+                [attr.disabled]="hasBookingUrl() ? null : true"
+                [attr.aria-disabled]="hasBookingUrl() ? null : true"
+                (click)="copyBookingUrl()">
+                compartir tu link de reservas
+              </button>
+              en Instagram o WhatsApp y empezar a llenar los horarios libres.
             </p>
           </div>
         }
