@@ -60,8 +60,12 @@ describe('TDD contract: Remix Icons adoption in dashboard', () => {
     const topbar = parseHtml(await readFile(fromRoot(TOPBAR_HTML), 'utf-8'));
     const shell = parseHtml(await readFile(fromRoot(SHELL_HTML), 'utf-8'));
 
+    const sidebarLinks = await readFile(fromRoot('src/app/shared/dashboard-sidebar/sidebar-links.config.ts'), 'utf-8');
     expect(zenSidebar).toContain('goTo(link.path)');
-    expect(zenSidebar).toMatch(/ri-dashboard-line|ri-calendar-event-line|ri-settings-line/);
+    expect(zenSidebar).toContain('[class]="link.icon"');
+    expect(sidebarLinks).toMatch(/ri-dashboard-line/);
+    expect(sidebarLinks).toMatch(/ri-calendar-event-line/);
+    expect(sidebarLinks).toMatch(/ri-settings-line/);
 
     const notificationButtons = Array.from(topbar.querySelectorAll('[data-testid="dashboard-topbar-notifications"]'));
     expect(notificationButtons.length).toBeGreaterThanOrEqual(4);

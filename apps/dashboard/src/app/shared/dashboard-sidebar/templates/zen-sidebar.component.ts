@@ -39,7 +39,7 @@ import { SIDEBAR_LINKS, type SidebarLink } from '../sidebar-links.config';
                 <button
                    type="button"
                    (click)="goTo(link.path)"
-                   [attr.aria-label]="link.label"
+                   [attr.aria-label]="collapsed ? link.label : null"
                    [attr.aria-current]="isActive(link.path) ? 'page' : null"
                    class="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-200 transition-colors duration-200 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
                    [class.bg-purple-500/10]="isActive(link.path)"
@@ -66,7 +66,7 @@ import { SIDEBAR_LINKS, type SidebarLink } from '../sidebar-links.config';
                 <button
                    type="button"
                    (click)="goTo(link.path)"
-                   [attr.aria-label]="link.label"
+                   [attr.aria-label]="collapsed ? link.label : null"
                    [attr.aria-current]="isActive(link.path) ? 'page' : null"
                    class="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-200 transition-colors duration-200 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
                    [class.bg-purple-500/10]="isActive(link.path)"
