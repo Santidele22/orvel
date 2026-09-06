@@ -319,6 +319,38 @@ describe('public booking settings synchronization', () => {
     );
   });
 
+  it('derives public slot capacity from Equipo professionals, not business_settings.capacity', () => {
+    const migrationsDir = join(process.cwd(), '..', '..', 'supabase', 'migrations');
+    const files = readdirSync(migrationsDir)
+      .filter((entry) => entry.endsWith('.sql'))
+      .sort();
+    const latestQuery = [...files].reverse().find((entry) =>
+      /create\s+or\s+replace\s+function\s+(?:public\.)?_query_booking_slot_availability/i.test(
+        readFileSync(join(migrationsDir, entry), 'utf-8')
+      )
+    );
+    const latestAssert = [...files].reverse().find((entry) =>
+      /create\s+or\s+replace\s+function\s+(?:public\.)?_assert_no_slot_conflict/i.test(
+        readFileSync(join(migrationsDir, entry), 'utf-8')
+      )
+    );
+
+    expect(latestQuery).toBeTruthy();
+    expect(latestAssert).toBeTruthy();
+
+    const querySql = readFileSync(join(migrationsDir, latestQuery!), 'utf-8');
+    const assertSql = readFileSync(join(migrationsDir, latestAssert!), 'utf-8');
+    const helperSql = files
+      .map((entry) => readFileSync(join(migrationsDir, entry), 'utf-8'))
+      .join('\n');
+
+    expect(helperSql).toMatch(/_slot_capacity_from_professionals/i);
+    expect(querySql).toMatch(/_slot_capacity_from_professionals\s*\(/i);
+    expect(assertSql).toMatch(/_slot_capacity_from_professionals\s*\(/i);
+    expect(querySql).not.toMatch(/COALESCE\(\s*bs\.capacity/i);
+    expect(assertSql).not.toMatch(/COALESCE\(\s*bs\.capacity/i);
+  });
+
   it('formats booking day strings from the business timezone civil date instead of UTC ISO conversion', async () => {
     // Arrange
     const { toLocalCivilDate } = await loadPublicBookingPageModule();
