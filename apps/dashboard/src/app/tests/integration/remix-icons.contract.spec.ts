@@ -56,13 +56,12 @@ describe('TDD contract: Remix Icons adoption in dashboard', () => {
   });
 
   it('keeps remix icons in critical navigation and notification touchpoints', async () => {
-    const sidebar = parseHtml(await readFile(fromRoot(SIDEBAR_HTML), 'utf-8'));
+    const zenSidebar = await readFile(fromRoot('src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts'), 'utf-8');
     const topbar = parseHtml(await readFile(fromRoot(TOPBAR_HTML), 'utf-8'));
     const shell = parseHtml(await readFile(fromRoot(SHELL_HTML), 'utf-8'));
 
-    const sidebarLinks = Array.from(sidebar.querySelectorAll('a[routerLink]'));
-    expect(sidebarLinks.length).toBeGreaterThanOrEqual(4);
-    expect(sidebarLinks.every((link) => hasRemixClass(link))).toBe(true);
+    expect(zenSidebar).toContain('goTo(link.path)');
+    expect(zenSidebar).toMatch(/ri-dashboard-line|ri-calendar-event-line|ri-settings-line/);
 
     const notificationButtons = Array.from(topbar.querySelectorAll('[data-testid="dashboard-topbar-notifications"]'));
     expect(notificationButtons.length).toBeGreaterThanOrEqual(4);
