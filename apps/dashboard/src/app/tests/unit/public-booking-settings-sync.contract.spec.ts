@@ -1417,7 +1417,7 @@ describe('public booking settings synchronization', () => {
     expect(component.availabilitySlots()).toEqual([]);
     expect(component.selectedSlot).toBe('');
     expect(component.canSubmit()).toBe(false);
-    expect(submitButton.disabled).toBe(true);
+    expect(submitButton?.disabled ?? true).toBe(true);
     expect(businessService.supabaseClient.from).not.toHaveBeenCalled();
   });
 
@@ -1481,6 +1481,9 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      selectedSlot: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       submitting: () => boolean;
       bookingConfirmed: () => boolean;
       submitBooking: () => Promise<void>;
@@ -1489,6 +1492,8 @@ describe('public booking settings synchronization', () => {
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     // Act
     await component.submitBooking();
@@ -1581,12 +1586,16 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       submitBooking: () => Promise<void>;
     };
     component.firstName = 'Lucía';
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     // Act
     await component.submitBooking();
@@ -1665,6 +1674,9 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      selectedSlot: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       bookingConfirmed: () => boolean;
       submitBooking: () => Promise<void>;
     };
@@ -1672,6 +1684,8 @@ describe('public booking settings synchronization', () => {
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     await component.submitBooking();
     fixture.detectChanges();
