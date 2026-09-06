@@ -5,7 +5,6 @@ import { getActivePlans, calculateBillingPrices } from '../lib/plans';
 import PrelaunchHeader from '../components/organisms/prelaunch/PrelaunchHeader.astro';
 import PrelaunchHero from '../components/organisms/prelaunch/PrelaunchHero.astro';
 import PrelaunchRubros from '../components/organisms/prelaunch/PrelaunchRubros.astro';
-import PremiumTrial from '../components/organisms/prelaunch/PremiumTrial.astro';
 import PrelaunchHowItWorks from '../components/organisms/prelaunch/PrelaunchHowItWorks.astro';
 import PrelaunchPublicTurnero from '../components/organisms/prelaunch/PrelaunchPublicTurnero.astro';
 import PrelaunchProductShowcase from '../components/organisms/prelaunch/PrelaunchProductShowcase.astro';
@@ -27,7 +26,6 @@ const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` 
   <PrelaunchHeader />
   <PrelaunchHero />
   <PrelaunchRubros />
-  <PremiumTrial />
   <PrelaunchHowItWorks />
   <PrelaunchPublicTurnero />
   <PrelaunchProductShowcase />
