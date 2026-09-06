@@ -165,6 +165,27 @@ describe('Sprint 2 RED - Business Settings form contract', () => {
     ).toEqual([]);
   });
 
+  it('lets the authenticated owner read and upsert their profiles row', () => {
+    const migrations = readMigrationSources().join('\n');
+    const service = readBusinessServiceSource();
+
+    expect(migrations, 'profiles must allow the authenticated owner to read their row').toMatch(
+      /CREATE POLICY "Users read own profile"[\s\S]*ON public\.profiles[\s\S]*FOR SELECT[\s\S]*TO authenticated[\s\S]*USING \(id = auth\.uid\(\)\)/i
+    );
+    expect(migrations, 'profiles must allow the authenticated owner to insert their row').toMatch(
+      /CREATE POLICY "Users insert own profile"[\s\S]*ON public\.profiles[\s\S]*FOR INSERT[\s\S]*TO authenticated[\s\S]*WITH CHECK \(id = auth\.uid\(\)\)/i
+    );
+    expect(migrations, 'profiles must allow the authenticated owner to update their row').toMatch(
+      /CREATE POLICY "Users update own profile"[\s\S]*ON public\.profiles[\s\S]*FOR UPDATE[\s\S]*TO authenticated[\s\S]*USING \(id = auth\.uid\(\)\)[\s\S]*WITH CHECK \(id = auth\.uid\(\)\)/i
+    );
+    expect(service, 'Settings save must upsert profiles by owner id, not a silent update of zero rows').toMatch(
+      /from\(['"]profiles['"]\)[\s\S]*upsert\([\s\S]*id:\s*context\.ownerId[\s\S]*first_name:[\s\S]*last_name:[\s\S]*phone:/i
+    );
+    expect(service, 'Settings load must hydrate first_name, last_name, and phone from profiles').toMatch(
+      /from\(['"]profiles['"]\)[\s\S]*select\(['"]first_name, last_name, phone['"]\)[\s\S]*eq\(['"]id['"], context\.ownerId\)/i
+    );
+  });
+
   it('does not include identity columns when saving business_settings', () => {
     const payloadColumns = extractBusinessSettingsUpsertPayloadColumns(readBusinessServiceSource());
 

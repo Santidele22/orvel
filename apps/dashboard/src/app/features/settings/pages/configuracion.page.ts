@@ -857,19 +857,23 @@ export class ConfiguracionPage {
     const hours = nextDay.enabled
       ? [...others, { dayOfWeek, start: nextDay.start, end: nextDay.end }]
       : others;
-    await this.facade.replaceProfessionalHours(
-      professional.id,
-      this.teamWeekdays.map((day) => {
-        const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
-        return {
-          dayOfWeek: day.dayOfWeek,
-          start: row?.start || '09:00',
-          end: row?.end || '18:00',
-          enabled: Boolean(row)
-        };
-      })
-    );
-    await this.loadTeam();
+    try {
+      await this.facade.replaceProfessionalHours(
+        professional.id,
+        this.teamWeekdays.map((day) => {
+          const row = hours.find((hour) => hour.dayOfWeek === day.dayOfWeek);
+          return {
+            dayOfWeek: day.dayOfWeek,
+            start: row?.start || '09:00',
+            end: row?.end || '18:00',
+            enabled: Boolean(row)
+          };
+        })
+      );
+      await this.loadTeam();
+    } catch {
+      this.formMessage.set('No se pudo guardar el horario. Revisá los valores e intentá nuevamente.');
+    }
   }
 
   async saveTeamProfessional(professional: {

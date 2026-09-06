@@ -36,6 +36,33 @@ test('deploy-promotion builds the dashboard with an Angular configuration that e
   );
 });
 
+test('deploy-promotion does not pass Vercel CLI --target preview on QA', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.doesNotMatch(source, /vercel_target=preview/);
+  assert.doesNotMatch(source, /--target preview/);
+  assert.doesNotMatch(source, /vercel-args: '--target /);
+  assert.match(
+    source,
+    /vercel_args=--prod/,
+    'Production deploys must keep --prod. QA must omit --target; Vercel CLI 25 rejects --target preview.',
+  );
+});
+
+test('deploy-promotion uses Vercel CLI 47+ instead of vercel-action v25', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.doesNotMatch(source, /amondnet\/vercel-action/);
+  assert.match(source, /npx vercel@59\.11\.7/);
+});
+
+test('deploy-promotion uploads the prebuilt dashboard browser output', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.match(source, /dist\/salon-de-belleza\/browser/);
+  assert.match(source, /vercel_alias=qa\.orvel\.pro/);
+});
+
 test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 

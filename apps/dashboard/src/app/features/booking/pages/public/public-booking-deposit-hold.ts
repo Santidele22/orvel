@@ -105,6 +105,96 @@ export function readPublicDepositHold(data: PublicDepositHoldSource): PublicDepo
   return hold;
 }
 
+export const DEPOSIT_HOLD_DURATION_MS = 30 * 60 * 1000;
+const DEPOSIT_HOLD_STORAGE_PREFIX = 'orvel.public-deposit-hold:';
+
+export type DepositHoldStorageLike = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+export function remainingDepositHoldMs(expiresAtIso: string, nowMs = Date.now()): number {
+  const expires = new Date(expiresAtIso).getTime();
+  if (Number.isNaN(expires)) {
+    return 0;
+  }
+  return Math.max(0, expires - nowMs);
+}
+
+export function formatDepositHoldCountdown(remainingMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function depositHoldRingProgress(
+  remainingMs: number,
+  totalMs = DEPOSIT_HOLD_DURATION_MS
+): number {
+  if (totalMs <= 0) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, remainingMs / totalMs));
+}
+
+export function depositHoldStorageKey(slug: string): string {
+  return `${DEPOSIT_HOLD_STORAGE_PREFIX}${slug}`;
+}
+
+export function persistPublicDepositHold(
+  storage: DepositHoldStorageLike,
+  slug: string,
+  hold: PublicDepositHoldView
+): void {
+  const trimmed = slug.trim();
+  if (!trimmed) {
+    return;
+  }
+  storage.setItem(depositHoldStorageKey(trimmed), JSON.stringify(hold));
+}
+
+export function clearPublicDepositHold(storage: DepositHoldStorageLike, slug: string): void {
+  const trimmed = slug.trim();
+  if (!trimmed) {
+    return;
+  }
+  storage.removeItem(depositHoldStorageKey(trimmed));
+}
+
+export function restorePublicDepositHold(
+  storage: DepositHoldStorageLike,
+  slug: string,
+  nowMs = Date.now()
+): PublicDepositHoldView | null {
+  const trimmed = slug.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const raw = storage.getItem(depositHoldStorageKey(trimmed));
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as PublicDepositHoldView;
+    if (!parsed?.code || !parsed.expiresAtIso) {
+      storage.removeItem(depositHoldStorageKey(trimmed));
+      return null;
+    }
+    if (remainingDepositHoldMs(parsed.expiresAtIso, nowMs) <= 0) {
+      storage.removeItem(depositHoldStorageKey(trimmed));
+      return null;
+    }
+    return parsed;
+  } catch {
+    storage.removeItem(depositHoldStorageKey(trimmed));
+    return null;
+  }
+}
+
 export function formatDepositHoldExpiry(iso: string, nowMs = Date.now()): string {
   const expires = new Date(iso);
   if (Number.isNaN(expires.getTime())) {
@@ -119,18 +209,48 @@ export function formatDepositHoldExpiry(iso: string, nowMs = Date.now()): string
   return `${formatted} (quedan ${remainingMinutes} min)`;
 }
 
-export function buildSeñaReceiptWhatsAppUrl(
-  phone: string | null | undefined,
-  details?: { code?: string | null; amountPesos?: number | null }
-): string | null {
+export function formatDepositHoldDueLabel(iso: string): string {
+  const expires = new Date(iso);
+  if (Number.isNaN(expires.getTime())) {
+    return iso;
+  }
+
+  const datePart = new Intl.DateTimeFormat('es-AR', {
+    day: 'numeric',
+    month: 'numeric'
+  }).format(expires);
+  const timePart = new Intl.DateTimeFormat('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(expires);
+  return `${datePart} a las ${timePart}`;
+}
+
+function toArgentinaWhatsAppDigits(phone: string | null | undefined): string | null {
   const digits = String(phone ?? '').replace(/\D/g, '');
   if (digits.length < 8) {
     return null;
   }
 
-  let international = digits;
-  if (!international.startsWith('54')) {
-    international = `54${international.replace(/^0/, '')}`;
+  if (digits.startsWith('54')) {
+    return digits;
+  }
+
+  return `54${digits.replace(/^0/, '')}`;
+}
+
+export function formatDepositWhatsAppDisplay(phone: string | null | undefined): string | null {
+  const international = toArgentinaWhatsAppDigits(phone);
+  return international ? `+${international}` : null;
+}
+
+export function buildSeñaReceiptWhatsAppUrl(
+  phone: string | null | undefined,
+  details?: { code?: string | null; amountPesos?: number | null }
+): string | null {
+  const international = toArgentinaWhatsAppDigits(phone);
+  if (!international) {
+    return null;
   }
 
   const parts = ['Hola, te mando el comprobante de la seña'];

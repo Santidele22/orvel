@@ -11,6 +11,8 @@ import {
   BookingCrudService,
   BookingNotificationsService,
   BookingSchedulingService,
+  appointmentStatusLabel,
+  isDepositUnpaid,
   type BookingRecord
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
@@ -735,6 +737,14 @@ export class TurnosListPage implements OnInit, OnDestroy {
 
   protected getHoraFin(turno: TurnoWithRelations): string {
     return this.addMinutes(turno.hora, turno.duracionMinutos);
+  }
+
+  protected appointmentBadgeLabel(turno: TurnoWithRelations): string {
+    return appointmentStatusLabel(turno.estado, turno.depositStatus);
+  }
+
+  protected depositPending(turno: TurnoWithRelations): boolean {
+    return isDepositUnpaid(turno.depositStatus);
   }
 
   protected formatFecha(fecha: Date): string {

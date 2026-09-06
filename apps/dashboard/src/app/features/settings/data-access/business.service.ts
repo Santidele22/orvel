@@ -333,12 +333,16 @@ export class BusinessService {
 
     const { error: profileError } = await this.supabaseClient
       .from('profiles')
-      .update({
-        first_name: settings.firstName ?? '',
-        last_name: settings.lastName ?? '',
-        phone: settings.phone ?? ''
-      })
-      .eq('id', context.ownerId);
+      .upsert(
+        {
+          id: context.ownerId,
+          first_name: settings.firstName ?? '',
+          last_name: settings.lastName ?? '',
+          phone: settings.phone ?? '',
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'id' }
+      );
 
     if (profileError) {
       throw this.failLoad('No se pudo guardar el perfil.', 'PROFILE_SAVE_FAILED');

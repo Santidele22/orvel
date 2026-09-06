@@ -434,11 +434,11 @@ describe('public booking settings synchronization', () => {
     // Assert
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
-    const slotSelect = fixture.nativeElement.querySelector('select[name="selectedSlot"]') as HTMLSelectElement | null;
+    const slotChips = fixture.nativeElement.querySelectorAll('[data-testid="booking-availability-slot"]');
     expect(dayButtons).toHaveLength(0);
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).toContain('Reintentar');
-    expect(slotSelect?.textContent).not.toContain('No hay turnos disponibles para este día');
+    expect(slotChips.length).toBe(0);
     expect(console.warn).toHaveBeenCalled();
   });
 
@@ -1084,12 +1084,12 @@ describe('public booking settings synchronization', () => {
 
     // Assert
     const availabilityError = fixture.nativeElement.querySelector('[data-testid="booking-availability-error"]') as HTMLElement | null;
-    const slotSelect = fixture.nativeElement.querySelector('select[name="selectedSlot"]') as HTMLSelectElement | null;
+    const slotTrigger = fixture.nativeElement.querySelector('[data-testid="booking-slot-trigger"]') as HTMLButtonElement | null;
     const slotOptions = fixture.nativeElement.querySelectorAll('[data-testid="booking-availability-slot"]');
     expect(availabilityError?.textContent).toContain('No pudimos consultar los horarios disponibles. Intentá nuevamente.');
     expect(availabilityError?.textContent).toContain('Reintentar');
     expect(availabilityError?.textContent).not.toContain('provider stack trace');
-    expect(slotSelect?.disabled).toBe(true);
+    expect(slotTrigger?.disabled).toBe(true);
     expect(slotOptions.length).toBe(0);
     expect(publicBookingFailureEvents()).toContainEqual({
       feature: 'public-booking',
@@ -1449,7 +1449,7 @@ describe('public booking settings synchronization', () => {
     expect(component.availabilitySlots()).toEqual([]);
     expect(component.selectedSlot).toBe('');
     expect(component.canSubmit()).toBe(false);
-    expect(submitButton.disabled).toBe(true);
+    expect(submitButton?.disabled ?? true).toBe(true);
     expect(businessService.supabaseClient.from).not.toHaveBeenCalled();
   });
 
@@ -1513,6 +1513,9 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      selectedSlot: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       submitting: () => boolean;
       bookingConfirmed: () => boolean;
       submitBooking: () => Promise<void>;
@@ -1521,6 +1524,8 @@ describe('public booking settings synchronization', () => {
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     // Act
     await component.submitBooking();
@@ -1613,12 +1618,16 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       submitBooking: () => Promise<void>;
     };
     component.firstName = 'Lucía';
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     // Act
     await component.submitBooking();
@@ -1697,6 +1706,9 @@ describe('public booking settings synchronization', () => {
       lastName: string;
       whatsapp: string;
       email: string;
+      selectedSlot: string;
+      availabilitySlots: () => Array<{ startsAtIso: string }>;
+      expandedStep: { set: (step: 'contact') => void };
       bookingConfirmed: () => boolean;
       submitBooking: () => Promise<void>;
     };
@@ -1704,6 +1716,8 @@ describe('public booking settings synchronization', () => {
     component.lastName = 'García';
     component.whatsapp = '1112345678';
     component.email = 'lucia@example.com';
+    component.selectedSlot = component.availabilitySlots()[0]?.startsAtIso || '2026-06-29T12:00:00.000Z';
+    component.expandedStep.set('contact');
 
     await component.submitBooking();
     fixture.detectChanges();

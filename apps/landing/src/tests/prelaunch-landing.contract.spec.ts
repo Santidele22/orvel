@@ -10,7 +10,7 @@ const COMPOSED_PRELAUNCH = [
   'PrelaunchHeader.astro',
   'PrelaunchHero.astro',
   'PrelaunchRubros.astro',
-  'EarlyBird.astro',
+  'PremiumTrial.astro',
   'PrelaunchHowItWorks.astro',
   'PrelaunchPublicTurnero.astro',
   'PrelaunchProductShowcase.astro',
@@ -37,7 +37,8 @@ function expectUsablePrelaunchComposition(page: string): void {
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHeader/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchHero/);
   expect(page).toMatch(/organisms\/prelaunch\/PrelaunchRubros/);
-  expect(page).toMatch(/organisms\/prelaunch\/EarlyBird/);
+  expect(page).toMatch(/organisms\/prelaunch\/PremiumTrial/);
+  expect(page).not.toMatch(/organisms\/prelaunch\/EarlyBird/);
   expect(page).not.toMatch(/organisms\/prelaunch\/PrelaunchProblem/);
   expect(page).not.toMatch(/<PrelaunchProblem/);
   expect(page).not.toMatch(/id=["']el-problema["']/);
@@ -51,7 +52,7 @@ function expectUsablePrelaunchComposition(page: string): void {
     /organisms\/prelaunch\/PrelaunchHero[\s\S]*organisms\/prelaunch\/PrelaunchRubros/
   );
   expect(page).toMatch(
-    /organisms\/prelaunch\/PrelaunchRubros[\s\S]*organisms\/prelaunch\/EarlyBird/
+    /organisms\/prelaunch\/PrelaunchRubros[\s\S]*organisms\/prelaunch\/PremiumTrial/
   );
   expect(page).toMatch(
     /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchPublicTurnero[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
@@ -87,6 +88,9 @@ describe('Contract: public index is the usable prelaunch landing', () => {
     expect(publicSurface).toContain('/auth/signup/plan');
     expect(publicSurface).not.toMatch(/js-open-waitlist/);
     expect(publicSurface).not.toMatch(/Quiero mi lugar/);
+    expect(publicSurface).not.toMatch(/Primeros 50/);
+    expect(publicSurface).not.toMatch(/50 lugares/);
+    expect(publicSurface).not.toMatch(/franja/i);
     expect(publicSurface).not.toMatch(/fundadores?/i);
     expect(index).not.toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
     expect(index).not.toContain('/auth/signup/credentials');

@@ -155,7 +155,9 @@ describe('K02 - Configuración Zod validation RED contract', () => {
       '11 1234-5678',
       '011 15 1234 5678',
       '351 123 4567',
-      '+54 351 123 4567'
+      '+54 351 123 4567',
+      '+54294667788',
+      '0294 15 667788'
     ];
 
     for (const phone of validArgentinaPhones) {
@@ -289,5 +291,26 @@ describe('K02 - Configuración Zod validation RED contract', () => {
     });
 
     expect(result.isValid).toBe(true);
+  });
+
+  it('does not surface Zod Invalid input when hydrated settings send nulls', async () => {
+    const { validateConfiguracionForm } = await loadConfiguracionValidationModule();
+
+    const result = validateConfiguracionForm({
+      ...validBaseInput,
+      firstName: null,
+      lastName: null,
+      supportEmail: null,
+      phone: null,
+      whatsapp: null,
+      instagram: null,
+      logoUrl: null,
+      coverUrl: null,
+      capacity: null,
+      cleanupTimeMinutes: null
+    } as unknown as ConfiguracionValidationInput);
+
+    expect(result.isValid).toBe(true);
+    expect(Object.values(result.fieldErrors)).not.toContain('Invalid input');
   });
 });

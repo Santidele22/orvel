@@ -6,12 +6,14 @@ import { firstValueFrom } from 'rxjs';
 import { getSupabaseAuthClient } from '../../../core/auth/route-protection';
 import {
   buildPremiumWhatsAppUrl,
-  copyPremiumAlias,
-  markPremiumReviewPending
+  copyPremiumAlias
 } from '../../../core/billing/premium-alias-receipt';
 import { AuthService } from '../../../services/auth.service';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
+import { startPremiumTrialForCurrentBusiness } from '../start-premium-trial.client';
+import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
+import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
 
 const AGENDA_ROUTE = '/dashboard/turnos';
 
@@ -35,7 +37,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
             }
             @if (wizard.step !== 6) {
               <div class="in-app-auth__dots" aria-label="Progreso">
-                @for (dot of [1, 2, 3, 4]; track dot) {
+                @for (dot of [1, 2, 3]; track dot) {
                   <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
                 }
               </div>
@@ -73,6 +75,8 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 type="button"
                 class="in-app-auth__chip"
                 [class.is-selected]="wizard.selectedRubros.includes(rubro.code)"
+                [class.is-dimmed]="wizard.selectedRubros.length === 1 && !wizard.selectedRubros.includes(rubro.code)"
+                [attr.aria-pressed]="wizard.selectedRubros.includes(rubro.code)"
                 (click)="wizard.toggleRubro(rubro.code)"
               >
                 {{ rubro.label }}
@@ -127,43 +131,10 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           </button>
         }
 
-        @if (wizard.step === 4) {
-          <p class="in-app-auth__step-pill">Paso 4 de 4</p>
-          <h1>¿Qué plan querés?</h1>
-          <p class="in-app-auth__lede">Arrancás gratis igual. Vos decidís cuándo sumar más.</p>
-          <div class="in-app-auth__plans">
-            <article class="in-app-auth__plan">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Free</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--free">Activo ya</span>
-              </header>
-              <p class="in-app-auth__lede">Entrás ahora, sin pagar nada.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>1 local</li>
-                <li>1 rubro</li>
-                <li>Sin pago, sin tarjeta</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta in-app-auth__cta--light" (click)="chooseFree()">Empezar gratis</button>
-            </article>
-            <article class="in-app-auth__plan in-app-auth__plan--premium">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Premium</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">Pendiente</span>
-              </header>
-              <p class="in-app-auth__lede">Lo pedís, lo activamos nosotros.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>Agenda sin límites</li>
-                <li>No se cobra ni se activa solo</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta" (click)="requestPremium()">Pedir Premium y entrar</button>
-            </article>
-          </div>
-        }
-
         @if (wizard.step === 5) {
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          <p class="in-app-auth__lede">Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.</p>
+          <p class="in-app-auth__lede">Tenés 14 días de Premium activos.</p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
         }
 
@@ -383,9 +354,15 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       align-items: center;
       gap: 8px;
       cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     }
     .in-app-auth__chip.is-selected {
+      background: #7C3AED;
       border-color: #7C3AED;
+      color: #F8F7FF;
+    }
+    .in-app-auth__chip.is-dimmed {
+      opacity: 0.38;
     }
     .in-app-auth__error { margin: 0 0 12px; color: #EF4444; font-weight: 600; }
     .in-app-auth__success-badge {
@@ -559,32 +536,53 @@ export class InAppSignupWizardPage {
     this.errorMessage.set('');
     this.submitting.set(true);
     try {
-      const payload = this.wizard.buildCreateAccountPayload();
-      const created = await createFreeAccountBusiness(payload);
-      if (!created.ok) {
-        this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
+      if (!this.wizard.createdFree) {
+        const payload = this.wizard.buildCreateAccountPayload();
+        const created = await createFreeAccountBusiness(payload);
+        if (!created.ok) {
+          this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
+          return;
+        }
+        await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
+        this.wizard.markAccountCreated();
+      }
+      const businessId = await this.resolveCurrentBusinessId();
+      if (!businessId) {
+        this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
         return;
       }
-      await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
-      this.wizard.markAccountCreated();
+      const supabase = createSupabaseBrowserClient({
+        supabaseUrl: SUPABASE_CONFIG.url,
+        supabaseAnonKey: SUPABASE_CONFIG.anonKey
+      });
+      const started = await startPremiumTrialForCurrentBusiness(businessId, supabase);
+      if (!started.ok) {
+        this.errorMessage.set(started.message);
+        return;
+      }
+      this.wizard.startPremiumTrial();
+      await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+      this.triggerSignupSuccessConfetti();
     } catch {
-      this.errorMessage.set('No pudimos crear la cuenta. Reintentá en unos segundos.');
+      this.errorMessage.set(
+        this.wizard.createdFree
+          ? 'No pudimos activar la prueba. Reintentá en unos segundos.'
+          : 'No pudimos crear la cuenta. Reintentá en unos segundos.'
+      );
     } finally {
       this.submitting.set(false);
     }
   }
 
-  protected chooseFree(): void {
-    this.wizard.chooseFree();
-    this.triggerSignupSuccessConfetti();
-  }
-
-  protected async requestPremium(): Promise<void> {
-    this.wizard.requestPremium();
-    if (typeof window !== 'undefined') {
-      markPremiumReviewPending(window.localStorage);
+  private async resolveCurrentBusinessId(): Promise<string | null> {
+    const auth = getSupabaseAuthClient();
+    const authState = await auth.getDashboardAuthState();
+    if (typeof authState.data?.business_id === 'string' && authState.data.business_id) {
+      return authState.data.business_id;
     }
-    await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+    const session = await auth.getSession();
+    const metadataId = session.data.session?.user.user_metadata?.['business_id'];
+    return typeof metadataId === 'string' && metadataId ? metadataId : null;
   }
 
   protected whatsAppUrl(): string {
