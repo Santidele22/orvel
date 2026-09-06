@@ -354,39 +354,62 @@
 
               <!-- Time Slot Picker -->
               <div class="space-y-4">
-                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                  <i class="ri-time-line text-purple-500 text-base"></i>
+                <label class="ml-1 flex items-center gap-2 text-sm font-medium text-slate-400">
+                  <i class="ri-time-line text-base text-purple-500"></i>
                   Horario
                   @if (loadingSlots()) {
-                    <i class="ri-loader-4-line animate-spin text-purple-500 ml-auto"></i>
+                    <i class="ri-loader-4-line ml-auto animate-spin text-purple-500"></i>
                   }
                 </label>
-                
-                <div class="relative group">
-                  <select
-                    [(ngModel)]="selectedSlot"
-                    (ngModelChange)="onSlotChange()"
-                    name="selectedSlot"
-                    required
-                    [disabled]="loadingSlots() || availabilitySlots().length === 0"
-                    [class]="'w-full h-14 md:h-16 bg-black/20 border rounded-2xl px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 transition-all appearance-none cursor-pointer disabled:opacity-30 ' + 
-                            (fieldErrors()['slot'] ? 'border-red-500/50 focus:ring-red-500/10' : 'border-white/5 focus:border-purple-500 focus:ring-purple-500/10')"
+
+                <div class="space-y-3">
+                  <button
+                    type="button"
+                    data-testid="booking-slot-trigger"
+                    class="flex h-14 min-h-11 w-full items-center justify-between rounded-2xl border bg-black/20 px-6 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-30"
+                    [class]="fieldErrors()['slot']
+                      ? 'border-red-500/50 text-white focus-visible:ring-red-500/40'
+                      : 'border-white/5 text-white focus-visible:ring-[#7C3AED]'"
+                    [disabled]="loadingSlots() || !!availabilityErrorMessage() || availabilitySlots().length === 0"
+                    [attr.aria-expanded]="slotPickerOpen()"
+                    aria-haspopup="listbox"
+                    (click)="toggleSlotPicker()"
                   >
-                    @if (availabilityErrorMessage() && !loadingSlots()) {
-                      <option value="" class="bg-[#1E293B]">No pudimos consultar los horarios. Intentá nuevamente.</option>
-                    } @else if (availabilitySlots().length === 0 && !loadingSlots()) {
-                      <option value="" class="bg-[#1E293B]">No hay turnos disponibles para este día</option>
-                    } @else {
-                      <option value="" disabled class="bg-[#1E293B]">Selecciona un horario disponible</option>
+                    <span class="truncate" [class.text-slate-400]="!selectedSlot">
+                      @if (selectedSlot) {
+                        {{ formatSlot(selectedSlot).split(' - ')[1] || formatSlot(selectedSlot) }} hs
+                      } @else if (!availabilityErrorMessage() && availabilitySlots().length === 0 && !loadingSlots()) {
+                        No hay turnos disponibles para este día
+                      } @else if (availabilityErrorMessage() && !loadingSlots()) {
+                        No pudimos consultar los horarios. Intentá nuevamente.
+                      } @else {
+                        Seleccioná un horario disponible
+                      }
+                    </span>
+                    <i class="ri-arrow-down-s-line text-xl text-slate-500 transition-transform" [class.rotate-180]="slotPickerOpen()"></i>
+                  </button>
+
+                  @if (slotPickerOpen() && !availabilityErrorMessage() && availabilitySlots().length > 0) {
+                    <div class="grid grid-cols-3 gap-2 rounded-2xl bg-black/30 p-3" role="listbox" aria-label="Horarios disponibles">
                       @for (slot of availabilitySlots(); track slot.startsAtIso) {
                         @let remainingCapacity = slot.remainingCapacity;
-                        <option [value]="slot.startsAtIso" class="bg-[#1E293B]" data-testid="booking-availability-slot">{{ formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso) }} · Quedan {{ remainingCapacity }} lugares</option>
+                        <button
+                          type="button"
+                          role="option"
+                          data-testid="booking-availability-slot"
+                          class="min-h-11 rounded-xl px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                          [class]="selectedSlot === slot.startsAtIso
+                            ? 'bg-[#7C3AED] text-white'
+                            : 'bg-black/40 text-slate-400 hover:bg-white/5 hover:text-slate-200'"
+                          [attr.aria-selected]="selectedSlot === slot.startsAtIso"
+                          [attr.aria-label]="(formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso)) + ' hs, quedan ' + remainingCapacity + ' lugares'"
+                          (click)="selectSlot(slot.startsAtIso)"
+                        >
+                          {{ formatSlot(slot.startsAtIso).split(' - ')[1] || formatSlot(slot.startsAtIso) }}
+                        </button>
                       }
-                    }
-                  </select>
-                  <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-purple-400 transition-colors">
-                    <i class="ri-arrow-down-s-line text-xl"></i>
-                  </div>
+                    </div>
+                  }
                 </div>
                 
                 @if (fieldErrors()['slot']) {
