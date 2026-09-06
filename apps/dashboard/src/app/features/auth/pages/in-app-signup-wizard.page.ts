@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { getSupabaseAuthClient } from '../../../core/auth/route-protection';
 import {
@@ -20,7 +19,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
 @Component({
   selector: 'app-in-app-signup-wizard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule],
   template: `
     <main class="in-app-auth">
       <section
@@ -28,44 +27,37 @@ const AGENDA_ROUTE = '/dashboard/turnos';
         [class.in-app-auth__card--success]="wizard.step === 5"
         [class.in-app-auth__card--paso-final]="wizard.step === 6"
       >
-        @if (wizard.showsStepChrome()) {
-          <header class="in-app-auth__header">
-            @if (wizard.canGoBack()) {
-              <button type="button" class="in-app-auth__back" (click)="wizard.back()">Volver</button>
-            } @else {
-              <a routerLink="/auth/login" class="in-app-auth__back">Volver</a>
+        <header class="in-app-auth__header" [hidden]="!wizard.showsStepChrome()">
+          <button type="button" class="in-app-auth__back" [hidden]="!wizard.canGoBack()" (click)="back()">Volver</button>
+          <a href="/dashboard/login" class="in-app-auth__back" [hidden]="wizard.canGoBack()">Volver</a>
+          <div class="in-app-auth__dots" aria-label="Progreso" [hidden]="wizard.step === 6">
+            @for (dot of [1, 2, 3]; track dot) {
+              <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
             }
-            @if (wizard.step !== 6) {
-              <div class="in-app-auth__dots" aria-label="Progreso">
-                @for (dot of [1, 2, 3]; track dot) {
-                  <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
-                }
-              </div>
-            }
-          </header>
-        }
+          </div>
+        </header>
 
-        @if (wizard.step === 1) {
+        <div [hidden]="wizard.step !== 1">
           <p class="in-app-auth__eyebrow">Paso 1</p>
           <h1>¿Cómo te llamás?</h1>
           <label class="in-app-auth__field">
             Tu nombre
-            <input name="ownerName" autocomplete="given-name" [(ngModel)]="wizard.ownerName" />
+            <input name="ownerName" autocomplete="given-name" [value]="wizard.ownerName" (input)="syncIdentityField('ownerName', $event)" />
           </label>
           <label class="in-app-auth__field">
             Apellido
-            <input name="ownerLastName" autocomplete="family-name" [(ngModel)]="wizard.ownerLastName" />
+            <input name="ownerLastName" autocomplete="family-name" [value]="wizard.ownerLastName" (input)="syncIdentityField('ownerLastName', $event)" />
           </label>
           <label class="in-app-auth__field">
             Nombre del negocio
-            <input name="businessName" [(ngModel)]="wizard.businessName" />
+            <input name="businessName" [value]="wizard.businessName" (input)="syncIdentityField('businessName', $event)" />
           </label>
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue()" (click)="wizard.continue()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue()" (click)="continue()">
             Continuar
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 2) {
+        <div [hidden]="wizard.step !== 2">
           <p class="in-app-auth__eyebrow">Paso 2</p>
           <h1>¿Qué rubro tenés?</h1>
           <p class="in-app-auth__lede">Elegí un rubro.</p>
@@ -77,18 +69,18 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 [class.is-selected]="wizard.selectedRubros.includes(rubro.code)"
                 [class.is-dimmed]="wizard.selectedRubros.length === 1 && !wizard.selectedRubros.includes(rubro.code)"
                 [attr.aria-pressed]="wizard.selectedRubros.includes(rubro.code)"
-                (click)="wizard.toggleRubro(rubro.code)"
+                (click)="toggleRubro(rubro.code)"
               >
                 {{ rubro.label }}
               </button>
             }
           </div>
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue()" (click)="wizard.continue()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue()" (click)="continue()">
             Continuar
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 3) {
+        <div [hidden]="wizard.step !== 3">
           <p class="in-app-auth__eyebrow">Paso 3</p>
           <h1>Creá tu acceso</h1>
           <label class="in-app-auth__field">
@@ -97,7 +89,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="email"
               name="email"
               autocomplete="username"
-              [(ngModel)]="wizard.email"
+              [value]="wizard.email"
               (input)="syncAccessField('email', $event)"
             />
           </label>
@@ -107,7 +99,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="password"
               name="password"
               autocomplete="new-password"
-              [(ngModel)]="wizard.password"
+              [value]="wizard.password"
               (input)="syncAccessField('password', $event)"
             />
           </label>
@@ -117,7 +109,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="password"
               name="confirmPassword"
               autocomplete="new-password"
-              [(ngModel)]="wizard.confirmPassword"
+              [value]="wizard.confirmPassword"
               (input)="syncAccessField('confirmPassword', $event)"
             />
           </label>
@@ -126,19 +118,19 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           } @else if (wizard.accessError()) {
             <p class="in-app-auth__error" role="alert">{{ wizard.accessError() }}</p>
           }
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue() || submitting()" (click)="createAccount()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue() || submitting()" (click)="createAccount()">
             Crear cuenta
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 5) {
+        <div [hidden]="wizard.step !== 5">
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
           <p class="in-app-auth__lede">Tenés 14 días de Premium activos.</p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
-        }
+        </div>
 
-        @if (wizard.step === 6) {
+        <div [hidden]="wizard.step !== 6">
           <p class="in-app-auth__step-pill">PASO FINAL</p>
           <h1>Transferí y mandá el comprobante</h1>
           <p class="in-app-auth__lede">
@@ -181,7 +173,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               </button>
             </div>
           </div>
-        }
+        </div>
       </section>
     </main>
   `,
@@ -194,6 +186,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       -webkit-overflow-scrolling: touch;
       background: #0A0A0A;
     }
+    [hidden] { display: none !important; }
     .in-app-auth {
       box-sizing: border-box;
       min-height: 100%;
@@ -525,10 +518,40 @@ export class InAppSignupWizardPage {
   protected readonly errorMessage = signal('');
   protected readonly submitting = signal(false);
   protected readonly aliasCopied = signal(false);
+  private readonly formTick = signal(0);
+
+  protected canContinue(): boolean {
+    this.formTick();
+    return this.wizard.canContinue();
+  }
+
+  protected continue(): void {
+    this.wizard.continue();
+    this.formTick.update(n => n + 1);
+  }
+
+  protected back(): void {
+    this.wizard.back();
+    this.formTick.update(n => n + 1);
+  }
+
+  protected toggleRubro(code: string): void {
+    this.wizard.toggleRubro(code);
+    this.formTick.update(n => n + 1);
+  }
+
+  protected syncIdentityField(
+    field: 'ownerName' | 'ownerLastName' | 'businessName',
+    event: Event
+  ): void {
+    this.wizard[field] = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.formTick.update(value => value + 1);
+  }
 
   protected syncAccessField(field: 'email' | 'password' | 'confirmPassword', event: Event): void {
     const value = (event.target as HTMLInputElement | null)?.value ?? '';
     this.wizard[field] = value;
+    this.formTick.update(n => n + 1);
   }
 
   protected async createAccount(): Promise<void> {
