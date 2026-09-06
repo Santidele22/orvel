@@ -528,7 +528,7 @@
               </div>
             }
 
-            @if (serviceDepositQuote(); as quote) {
+            @if (!rescheduleMode() && canShowContactStep() && serviceDepositQuote(); as quote) {
               <section
                 class="rounded-2xl border border-white/10 bg-[#0B1220] px-4 py-4 space-y-3"
                 data-testid="booking-deposit-required-notice"
@@ -595,6 +595,7 @@
               </section>
             }
 
+            @if (rescheduleMode() || canShowContactStep()) {
             <button
               type="submit"
               data-testid="booking-submit-action"
@@ -612,6 +613,7 @@
                 <span>{{ rescheduleMode() ? 'Confirmar reprogramación' : 'Confirmar Reserva' }}</span>
               }
             </button>
+            }
           </form>
 
           <footer class="mt-12 md:mt-16 pt-8 border-t border-white/5 text-center">

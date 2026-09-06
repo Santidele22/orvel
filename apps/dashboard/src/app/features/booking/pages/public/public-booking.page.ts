@@ -531,7 +531,18 @@ export class PublicBookingPage implements OnInit, OnDestroy {
   }
 
   protected canShowContactStep(): boolean {
-    return this.canShowScheduleStep() && Boolean(this.selectedSlot);
+    return this.canShowScheduleStep() && Boolean(this.selectedSlot) && this.expandedStep() === 'contact';
+  }
+
+  private resolveSelectedSlot(slots: Array<{ startsAtIso: string }>): string {
+    const preloadedSlot = this.preloadStartsAtIso && slots.some((slot) => slot.startsAtIso === this.preloadStartsAtIso)
+      ? this.preloadStartsAtIso
+      : '';
+    if (preloadedSlot) return preloadedSlot;
+    if (this.selectedSlot && slots.some((slot) => slot.startsAtIso === this.selectedSlot)) {
+      return this.selectedSlot;
+    }
+    return '';
   }
 
   private async loadProfessionalsForSelectedService(): Promise<void> {
@@ -645,10 +656,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
         }));
         this.availabilitySlots.set(slots);
         this.updateDayAvailability(date, true);
-        const preloadedSlot = this.preloadStartsAtIso && slots.some(slot => slot.startsAtIso === this.preloadStartsAtIso)
-          ? this.preloadStartsAtIso
-          : '';
-        this.selectedSlot = preloadedSlot || slots[0]?.startsAtIso || '';
+        this.selectedSlot = this.resolveSelectedSlot(slots);
       } else {
         // No slots available for this date - clear slots but don't block the dropdown
         this.availabilitySlots.set([]);
@@ -918,7 +926,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
         }));
         this.availabilitySlots.set(slots);
         this.updateDayAvailability(date, true);
-        this.selectedSlot = slots[0]?.startsAtIso || '';
+        this.selectedSlot = this.resolveSelectedSlot(slots);
       } else {
         this.availabilitySlots.set([]);
         this.updateDayAvailability(date, false);
