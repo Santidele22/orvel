@@ -1,6 +1,8 @@
 # Agent Rules - Orvel Monorepo
 
-Canonical entry for agents and humans. Product, architecture, environment, and Supabase detail live under `infra/context/`, not here.
+Canonical operating contract for agents and humans. This monorepo is the source of truth for Orvel (dashboard PWA, landing, Supabase). Product scope, architecture, environments, and Supabase detail live under `infra/context/`, not here.
+
+This file does not record product completeness. Treat `main` as production. Verify product claims against `infra/context/` and checked-in source; do not infer them from folder names or this contract.
 
 ## Communication
 
@@ -72,6 +74,7 @@ Hard rules:
 |------|------|
 | `apps/dashboard/` | Angular 21 PWA. Read `apps/dashboard/AGENTS.md` first. Run via `pnpm --dir apps/dashboard …`. |
 | `apps/landing/` | Astro 6 + Svelte 5. Read `apps/landing/AGENTS.md` first. Run via `pnpm --dir apps/landing …`. |
+| `apps/shared/` | Cross-app assets (currently email templates). Do not expand without Santi approval. |
 | `packages/` | Shared contracts and types only when the source of truth is clear. `packages/shared/` is reserved — do not extract into it yet. |
 | `supabase/` | Edge functions and migrations. Follow Supabase Safety and `infra/context/supabase.md`. |
 | `openspec/` | SDD artifacts. Preserve existing changes; do not rewrite unrelated specs. |
@@ -88,6 +91,7 @@ Root `pnpm run check` is the default local verification gate (dashboard + landin
 - When Santi asks for schema or function changes and credentials/context are available, update or push with the Supabase CLI immediately.
 - If credentials/context are missing, access is unavailable, or a command is blocked, stop and report the exact blocker.
 - Do not invent expected remote state. Use checked-in context, Supabase CLI output, or Santi-provided facts.
+- The documented pre-release linked project is `orvel-qa-dev`. Production identity is the non-revealing digest in `supabase/production-project-ref.sha256`. Do not invent project refs.
 
 ## Required Reporting
 
