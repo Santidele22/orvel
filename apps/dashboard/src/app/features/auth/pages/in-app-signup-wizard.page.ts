@@ -531,11 +531,6 @@ export class InAppSignupWizardPage {
     this.wizard[field] = value;
   }
 
-  protected syncAccessField(field: 'email' | 'password' | 'confirmPassword', event: Event): void {
-    const value = (event.target as HTMLInputElement | null)?.value ?? '';
-    this.wizard[field] = value;
-  }
-
   protected async createAccount(): Promise<void> {
     if (!this.wizard.canContinue() || this.submitting()) return;
     this.errorMessage.set('');
@@ -599,34 +594,6 @@ export class InAppSignupWizardPage {
     if (copied) {
       this.aliasCopied.set(true);
     }
-  }
-
-  private triggerSignupSuccessConfetti(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (reducedMotion) {
-      return;
-    }
-
-    void import('canvas-confetti')
-      .then(({ default: confetti }) => {
-        try {
-          confetti({
-            particleCount: 130,
-            spread: 72,
-            origin: { y: 0.64 },
-            colors: ['#8b5cf6', '#a855f7', '#34d399', '#f8f7ff']
-          });
-        } catch {
-          // Confetti is decorative only; signup success must never block on canvas support.
-        }
-      })
-      .catch(() => {
-        // Ignore loading issues for the optional celebration effect.
-      });
   }
 
   private triggerSignupSuccessConfetti(): void {
