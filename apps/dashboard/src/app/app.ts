@@ -21,7 +21,7 @@ export class App {
 
   onRouteActivate(): void {
     clearTimeout(this.splashHideTimeoutId);
-    this.bootSplashVisible.set(false);
+    queueMicrotask(() => this.bootSplashVisible.set(false));
   }
 
   private markBooted(): void {
