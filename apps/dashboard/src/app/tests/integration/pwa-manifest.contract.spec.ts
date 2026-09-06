@@ -94,6 +94,27 @@ describe('PWA: index.html meta tags for iOS', () => {
     expect(html).toContain('viewport-fit=cover');
   });
 
+  it('uses the Orvel brand favicon instead of the Angular default', async () => {
+    const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
+    const svg = await readFile(fromRoot('public/favicon.svg'), 'utf-8');
+    const svgIcon = html.match(/<link\b[^>]*>/gi)?.find(
+      (tag) =>
+        /\brel=["']icon["']/i.test(tag) &&
+        /\btype=["']image\/svg\+xml["']/i.test(tag) &&
+        /\bhref=["']favicon\.svg["']/i.test(tag),
+    );
+    const icoIcon = html.match(/<link\b[^>]*>/gi)?.find(
+      (tag) =>
+        /\brel=["']icon["']/i.test(tag) &&
+        /\bhref=["']favicon\.ico["']/i.test(tag),
+    );
+
+    expect(svgIcon).toBeDefined();
+    expect(icoIcon).toBeDefined();
+    expect(svg).toContain('Orvel');
+    expect(svg).toContain('orvel-mark');
+  });
+
   it('has apple-touch-icon link', async () => {
     const html = await readFile(fromRoot(INDEX_HTML_PATH), 'utf-8');
     const appleTouchIcon = html.match(/<link\b[^>]*>/gi)?.find(
