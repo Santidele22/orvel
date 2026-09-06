@@ -34,16 +34,15 @@ describe('createFreeAccountBusiness', () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
-  it('treats 202 + signup_confirmation_requested as failure, not success', async () => {
+  it('treats 202 + signup_confirmation_requested as success so the wizard can log in', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       jsonResponse(202, { ok: true, status: 'signup_confirmation_requested' })
     );
 
     const result = await createFreeAccountBusiness(payload, fetchImpl);
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
     expect(result.status).toBe('signup_confirmation_requested');
-    expect(result.message).toBe(GENERIC_MESSAGE);
   });
 
   it('treats 200 with missing or wrong status as failure', async () => {
