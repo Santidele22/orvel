@@ -8,6 +8,11 @@ export interface AppointmentTemplateData {
   price: number;
   contact: { phone: string; email: string };
   links?: { view?: string | null; cancel?: string | null; reschedule?: string | null };
+  depositAmount?: number | null;
+  depositAlias?: string | null;
+  depositCbu?: string | null;
+  depositCode?: string | null;
+  depositHoldMinutes?: number | null;
 }
 
 export interface EmailPayload {
