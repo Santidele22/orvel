@@ -79,4 +79,4 @@ Use files under `infra/context/` for current monorepo context. If a fact is not 
 
 The C4 view lives in [`docs/diagrams/01-monorepo-architecture.excalidraw`](../../docs/diagrams/01-monorepo-architecture.excalidraw) (open with [excalidraw.com](https://excalidraw.com) or VS Code Excalidraw). Glosa: [`docs/diagrams/01-monorepo-architecture.md`](../../docs/diagrams/01-monorepo-architecture.md).
 
-That glosa still describes a post-release-2.0 **target** and can lag `dev` (for example it may still talk about Mercado Pago on `dev` or a 12-function purge). This file is the current repo-shape contract; the diagram is not a substitute for `git ls-tree origin/dev`.
+The Excalidraw drawing can still lag. The glosa in `01-monorepo-architecture.md` tells agents not to copy stale footnotes. This file is the repo-shape contract; verify counts with `git ls-tree origin/dev`.
