@@ -1,6 +1,6 @@
 # 02 — Public Booking Flow
 
-> **Version**: current `dev` (post MVP Phase 1 + Core Slice 3/5, pre-release-2.0) · **Owner**: @santi · **State**: CURRENT (NOT target — see [Known gaps](#known-risks-and-gaps))
+> **Version**: current public booking flow · **Owner**: @santi · **State**: CURRENT. Companion C4 sketch: `01-monorepo-architecture.md` (drawing may lag; glosa is the contract).
 
 ```mermaid
 sequenceDiagram
@@ -111,7 +111,7 @@ sequenceDiagram
 ## What it does NOT show (see other diagrams)
 
 - Auth + session handoff for the admin/owner dashboard → `01-monorepo-architecture.md` (current) and `02-auth-target` (target, slot reserved in `docs/diagrams/README.md`).
-- Target post-release-2.0 architecture (outbox purge, `confirm-email.ts` only for signup, multi-profesional modeling) → `01-monorepo-architecture.md` and `07-multi-profesional`.
+- System sketch → `01-monorepo-architecture.md`. Multi-profesional is shipped in the product; there is no live `07-multi-profesional` diagram.
 - PWA offline walk-in queue and service-worker / IDB boundary → `04-pwa-offline-walkin-queue`, `05-pwa-sw-idb-boundary`.
 - Admin manual booking, blocked-time creation, and reschedule from inside the dashboard shell (those go through `create_admin_manual_booking`, `create_admin_blocked_time`, `update_admin_booking`, `cancel_admin_booking`, `reschedule_admin_booking` — same gateway, different callers).
 
@@ -251,12 +251,12 @@ Client-side failures funnel through `emitPublicBookingFailureEvent()` (`apps/das
 
 - **Manage token is delivered only via email, not in the UI.** `PublicBookingPage.submitBooking` receives `responseData.manageToken` from the gateway but discards it; the confirmation card never embeds `/booking/manage?token=...`. Verified at `apps/dashboard/src/app/features/booking/pages/public/manage-booking.page.ts:66` — the page reads `?token=` from the query param to fetch booking details but the token is never displayed to the user. Clients rely solely on the email link for cancel/reschedule access. If `process-email-outbox` is delayed or the customer mistypes their email, they lose access to cancel/reschedule for that booking. **Intent confirmed by source read**: keep current behavior, the email is the single source of truth.
 - **`apps/landing` does not host a public booking page.** The orchestrator's brief assumed Astro 6 + Svelte 5 `[business]/[service]/[slot]` pages; the actual flow is single-page Angular mounted at `<dashboard-origin>/booking/:slug`. The landing app has `apps/landing/src/pages/index.astro` plus auth/signup/plan/billing only — no booking routes were found by globbing `apps/landing/src/**/*.{astro,svelte,ts}`. If the long-term plan is to move this to landing, this diagram will need a rewrite.
-- **Booking emails go through `notification_email_outbox` + `process-email-outbox` on `dev`.** That is the documented behavior today (see the sequence). `01-monorepo-architecture.md` says the **target post-release-2.0** purges both. When the target lands, the `process-email-outbox` step in the first sequence diagram goes away, the `appointment_created_business` enqueue inside `create_public_booking` becomes a no-op or is replaced, and the customer manage URL has to be surfaced from the Angular UI directly.
+- **Booking emails go through `notification_email_outbox` + `process-email-outbox` on `dev`.** That is the documented behavior today (see the sequence). Outbox purge is not the live contract: `process-email-outbox` is still on `dev`. If that function is removed later, this sequence needs a rewrite and the manage URL has to be surfaced in the Angular UI.
 - **The migration that defines `create_public_booking` has been redefined 11 times** since `20260428110000_fix_public_booking_customers.sql` (verified via `grep "^CREATE OR REPLACE FUNCTION public\.create_public_booking" supabase/migrations/` — 27 matches, two per migration because of the overload pair). The latest is `20260724012000_add_business_settings_booking_knobs.sql`. Always read the latest in the `supabase/migrations/` directory before assuming a given clause (e.g., "principal branch fallback", "business email outbox required") is or isn't in the body.
 - **`_hash_manage_token` algorithm is plain SHA-256 with no pepper or salt.** Verified by reading `supabase/migrations/20260529010000_approved_booking_billing_contract.sql:305` and the canonical redefinition at `supabase/migrations/20260609030000_core_slice3_booking_canonical_contract.sql:79`. The function body is `SELECT encode(extensions.digest(p_token, 'sha256'), 'hex')` (pgcrypto extension). The raw manage token is never stored in `public.bookings`; only the hash is persisted in `manage_token_hash`. Implication: an offline leak of the `bookings.manage_token_hash` column is brute-forceable (SHA-256 is fast), so the column is treated as a high-value secret by RLS + migration access controls rather than by hashing strength. A future hardening pass could swap the body for HMAC-SHA-256 with a server-side pepper (similar to the existing `_resolve_booking_business_email` pattern); that would be a `CREATE OR REPLACE FUNCTION public._hash_manage_token` migration and should also rotate existing tokens.
 - **`branch_id` is hardcoded to `null` by the dashboard** (`real-gateway.ts:247`). Multi-branch public booking (one business, multiple serviceable branches) is therefore unreachable from the public site today. It works inside the dashboard shell via `create_admin_manual_booking` and admin reschedule. This is consistent with the single-principal-branch MVP, but worth re-stating.
 - **`create_public_booking` is `SECURITY DEFINER`.** Every overload grants `EXECUTE ... TO anon, authenticated` (e.g., `20260615174014_harden_public_bookings_direct_access.sql:12-13`). The static-contract tests (`p0-public-booking-static-contracts.test.ts`) assert that the body never `INSERT`s into `public.branches` at runtime and never uses `ON CONFLICT DO UPDATE` against `public.branches`. Treat any future migration that breaks that contract as a regression.
-- **ADR numbering collision** is also a concern on `docs/diagrams/`: `01-monorepo-architecture.md` describes target post-release-2.0; this `02-booking-public.md` describes current `dev`. New diagrams should make their version block explicit in the same format (Version · Owner · State).
+- C4 sketch vs this sequence: `01` is a lagging drawing; this file is the current public-booking flow. New diagrams should mark Version · Owner · State in the header.
 
 ## References
 
@@ -287,5 +287,5 @@ Client-side failures funnel through `emitPublicBookingFailureEvent()` (`apps/das
 - P0 MVP contract (gate on hash + branch ownership): `supabase/functions/_shared/p0-mvp-static-contracts.test.ts`
 - Account closure consumer contract: `supabase/functions/_shared/account-closure-consumer.test.ts`
 - CI workflow gating public booking: `.github/workflows/booking-regression.yml` (job `dashboard-booking-regressions`, runs `public-booking-settings-sync.contract.spec.ts`, `dashboard-notifications-business-scope.contract.spec.ts`, `manage-booking-m6-public-reschedule.red.contract.spec.ts`, `booking-email-lifecycle.contract.spec.ts`)
-- Companion architecture diagram: `docs/diagrams/01-monorepo-architecture.md` (target post-release-2.0)
+- Companion architecture diagram: `docs/diagrams/01-monorepo-architecture.md` (C4 sketch)
 - Diagram index: `docs/diagrams/README.md`
