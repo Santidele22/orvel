@@ -183,6 +183,30 @@ describe('legacy create-account-business boundary', () => {
     });
   });
 
+  it('returns signup_ready after provision even if confirmation outbox insert fails', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    supabase.confirmationOutboxInsert.mockResolvedValue({
+      error: { code: 'PGRST204', message: 'outbox insert failed' },
+    });
+    createClientMock.mockReturnValue(supabase.client);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const response = await postCreateAccountBusiness(validPayload('FREE'));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ ok: true, status: 'signup_ready' });
+      expect(supabase.authCreateUser).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        'signup_create_account_failed',
+        expect.objectContaining({ step: 'confirmation_or_outbox' }),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it('passes signup email into provisionFreeSignupTenant and persists live settings defaults', async () => {
     const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
     const provisionCall = source.match(/provisionFreeSignupTenant\s*\([\s\S]*?\}\s*\)/)?.[0] ?? '';
@@ -289,6 +313,21 @@ describe('legacy create-account-business boundary', () => {
     expect(latestBody).not.toMatch(/expires_at\s*<=\s*now\(\)/i);
   });
 
+  it('treats GoTrue already-registered as signup_confirmation_requested', async () => {
+    const supabase = createFreeSignupSupabaseMock();
+    supabase.authCreateUser.mockResolvedValue({
+      data: { user: null },
+      error: { code: 'email_exists', message: 'User already registered' },
+    });
+    createClientMock.mockReturnValue(supabase.client);
+
+    const response = await postCreateAccountBusiness(validPayload('FREE'));
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+  });
+
   it('rate-limit RPC errors return 503 signup_confirmation_retry, while data true still returns 202', async () => {
     const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
     const rateLimitFunction = /async\s+function\s+isRateLimited[\s\S]*?^}/m.exec(source)?.[0] ?? '';
@@ -299,42 +338,103 @@ describe('legacy create-account-business boundary', () => {
     expect(source).toMatch(/guard_signup_request_rate_limit[\s\S]{0,1200}signup_confirmation_retry/);
     expect(source).toMatch(/status:\s*["']signup_confirmation_requested["'][\s\S]{0,80}202/);
 
-    const rpcError = createFreeSignupSupabaseMock();
-    rpcError.rpc.mockImplementation(async (name: string) => {
-      if (name === 'guard_signup_request_rate_limit') {
-        return { data: null, error: { message: 'rpc failed' } };
-      }
-      if (name === 'provision_default_services_for_business') {
-        return { data: 1, error: null };
-      }
-      return { data: false, error: null };
-    });
-    createClientMock.mockReturnValue(rpcError.client);
+    const guardErrorCode = 'PGRST202';
+    const guardErrorClass = 'Could not find the function in the schema cache';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const retryResponse = await postCreateAccountBusiness(validPayload('FREE'));
-    const retryBody = await retryResponse.json();
+    try {
+      const rpcError = createFreeSignupSupabaseMock();
+      rpcError.rpc.mockImplementation(async (name: string) => {
+        if (name === 'guard_signup_request_rate_limit') {
+          return {
+            data: null,
+            error: {
+              code: guardErrorCode,
+              message: guardErrorClass,
+              details: 'ada@example.test',
+              hint: 'service-role-key',
+            },
+          };
+        }
+        if (name === 'provision_default_services_for_business') {
+          return { data: 1, error: null };
+        }
+        return { data: false, error: null };
+      });
+      createClientMock.mockReturnValue(rpcError.client);
 
-    expect(retryResponse.status).toBe(503);
-    expect(retryBody).toEqual({
-      error: 'signup_confirmation_retry',
-      message: 'No pudimos preparar la confirmación. Reintentá en unos segundos.',
-    });
-    expect(rpcError.authCreateUser).not.toHaveBeenCalled();
+      const retryResponse = await postCreateAccountBusiness(validPayload('FREE'));
+      const retryBody = await retryResponse.json();
 
-    const limited = createFreeSignupSupabaseMock();
-    limited.rpc.mockImplementation(async (name: string) => {
-      if (name === 'guard_signup_request_rate_limit') {
-        return { data: true, error: null };
-      }
-      return { data: false, error: null };
-    });
-    createClientMock.mockReturnValue(limited.client);
+      expect(retryResponse.status).toBe(503);
+      expect(retryBody).toEqual({
+        error: 'signup_confirmation_retry',
+        message: 'No pudimos preparar la confirmación. Reintentá en unos segundos.',
+      });
+      expect(JSON.stringify(retryBody)).not.toContain(guardErrorCode);
+      expect(JSON.stringify(retryBody)).not.toContain(guardErrorClass);
+      expect(rpcError.authCreateUser).not.toHaveBeenCalled();
 
-    const limitedResponse = await postCreateAccountBusiness(validPayload('FREE'));
-    const limitedBody = await limitedResponse.json();
+      expect(warnSpy).toHaveBeenCalledWith(
+        'guard_signup_request_rate_limit_failed',
+        expect.objectContaining({
+          rpc: 'guard_signup_request_rate_limit',
+          code: guardErrorCode,
+          class: guardErrorClass,
+        }),
+      );
+      const warnPayload = JSON.stringify(warnSpy.mock.calls);
+      expect(warnPayload).not.toContain('ada@example.test');
+      expect(warnPayload).not.toContain('service-role-key');
+      expect(warnPayload).not.toContain('YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=');
+      expect(warnPayload).not.toContain('MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=');
+      expect(warnPayload).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+      expect(warnPayload).not.toContain('SUPABASE_URL');
+      expect(warnPayload).not.toContain('PENDING_SIGNUP_ENCRYPTION_KEY_B64');
+      expect(warnPayload).not.toContain('PENDING_SIGNUP_HMAC_KEY_B64');
 
-    expect(limitedResponse.status).toBe(202);
-    expect(limitedBody).toEqual({ ok: true, status: 'signup_confirmation_requested' });
-    expect(limited.authCreateUser).not.toHaveBeenCalled();
+      warnSpy.mockClear();
+
+      const limited = createFreeSignupSupabaseMock();
+      limited.rpc.mockImplementation(async (name: string) => {
+        if (name === 'guard_signup_request_rate_limit') {
+          return { data: true, error: null };
+        }
+        return { data: false, error: null };
+      });
+      createClientMock.mockReturnValue(limited.client);
+
+      const limitedResponse = await postCreateAccountBusiness(validPayload('FREE'));
+      const limitedBody = await limitedResponse.json();
+
+      expect(limitedResponse.status).toBe(202);
+      expect(limitedBody).toEqual({ ok: true, status: 'signup_confirmation_requested' });
+      expect(limited.authCreateUser).not.toHaveBeenCalled();
+      expect(warnSpy.mock.calls.some((call) => call[0] === 'guard_signup_request_rate_limit_failed')).toBe(false);
+
+      warnSpy.mockClear();
+
+      const allowed = createFreeSignupSupabaseMock();
+      allowed.rpc.mockImplementation(async (name: string) => {
+        if (name === 'guard_signup_request_rate_limit') {
+          return { data: false, error: null };
+        }
+        if (name === 'provision_default_services_for_business') {
+          return { data: 1, error: null };
+        }
+        return { data: false, error: null };
+      });
+      createClientMock.mockReturnValue(allowed.client);
+
+      const allowedResponse = await postCreateAccountBusiness(validPayload('FREE'));
+      const allowedBody = await allowedResponse.json();
+
+      expect(allowedResponse.status).toBe(200);
+      expect(allowedBody).toEqual({ ok: true, status: 'signup_ready' });
+      expect(allowed.authCreateUser).toHaveBeenCalled();
+      expect(warnSpy.mock.calls.some((call) => call[0] === 'guard_signup_request_rate_limit_failed')).toBe(false);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

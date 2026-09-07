@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
-import { resolveProxyTarget, withForwardedHeaders } from './local-dev-proxy.mjs';
+import { isDirectCliRun, resolveProxyTarget, withForwardedHeaders } from './local-dev-proxy.mjs';
 
 test('routes canonical landing and auth paths to Astro landing', () => {
   for (const path of ['/', '/auth/login', '/auth/callback?code=provider-code', '/billing/subscription']) {
@@ -98,6 +99,15 @@ test('does not route OAuth codes or tokens through dashboard URL rewriting', () 
 
   assert.equal(target.name, 'landing');
   assert.equal(target.rewritePath('/auth/callback?code=provider-code'), '/auth/callback?code=provider-code');
+});
+
+test('starts on Windows argv paths that the file:// prefix check misses', () => {
+  const argv1 = 'C:\\Users\\usuario\\proyectos\\orvel\\scripts\\local-dev-proxy.mjs';
+  const metaUrl = pathToFileURL(argv1).href;
+
+  assert.notEqual(metaUrl, `file://${argv1}`);
+  assert.equal(isDirectCliRun(metaUrl, argv1), true);
+  assert.equal(isDirectCliRun(metaUrl, '/tmp/other.mjs'), false);
 });
 
 test('preserves browser proxy Host while forwarding target host separately', () => {

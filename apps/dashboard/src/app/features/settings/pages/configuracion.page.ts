@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal, effect } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -53,6 +53,7 @@ type WorkingHoursTimeField = 'start' | 'end' | 'start2' | 'end2';
 })
 export class ConfiguracionPage {
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly facade = inject(BusinessService);
@@ -165,12 +166,14 @@ export class ConfiguracionPage {
 
   constructor() {
     this.route.queryParamMap
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
-        const tab = params.get('tab');
-        if (tab === 'perfil' || tab === 'negocio' || tab === 'equipo') {
-          this.activeSettingsTab.set(tab);
-        }
+        queueMicrotask(() => {
+          const tab = params.get('tab');
+          if (tab === 'perfil' || tab === 'negocio' || tab === 'equipo') {
+            this.activeSettingsTab.set(tab);
+          }
+        });
       });
 
     effect(() => {
@@ -1036,6 +1039,7 @@ export class ConfiguracionPage {
       const persistenceError = this.facade.lastPersistenceError();
       if (persistenceError) {
         this.loadError.set(persistenceError);
+        this.patchDefaultSettings();
         this.savedState.set(null);
         this.loading.set(false);
         return;
@@ -1046,6 +1050,7 @@ export class ConfiguracionPage {
           ? error.message
           : 'No pudimos cargar la configuración'
       );
+      this.patchDefaultSettings();
       this.savedState.set(null);
       this.loading.set(false);
       return;
@@ -1056,8 +1061,9 @@ export class ConfiguracionPage {
     if (saved) {
       this.patchHydratedSettings(saved);
       this.savedState.set(saved);
+      this.loadError.set(null);
     } else {
-      this.loadError.set('No pudimos cargar la configuración');
+      this.patchDefaultSettings();
       this.savedState.set(null);
     }
 

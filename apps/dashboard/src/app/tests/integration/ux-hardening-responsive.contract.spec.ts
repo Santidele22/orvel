@@ -143,12 +143,8 @@ describe('UX hardening final: responsive/layout contracts (mock mode, RED)', () 
         'DashboardSidebarComponent must expose @Output() collapseToggle = new EventEmitter<void>().'
       ),
       ...missingWhen(
-        /templateInputs\s*=\s*computed\(\s*\(\)\s*=>\s*\(\{[\s\S]*collapsed:\s*this\.collapsed[\s\S]*onToggleCollapse:\s*\(\)\s*=>\s*this\.collapseToggle\.emit\(\)[\s\S]*\}\)\s*\)/.test(sidebarTs),
-        'DashboardSidebarComponent must forward collapsed and onToggleCollapse through templateInputs().'
-      ),
-      ...missingWhen(
-        /inputs:\s*templateInputs\(\)/.test(sidebarHtml),
-        'DashboardSidebar template must keep forwarding templateInputs() into the dynamic sidebar component.'
+        /\[collapsed\]=["']collapsed["']/.test(sidebarHtml) && /\[onToggleCollapse\]=["']onToggleCollapseBound["']/.test(sidebarHtml),
+        'DashboardSidebarComponent must forward collapsed and onToggleCollapse to ZenSidebar.'
       ),
       ...missingWhen(
         /<aside[\s\S]*data-testid=["']dashboard-sidebar-responsive["'][\s\S]*data-testid=["']dashboard-sidebar-collapse-toggle["']/.test(zenSidebarTs),

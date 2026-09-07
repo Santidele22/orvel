@@ -52,8 +52,8 @@ describe('Configuracion Zen UI regression guards (pre-frontend changes)', () => 
   it('keeps main form section structure for perfil and negocio tabs', async () => {
     const source = await readZenThemeTemplate();
 
-    const perfilStart = source.indexOf("@if (activeSettingsTab() === 'perfil') {");
-    const negocioStart = source.indexOf("@if (activeSettingsTab() === 'negocio') {");
+    const perfilStart = source.indexOf("@if (isActiveTab('perfil')) {");
+    const negocioStart = source.indexOf("@if (isActiveTab('negocio')) {");
     const submitBarStart = source.indexOf("<div [class]=\"ui.cardGlass + ' flex items-center justify-between gap-zen-md'\">");
 
     const perfilBlock =
