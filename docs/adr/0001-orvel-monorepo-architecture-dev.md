@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for migration target, pending implementation verification.
+Historical. The monorepo exists and is the source of truth; see `infra/context/architecture.md`. Kept for ADR numbering (slot reserved for release-2.0 `0001-schema-principles.md` if that branch still merges).
 
 Renamed for release-2.0 ADR 0001 collision; slot reserved for `0001-schema-principles.md` from `origin/feature/release-2-0-phase1-adrs-part1` when that branch merges to dev.
 
