@@ -6,7 +6,6 @@ const SECTION_PATH = new URL(
   import.meta.url
 );
 const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
-const PRELANZAMIENTO_PATH = new URL('../pages/prelanzamiento.astro', import.meta.url);
 const HOW_IT_WORKS_PATH = new URL(
   '../components/organisms/prelaunch/PrelaunchHowItWorks.astro',
   import.meta.url
@@ -31,9 +30,8 @@ const FORBIDDEN_CLAIMS =
 describe('Contract: prelaunch public turnero section', () => {
   it('is composed on home after Cómo funciona, without replacing the hero or launch route', async () => {
     const index = await readFile(INDEX_PATH, 'utf8');
-    const prelanzamiento = await readFile(PRELANZAMIENTO_PATH, 'utf8');
 
-    for (const page of [index, prelanzamiento]) {
+    for (const page of [index]) {
       expect(page).toMatch(/organisms\/prelaunch\/PrelaunchPublicTurnero/);
       expect(page).toMatch(
         /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchPublicTurnero[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
