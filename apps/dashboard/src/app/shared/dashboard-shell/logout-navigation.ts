@@ -16,12 +16,20 @@ export function isAbsoluteLogoutRedirect(redirectTo: string): boolean {
   }
 }
 
+export function isInAppLogoutSignIn(redirectTo: string): boolean {
+  return (
+    redirectTo.startsWith('/dashboard/login') ||
+    redirectTo.startsWith('/auth/login') ||
+    redirectTo.startsWith('/login')
+  );
+}
+
 export async function navigateAfterLogout(
   redirectTo: string,
   router: LogoutRouter,
   location: LogoutLocation = window.location
 ): Promise<void> {
-  if (isAbsoluteLogoutRedirect(redirectTo)) {
+  if (isAbsoluteLogoutRedirect(redirectTo) || isInAppLogoutSignIn(redirectTo)) {
     location.assign(redirectTo);
     return;
   }

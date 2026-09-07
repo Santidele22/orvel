@@ -87,6 +87,7 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(sidebarTs).toMatch(/@Output\(\)\s+logoutConfirm\s*=\s*new\s+EventEmitter<void>\(\)/);
     expect(sidebarTs).toMatch(/onLogoutBound\s*=\s*\(\)\s*=>\s*this\.openLogoutConfirmModal\(\)/);
     expect(sidebarHtml).toMatch(/data-testid=["']logout-confirm-action["'][\s\S]*\(click\)=["']confirmLogout\(\)["']/);
+    expect(sidebarHtml).toMatch(/data-testid=["']logout-confirm-modal["'][^>]*fixed inset-0/);
     expect(zenSidebar).toMatch(/@Input\(\)\s+onLogout\s*:/);
     expect(zenSidebar).toMatch(/data-testid=["']dashboard-sidebar-logout-action["']/);
     expect(zenSidebar).toMatch(/\(click\)=["']onLogout\(\)["']/);
