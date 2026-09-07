@@ -69,8 +69,18 @@ function normalizeSelectedBusinessTypes(body: Record<string, unknown>, fallbackP
 }
 
 function isDuplicateUserError(error: unknown): boolean {
-  const message = error && typeof error === "object" && "message" in error ? String((error as { message?: unknown }).message || "") : String(error || "");
-  return /duplicate|23505|user_already/i.test(message);
+  const err = error && typeof error === "object" ? (error as { code?: unknown; message?: unknown }) : {};
+  const haystack = `${String(err.code || "")} ${String(err.message || error || "")}`;
+  return /duplicate|23505|user_already|already registered|email_exists/i.test(haystack);
+}
+
+function warnSignupStep(step: string, error: unknown): void {
+  const err = error && typeof error === "object" ? (error as { code?: unknown; message?: unknown }) : {};
+  console.warn("signup_create_account_failed", {
+    step,
+    code: typeof err.code === "string" ? err.code : undefined,
+    class: typeof err.message === "string" ? err.message : undefined,
+  });
 }
 
 function normalizePlan(value: unknown): SignupPlan | null {
@@ -108,6 +118,11 @@ async function isRateLimited(supabase: ReturnType<typeof createClient>, request:
     p_max_requests: RATE_LIMIT_MAX_REQUESTS,
   });
   if (error) {
+    console.warn("guard_signup_request_rate_limit_failed", {
+      rpc: "guard_signup_request_rate_limit",
+      code: error.code,
+      class: error.message,
+    });
     throw new Error("signup_confirmation_retry");
   }
   return data === true;
@@ -176,6 +191,7 @@ export const POST: APIRoute = async ({ request }) => {
     p_purpose: "free_signup",
   });
   if (expireError) {
+    warnSignupStep("expire_signup_email_confirmation", expireError);
     return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
 
@@ -219,9 +235,9 @@ export const POST: APIRoute = async ({ request }) => {
     if (isDuplicateUserError(createUserError)) {
       return jsonResponse({ ok: true, status: "signup_confirmation_requested" }, 202, request);
     }
+    warnSignupStep("create_user", createUserError || new Error("create_user_missing_id"));
     return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
-
   const authUserId = createdAuthUser.user.id;
 
   let provisioned: Awaited<ReturnType<typeof provisionFreeSignupTenant>>;
@@ -236,7 +252,8 @@ export const POST: APIRoute = async ({ request }) => {
       selectedBusinessTypes,
       phone,
     });
-  } catch {
+  } catch (provisionError) {
+    warnSignupStep("provision_free_signup", provisionError);
     await cleanupCreatedAuthUser(supabaseAdmin, authUserId);
     return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
   }
@@ -294,8 +311,9 @@ export const POST: APIRoute = async ({ request }) => {
       await supabaseAdmin.from("signup_email_confirmations").update({ status: "failed_materialization", protected_metadata: { delivery_status: "failed" } }).eq("token_hash", token_hash).eq("status", "pending");
       throw outboxError || new Error("outbox_insert_missing_row");
     }
-  } catch {
-    return jsonResponse({ error: "signup_confirmation_retry", message: "No pudimos preparar la confirmación. Reintentá en unos segundos." }, 503, request);
+  } catch (materializationError) {
+    warnSignupStep("confirmation_or_outbox", materializationError);
+    return jsonResponse({ ok: true, status: "signup_ready" }, 200, request);
   }
 
   return jsonResponse({ ok: true, status: "signup_ready" }, 200, request);

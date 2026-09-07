@@ -8,9 +8,11 @@ describe('public booking URL helpers', () => {
     );
   });
 
-  it('keeps local development booking links on the current local origin', () => {
-    expect(getPublicBookingOrigin('http://localhost:4200')).toBe('http://localhost:4200');
-    expect(buildPublicBookingUrl('mi-salon', 'http://127.0.0.1:4200')).toBe('http://127.0.0.1:4200/booking/mi-salon');
+  it('routes local development booking links through the combined proxy', () => {
+    expect(getPublicBookingOrigin('http://localhost:4200')).toBe('http://localhost:3000');
+    expect(getPublicBookingOrigin('http://localhost:4321')).toBe('http://localhost:3000');
+    expect(getPublicBookingOrigin('http://localhost:3000')).toBe('http://localhost:3000');
+    expect(buildPublicBookingUrl('mi-salon', 'http://127.0.0.1:4200')).toBe('http://127.0.0.1:3000/booking/mi-salon');
   });
 
   it('keeps the canonical public origin stable when the current origin is already orvel.pro', () => {
@@ -20,7 +22,7 @@ describe('public booking URL helpers', () => {
   });
 
   it('keeps 0.0.0.0 booking links local for device testing', () => {
-    expect(getPublicBookingOrigin('http://0.0.0.0:4200')).toBe('http://0.0.0.0:4200');
+    expect(getPublicBookingOrigin('http://0.0.0.0:4200')).toBe('http://0.0.0.0:3000');
   });
 
   it('keeps QA hosted booking links on the current QA origin', () => {

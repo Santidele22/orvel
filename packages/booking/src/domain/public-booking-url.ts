@@ -1,4 +1,6 @@
 const CANONICAL_PUBLIC_BOOKING_ORIGIN = 'https://orvel.pro';
+const LOCAL_PROXY_PORT = '3000';
+const LOCAL_APP_PORTS = new Set(['4200', '4321']);
 
 function normalizeOrigin(origin: string): string {
   return origin.replace(/\/$/, '');
@@ -21,10 +23,22 @@ function isQaOrigin(origin: string): boolean {
   }
 }
 
+function toLocalPublicOrigin(origin: string): string {
+  const url = new URL(origin);
+  if (LOCAL_APP_PORTS.has(url.port)) {
+    url.port = LOCAL_PROXY_PORT;
+  }
+  return normalizeOrigin(url.origin);
+}
+
 export function getPublicBookingOrigin(currentOrigin = globalThis.location?.origin ?? ''): string {
   const normalizedCurrentOrigin = normalizeOrigin(currentOrigin.trim());
 
-  if (normalizedCurrentOrigin && (isLocalOrigin(normalizedCurrentOrigin) || isQaOrigin(normalizedCurrentOrigin))) {
+  if (normalizedCurrentOrigin && isLocalOrigin(normalizedCurrentOrigin)) {
+    return toLocalPublicOrigin(normalizedCurrentOrigin);
+  }
+
+  if (normalizedCurrentOrigin && isQaOrigin(normalizedCurrentOrigin)) {
     return normalizedCurrentOrigin;
   }
 
