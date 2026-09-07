@@ -128,22 +128,22 @@ function renderSecondaryActions(cancelLink: string | null, rescheduleLink: strin
 
 function htmlShell(heading: string, greeting: string, introHtml: string, detailItems: string, footerHtml: string, viewActionHtml: string, secondaryActionsHtml: string): string {
   return `
-      <!doctype html>
-      <html lang="es-AR">
-        <body style="margin:0;background:${PALETTE.black};color:${PALETTE.text};font-family:Arial,sans-serif;">
-          <main style="max-width:640px;margin:0 auto;padding:32px;">
-            <section style="background:${PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
-              <p style="letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.violetSoft};font-size:12px;">Orvel</p>
-              <h1 style="font-size:28px;margin:0 0 12px;color:${PALETTE.text};">${heading}</h1>
-              <p>${greeting} ${introHtml}</p>
-              ${detailItems ? `<ul style="line-height:1.8;padding-left:18px;">${detailItems}</ul>` : ''}
-              ${footerHtml}
-              ${viewActionHtml}
-              ${secondaryActionsHtml}
-            </section>
-          </main>
-        </body>
-      </html>`;
+          <!doctype html>
+          <html lang="es-AR">
+            <body style="margin:0;background:${PALETTE.black};color:${PALETTE.text};font-family:Arial,sans-serif;">
+              <main style="max-width:640px;margin:0 auto;padding:32px;">
+                <section style="background:${PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
+                  <p style="letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.violetSoft};font-size:12px;">Orvel</p>
+                  <h1 style="font-size:28px;margin:0 0 12px;color:${PALETTE.text};">${heading}</h1>
+                  <p>${greeting} ${introHtml}</p>
+                  ${detailItems ? `<ul style="line-height:1.8;padding-left:18px;">${detailItems}</ul>` : ''}
+                  ${footerHtml}
+                  ${viewActionHtml}
+                  ${secondaryActionsHtml}
+                </section>
+              </main>
+            </body>
+          </html>`;
 }
 
 // ── Render implementations ─────────────────────────
@@ -154,23 +154,23 @@ export function renderAppointmentConfirmationEmail(data: AppointmentTemplateData
   return {
     subject: 'Turno confirmado',
     html: `
-      <!doctype html>
-      <html lang="es-AR">
-        <body style="margin:0;background:${PALETTE.black};color:${PALETTE.text};font-family:Arial,sans-serif;">
-          <main style="max-width:640px;margin:0 auto;padding:32px;">
-            <section style="background:${PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
-              <p style="letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.violetSoft};font-size:12px;">Orvel</p>
-              <h1 style="font-size:28px;margin:0 0 12px;color:${PALETTE.text};">Turno confirmado</h1>
-              <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
-              ${viewLink ? `
-                <p style="margin-top:28px;">
-                  <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
-                </p>
-              ` : ''}
-            </section>
-          </main>
-        </body>
-      </html>`,
+          <!doctype html>
+          <html lang="es-AR">
+            <body style="margin:0;background:${PALETTE.black};color:${PALETTE.text};font-family:Arial,sans-serif;">
+              <main style="max-width:640px;margin:0 auto;padding:32px;">
+                <section style="background:${PALETTE.panel};border-radius:24px;padding:32px;border:1px solid ${PALETTE.violetDark};box-shadow:0 24px 80px rgba(124,58,237,.24);">
+                  <p style="letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.violetSoft};font-size:12px;">Orvel</p>
+                  <h1 style="font-size:28px;margin:0 0 12px;color:${PALETTE.text};">Turno confirmado</h1>
+                  <p>Hola ${escapeHtml(data.customer.name)}, gracias por confiar en nosotros.</p>
+                  ${viewLink ? `
+                    <p style="margin-top:28px;">
+                      <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver y gestionar turno</a>
+                    </p>
+                  ` : ''}
+                </section>
+              </main>
+            </body>
+          </html>`,
   };
 }
 
@@ -192,6 +192,52 @@ export function renderAppointmentBusinessNotificationEmail(data: AppointmentTemp
 
 export function renderAppointmentBusinessCancellationEmail(data: AppointmentTemplateData): EmailPayload {
   return renderAppointmentEmail(data, 'business_cancellation', 'Turno cancelado');
+}
+
+export function renderAppointmentDepositInstructionsEmail(data: AppointmentTemplateData): EmailPayload {
+  const deposit = readDepositFields(data);
+  const holdLabel = formatDuration(deposit.holdMinutes);
+  const detailParts = [
+    `<li><strong>Monto:</strong> ${escapeHtml(formatPrice(deposit.amount))}</li>`,
+  ];
+  if (deposit.alias) {
+    detailParts.push(`<li><strong>Alias:</strong> ${escapeHtml(deposit.alias)}</li>`);
+  }
+  if (deposit.cbu) {
+    detailParts.push(`<li><strong>CBU:</strong> ${escapeHtml(deposit.cbu)}</li>`);
+  }
+  if (deposit.code) {
+    detailParts.push(`<li><strong>Código:</strong> ${escapeHtml(deposit.code)}</li>`);
+  }
+  detailParts.push(`<li><strong>Tiempo:</strong> ${escapeHtml(holdLabel)}</li>`);
+
+  return {
+    subject: 'Seña para confirmar tu turno',
+    html: htmlShell(
+      'Seña para confirmar tu turno',
+      `Hola ${escapeHtml(data.customer.name)},`,
+      `para confirmar tu turno, transferí la seña con estos datos. Tenés ${escapeHtml(holdLabel)}.`,
+      detailParts.join(''),
+      '<p>Si no se confirma la seña, el horario se libera.</p>',
+      '',
+      '',
+    ),
+  };
+}
+
+export function renderAppointmentHoldReleasedEmail(data: AppointmentTemplateData): EmailPayload {
+  return {
+    subject: 'Se liberó el horario de tu turno',
+    html: htmlShell(
+      'Se liberó el horario de tu turno',
+      `Hola ${escapeHtml(data.customer.name)},`,
+      'el horario se liberó porque la seña no se confirmó.',
+      renderDetailItems(data),
+      `<p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>`,
+      '',
+      '',
+    ),
+  };
 }
 
 // ── Generic render ─────────────────────────────────
@@ -221,8 +267,8 @@ function renderAppointmentEmail(data: AppointmentTemplateData, kind: Appointment
 
   const viewActionHtml = viewLink
     ? `<p style="margin-top:28px;">
-                <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
-              </p>`
+                    <a href="${escapeAttribute(viewLink)}" style="background:${PALETTE.violet};color:${PALETTE.text};padding:14px 20px;border-radius:999px;text-decoration:none;">Ver turno</a>
+                  </p>`
     : '';
 
   const secondaryActionsHtml = renderSecondaryActions(cancelLink, rescheduleLink);
@@ -241,13 +287,47 @@ function renderAppointmentEmail(data: AppointmentTemplateData, kind: Appointment
   };
 }
 
+type DepositFieldSource = AppointmentTemplateData & {
+  deposit_amount?: number | null;
+  deposit_alias?: string | null;
+  deposit_cbu?: string | null;
+  deposit_code?: string | null;
+  deposit_hold_minutes?: number | null;
+};
+
+function nonEmptyText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed ? trimmed : null;
+}
+
+function readDepositFields(data: AppointmentTemplateData): {
+  amount: number;
+  alias: string | null;
+  cbu: string | null;
+  code: string | null;
+  holdMinutes: number;
+} {
+  const raw = data as DepositFieldSource;
+  const amount = raw.depositAmount ?? raw.deposit_amount;
+  const holdMinutes = raw.depositHoldMinutes ?? raw.deposit_hold_minutes;
+  return {
+    amount: typeof amount === 'number' && Number.isFinite(amount) ? amount : 0,
+    alias: nonEmptyText(raw.depositAlias ?? raw.deposit_alias),
+    cbu: nonEmptyText(raw.depositCbu ?? raw.deposit_cbu),
+    code: nonEmptyText(raw.depositCode ?? raw.deposit_code),
+    holdMinutes: typeof holdMinutes === 'number' && Number.isFinite(holdMinutes) && holdMinutes > 0
+      ? holdMinutes
+      : 30,
+  };
+}
+
 function renderDetailItems(data: AppointmentTemplateData, date?: string, price?: string, duration?: string): string {
   return `
-                <li><strong>Negocio:</strong> ${escapeHtml(data.business.name)}</li>
-                <li><strong>Dirección:</strong> ${escapeHtml(data.business.address)}</li>
-                <li><strong>Servicio:</strong> ${escapeHtml(data.service.name)}</li>
-                <li><strong>Fecha:</strong> ${date ?? formatArgentinaAppointmentDate(data.date)}</li>
-                <li><strong>Horario:</strong> ${escapeHtml(data.time)}</li>
-                <li><strong>Duración:</strong> ${duration ?? formatDuration(data.duration)}</li>
-                <li><strong>Precio:</strong> ${price ?? formatPrice(data.price)}</li>`;
+                    <li><strong>Negocio:</strong> ${escapeHtml(data.business.name)}</li>
+                    <li><strong>Dirección:</strong> ${escapeHtml(data.business.address)}</li>
+                    <li><strong>Servicio:</strong> ${escapeHtml(data.service.name)}</li>
+                    <li><strong>Fecha:</strong> ${date ?? formatArgentinaAppointmentDate(data.date)}</li>
+                    <li><strong>Horario:</strong> ${escapeHtml(data.time)}</li>
+                    <li><strong>Duración:</strong> ${duration ?? formatDuration(data.duration)}</li>
+                    <li><strong>Precio:</strong> ${price ?? formatPrice(data.price)}</li>`;
 }
