@@ -6,6 +6,8 @@ import {
   renderAppointmentRescheduleEmail,
   renderAppointmentBusinessNotificationEmail,
   renderAppointmentBusinessCancellationEmail,
+  renderAppointmentDepositInstructionsEmail,
+  renderAppointmentHoldReleasedEmail,
   formatArgentinaAppointmentDate,
   type AppointmentTemplateData,
   type EmailPayload,
@@ -115,6 +117,62 @@ describe('appointment-templates', () => {
       expectValidEmailPayload(result);
       expect(result.subject).toMatch(/cancelad/i);
       expect(result.html).toContain('Negocio Test');
+    });
+  });
+
+  describe('renderAppointmentDepositInstructionsEmail', () => {
+    const depositData = {
+      ...MINIMAL_DATA,
+      depositAmount: 5000,
+      depositAlias: 'negocio.orvel',
+      depositCbu: '0000000000000000000001',
+      depositCode: 'ORV-TESTCODE',
+      depositHoldMinutes: 30,
+    };
+
+    it('shows seña amount, alias, CBU, code, and 30-minute hold without refund language', () => {
+      const result = renderAppointmentDepositInstructionsEmail(depositData);
+      expectValidEmailPayload(result);
+      expect(result.subject).toMatch(/seña para confirmar tu turno/i);
+      expect(result.html).toContain(`$${Math.round(5000).toLocaleString('es-AR')}`);
+      expect(result.html).toContain('negocio.orvel');
+      expect(result.html).toContain('0000000000000000000001');
+      expect(result.html).toContain('ORV-TESTCODE');
+      expect(result.html).toMatch(/30 minutos/i);
+      expect(result.html).toContain('Si no se confirma la seña, el horario se libera.');
+      expect(result.html.toLowerCase()).not.toMatch(/reembolso|devoluci[oó]n|refund/);
+    });
+
+    it('omits empty alias and CBU', () => {
+      const result = renderAppointmentDepositInstructionsEmail({
+        ...depositData,
+        depositAlias: '',
+        depositCbu: null,
+      });
+      expectValidEmailPayload(result);
+      expect(result.html).not.toMatch(/Alias:/i);
+      expect(result.html).not.toMatch(/CBU:/i);
+      expect(result.html).toContain('ORV-TESTCODE');
+    });
+  });
+
+  describe('renderAppointmentHoldReleasedEmail', () => {
+    it('says the slot was released and includes no manage links or refund language', () => {
+      const result = renderAppointmentHoldReleasedEmail(MINIMAL_DATA);
+      expectValidEmailPayload(result);
+      expect(result.subject).toMatch(/se liber[oó] el horario/i);
+      expect(result.html).toMatch(/horario se liber/i);
+      expect(result.html).not.toContain('orvel.test/turno/123');
+      expect(result.html).not.toMatch(/gestionar turno/i);
+      expect(result.html.toLowerCase()).not.toMatch(/reembolso|devoluci[oó]n|refund/);
+    });
+  });
+
+  describe('existing renders without deposit fields', () => {
+    it('keeps confirmation rendering when deposit fields are absent', () => {
+      const result = renderAppointmentConfirmationEmail(MINIMAL_DATA);
+      expectValidEmailPayload(result);
+      expect(result.subject).toBe('Turno confirmado');
     });
   });
 });
