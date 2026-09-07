@@ -5,6 +5,8 @@ export {
   renderAppointmentRescheduleEmail,
   renderAppointmentBusinessNotificationEmail,
   renderAppointmentBusinessCancellationEmail,
+  renderAppointmentDepositInstructionsEmail,
+  renderAppointmentHoldReleasedEmail,
   formatArgentinaAppointmentDate,
 } from './appointment-templates.ts';
 
