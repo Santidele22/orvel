@@ -13,7 +13,7 @@ Inherit root rules for orchestration, OpenSpec/TDD, `.funemon/` privacy, and the
 
 ## Project specifics
 
-- Focus: public marketing, prelaunch, and signup entry (`apps/landing/src/pages/`).
+- Focus: public Orvel marketing and signup entry (`apps/landing/src/pages/`).
 - Commands from repo root: `pnpm --dir apps/landing run …`
 - Tests: Vitest under `apps/landing/src/tests/`
 - Do not stack landing-local `.opencode/` / `.gemini/` config.
