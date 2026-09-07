@@ -96,10 +96,11 @@ describe('Contract: public index is the usable prelaunch landing', () => {
   });
 });
 
-describe('Contract: /prelanzamiento still composes the same usable prelaunch page', () => {
-  it('keeps old links on the remixed production page', async () => {
+describe('Contract: /prelanzamiento is a home redirect', () => {
+  it('does not keep a duplicate public landing at the old URL', async () => {
     const prelanzamiento = await source(PRELANZAMIENTO_PATH);
-    expectUsablePrelaunchComposition(prelanzamiento);
+    expect(prelanzamiento).toMatch(/Astro\.redirect\(\s*['"]\/['"]/);
+    expect(prelanzamiento).not.toMatch(/organisms\/prelaunch\/PrelaunchHero/);
   });
 });
 
