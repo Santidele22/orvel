@@ -112,7 +112,51 @@ function assertLockBeforeConflictCheckAndMutation(
   );
 }
 
-function assertConfirmedTransitionIsLockedOrExplicitlyGuarded(body: string): void {
+function assertProfessionalFreeCheckAfterLockAndRoster(
+      functionName: string,
+      body: string,
+      mutationPattern: RegExp,
+      options: { requireExcludeBookingId?: boolean } = {},
+    ): void {
+      const normalized = normalizeSql(body);
+      const lockIndex = normalized.search(lockCallPattern);
+      const conflictIndex = normalized.search(/perform\s+public\._assert_no_slot_conflict\s*\(/i);
+      const freeIndex = normalized.search(/public\._professional_is_free\s*\(/i);
+      const mutationIndex = normalized.search(mutationPattern);
+      const freeThenConflict =
+        /(?:and\s+)?not\s+public\._professional_is_free\s*\([^;]*?\)\s+then\s+perform\s+public\._raise_rpc\s*\(\s*'slot_conflict'\s*\)/i
+          .test(normalized);
+
+      assert(
+        freeIndex >= 0,
+        `${functionName} must call public._professional_is_free so the same chair cannot overlap`,
+      );
+      assert(
+        lockIndex >= 0 && lockIndex < freeIndex,
+        `${functionName} must lock before public._professional_is_free`,
+      );
+      assert(
+        conflictIndex >= 0 && conflictIndex < freeIndex,
+        `${functionName} must call public._assert_no_slot_conflict (roster capacity) before public._professional_is_free`,
+      );
+      assert(
+        mutationIndex >= 0 && freeIndex < mutationIndex,
+        `${functionName} must check public._professional_is_free before mutating bookings`,
+      );
+      assert(
+        freeThenConflict,
+        `${functionName} must raise SLOT_CONFLICT when public._professional_is_free is false`,
+      );
+
+      if (options.requireExcludeBookingId) {
+        assert(
+          /_professional_is_free\s*\([^;]*v_booking\.id/i.test(normalized),
+          `${functionName} must pass the current booking id as the exclude argument to public._professional_is_free`,
+        );
+      }
+    }
+
+    function assertConfirmedTransitionIsLockedOrExplicitlyGuarded(body: string): void {
   const normalized = normalizeSql(body);
   const rejectsConfirmed = /status\s*=\s*'confirmed'\s+then\s+perform\s+public\._raise_rpc\s*\(/i
     .test(normalized) ||
@@ -191,7 +235,34 @@ for (const contract of writerContracts) {
   });
 }
 
-Deno.test("booking concurrency contract: update_booking_status cannot confirm a booking without a lock/validation guard", async () => {
+Deno.test("booking concurrency contract: create_admin_manual_booking rejects same-professional overlap with SLOT_CONFLICT", async () => {
+      const body = latestFunctionBodyMatching(
+        await readAllSqlMigrations(),
+        "create_admin_manual_booking",
+        (definition) => /insert\s+into\s+public\.bookings/i.test(definition.body),
+      );
+      assertProfessionalFreeCheckAfterLockAndRoster(
+        "create_admin_manual_booking",
+        body,
+        /insert\s+into\s+public\.bookings/i,
+      );
+    });
+
+    Deno.test("booking concurrency contract: reschedule_admin_booking rejects same-professional overlap with SLOT_CONFLICT", async () => {
+      const body = latestFunctionBodyMatching(
+        await readAllSqlMigrations(),
+        "reschedule_admin_booking",
+        (definition) => /update\s+public\.bookings/i.test(definition.body),
+      );
+      assertProfessionalFreeCheckAfterLockAndRoster(
+        "reschedule_admin_booking",
+        body,
+        /update\s+public\.bookings/i,
+        { requireExcludeBookingId: true },
+      );
+    });
+
+    Deno.test("booking concurrency contract: update_booking_status cannot confirm a booking without a lock/validation guard", async () => {
   const body = latestFunctionBodyMatching(
     await readAllSqlMigrations(),
     "update_booking_status",
