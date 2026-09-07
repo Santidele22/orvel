@@ -8,7 +8,7 @@
 
 | #   | Diagrama                                                                                                | Audiencia | Cubre                                                                                  |
 | --- | ------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------- |
-| 01  | [Target system architecture (post-release-2.0)](./01-monorepo-architecture.md)                         | Todos     | Target: sin MP, sin outbox, 5 tablas, 3-env, multi-profesional                         |
+| 01  | [System architecture (C4 sketch)](./01-monorepo-architecture.md)                                        | Todos     | Sketch only; canonical shape is `infra/context/architecture.md`. No MP checkout in v1  |
 | 02  | [Public booking flow (current `dev`)](./02-booking-public.md)                                           | Todos     | Booking público end-to-end: URL → slot query → create_public_booking → email outbox → manage/cancel/reschedule |
 | 03  | _pendiente_                                                                                             |           |                                                                                        |
 | 05  | _pendiente_                                                                                             |           |                                                                                        |
