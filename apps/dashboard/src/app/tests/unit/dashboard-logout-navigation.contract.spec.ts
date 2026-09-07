@@ -24,35 +24,24 @@ describe('dashboard logout navigation', () => {
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('keeps internal fallback paths on Angular router', async () => {
+  it('uses document navigation for in-app dashboard sign-in so /dashboard/login works under baseHref /dashboard/', async () => {
     const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
     const location = { assign: vi.fn() };
 
     await navigateAfterLogout('/dashboard/login?returnTo=%2Fdashboard', router, location);
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard/login?returnTo=%2Fdashboard');
-    expect(location.assign).not.toHaveBeenCalled();
+    expect(location.assign).toHaveBeenCalledWith('/dashboard/login?returnTo=%2Fdashboard');
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('keeps relative in-app dashboard sign-in on Angular router', async () => {
-    const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
-    const location = { assign: vi.fn() };
-    const inAppSignIn = '/dashboard/login?returnTo=%2Fdashboard';
-
-    await navigateAfterLogout(inAppSignIn, router, location);
-
-    expect(router.navigateByUrl).toHaveBeenCalledWith(inAppSignIn);
-    expect(location.assign).not.toHaveBeenCalled();
-  });
-
-  it('keeps relative in-app dashboard sign-in on Angular router', async () => {
+  it('uses document navigation for /auth/login sign-in', async () => {
     const router = { navigateByUrl: vi.fn().mockResolvedValue(true) };
     const location = { assign: vi.fn() };
     const inAppSignIn = '/auth/login?returnTo=%2Fdashboard';
 
     await navigateAfterLogout(inAppSignIn, router, location);
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith(inAppSignIn);
-    expect(location.assign).not.toHaveBeenCalled();
+    expect(location.assign).toHaveBeenCalledWith(inAppSignIn);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 });

@@ -74,6 +74,12 @@ const branchContextMock = vi.hoisted(() => {
   return mock;
 });
 
+const supabaseRpcMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../runtime/supabase-client', () => ({
+  createSupabaseClient: () => ({ rpc: supabaseRpcMock })
+}));
+
 vi.mock('../../branches/branch-context.service', () => ({
   getBranchContextService: () => ({
     getActiveBranchId: () => branchContextMock.activeBranchId,
@@ -114,6 +120,7 @@ describe('DashboardService BookingQueries consumer', () => {
     branchContextMock.activeBranchId = 'br-1';
     branchContextMock.ensureLoaded.mockReset();
     branchContextMock.ensureLoaded.mockImplementation(async () => undefined);
+    supabaseRpcMock.mockReset();
   });
 
   it('loads branch bookings through BookingQueries and keeps featured shape', async () => {
@@ -139,6 +146,34 @@ describe('DashboardService BookingQueries consumer', () => {
       badgeLabel: 'Pendiente de seña',
       depositPending: true
     });
+  });
+
+  it('confirms a pending seña through the dashboard authenticated supabase client', async () => {
+    supabaseRpcMock.mockResolvedValue({ data: { booking_id: 'b-1', deposit_status: 'paid' }, error: null });
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'pending' })]);
+    const service = createService(queries);
+    await flush();
+    queries.listBookingsByBranch.mockClear();
+
+    const ok = await service.confirmDepositReceived('b-1', 'admin-1');
+
+    expect(ok).toBe(true);
+    expect(supabaseRpcMock).toHaveBeenCalledWith('confirm_booking_deposit_received', {
+      booking_id: 'b-1',
+      performed_by: 'admin-1'
+    });
+    expect(queries.listBookingsByBranch).toHaveBeenCalled();
+  });
+
+  it('returns false when confirming a seña is rejected by the RPC', async () => {
+    supabaseRpcMock.mockResolvedValue({ data: null, error: { message: 'UNAUTHORIZED' } });
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'pending' })]);
+    const service = createService(queries);
+    await flush();
+    queries.listBookingsByBranch.mockClear();
+
+    await expect(service.confirmDepositReceived('b-1', 'admin-1')).resolves.toBe(false);
+    expect(queries.listBookingsByBranch).not.toHaveBeenCalled();
   });
 
     it('computes completed-today ticket average from BookingQueries rows', async () => {

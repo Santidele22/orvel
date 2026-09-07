@@ -338,13 +338,18 @@ export class DashboardHomeComponent {
 
   protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
     event?.stopPropagation();
-    const userId = this.authService.user()?.id;
-    if (!userId || this.confirmingDepositId()) {
+    if (this.confirmingDepositId()) {
       return;
     }
+    const userId = this.authService.user()?.id ?? '';
     this.confirmingDepositId.set(bookingId);
     try {
-      await this.dashboardService.confirmDepositReceived(bookingId, userId);
+      const confirmed = await this.dashboardService.confirmDepositReceived(bookingId, userId);
+      if (!confirmed) {
+        window.alert('No pudimos confirmar la seña. Intentá de nuevo.');
+      }
+    } catch {
+      window.alert('No pudimos confirmar la seña. Intentá de nuevo.');
     } finally {
       this.confirmingDepositId.set(null);
     }
