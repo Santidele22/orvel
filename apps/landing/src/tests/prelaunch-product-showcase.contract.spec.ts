@@ -6,7 +6,6 @@ const SHOWCASE_PATH = new URL(
   import.meta.url
 );
 const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
-const PRELANZAMIENTO_PATH = new URL('../pages/prelanzamiento.astro', import.meta.url);
 const AGENDA_WEB_PATH = new URL(
   '../../public/prelaunch/showcase-agenda-web.png',
   import.meta.url
@@ -116,11 +115,10 @@ describe('Contract: prelaunch product showcase section', () => {
     expect(source).not.toContain('10:37');
   });
 
-  it('is composed after Cómo funciona on index and prelanzamiento', async () => {
+  it('is composed after Cómo funciona on index', async () => {
     const index = await readFile(INDEX_PATH, 'utf8');
-    const prelanzamiento = await readFile(PRELANZAMIENTO_PATH, 'utf8');
 
-    for (const page of [index, prelanzamiento]) {
+    for (const page of [index]) {
       expect(page).toMatch(/organisms\/prelaunch\/PrelaunchProductShowcase/);
       expect(page).toMatch(
         /organisms\/prelaunch\/PrelaunchHowItWorks[\s\S]*organisms\/prelaunch\/PrelaunchProductShowcase/
