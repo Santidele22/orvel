@@ -66,18 +66,20 @@ describe('ConfiguracionPage tab query param behavior', () => {
   it.each([
     ['perfil', 'perfil'],
     ['negocio', 'negocio']
-  ] as const)('selects the %s settings tab from ?tab=%s', (_label, tab) => {
+  ] as const)('selects the %s settings tab from ?tab=%s', async (_label, tab) => {
     const page = TestBed.runInInjectionContext(() => new ConfiguracionPage());
 
     queryParamMap.next(convertToParamMap({ tab }));
+    await Promise.resolve();
 
     expect(page.activeSettingsTab()).toBe(tab);
   });
 
-  it('ignores unsupported tab query params and keeps the default profile tab', () => {
+  it('ignores unsupported tab query params and keeps the default profile tab', async () => {
     const page = TestBed.runInInjectionContext(() => new ConfiguracionPage());
 
     queryParamMap.next(convertToParamMap({ tab: 'billing' }));
+    await Promise.resolve();
 
     expect(page.activeSettingsTab()).toBe('perfil');
   });

@@ -60,7 +60,31 @@ describe('Sidebar stabilization RED contract (functional navigation + admin poli
     }
   ];
 
-  it.each(templates)(
+  it('requires complete supervision routes in Zen sidebar', () => {
+    const zenSidebar = readFileSync(
+      resolve(process.cwd(), 'src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts'),
+      'utf-8'
+    );
+
+    const sidebarLinks = readFileSync(
+      resolve(process.cwd(), 'src/app/shared/dashboard-sidebar/sidebar-links.config.ts'),
+      'utf-8'
+    );
+    expect(zenSidebar).toContain('goTo(link.path)');
+    for (const route of requiredRoutes) {
+      expect(sidebarLinks).toContain(route);
+    }
+
+    for (const label of expectedSpanishLabels) {
+      expect(sidebarLinks).toContain(label);
+    }
+
+    for (const label of removedEnglishLabels) {
+      expect(sidebarLinks).not.toMatch(new RegExp(`>${label}<`, 'i'));
+    }
+  });
+
+  it.each(templates.filter((template) => template.name !== 'Zen'))(
     'requires complete routerLink supervision routes in $name sidebar',
     ({ startMarker, endMarker }) => {
       const sidebar = readSidebarTemplate();
