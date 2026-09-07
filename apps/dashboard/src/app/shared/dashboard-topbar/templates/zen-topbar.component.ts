@@ -1,6 +1,5 @@
 import { Component, signal, inject, Input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ThemeService } from '../../../core/theming/theme.service';
 import { AuthService } from '../../../services/auth.service';
 import { DashboardNotificationsService } from '../../../core/notifications/dashboard-notifications.service';
 
@@ -99,7 +98,6 @@ import { DashboardNotificationsService } from '../../../core/notifications/dashb
   `
 })
 export class ZenTopbarComponent {
-  readonly themeService = inject(ThemeService);
   readonly authService = inject(AuthService);
   readonly notifications = inject(DashboardNotificationsService);
   readonly showNotificationList = signal(false);

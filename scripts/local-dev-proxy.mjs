@@ -1,6 +1,6 @@
 import http from 'node:http';
 import net from 'node:net';
-import { URL } from 'node:url';
+import { pathToFileURL, URL } from 'node:url';
 
 export const PROXY_PORT = Number(process.env.ORVEL_LOCAL_PROXY_PORT || 3000);
 
@@ -169,7 +169,19 @@ export function createLocalDevProxyServer() {
   return server;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function isDirectCliRun(metaUrl, argv1 = process.argv[1]) {
+  if (!argv1) {
+    return false;
+  }
+
+  try {
+    return metaUrl === pathToFileURL(argv1).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectCliRun(import.meta.url)) {
   createLocalDevProxyServer().listen(PROXY_PORT, () => {
     console.log(`[orvel-local-proxy] http://localhost:${PROXY_PORT}`);
     console.log(`[orvel-local-proxy] landing  -> ${TARGETS.landing.origin}`);

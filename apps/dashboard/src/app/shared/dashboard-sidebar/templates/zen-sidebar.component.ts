@@ -1,16 +1,12 @@
 import { Component, Input, inject } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { ThemeService } from '../../../core/theming/theme.service';
-import { SIDEBAR_LINKS } from '../sidebar-links.config';
+import { Router } from '@angular/router';
+import { SIDEBAR_LINKS, type SidebarLink } from '../sidebar-links.config';
 
 @Component({
   selector: 'app-zen-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
   template: `
     <aside data-testid="dashboard-sidebar-responsive" class="h-full w-full flex flex-col bg-[#0b1020] bg-gradient-to-b from-purple-950/18 via-[#0F172A] to-[#070b16] shadow-2xl shadow-black/20 animate-in fade-in slide-in-from-left duration-500 border-r border-white/5">
-      <!-- Logo / Brand -->
       <div class="shrink-0 px-4 pt-5 pb-6" [class.px-3]="collapsed">
         <div class="flex items-center" [class.justify-between]="!collapsed" [class.flex-col]="collapsed" [class.justify-center]="collapsed" [class.gap-2]="collapsed">
           <div class="flex items-center min-w-0" [class.gap-3]="!collapsed" [class.justify-center]="collapsed">
@@ -32,62 +28,64 @@ import { SIDEBAR_LINKS } from '../sidebar-links.config';
         </div>
       </div>
 
-      <!-- Navigation -->
       <nav class="flex-1 px-3 mt-1 overflow-y-auto no-scrollbar" [class.px-3]="collapsed">
         <div [class.space-y-7]="!collapsed" [class.space-y-3]="collapsed">
-          <!-- Gestón Group -->
           <div class="space-y-2">
             @if (!collapsed) {
               <span class="px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Gestión</span>
             }
             <div class="space-y-1.5">
-              @for (link of sidebarLinks.slice(0, 3); track link.path) {
-                <a [routerLink]="link.path"
+              @for (link of gestionLinks; track link.path) {
+                <button
+                   type="button"
+                   (click)="goTo(link.path)"
                    [attr.aria-label]="collapsed ? link.label : null"
-                    routerLinkActive="!bg-purple-500/10 !text-purple-100 !font-semibold ring-1 ring-purple-300/15"
-                    ariaCurrentWhenActive="page"
-                    class="flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-400 transition-colors duration-200 hover:bg-white/[0.04] hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60 group"
+                   [attr.aria-current]="isActive(link.path) ? 'page' : null"
+                   class="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-200 transition-colors duration-200 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
+                   [class.bg-purple-500/10]="isActive(link.path)"
+                   [class.text-purple-100]="isActive(link.path)"
                    [class.justify-center]="collapsed"
                    [class.w-10]="collapsed"
                    [class.mx-auto]="collapsed"
                    [class.px-0]="collapsed">
-                     <i [class]="link.icon" class="text-[1.2rem] text-slate-400 transition-colors group-hover:text-purple-300" aria-hidden="true"></i>
+                    <i [class]="link.icon" class="text-[1.2rem]" aria-hidden="true"></i>
                     @if (!collapsed) {
                       <span class="truncate">{{ link.label }}</span>
                     }
-                 </a>
+                 </button>
               }
             </div>
           </div>
 
-          <!-- Sistema Group -->
           <div class="space-y-2">
             @if (!collapsed) {
               <span class="px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Sistema</span>
             }
             <div class="space-y-1.5">
-              @for (link of sidebarLinks.slice(3); track link.path) {
-                <a [routerLink]="link.path"
+              @for (link of sistemaLinks; track link.path) {
+                <button
+                   type="button"
+                   (click)="goTo(link.path)"
                    [attr.aria-label]="collapsed ? link.label : null"
-                    routerLinkActive="!bg-purple-500/10 !text-purple-100 !font-semibold ring-1 ring-purple-300/15"
-                    ariaCurrentWhenActive="page"
-                    class="flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-400 transition-colors duration-200 hover:bg-white/[0.04] hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60 group"
+                   [attr.aria-current]="isActive(link.path) ? 'page' : null"
+                   class="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-200 transition-colors duration-200 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/60"
+                   [class.bg-purple-500/10]="isActive(link.path)"
+                   [class.text-purple-100]="isActive(link.path)"
                    [class.justify-center]="collapsed"
                    [class.w-10]="collapsed"
                    [class.mx-auto]="collapsed"
                    [class.px-0]="collapsed">
-                     <i [class]="link.icon" class="text-[1.2rem] text-slate-400 transition-colors group-hover:text-purple-300" aria-hidden="true"></i>
+                    <i [class]="link.icon" class="text-[1.2rem]" aria-hidden="true"></i>
                     @if (!collapsed) {
                       <span class="truncate">{{ link.label }}</span>
                     }
-                 </a>
+                 </button>
               }
             </div>
           </div>
         </div>
-      </nav>                               
+      </nav>
 
-      <!-- Footer Actions -->
       <div class="px-3 py-5 space-y-2 shrink-0 border-t border-white/5">
         <button data-testid="dashboard-sidebar-logout-action" (click)="onLogout()" [attr.aria-label]="collapsed ? 'Cerrar sesión' : null" class="w-full h-10 flex items-center gap-3 px-3 rounded-xl bg-slate-950/25 text-error hover:bg-red-500/10 transition-colors font-semibold text-xs uppercase tracking-widest group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/50" [class.justify-center]="collapsed" [class.w-10]="collapsed" [class.mx-auto]="collapsed" [class.px-0]="collapsed">
           <i class="ri-logout-box-r-fill text-[1.2rem]" aria-hidden="true"></i>
@@ -100,8 +98,9 @@ import { SIDEBAR_LINKS } from '../sidebar-links.config';
   `
 })
 export class ZenSidebarComponent {
-  protected readonly themeService = inject(ThemeService);
-  protected readonly sidebarLinks = SIDEBAR_LINKS;
+  private readonly router = inject(Router);
+  protected readonly gestionLinks: SidebarLink[] = SIDEBAR_LINKS.slice(0, 3);
+  protected readonly sistemaLinks: SidebarLink[] = SIDEBAR_LINKS.slice(3);
 
   @Input() activeTheme: string = 'zen';
   @Input() businessName: string = 'Orvel';
@@ -110,4 +109,13 @@ export class ZenSidebarComponent {
   @Input() onThemeChange: (theme: string) => void = () => { };
   @Input() onToggleCollapse: () => void = () => { };
   @Input() onLogout: () => void | Promise<void> = () => { };
+
+  protected isActive(path: string): boolean {
+    const url = this.router.url;
+    return url === path || url.startsWith(`${path}?`) || url.startsWith(`${path}/`);
+  }
+
+  protected goTo(path: string): void {
+    void this.router.navigateByUrl(path);
+  }
 }

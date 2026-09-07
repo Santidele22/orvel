@@ -24,7 +24,10 @@ export async function createFreeAccountBusiness(
     body = {};
   }
 
-  if (response.status === 200 && body.status === 'signup_ready') {
+  if (
+    (response.status === 200 && body.status === 'signup_ready')
+    || (response.status === 202 && body.status === 'signup_confirmation_requested')
+  ) {
     return { ok: true, status: body.status, message: body.message };
   }
 

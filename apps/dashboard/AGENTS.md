@@ -1,19 +1,18 @@
 # Agent Rules - orvel-dashboard
 
-This project follows the **Funemon Lab** standards.
-
 Start with the root `AGENTS.md` before dashboard-specific work.
 
-Inherit the root Funemon Lab rules for R2-D2 orchestration/delegation, SDD/TDD, `.funemon/` privacy, and the project-local vs global client configuration boundary. Do not add dashboard-local OpenCode/Gemini config unless Santi explicitly asks or it already exists as project-local config.
+Inherit root rules for orchestration, OpenSpec/TDD, `.funemon/` privacy, and the project-local vs global client-configuration boundary. Do not add dashboard-local agent-client config unless Santi explicitly asks or it already exists as project-local config.
 
-## Project Architecture (Auto-detected)
-- **Languages**: JavaScript/TypeScript
-- **Database/Storage**: Supabase
+## Stack
 
-## Project Specifics
-- Focus: Angular 21 + @angular/pwa mobile-first dashboard (admin + public booking surfaces). Public routes live at `/booking/:slug` and `/booking/manage` (see `apps/dashboard/src/app/features/booking/pages/public/`).
-- Convention overrides: Use `pnpm --dir apps/dashboard run …` from the repo root; the dashboard imports a thin anonymous Supabase client from `apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts`. Do not stack dashboard-local `.opencode/` / `.gemini/` config — inherit from the root.
+- Language: TypeScript
+- App: Angular 21 + `@angular/pwa` (mobile-first; the desktop dashboard is an explicit carve-out)
+- Data: Supabase via the thin anonymous client in `apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts`
 
-## Reference
-- Global Rules: `~/.config/funemon-lab/agents/AGENTS.md`
-- Local Skills: (none — dashboard inherits from root skills)
+## Project specifics
+
+- Public booking routes: `/booking/:slug`, `/booking/:slug/:professionalSlug`, and `/booking/manage` (`apps/dashboard/src/app/features/booking/pages/public/`).
+- Commands from repo root: `pnpm --dir apps/dashboard run …`
+- Tests: Vitest contract specs under `apps/dashboard/src/app/tests/`
+- Do not stack dashboard-local `.opencode/` / `.gemini/` config.

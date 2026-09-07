@@ -39,4 +39,11 @@ describe('Contract: dashboard routing under /dashboard/ baseHref proxy', () => {
   it('does not redirect Angular app root back to dashboard/inicio when baseHref is already /dashboard/', () => {
     expect(appRoutesSource).not.toMatch(/path:\s*'',\s*\n\s*redirectTo:\s*'dashboard\/inicio'/);
   });
+
+  it('mounts login and signup at Angular app root so /dashboard/login matches under baseHref /dashboard/', () => {
+    expect(findTopLevelRoute('login')?.loadComponent).toEqual(expect.any(Function));
+    expect(findTopLevelRoute('signup')?.loadComponent).toEqual(expect.any(Function));
+    expect(findTopLevelRoute('login')?.canActivate).toBeUndefined();
+    expect(findTopLevelRoute('signup')?.canActivate).toBeUndefined();
+  });
 });
