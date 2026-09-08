@@ -35,7 +35,7 @@ jobs:
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
-            echo "site=combined" >> $GITHUB_OUTPUT
+            echo "site=dashboard" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch: ${{ github.ref }}" >&2
             exit 1
@@ -55,6 +55,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
         run: supabase db push
 
+      - name: Deploy process-email-outbox
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+        run: supabase functions deploy process-email-outbox --project-ref ${{ steps.target.outputs.supabase_ref }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.0.8
@@ -67,8 +72,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Mark combined QA deploy as git branch qa
-        if: ${{ steps.target.outputs.site == 'combined' && github.ref == 'refs/heads/qa' }}
+      - name: Mark combined deploy as git branch qa
+        if: ${{ steps.target.outputs.site == 'combined' }}
         run: git switch -C qa
 
       - name: Build dashboard
@@ -84,11 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ steps.target.outputs.site }}" == "combined" ]]; then
-            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-              URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --prod --build-env PUBLIC_LANDING_URL=https://orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://orvel.pro)
-            else
-              URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
-            fi
+            URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
           else
             OUT=apps/dashboard/dist/salon-de-belleza/browser
             printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
