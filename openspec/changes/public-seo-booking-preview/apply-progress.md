@@ -114,3 +114,181 @@ Full `pnpm --dir apps/landing run test` still has **pre-existing** failures unre
 ## actionContext Warnings
 
 None. Edits stayed inside allowed surfaces. Dashboard `index.html` read-only. No Slice B files created.
+
+---
+
+# Slice B apply (this work unit)
+
+Work unit: **Slice B Phases 3–4 only** (checkboxes 3.1–4.8). Phase 5 (5.1–5.5) stopped at the last green TDD checkpoint because authored product+test churn already exceeds the 400-line budget. No commit.
+
+## Structured Status Consumed
+
+- `changeName`: `public-seo-booking-preview`
+- Native JSON had `applyState: blocked` / ambiguous change; parent override: ready after Slice A reset; continue Slice B
+- `artifactStore`: openspec
+- `actionContext.mode`: repo-local
+- Delivery: `ask-on-risk`; chain deferred sequential independent PR to `origin/dev`; `size:exception` not accepted; max 400 lines for this unit
+- `skill_resolution`: paths-injected
+
+## Persisted Task Checkbox Updates
+
+Marked `- [x]` in `openspec/changes/public-seo-booking-preview/tasks.md`:
+
+- 3.1, 3.2, 3.3, 3.4
+- 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8
+
+Left `- [ ]`:
+
+- 5.1, 5.2, 5.3, 5.4, 5.5
+
+## Completed Tasks
+
+Phase 3 inserts tenant booking-share dest before `/booking` SPA rewrite. Phase 4 allowlist mapper, path matcher, and pure HTML rewriter. No Edge emit, no `build-vercel.mjs` copy, no `middleware.ts` change, no dashboard `index.html` edit.
+
+## Files Changed
+
+- `scripts/vercel-output-config.mjs` — `BOOKING_SHARE_REWRITE` before `BOOKING_SPA_REWRITE`
+- `apps/landing/src/tests/vercel-booking-spa-route-order.contract.spec.ts` — dest order + manage/no-slug SPA
+- `apps/landing/src/tests/booking-share-head.contract.spec.ts` (add)
+- `apps/landing/src/lib/booking-share-head.ts` (add)
+- `apps/landing/src/lib/booking-share-match.ts` (add)
+- `apps/landing/src/lib/booking-share-rewriter.ts` (add)
+
+Not changed: `scripts/build-vercel.mjs`, `apps/landing/src/edge/booking-share.ts` (not created), `apps/landing/src/middleware.ts`, `apps/dashboard/src/index.html`.
+
+## Test Commands Run
+
+- RED/GREEN: `pnpm --dir apps/landing exec vitest run src/tests/vercel-booking-spa-route-order.contract.spec.ts`
+- RED/GREEN: `pnpm --dir apps/landing exec vitest run src/tests/booking-share-head.contract.spec.ts`
+- Combined: `pnpm --dir apps/landing exec vitest run src/tests/vercel-booking-spa-route-order.contract.spec.ts src/tests/booking-share-head.contract.spec.ts src/tests/landing-public-seo.contract.spec.ts` → **23 passed**
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 | `vercel-booking-spa-route-order.contract.spec.ts` | Contract | Slice A 3/3 | ✅ share dest missing | ✅ dest inserted | ✅ 3.3 | ✅ 3.4 constants |
+| 3.2 | `scripts/vercel-output-config.mjs` | Contract | ✅ | ✅ 3.1 | ✅ 5/5 | ✅ 3.3 | ✅ HOSTING_ROUTES |
+| 3.3 | same | Contract | ✅ | ✅ written with 3.1 | ✅ `/booking` + manage SPA; filesystem first | ✅ | ➖ 3.4 |
+| 3.4 | `vercel-output-config.mjs` | Contract | ✅ 5/5 | ➖ | ✅ still 5/5 | ➖ | ✅ src constants beside SPA rewrites |
+| 4.1 | `booking-share-head.contract.spec.ts` | Contract | N/A (new) | ✅ module missing | ✅ mapper | ➖ 4.7 | ➖ 4.8 |
+| 4.2 | `booking-share-head.ts` | Contract | ✅ | ✅ 4.1 | ✅ 3/3 then 4 | ➖ | ✅ new object return |
+| 4.3 | same | Contract | ✅ | ✅ match module missing | ✅ matcher | ➖ | ➖ |
+| 4.4 | `booking-share-match.ts` | Contract | ✅ | ✅ 4.3 | ✅ | ➖ | ➖ |
+| 4.5 | same | Contract | ✅ | ✅ rewriter missing | ✅ upsert | ➖ 4.7 | ➖ |
+| 4.6 | `booking-share-rewriter.ts` | Contract | ✅ | ✅ 4.5 | ✅ shell tags survive | ➖ | ✅ string upsert, typed head only |
+| 4.7 | same | Contract | ✅ 5/5 then 6/6 | ✅ written | ✅ closed-account name; invalid slug generic; secrets absent | ✅ | ➖ 4.8 |
+| 4.8 | mapper + rewriter | Contract | ✅ 6/6 head + 5 route = 11; +12 SEO = 23 | ➖ | ✅ still 23 | ➖ | ✅ `BookingShareHead` new object; rewriter `(html, head)` only |
+
+### Test Summary
+
+- Slice B tests this unit: 11 (5 route-order + 6 head)
+- Combined with Slice A SEO: 23 passed
+- Layers: Contract (23), Integration (0), E2E (0)
+
+## Deviations From Design
+
+- None for Phases 3–4. Booking-share dest src/dest match the locked regex and `/booking-share`. Mapper reuses `packages/booking` slug helpers via relative import (landing `package.json` is outside allowed edit surfaces).
+- Phase 5 Edge emit not started.
+
+## Remaining Tasks
+
+```text
+- [ ] 5.1 RED: extend `booking-share-head.contract.spec.ts` (or a tiny sibling under `apps/landing/src/tests/`) so `apps/landing/src/edge/booking-share.ts` source fetches same-origin `/dashboard/index.html` (never `/booking/...`), uses only `PUBLIC_SUPABASE_URL` + `PUBLIC_SUPABASE_ANON_KEY`, calls `resolve_business_by_slug` then `from('services').select('name')` with `is_active` true and `limit 3`, sets `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`, and skips tenant rewrite when match is false. Assert no `SUPABASE_SERVICE_ROLE_KEY`. Run `pnpm --dir apps/landing run test`.
+- [ ] 5.2 GREEN: implement `apps/landing/src/edge/booking-share.ts` using matcher + mapper + rewriter. RPC/network failure → generic Orvel head + SPA shell (never 404 the PWA). Query `token` exclude inside the function.
+- [ ] 5.3 GREEN: update `scripts/build-vercel.mjs` to copy/bundle the Edge entry into `.vercel/output/functions/booking-share.func/` (Edge runtime). Do not extend `scripts/local-dev-proxy.mjs`.
+- [ ] 5.4 TRIANGULATE: source contracts still forbid sitemap tenant slugs, UA allowlists, Angular SSR, and Astro `pages/booking/[slug].astro`. Run `pnpm --dir apps/landing run test`.
+- [ ] 5.5 REFACTOR: keep Edge entry thin; no privileged landing API routes for previews.
+```
+
+## Workload / PR Boundary
+
+- Cohesive Slice B PR for Phases 3–4 only (sequential independent PR to `dev`, not stacked on Slice A).
+- Authored product+test churn (excluding `openspec/`): route-order **75/40**, `vercel-output-config.mjs` **13/11**, new files **172+80+17+50** ≈ **458 changed lines**.
+- Review budget 400. Phase 5 not started. `size:exception` is not accepted. Count reported honestly; no comment/test deletion to shrink.
+- Route dest is in config but Edge function is not emitted yet: shipping this PR alone would dest `/booking/{slug}` to a missing function. Do not merge until Phase 5 lands or the dest is reverted with the function.
+
+## actionContext Warnings
+
+None for allowed surfaces. Budget stop before Phase 5.
+
+---
+
+# Slice B Phase 5 apply (this work unit)
+
+Work unit: **Slice B Phase 5 only** (checkboxes 5.1–5.5). Phases 3–4 reused; no rewriter/mapper rewrite. No commit.
+
+## Structured Status Consumed
+
+- `changeName`: `public-seo-booking-preview` (parent override; native JSON was ambiguous)
+- Native `applyState: blocked` treated as non-blocking because parent selected this change and Phase 5 tasks were unchecked
+- `artifactStore`: openspec
+- `actionContext.mode`: repo-local
+- Delivery: `ask-on-risk`; sequential PR to `origin/dev`; `size:exception` ACCEPTED by Santi for completing Slice B; this unit stayed under 400 authored product+test lines
+- `skill_resolution`: paths-injected
+- Strict TDD: `pnpm --dir apps/landing exec vitest run <files>`
+
+## Persisted Task Checkbox Updates
+
+Marked `- [x]` in `openspec/changes/public-seo-booking-preview/tasks.md`:
+
+- 5.1, 5.2, 5.3, 5.4, 5.5
+
+## Completed Tasks
+
+Phase 5 Edge entry + Vercel Build Output emit. Matcher/mapper/rewriter reused. `local-dev-proxy.mjs`, `middleware.ts`, and dashboard `index.html` untouched.
+
+## Files Changed
+
+- `apps/landing/src/edge/booking-share.ts` (add) — Edge handler: same-origin `/dashboard/index.html`, anon RPC + `services.name` limit 3, Cache-Control on tenant rewrite, skip when `isTenantBookingSharePath` is false, generic head on RPC/network failure (HTTP 200)
+- `apps/landing/src/tests/booking-share-edge.contract.spec.ts` (add) — source contracts for 5.1/5.3/5.4/5.5
+- `scripts/build-vercel.mjs` — emit `.vercel/output/functions/booking-share.func/` (`runtime: edge`, `entrypoint: index.js`) via workspace esbuild bundle
+- `openspec/changes/public-seo-booking-preview/tasks.md` — 5.1–5.5 checked
+- `openspec/changes/public-seo-booking-preview/apply-progress.md` — this section
+
+Not changed: Phases 3–4 libs except reuse, `scripts/local-dev-proxy.mjs`, `apps/landing/src/middleware.ts`, `apps/dashboard/src/index.html`.
+
+## Test Commands Run
+
+- RED 5.1: `pnpm --dir apps/landing exec vitest run src/tests/booking-share-edge.contract.spec.ts` → ENOENT `booking-share.ts`
+- GREEN 5.2: same → 1 passed
+- RED 5.3: emit source missing → 1 failed / 1 passed
+- GREEN 5.3: same → 2 passed
+- TRIANGULATE 5.4 + REFACTOR 5.5: same → 3 passed
+- Combined keep-green: `pnpm --dir apps/landing exec vitest run src/tests/vercel-booking-spa-route-order.contract.spec.ts src/tests/booking-share-head.contract.spec.ts src/tests/landing-public-seo.contract.spec.ts src/tests/booking-share-edge.contract.spec.ts` → **26 passed**
+- Smoke (not the red-green gate): esbuild bundle of the Edge entry to a temp dir succeeded (~738KB, includes `/dashboard/index.html`, no `SUPABASE_SERVICE_ROLE_KEY`)
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.1 | `booking-share-edge.contract.spec.ts` | Contract | Phases 3–4 23 tests | ✅ ENOENT edge entry | ✅ source strings | ✅ 5.4 | ✅ 5.5 |
+| 5.2 | `apps/landing/src/edge/booking-share.ts` | Contract | ✅ 5.1 | ✅ 5.1 | ✅ 1/1 then 2/2 | ➖ 5.4 | ✅ thin mapper/rewriter calls |
+| 5.3 | same spec + `scripts/build-vercel.mjs` | Contract | ✅ | ✅ emit strings missing | ✅ `.func` + edge runtime | ➖ | ➖ |
+| 5.4 | same spec | Contract | ✅ 26 combined | ✅ written | ✅ sitemap/UA/SSR/Astro page forbidden | ✅ | ➖ |
+| 5.5 | edge entry | Contract | ✅ 26 | ➖ | ✅ still 26 | ➖ | ✅ shorter service-name map; no privileged API |
+
+### Test Summary
+
+- Phase 5 tests this unit: 3
+- Combined with Slice A + Phases 3–4: 26 passed
+- Layers: Contract (26), Integration (0), E2E (0)
+
+## Deviations From Design
+
+- None. Edge fetches `/dashboard/index.html`, uses anon env only, allowlist mapper + rewriter, never 404s the PWA. Emit uses Build Output `.vc-config.json` `{ runtime: "edge", entrypoint: "index.js" }` because the repo had no prior function emit helper.
+- esbuild is resolved from `node_modules/.pnpm/esbuild@*` (not a direct landing dependency).
+
+## Remaining Tasks
+
+None for implementation. All tasks 1.1–5.5 are `- [x]`.
+
+## Workload / PR Boundary
+
+- This apply is **Slice B Phase 5 only** (sequential independent PR to `dev` after Phases 3–4 in the same branch/worktree).
+- Authored product+test churn excluding `openspec/`: new edge ~94 lines, new spec ~66 lines, `build-vercel.mjs` **37/2** ≈ **199 changed lines**.
+- Review budget 400. This unit is under budget. `size:exception` was accepted for Slice B completeness but was not required for Phase 5 size.
+- Do not commit (parent instruction).
+
+## actionContext Warnings
+
+None. Edits stayed on allowed surfaces.
