@@ -17,12 +17,33 @@ const plans = await getActivePlans();
 const plansWithBilling = plans.map((plan) => calculateBillingPrices(plan));
 const premium = plansWithBilling.find((plan) => plan.code === 'PREMIUM');
 const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` : '$25.000';
+
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Orvel',
+  url: 'https://orvel.pro/',
+  logo: 'https://orvel.pro/logo.png',
+};
+
+const softwareJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Orvel',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: 'https://orvel.pro/',
+};
 ---
 
 <Layout
   title="Orvel — Menos ida y vuelta. Más salón."
   description="Tu cliente reserva. Vos atendés. Creá tu cuenta. 14 días de Premium gratis, sin tarjeta."
 >
+  <Fragment slot="jsonLd">
+    <script type="application/ld+json" set:html={JSON.stringify(organizationJsonLd)} />
+    <script type="application/ld+json" set:html={JSON.stringify(softwareJsonLd)} />
+  </Fragment>
   <PrelaunchHeader />
   <PrelaunchHero />
   <PrelaunchRubros />
