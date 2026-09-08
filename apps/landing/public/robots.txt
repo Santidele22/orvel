@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /billing
+Disallow: /auth
+Disallow: /dashboard
+Disallow: /booking/manage
+
+Sitemap: https://orvel.pro/sitemap.xml

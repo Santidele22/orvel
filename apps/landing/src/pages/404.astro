@@ -1,0 +1,21 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Página no encontrada | Orvel" robots="noindex, nofollow" showPreloader={false}>
+  <main class="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center px-6">
+    <div class="max-w-xl text-center">
+      <p class="landing-eyebrow border border-border bg-white/5 text-text-primary mb-4">404</p>
+      <h1 class="landing-title font-headline font-bold mb-4">No encontramos esta página</h1>
+      <p class="landing-lead text-text-secondary mb-8">
+        El enlace puede estar vencido o escrito distinto. Volvé al inicio de Orvel.
+      </p>
+      <a
+        href="/"
+        class="inline-flex items-center justify-center rounded-full bg-primary text-on-secondary px-8 py-4 font-headline font-bold"
+      >
+        Volver al inicio
+      </a>
+    </div>
+  </main>
+</Layout>
