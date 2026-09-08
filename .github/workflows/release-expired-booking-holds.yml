@@ -1,0 +1,39 @@
+name: Release expired booking holds scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: release-expired-booking-holds-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke-release-expired-booking-holds:
+    name: Invoke release-expired-booking-holds Edge Function
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke expired booking hold release
+        env:
+          RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL: ${{ secrets.RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL }}
+          RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET: ${{ secrets.RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET }}
+        run: |
+          if [ -z "$RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL" ] || [ -z "$RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET" ]; then
+            echo "Release expired booking holds scheduler secrets are not configured."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent --output /dev/null \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-max-time 180 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer ${RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL"

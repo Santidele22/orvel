@@ -177,3 +177,13 @@ export type ConfirmBookingDepositPayload = {
   bookingId: string;
   performedBy?: string;
 };
+
+export type ClaimBookingDepositPayload = {
+  manageToken: string;
+  note?: string;
+};
+
+export type RejectBookingDepositUnseenPayload = {
+  bookingId: string;
+  performedBy?: string;
+};

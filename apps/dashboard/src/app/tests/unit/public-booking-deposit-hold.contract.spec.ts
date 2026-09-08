@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  DEPOSIT_HOLD_CLAIM_CTA,
+  DEPOSIT_HOLD_CLAIMED_COPY,
   DEPOSIT_HOLD_DURATION_MS,
   DEPOSIT_HOLD_NEXT_STEPS_COPY,
   DEPOSIT_HOLD_RELEASE_COPY,
@@ -140,7 +142,7 @@ describe('public booking deposit hold success copy', () => {
     expect(pageSource).toMatch(/DEPOSIT_HOLD_NEXT_STEPS_COPY/);
     expect(pageTemplate).toMatch(/booking-deposit-copy-alias/);
     expect(pageSource).toMatch(/copyDepositValue\(/);
-    expect(DEPOSIT_HOLD_NEXT_STEPS_COPY).toContain('No hace falta volver acá');
+    expect(DEPOSIT_HOLD_NEXT_STEPS_COPY).not.toContain('No hace falta volver acá');
     expect(buildSeñaReceiptWhatsAppUrl('2944667161')).toContain('https://wa.me/542944667161');
     expect(pageTemplate).toContain('Seña a pagar ahora');
     expect(pageTemplate).toContain('Resto, a pagar en el local');
@@ -281,5 +283,45 @@ describe('public booking deposit hold countdown and persistence', () => {
     expect(pageSource).toMatch(/restorePublicDepositHold\(/);
     expect(pageSource).toMatch(/clearPublicDepositHold\(/);
     expect(pageSource).toMatch(/dismissBookingSuccess/);
+  });
+});
+
+describe('public booking Ya transferí claim coordination', () => {
+  const pageSource = readUtf8('src/app/features/booking/pages/public/public-booking.page.ts');
+  const pageTemplate = readUtf8('src/app/features/booking/pages/public/public-booking.page.html');
+  const holdSource = readUtf8('src/app/features/booking/pages/public/public-booking-deposit-hold.ts');
+  const combinedUi = `${pageSource}
+${pageTemplate}
+${holdSource}`;
+  const instructionsEmail = readUtf8('../../apps/shared/email-templates/appointment-templates.ts');
+
+  it('offers Ya transferí on the hold card and drops locked stay-away copy', () => {
+    expect(DEPOSIT_HOLD_CLAIM_CTA).toBe('Ya transferí');
+    expect(pageTemplate).toContain(DEPOSIT_HOLD_CLAIM_CTA);
+    expect(pageTemplate).toMatch(/data-testid=["']booking-deposit-claim["']/);
+    expect(combinedUi).not.toContain('No hace falta volver acá');
+    expect(combinedUi.toLowerCase()).not.toContain('pago recibido');
+    expect(pageSource).toMatch(/manageToken/);
+    expect(pageSource).toMatch(/claimBookingDeposit\(/);
+  });
+
+  it('says the business was notified after a successful claim and never treats WhatsApp as the aviso', () => {
+    expect(DEPOSIT_HOLD_CLAIMED_COPY.toLowerCase()).toMatch(/avisamos al negocio/);
+    expect(DEPOSIT_HOLD_CLAIMED_COPY.toLowerCase()).not.toContain('pago recibido');
+    expect(pageTemplate).toContain('depositClaimedCopy');
+    expect(pageTemplate).toMatch(/booking-deposit-receipt-whatsapp/);
+    expect(pageSource).toMatch(/buildSeñaReceiptWhatsAppUrl/);
+    expect(holdSource).toMatch(/export function buildSeñaReceiptWhatsAppUrl/);
+    expect(pageSource).toMatch(/if \(result\.status !== 200 \|\| result\.error\)/);
+  });
+
+  it('does not add an instructions-email manage CTA and withholds avisamos copy unless claim succeeds', () => {
+    const depositFnStart = instructionsEmail.indexOf('renderAppointmentDepositInstructionsEmail');
+    const depositFn = instructionsEmail.slice(depositFnStart, depositFnStart + 1800);
+    expect(depositFn).toContain('renderAppointmentDepositInstructionsEmail');
+    expect(depositFn).not.toMatch(/manage\?token/);
+    expect(depositFn).not.toContain('Ya transferí');
+    expect(pageSource).toMatch(/depositClaimed\.set\(true\)/);
+    expect(pageSource).toMatch(/depositClaimed\.set\(false\)/);
   });
 });

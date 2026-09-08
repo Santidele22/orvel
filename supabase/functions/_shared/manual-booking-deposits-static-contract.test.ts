@@ -547,6 +547,51 @@ Deno.test("WU2 claim_booking_deposit: pending to claim_pending with evidence, ne
   );
 });
 
+
+Deno.test("WU2 claim_booking_deposit: INSERT dashboard_notifications deposit.claimed, no EXCEPTION swallow", async () => {
+  const sql = await readAllSqlMigrations();
+  const body = latestFunctionBodyMatching(
+    sql,
+    "claim_booking_deposit",
+    (candidate) => /claim_pending/i.test(candidate),
+  );
+  const claimNotify = body.search(
+    /INSERT\s+INTO\s+public\.dashboard_notifications/i,
+  );
+  const claimPending = body.search(/deposit_status\s*=\s*'claim_pending'/i);
+
+  assert(
+    claimNotify >= 0,
+    "claim RPC must INSERT dashboard_notifications in the same function as the status change",
+  );
+  assert(
+    claimPending >= 0 && claimPending < claimNotify,
+    "claim notify INSERT must run after deposit_status is set to claim_pending",
+  );
+  assert(
+    /event_type\s*,[\s\S]{0,400}'deposit\.claimed'/i.test(body) ||
+      /'deposit\.claimed'[\s\S]{0,200}event_type/i.test(body),
+    "claim notify event_type must be deposit.claimed",
+  );
+  assert(
+    /INSERT\s+INTO\s+public\.dashboard_notifications[\s\S]*appointment_id[\s\S]*v_booking\.id/i
+      .test(body),
+    "claim notify appointment_id must be the booking id",
+  );
+  assert(
+    !/EXCEPTION\s+WHEN\s+OTHERS/i.test(body),
+    "claim RPC must not swallow errors with EXCEPTION WHEN OTHERS",
+  );
+  assert(
+    !/deposit_status\s*=\s*'paid'/i.test(body),
+    "claim RPC must never set paid",
+  );
+  assert(
+    !/_business/i.test(body),
+    "claim RPC must not enqueue a _business outbox aviso",
+  );
+});
+
 Deno.test("WU2 copy, admin skip, incomplete settings, config, and legacy-only scope", async () => {
   const sql = await readAllSqlMigrations();
   const createBody = latestCreatePublicBookingBody(sql);
@@ -930,4 +975,121 @@ Deno.test("released hold enqueues appointment_hold_released without rewriting re
     !/reembolso|devoluci[oó]n|refund/i.test(helper),
     "hold-released helper must not use refund language",
   );
+});
+
+Deno.test("WU4 reject_booking_deposit_unseen: released not abandoned, operator_reject evidence, no anon GRANT", async () => {
+  const sql = await readAllSqlMigrations();
+  const definition = latestFunctionDefinition(
+    sql,
+    "reject_booking_deposit_unseen",
+    (candidate) => /booking_id/i.test(candidate) && /performed_by/i.test(candidate),
+  );
+  const body = latestFunctionBodyMatching(
+    sql,
+    "reject_booking_deposit_unseen",
+    (candidate) => /operator_reject/i.test(candidate),
+  );
+
+  assert(/SECURITY\s+DEFINER/i.test(definition), "reject RPC must be SECURITY DEFINER");
+  assert(
+    /reject_booking_deposit_unseen\s*\(\s*booking_id\s+uuid\s*,\s*performed_by\s+uuid/i
+      .test(definition),
+    "reject_booking_deposit_unseen(booking_id, performed_by) signature is required",
+  );
+  assert(
+    /can_manage_business\s*\(/i.test(body),
+    "reject RPC must authorize via can_manage_business",
+  );
+  assert(
+    /auth\.role\(\)\s*<>\s*'service_role'/i.test(body),
+    "reject RPC must keep service_role bypass and reject other unauthenticated callers",
+  );
+  assert(
+    /UNAUTHORIZED/i.test(body),
+    "unauthenticated reject must raise UNAUTHORIZED and not set released",
+  );
+  assert(
+    /release_expired_booking_hold\s*\(/i.test(body),
+    "reject RPC must lazy-release expired holds first",
+  );
+  const lazyReleaseAt = body.search(/release_expired_booking_hold\s*\(/i);
+  const releasedAt = body.search(/deposit_status\s*=\s*'released'/i);
+  assert(
+    lazyReleaseAt >= 0 && releasedAt >= 0 && lazyReleaseAt < releasedAt,
+    "lazy-release must run before operator reject writes released",
+  );
+  assert(
+    /deposit_status\s*=\s*'released'/i.test(body),
+    "reject RPC MUST write deposit_status='released'",
+  );
+  assert(
+    !/deposit_status\s*=\s*'abandoned'/i.test(body),
+    "reject RPC must NOT write abandoned",
+  );
+  assert(
+    !/deposit_status\s*=\s*'void'/i.test(body),
+    "reject RPC must NOT write void",
+  );
+  assert(
+    /INSERT\s+INTO\s+public\.booking_deposit_evidence[\s\S]*'operator_reject'/i.test(body),
+    "reject evidence MUST be operator_reject",
+  );
+  assert(
+    !/INSERT\s+INTO\s+public\.booking_deposit_evidence[\s\S]*'claim'/i.test(body),
+    "reject evidence must not be recorded as claim",
+  );
+  assert(
+    !/'timeout_strike'/i.test(body),
+    "reject evidence must not be recorded as timeout_strike",
+  );
+  assert(
+    !/booking_deposit_strikes/i.test(body),
+    "reject must not insert strike rows",
+  );
+  assert(
+    /UPDATE\s+public\.bookings/i.test(body),
+    "reject must mutate public.bookings",
+  );
+  assert(
+    !/public\.appointments/i.test(body),
+    "reject must not require dual-schema appointments",
+  );
+  assert(
+    /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.reject_booking_deposit_unseen[\s\S]*FROM\s+PUBLIC/i
+      .test(sql),
+    "reject RPC must REVOKE ALL FROM PUBLIC",
+  );
+  const grant = sql.match(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.reject_booking_deposit_unseen[\s\S]*?;/i,
+  );
+  assert(grant, "reject RPC must GRANT EXECUTE");
+  assert(
+    /TO\s+authenticated\s*,\s*service_role/i.test(grant[0]),
+    "reject RPC must GRANT EXECUTE to authenticated, service_role",
+  );
+  assert(
+    !/\banon\b/i.test(grant[0]),
+    "reject RPC must NOT GRANT EXECUTE to anon",
+  );
+});
+
+
+Deno.test("WU4 triangulate: reject does not add refund copy or dual-schema; hold-released mail stays", async () => {
+  const templates = await Deno.readTextFile(
+    new URL("../../../apps/shared/email-templates/appointment-templates.ts", import.meta.url),
+  );
+  const outbox = await Deno.readTextFile(
+    new URL("../process-email-outbox/index.ts", import.meta.url),
+  );
+  const sql = await readAllSqlMigrations();
+  const body = latestFunctionBodyMatching(
+    sql,
+    "reject_booking_deposit_unseen",
+    (candidate) => /operator_reject/i.test(candidate),
+  );
+  assert(!/reembolso|devoluci[oó]n|refund/i.test(templates), "email templates must not gain refund language");
+  assert(!/reembolso|devoluci[oó]n|refund/i.test(outbox), "process-email-outbox must not gain refund language");
+  assert(!/reembolso|devoluci[oó]n|refund/i.test(body), "reject RPC must not use refund language");
+  assert(!/public\.appointments/i.test(body), "reject stays on public.bookings");
+  assert(/deposit_status\s*=\s*'released'/i.test(body), "reject still writes released so hold-released mail can fire");
 });
