@@ -13,7 +13,10 @@ import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublic
 import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
 import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
+import { claimBookingDeposit } from '@orvel/booking/infrastructure';
 import {
+  DEPOSIT_HOLD_CLAIM_CTA,
+  DEPOSIT_HOLD_CLAIMED_COPY,
   DEPOSIT_HOLD_NEXT_STEPS_COPY,
   buildSeñaReceiptWhatsAppUrl,
   formatDepositWhatsAppDisplay,
@@ -176,7 +179,32 @@ export class PublicBookingPage implements OnInit, OnDestroy {
   }
 
   protected readonly depositNextStepsCopy = DEPOSIT_HOLD_NEXT_STEPS_COPY;
+  protected readonly depositClaimCta = DEPOSIT_HOLD_CLAIM_CTA;
+  protected readonly depositClaimedCopy = DEPOSIT_HOLD_CLAIMED_COPY;
+  protected readonly depositClaimed = signal(false);
+  protected readonly claimingDeposit = signal(false);
+  protected readonly claimDepositError = signal(false);
   protected readonly copiedDepositField = signal<string | null>(null);
+
+  protected async claimDepositTransfer(): Promise<void> {
+    const manageToken = this.depositHold()?.manageToken?.trim();
+    if (!manageToken || this.claimingDeposit()) {
+      return;
+    }
+    this.claimingDeposit.set(true);
+    this.claimDepositError.set(false);
+    try {
+      const result = await claimBookingDeposit({ manageToken });
+      if (result.status !== 200 || result.error) {
+        this.depositClaimed.set(false);
+        this.claimDepositError.set(true);
+        return;
+      }
+      this.depositClaimed.set(true);
+    } finally {
+      this.claimingDeposit.set(false);
+    }
+  }
 
   protected async copyDepositValue(field: string, value: string | null | undefined): Promise<void> {
     const text = value?.trim();
@@ -218,6 +246,8 @@ export class PublicBookingPage implements OnInit, OnDestroy {
     this.bookingAwaitingApproval.set(false);
     this.depositHold.set(null);
     this.depositHoldRemainingMs.set(0);
+    this.depositClaimed.set(false);
+    this.claimDepositError.set(false);
   }
 
   private publicBookingSlug(): string {
@@ -318,6 +348,8 @@ export class PublicBookingPage implements OnInit, OnDestroy {
     this.stopDepositHoldTicker();
     this.depositHold.set(null);
     this.depositHoldRemainingMs.set(0);
+    this.depositClaimed.set(false);
+    this.claimDepositError.set(false);
     this.rescheduleConfirmed.set(false);
     this.publicServices.set([]);
     this.selectedServiceId.set('');

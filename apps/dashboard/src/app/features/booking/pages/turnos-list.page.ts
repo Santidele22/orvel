@@ -748,17 +748,31 @@ export class TurnosListPage implements OnInit, OnDestroy {
   }
 
   protected confirmingDepositId = signal<string | null>(null);
+  protected rejectingDepositId = signal<string | null>(null);
 
   protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
     event?.stopPropagation();
     const userId = this.currentAdminActorId();
-    if (!userId || this.confirmingDepositId()) return;
+    if (!userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
     this.confirmingDepositId.set(bookingId);
     try {
       await this.dashboardService.confirmDepositReceived(bookingId, userId);
       await this.refreshTurnosFromSource();
     } finally {
       this.confirmingDepositId.set(null);
+    }
+  }
+
+  protected async rejectBookingDepositUnseen(bookingId: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const userId = this.currentAdminActorId();
+    if (!userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
+    this.rejectingDepositId.set(bookingId);
+    try {
+      await this.dashboardService.rejectBookingDepositUnseen(bookingId, userId);
+      await this.refreshTurnosFromSource();
+    } finally {
+      this.rejectingDepositId.set(null);
     }
   }
 

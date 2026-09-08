@@ -40,10 +40,18 @@
         <button
           type="button"
           class="rounded-lg bg-primary px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
-          [disabled]="confirmingDepositId() === turno().id"
+          [disabled]="confirmingDepositId() === turno().id || rejectingDepositId() === turno().id"
           (click)="confirmDepositReceived($event)"
         >
           Confirmar seña
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-surface-container-high px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-secondary"
+          [disabled]="confirmingDepositId() === turno().id || rejectingDepositId() === turno().id"
+          (click)="rejectBookingDepositUnseen($event)"
+        >
+          No la veo
         </button>
       } @else {
       @switch (turno().estado) {

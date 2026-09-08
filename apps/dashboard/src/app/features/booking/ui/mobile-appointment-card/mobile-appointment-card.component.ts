@@ -19,6 +19,7 @@ export class MobileAppointmentCardComponent {
   private readonly dashboardService = inject(DashboardService);
   private readonly authService = inject(AuthService);
   protected readonly confirmingDepositId = signal<string | null>(null);
+  protected readonly rejectingDepositId = signal<string | null>(null);
 
   /** Emit when the user taps the card body — parent navigates to detail. */
   @Output() cardTapped = new EventEmitter<TurnoWithRelations>();
@@ -27,13 +28,27 @@ export class MobileAppointmentCardComponent {
     event.stopPropagation();
     const bookingId = this.turno().id;
     const userId = this.authService.user()?.id;
-    if (!userId || this.confirmingDepositId()) return;
+    if (!userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
     this.confirmingDepositId.set(bookingId);
     try {
       const ok = await this.dashboardService.confirmDepositReceived(bookingId, userId);
       if (ok) window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
     } finally {
       this.confirmingDepositId.set(null);
+    }
+  }
+
+  protected async rejectBookingDepositUnseen(event: Event): Promise<void> {
+    event.stopPropagation();
+    const bookingId = this.turno().id;
+    const userId = this.authService.user()?.id;
+    if (!userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
+    this.rejectingDepositId.set(bookingId);
+    try {
+      const ok = await this.dashboardService.rejectBookingDepositUnseen(bookingId, userId);
+      if (ok) window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+    } finally {
+      this.rejectingDepositId.set(null);
     }
   }
 }

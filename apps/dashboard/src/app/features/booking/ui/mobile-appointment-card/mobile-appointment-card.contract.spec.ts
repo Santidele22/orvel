@@ -115,6 +115,15 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).toContain('data-testid="deposit-claimed-highlight"');
   });
 
+  it('offers No la veo for unpaid deposits without replacing Confirmar seña', () => {
+    expect(templateSource).toContain('No la veo');
+    expect(templateSource).toContain('Confirmar seña');
+    expect(componentSource).toMatch(/rejectBookingDepositUnseen/);
+    expect(componentSource).toMatch(/confirmDepositReceived/);
+    expect(templateSource).not.toMatch(/strike/i);
+    expect(componentSource).not.toMatch(/strike/i);
+  });
+
   it('template references bg-primary (Walk-in)', () => {
     expect(templateSource).toMatch(/bg-primary/);
   });

@@ -14,7 +14,9 @@ import {
   setSupabaseBookingGateway,
   updateAdminBooking,
   updateBookingStatus,
-  confirmBookingDepositReceived
+  confirmBookingDepositReceived,
+  claimBookingDeposit,
+  rejectBookingDepositUnseen
 } from '../api-wrapper';
 
 function createMockGateway(): SupabaseBookingGateway {
@@ -92,6 +94,14 @@ function createMockGateway(): SupabaseBookingGateway {
     confirmBookingDepositReceived: vi.fn(async () => ({
       status: 200,
       data: { bookingId: 'booking-admin', depositStatus: 'paid' }
+    })),
+    claimBookingDeposit: vi.fn(async () => ({
+      status: 200,
+      data: { bookingId: 'booking-public', depositStatus: 'claim_pending' }
+    })),
+    rejectBookingDepositUnseen: vi.fn(async () => ({
+      status: 200,
+      data: { bookingId: 'booking-admin', depositStatus: 'released' }
     }))
   };
 }
@@ -258,6 +268,41 @@ describe('supabase-booking api-wrapper contract', () => {
     });
     expect(gateway.updateBookingStatus).toHaveBeenCalledWith({ bookingId: 'booking-admin', status: 'completed', performedBy: 'admin-1' });
     expect(gateway.confirmBookingDepositReceived).toHaveBeenCalledWith({ bookingId: 'booking-admin', performedBy: 'admin-1' });
+  });
+
+  it('delegates claimBookingDeposit({ manageToken, note? }) to the injected gateway', async () => {
+    const gateway = createMockGateway();
+    setSupabaseBookingGateway(gateway);
+
+    await expect(claimBookingDeposit({ manageToken: 'manage-once' })).resolves.toEqual({
+      status: 200,
+      data: { bookingId: 'booking-public', depositStatus: 'claim_pending' }
+    });
+    expect(gateway.claimBookingDeposit).toHaveBeenCalledWith({ manageToken: 'manage-once' });
+
+    await expect(
+      claimBookingDeposit({ manageToken: 'manage-once', note: 'alias listo' })
+    ).resolves.toMatchObject({ status: 200 });
+    expect(gateway.claimBookingDeposit).toHaveBeenCalledWith({
+      manageToken: 'manage-once',
+      note: 'alias listo'
+    });
+  });
+
+  it('delegates rejectBookingDepositUnseen({ bookingId, performedBy }) to released', async () => {
+    const gateway = createMockGateway();
+    setSupabaseBookingGateway(gateway);
+
+    await expect(
+      rejectBookingDepositUnseen({ bookingId: 'booking-admin', performedBy: 'admin-1' })
+    ).resolves.toEqual({
+      status: 200,
+      data: { bookingId: 'booking-admin', depositStatus: 'released' }
+    });
+    expect(gateway.rejectBookingDepositUnseen).toHaveBeenCalledWith({
+      bookingId: 'booking-admin',
+      performedBy: 'admin-1'
+    });
   });
 
   it('returns exact admin endpoint success shapes from the injected gateway', async () => {
