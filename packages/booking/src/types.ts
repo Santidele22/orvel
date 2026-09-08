@@ -182,3 +182,8 @@ export type ClaimBookingDepositPayload = {
   manageToken: string;
   note?: string;
 };
+
+export type RejectBookingDepositUnseenPayload = {
+  bookingId: string;
+  performedBy?: string;
+};

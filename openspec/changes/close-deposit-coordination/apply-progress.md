@@ -295,3 +295,116 @@ Phase 3 implementation complete except optional 3.6. Unchecked implementation ro
 
 No commit, no push, no PR. Slice 4 not implemented. Task 3.6 skipped/N/A. Per-env `RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL` / `RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET` wiring is ops, not this slice.
 
+
+---
+
+## Work unit 4
+
+PR 4 of 4 — Operator no la veo → `released` (`feat/close-deposit-coordination-s4` stacked on s3).
+
+- delivery_strategy: ask-on-risk (parent assigned this slice as PR 4 of 4 stacked on s3)
+- chain_strategy: stacked-to-main (Orvel integration is `dev`)
+- size:exception: not accepted
+- max-changed-lines: 400
+
+## Structured status consumed
+
+Native engine reported `applyState: blocked` with ambiguous change selection (`chore-docs-and-context-align-release-2-0`, `close-deposit-coordination`). Parent assigned `close-deposit-coordination` work unit 4 only. `actionContext.mode: repo-local`; edits stayed inside allowed surfaces. Untracked `videos/` and `apps/ops/` out of scope.
+
+## Completed this slice
+
+Persisted checkboxes in `tasks.md` marked `- [x]` for 4.1–4.8.
+
+- 4.1 RED: static contract requires `reject_booking_deposit_unseen(booking_id, performed_by)` → `released` not `abandoned`/`void`; evidence `operator_reject`; `SECURITY DEFINER` + `can_manage_business`; GRANT `authenticated, service_role` not anon.
+- 4.2 GREEN: additive `supabase/migrations/20260910120000_reject_booking_deposit_unseen.sql` with lazy-release first.
+- 4.3 RED: api-wrapper contract delegates `rejectBookingDepositUnseen({ bookingId, performedBy })` → `depositStatus: 'released'`.
+- 4.4 GREEN: reject on gateway-interface, types, real-gateway, api-wrapper, dashboard.service (plus infrastructure barrel).
+- 4.5 RED: Turnos/mobile contracts require **No la veo** plus Confirmar seña.
+- 4.6 GREEN: reject UI on Turnos list, mobile card, and mobile detail; copy **No la veo**.
+- 4.7 TRIANGULATE: unauthenticated path is GRANT-not-anon + `UNAUTHORIZED`/`can_manage_business`; no strike UI; no dual-schema; email templates and process-email-outbox read-only, no refund copy.
+- 4.8 REFACTOR: confirm remains; occupancy gate remains `isDepositUnpaid`.
+
+## Files changed
+
+- `supabase/functions/_shared/manual-booking-deposits-static-contract.test.ts`
+- `supabase/migrations/20260910120000_reject_booking_deposit_unseen.sql`
+- `packages/booking/src/types.ts`
+- `packages/booking/src/gateway-interface.ts`
+- `packages/booking/src/infrastructure/supabase/real-gateway.ts`
+- `packages/booking/src/infrastructure/supabase/api-wrapper.ts`
+- `packages/booking/src/infrastructure/index.ts`
+- `packages/booking/src/infrastructure/supabase/__tests__/api-wrapper.contract.spec.ts`
+- `apps/dashboard/src/app/core/dashboard/dashboard.service.ts`
+- `apps/dashboard/src/app/features/booking/pages/turnos-list.page.ts`
+- `apps/dashboard/src/app/features/booking/pages/turnos-list.page.html`
+- `apps/dashboard/src/app/features/booking/pages/turnos-list.consumer.contract.spec.ts`
+- `apps/dashboard/src/app/features/booking/ui/mobile-appointment-card/mobile-appointment-card.component.ts`
+- `apps/dashboard/src/app/features/booking/ui/mobile-appointment-card/mobile-appointment-card.component.html`
+- `apps/dashboard/src/app/features/booking/ui/mobile-appointment-card/mobile-appointment-card.contract.spec.ts`
+- `apps/dashboard/src/app/features/booking/ui/mobile-turno-detail/mobile-turno-detail.component.ts`
+- `apps/dashboard/src/app/features/booking/ui/mobile-turno-detail/mobile-turno-detail.component.html`
+- `apps/dashboard/src/app/features/booking/ui/mobile-turno-detail/mobile-turno-detail.consumer.contract.spec.ts`
+- `openspec/changes/close-deposit-coordination/tasks.md`
+- `openspec/changes/close-deposit-coordination/apply-progress.md`
+
+Email templates and `process-email-outbox` were not edited.
+
+## Test commands
+
+RED 4.1:
+
+`~/.deno/bin/deno.exe test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/manual-booking-deposits-static-contract.test.ts --filter "WU4 reject"`
+
+→ **0 passed / 1 failed** (function missing).
+
+GREEN 4.2 + occupancy lock:
+
+same file unfiltered → **27 passed**, then after triangulation test **28 passed**.
+
+RED 4.3:
+
+`pnpm --dir packages/booking exec vitest run src/infrastructure/supabase/__tests__/api-wrapper.contract.spec.ts`
+
+→ **1 failed / 5 passed** (`rejectBookingDepositUnseen is not a function`).
+
+GREEN 4.4: same command → **6 passed**.
+
+RED 4.5:
+
+`pnpm --dir apps/dashboard exec vitest run` on the three Turnos/mobile contract specs → **3 failed / 49 passed**.
+
+GREEN / TRIANGULATE / REFACTOR 4.6–4.8: same command → **3 files, 52 passed**.
+
+## TDD Cycle Evidence (work unit 4)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 | `manual-booking-deposits-static-contract.test.ts` | SQL static | ✅ 26/26 existing | ✅ Written (function missing) | ✅ 27/27 then 28/28 | ✅ GRANT not anon; released not abandoned | ➖ SQL additive only |
+| 4.2 | same | SQL static | ✅ | (RED from 4.1) | ✅ reject migration | ✅ lazy-release before UPDATE released | ➖ |
+| 4.3 | `api-wrapper.contract.spec.ts` | Contract | ✅ 5/5 | ✅ Written (not a function) | ✅ 6/6 | ✅ `{ bookingId, performedBy }` → released | ➖ |
+| 4.4 | same + gateway files | Unit/adapter | ✅ | (RED from 4.3) | ✅ RPC `reject_booking_deposit_unseen` | ✅ dashboard.service wrapper | ➖ barrel export |
+| 4.5 | turnos-list + mobile-appointment-card + mobile-turno-detail contracts | Contract | ✅ 49/49 existing | ✅ Written (No la veo missing) | ✅ 52/52 | ✅ list + card + detail; confirm kept | ➖ |
+| 4.6 | same | UI | ✅ | (RED from 4.5) | ✅ No la veo CTA | ✅ confirm still present | ➖ |
+| 4.7 | SQL static + UI contracts | Contract | ✅ | covered | ✅ | ✅ unauth GRANT/UNAUTHORIZED; no strike; no dual-schema; no refund copy | ➖ email/outbox read-only |
+| 4.8 | grep/contracts | Contract | ✅ | N/A | ✅ | ➖ structural | ✅ reject does not replace confirm; unpaid gate `isDepositUnpaid` |
+
+## Deviations from design
+
+- Exported `rejectBookingDepositUnseen` from `packages/booking/src/infrastructure/index.ts` so dashboard can import `@orvel/booking/infrastructure` (same barrel requirement as slice 2 claim).
+
+## Remaining tasks
+
+Phase 4 implementation complete. Unchecked implementation rows:
+
+- [ ] 3.6 GREEN (optional MAY): public countdown 00:00 may RPC-release that booking from `apps/dashboard/src/app/features/booking/pages/public/public-booking-deposit-hold.ts`; clearing sessionStorage is not occupancy. skipped/N/A this slice (optional MAY; stay under 400-line budget). <!-- sdd-owner: implementation -->
+
+## Workload / PR boundary
+
+- Authored production+test diff excluding OpenSpec: **17 tracked files, 303 insertions, 12 deletions** plus **73-line** untracked migration (~388 changed lines).
+- Under 400-line budget. No `size:exception`.
+- Current PR boundary: PR 4 of 4 on `feat/close-deposit-coordination-s4` stacked on slice 3, targeting `dev`.
+- Did not commit or push.
+
+## Not done
+
+No commit, no push, no PR. Task 3.6 remains skipped/N/A from slice 3.

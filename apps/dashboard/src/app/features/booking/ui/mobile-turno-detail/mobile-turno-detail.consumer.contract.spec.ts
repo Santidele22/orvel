@@ -40,4 +40,13 @@ describe('MobileTurnoDetailComponent capability-service consumer', () => {
     expect(template).toMatch(/claim_pending/);
     expect(template).toContain('data-testid="deposit-claimed-highlight"');
   });
+
+  it('offers No la veo on detail without replacing Confirmar seña', () => {
+    expect(template).toContain('No la veo');
+    expect(template).toContain('Confirmar seña');
+    expect(source).toMatch(/rejectBookingDepositUnseen/);
+    expect(source).toMatch(/confirmDepositReceived/);
+    expect(template).not.toMatch(/strike/i);
+    expect(source).not.toMatch(/strike/i);
+  });
 });
