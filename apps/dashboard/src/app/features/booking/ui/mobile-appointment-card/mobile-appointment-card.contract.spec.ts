@@ -101,6 +101,20 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).not.toMatch(/turno\(\)\.estado\s*===\s*['"]confirmado['"]\s*\)\s*\{/);
   });
 
+  it('offers Confirmar seña for unpaid deposits via DashboardService.confirmDepositReceived', () => {
+    expect(templateSource).toContain('Confirmar seña');
+    expect(componentSource).toMatch(/DashboardService/);
+    expect(componentSource).toMatch(/confirmDepositReceived/);
+    expect(`${componentSource}\n${templateSource}`).toMatch(/isDepositUnpaid/);
+    expect(componentSource).not.toMatch(/confirmBookingDepositReceived/);
+  });
+
+  it('labels claimed holds Seña avisada and highlights claim_pending more strongly', () => {
+    expect(templateSource).toContain('Seña avisada');
+    expect(templateSource).toMatch(/claim_pending/);
+    expect(templateSource).toContain('data-testid="deposit-claimed-highlight"');
+  });
+
   it('template references bg-primary (Walk-in)', () => {
     expect(templateSource).toMatch(/bg-primary/);
   });
