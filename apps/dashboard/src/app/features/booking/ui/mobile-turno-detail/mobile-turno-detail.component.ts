@@ -63,11 +63,12 @@ export class MobileTurnoDetailComponent {
   private readonly dashboardService = inject(DashboardService);
   private readonly authService = inject(AuthService);
   protected readonly confirmingDepositId = signal<string | null>(null);
+  protected readonly rejectingDepositId = signal<string | null>(null);
 
   protected async confirmDepositReceived(): Promise<void> {
     const bookingId = this.turno()?.id;
     const userId = this.authService.user()?.id;
-    if (!bookingId || !userId || this.confirmingDepositId()) return;
+    if (!bookingId || !userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
     this.confirmingDepositId.set(bookingId);
     try {
       const ok = await this.dashboardService.confirmDepositReceived(bookingId, userId);
@@ -77,6 +78,22 @@ export class MobileTurnoDetailComponent {
       }
     } finally {
       this.confirmingDepositId.set(null);
+    }
+  }
+
+  protected async rejectBookingDepositUnseen(): Promise<void> {
+    const bookingId = this.turno()?.id;
+    const userId = this.authService.user()?.id;
+    if (!bookingId || !userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
+    this.rejectingDepositId.set(bookingId);
+    try {
+      const ok = await this.dashboardService.rejectBookingDepositUnseen(bookingId, userId);
+      if (ok) {
+        window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+        this.back();
+      }
+    } finally {
+      this.rejectingDepositId.set(null);
     }
   }
 
