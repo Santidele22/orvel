@@ -139,9 +139,21 @@ describe('DashboardService BookingQueries consumer', () => {
       badgeLabel: 'Pendiente de seña',
       depositPending: true
     });
+    expect(service.featuredAppointments()[0]?.badgeLabel).not.toBe('Seña avisada');
   });
 
-    it('computes completed-today ticket average from BookingQueries rows', async () => {
+  it('labels claim_pending seña bookings as Seña avisada and still unpaid', async () => {
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'claim_pending' })]);
+    const service = createService(queries);
+    await flush();
+    expect(service.featuredAppointments()[0]).toMatchObject({
+      estado: 'confirmado',
+      badgeLabel: 'Seña avisada',
+      depositPending: true
+    });
+  });
+
+  it('computes completed-today ticket average from BookingQueries rows', async () => {
     const queries = new InMemoryBookingQueries([todayRecord({ estado: 'completado' })]);
     const service = createService(queries);
     await flush();
