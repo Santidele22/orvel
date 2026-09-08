@@ -547,6 +547,51 @@ Deno.test("WU2 claim_booking_deposit: pending to claim_pending with evidence, ne
   );
 });
 
+
+Deno.test("WU2 claim_booking_deposit: INSERT dashboard_notifications deposit.claimed, no EXCEPTION swallow", async () => {
+  const sql = await readAllSqlMigrations();
+  const body = latestFunctionBodyMatching(
+    sql,
+    "claim_booking_deposit",
+    (candidate) => /claim_pending/i.test(candidate),
+  );
+  const claimNotify = body.search(
+    /INSERT\s+INTO\s+public\.dashboard_notifications/i,
+  );
+  const claimPending = body.search(/deposit_status\s*=\s*'claim_pending'/i);
+
+  assert(
+    claimNotify >= 0,
+    "claim RPC must INSERT dashboard_notifications in the same function as the status change",
+  );
+  assert(
+    claimPending >= 0 && claimPending < claimNotify,
+    "claim notify INSERT must run after deposit_status is set to claim_pending",
+  );
+  assert(
+    /event_type\s*,[\s\S]{0,400}'deposit\.claimed'/i.test(body) ||
+      /'deposit\.claimed'[\s\S]{0,200}event_type/i.test(body),
+    "claim notify event_type must be deposit.claimed",
+  );
+  assert(
+    /INSERT\s+INTO\s+public\.dashboard_notifications[\s\S]*appointment_id[\s\S]*v_booking\.id/i
+      .test(body),
+    "claim notify appointment_id must be the booking id",
+  );
+  assert(
+    !/EXCEPTION\s+WHEN\s+OTHERS/i.test(body),
+    "claim RPC must not swallow errors with EXCEPTION WHEN OTHERS",
+  );
+  assert(
+    !/deposit_status\s*=\s*'paid'/i.test(body),
+    "claim RPC must never set paid",
+  );
+  assert(
+    !/_business/i.test(body),
+    "claim RPC must not enqueue a _business outbox aviso",
+  );
+});
+
 Deno.test("WU2 copy, admin skip, incomplete settings, config, and legacy-only scope", async () => {
   const sql = await readAllSqlMigrations();
   const createBody = latestCreatePublicBookingBody(sql);
