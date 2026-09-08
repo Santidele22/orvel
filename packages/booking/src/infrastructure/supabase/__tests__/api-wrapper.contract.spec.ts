@@ -15,7 +15,8 @@ import {
   updateAdminBooking,
   updateBookingStatus,
   confirmBookingDepositReceived,
-  claimBookingDeposit
+  claimBookingDeposit,
+  rejectBookingDepositUnseen
 } from '../api-wrapper';
 
 function createMockGateway(): SupabaseBookingGateway {
@@ -97,6 +98,10 @@ function createMockGateway(): SupabaseBookingGateway {
     claimBookingDeposit: vi.fn(async () => ({
       status: 200,
       data: { bookingId: 'booking-public', depositStatus: 'claim_pending' }
+    })),
+    rejectBookingDepositUnseen: vi.fn(async () => ({
+      status: 200,
+      data: { bookingId: 'booking-admin', depositStatus: 'released' }
     }))
   };
 }
@@ -281,6 +286,22 @@ describe('supabase-booking api-wrapper contract', () => {
     expect(gateway.claimBookingDeposit).toHaveBeenCalledWith({
       manageToken: 'manage-once',
       note: 'alias listo'
+    });
+  });
+
+  it('delegates rejectBookingDepositUnseen({ bookingId, performedBy }) to released', async () => {
+    const gateway = createMockGateway();
+    setSupabaseBookingGateway(gateway);
+
+    await expect(
+      rejectBookingDepositUnseen({ bookingId: 'booking-admin', performedBy: 'admin-1' })
+    ).resolves.toEqual({
+      status: 200,
+      data: { bookingId: 'booking-admin', depositStatus: 'released' }
+    });
+    expect(gateway.rejectBookingDepositUnseen).toHaveBeenCalledWith({
+      bookingId: 'booking-admin',
+      performedBy: 'admin-1'
     });
   });
 
