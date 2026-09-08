@@ -32,5 +32,6 @@ export {
   cancelAdminBooking,
   rescheduleAdminBooking,
   updateBookingStatus,
-  confirmBookingDepositReceived
+  confirmBookingDepositReceived,
+  claimBookingDeposit
 } from './supabase/api-wrapper';

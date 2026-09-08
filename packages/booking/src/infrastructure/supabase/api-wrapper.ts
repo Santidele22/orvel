@@ -1,4 +1,4 @@
-import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, ConfirmBookingDepositPayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from '../../types';
+import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, ConfirmBookingDepositPayload, ClaimBookingDepositPayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from '../../types';
 import { SupabaseBookingGateway } from '../../gateway-interface';
 import { RealSupabaseBookingGateway } from './real-gateway';
 import { createSupabaseClient } from './supabase-client.factory';
@@ -108,4 +108,10 @@ export async function confirmBookingDepositReceived(
   payload: ConfirmBookingDepositPayload
 ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
   return currentGateway().confirmBookingDepositReceived(payload);
+}
+
+export async function claimBookingDeposit(
+  payload: ClaimBookingDepositPayload
+): Promise<ApiResponse<{ bookingId: string; depositStatus: 'claim_pending' }>> {
+  return currentGateway().claimBookingDeposit(payload);
 }
