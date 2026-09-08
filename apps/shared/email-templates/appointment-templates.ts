@@ -227,11 +227,11 @@ export function renderAppointmentDepositInstructionsEmail(data: AppointmentTempl
 
 export function renderAppointmentHoldReleasedEmail(data: AppointmentTemplateData): EmailPayload {
   return {
-    subject: 'Se liberó el horario de tu turno',
+    subject: 'El turno no se confirmó',
     html: htmlShell(
-      'Se liberó el horario de tu turno',
+      'El turno no se confirmó',
       `Hola ${escapeHtml(data.customer.name)},`,
-      'el horario se liberó porque la seña no se confirmó.',
+      'No se acreditó la seña a tiempo. El turno no se confirmó y el horario quedó disponible.',
       renderDetailItems(data),
       `<p>Si necesitás ayuda, escribinos a ${escapeHtml(data.contact.email)} o llamanos al ${escapeHtml(data.contact.phone)}.</p>`,
       '',
