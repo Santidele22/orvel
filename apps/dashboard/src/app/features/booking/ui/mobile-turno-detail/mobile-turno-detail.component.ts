@@ -2,6 +2,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { isDepositUnpaid, type BookingQueries } from '@orvel/booking/application';
+import { DashboardService } from '../../../../core/dashboard/dashboard.service';
+import { AuthService } from '../../../../services/auth.service';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { createIsMobileSignal } from '../../../../core/shell/is-mobile/is-mobile';
 import { getBranchContextService } from '../../../../core/branches/branch-context.service';
@@ -58,6 +60,25 @@ export class MobileTurnoDetailComponent {
   readonly telefono = computed(() => this.turno()?.cliente?.telefono ?? null);
   readonly isEmpty = computed(() => this.turno() === undefined);
   protected readonly isDepositUnpaid = isDepositUnpaid;
+  private readonly dashboardService = inject(DashboardService);
+  private readonly authService = inject(AuthService);
+  protected readonly confirmingDepositId = signal<string | null>(null);
+
+  protected async confirmDepositReceived(): Promise<void> {
+    const bookingId = this.turno()?.id;
+    const userId = this.authService.user()?.id;
+    if (!bookingId || !userId || this.confirmingDepositId()) return;
+    this.confirmingDepositId.set(bookingId);
+    try {
+      const ok = await this.dashboardService.confirmDepositReceived(bookingId, userId);
+      if (ok) {
+        window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+        this.back();
+      }
+    } finally {
+      this.confirmingDepositId.set(null);
+    }
+  }
 
   back(): void {
     this.router.navigate(['/dashboard/turnos']);

@@ -17,7 +17,7 @@ export function isDepositUnpaid(status?: string | null): boolean {
 
 export function appointmentStatusLabel(estado: BookingEstado, depositStatus?: string | null): string {
   if (isDepositUnpaid(depositStatus) && (estado === 'confirmado' || estado === 'pendiente')) {
-    return 'Pendiente de seña';
+    return depositStatus === 'claim_pending' ? 'Seña avisada' : 'Pendiente de seña';
   }
   return estado;
 }
