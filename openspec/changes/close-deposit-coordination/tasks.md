@@ -50,13 +50,13 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Slice 3 — Eager release Edge Function + GitHub cron
 
-- [ ] 3.1 RED (threat): `supabase/functions/_shared/release-expired-booking-holds-static-contract.test.ts` — missing/bad `CRON_KEY` → 401 and no RPC; clone `supabase/functions/_shared/purge-elapsed-bookings-static-contract.test.ts` (read-only) / `supabase/functions/purge-elapsed-bookings/index.ts` (read-only). <!-- sdd-owner: implementation -->
-- [ ] 3.2 RED (threat): `.github/workflows/release-expired-booking-holds.yml` missing `*_FUNCTION_URL` / `*_CRON_SECRET` fails like `.github/workflows/account-closure.yml` (read-only); env stays lazy. <!-- sdd-owner: implementation -->
-- [ ] 3.3 GREEN: `supabase/functions/release-expired-booking-holds/index.ts` POST calls `release_expired_booking_hold(NULL, NULL)`; `supabase/config.toml` `[functions.release-expired-booking-holds]` `verify_jwt = false`. <!-- sdd-owner: implementation -->
-- [ ] 3.4 GREEN: `.github/workflows/release-expired-booking-holds.yml` schedule `*/5 * * * *` + `workflow_dispatch`; no `pg_cron`. <!-- sdd-owner: implementation -->
-- [ ] 3.5 TRIANGULATE: occupancy exclude `released`/`abandoned`/`void` unchanged in `supabase/functions/_shared/manual-booking-deposits-static-contract.test.ts`; timeout writes `released` not `abandoned`; `apps/shared/email-templates/appointment-templates.ts` (read-only) no refund language. <!-- sdd-owner: implementation -->
-- [ ] 3.6 GREEN (optional MAY): public countdown 00:00 may RPC-release that booking from `apps/dashboard/src/app/features/booking/pages/public/public-booking-deposit-hold.ts`; clearing sessionStorage is not occupancy. <!-- sdd-owner: implementation -->
-- [ ] 3.7 REFACTOR: do not rewrite `release_expired_booking_hold` body. <!-- sdd-owner: implementation -->
+- [x] 3.1 RED (threat): `supabase/functions/_shared/release-expired-booking-holds-static-contract.test.ts` — missing/bad `CRON_KEY` → 401 and no RPC; clone `supabase/functions/_shared/purge-elapsed-bookings-static-contract.test.ts` (read-only) / `supabase/functions/purge-elapsed-bookings/index.ts` (read-only). <!-- sdd-owner: implementation -->
+- [x] 3.2 RED (threat): `.github/workflows/release-expired-booking-holds.yml` missing `*_FUNCTION_URL` / `*_CRON_SECRET` fails like `.github/workflows/account-closure.yml` (read-only); env stays lazy. <!-- sdd-owner: implementation -->
+- [x] 3.3 GREEN: `supabase/functions/release-expired-booking-holds/index.ts` POST calls `release_expired_booking_hold(NULL, NULL)`; `supabase/config.toml` `[functions.release-expired-booking-holds]` `verify_jwt = false`. <!-- sdd-owner: implementation -->
+- [x] 3.4 GREEN: `.github/workflows/release-expired-booking-holds.yml` schedule `*/5 * * * *` + `workflow_dispatch`; no `pg_cron`. <!-- sdd-owner: implementation -->
+- [x] 3.5 TRIANGULATE: occupancy exclude `released`/`abandoned`/`void` unchanged in `supabase/functions/_shared/manual-booking-deposits-static-contract.test.ts`; timeout writes `released` not `abandoned`; `apps/shared/email-templates/appointment-templates.ts` (read-only) no refund language. <!-- sdd-owner: implementation -->
+- [ ] 3.6 GREEN (optional MAY): public countdown 00:00 may RPC-release that booking from `apps/dashboard/src/app/features/booking/pages/public/public-booking-deposit-hold.ts`; clearing sessionStorage is not occupancy. skipped/N/A this slice (optional MAY; stay under 400-line budget). <!-- sdd-owner: implementation -->
+- [x] 3.7 REFACTOR: do not rewrite `release_expired_booking_hold` body. <!-- sdd-owner: implementation -->
 
 ## Phase 4: Slice 4 — Operator reject → released
 

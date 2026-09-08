@@ -203,3 +203,95 @@ Phase 2 complete. Unchecked implementation rows:
 
 No commit, no push, no PR. Slices 3–4 not implemented.
 
+---
+
+## Work unit 3
+
+PR 3 of 4 — Eager release Edge Function + GitHub cron (`feat/close-deposit-coordination-s3` stacked on `feat/close-deposit-coordination-s2`).
+
+- delivery_strategy: ask-on-risk (split chosen; parent assigned this slice)
+- chain_strategy: stacked-to-main (Orvel integration is `dev`)
+- size:exception: not accepted
+- max-changed-lines: 400
+- 3.6 optional countdown RPC: skipped/N/A this slice
+
+## Structured status consumed
+
+Native engine reported `applyState: blocked` with ambiguous change selection (`chore-docs-and-context-align-release-2-0`, `close-deposit-coordination`). Parent assigned `close-deposit-coordination` work unit 3 only. `actionContext.mode: repo-local`; edits stayed inside allowed surfaces. Untracked `videos/` and `apps/ops/` out of scope.
+
+## Completed this slice
+
+Persisted checkboxes in `tasks.md` marked `- [x]` for 3.1–3.5 and 3.7. 3.6 left `- [ ]` with skipped/N/A note.
+
+- 3.1 RED: static contract clones purge CRON_KEY gate; missing/bad key → 401 before `rpc("release_expired_booking_hold")`.
+- 3.2 RED: workflow missing `RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL` / `RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET` fails like account-closure (`exit 1`).
+- 3.3 GREEN: Edge Function POST calls `release_expired_booking_hold` with `p_booking_id: null, p_business_id: null`; `config.toml` `[functions.release-expired-booking-holds] verify_jwt = false`.
+- 3.4 GREEN: workflow `*/5 * * * *` + `workflow_dispatch`; no `pg_cron`.
+- 3.5 TRIANGULATE: occupancy exclude `released`/`abandoned`/`void` unchanged; timeout writes `released` not `abandoned`; email templates have no refund language.
+- 3.7 REFACTOR: did not rewrite `release_expired_booking_hold` body (still only `supabase/migrations/20260904120000_manual_booking_deposits.sql`).
+
+## Files changed
+
+- `supabase/functions/_shared/release-expired-booking-holds-static-contract.test.ts` (new)
+- `supabase/functions/release-expired-booking-holds/index.ts` (new)
+- `.github/workflows/release-expired-booking-holds.yml` (new)
+- `supabase/config.toml` (new function block only)
+- `openspec/changes/close-deposit-coordination/tasks.md`
+- `openspec/changes/close-deposit-coordination/apply-progress.md`
+
+`manual-booking-deposits-static-contract.test.ts` not modified. Email templates read-only.
+
+## Test commands
+
+RED 3.1/3.2:
+
+`~/.deno/bin/deno.exe test --allow-read --config supabase/functions/deno.json supabase/functions/_shared/release-expired-booking-holds-static-contract.test.ts`
+
+→ **1 passed / 2 failed** (function and workflow missing).
+
+GREEN / TRIANGULATE / REFACTOR:
+
+Same command → **3 passed**.
+
+Occupancy lock:
+
+`--filter occupancy` on `manual-booking-deposits-static-contract.test.ts` → **4 passed**.
+
+Timeout released lock:
+
+`--filter "WU1 release"` → **3 passed**.
+
+## TDD Cycle Evidence (work unit 3)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 | `release-expired-booking-holds-static-contract.test.ts` | SQL/source static | N/A (new) | ✅ Written (NotFound function) | ✅ 3/3 | ✅ missing vs bad key share 401-before-RPC | ➖ cloned purge |
+| 3.2 | same + workflow YAML | Workflow static | N/A (new) | ✅ Written (NotFound workflow) | ✅ 3/3 | ✅ account-closure secret fail cloned | ➖ |
+| 3.3 | same | Edge static | N/A | (RED from 3.1) | ✅ rpc null,null + verify_jwt false | ✅ 401 gate before rpc | ➖ |
+| 3.4 | same | Workflow static | N/A | (RED from 3.2) | ✅ `*/5` + workflow_dispatch | ✅ no pg_cron | ➖ |
+| 3.5 | same + occupancy/WU1 release filters | Contract | ✅ occupancy 4/4; WU1 release 3/3 | ✅ lock written (already green) | ✅ | ✅ occupancy exclude + released not abandoned + no refund copy | ➖ no occupancy file edit |
+| 3.6 | N/A | N/A | skipped/N/A | ➖ | ➖ | ➖ | ➖ |
+| 3.7 | grep migrations | Approval | ✅ single CREATE OR REPLACE in WU1 SQL | N/A | ✅ | ➖ structural | ✅ did not rewrite RPC body |
+
+## Deviations from design
+
+None. Scheduler copies purge Edge Function + account-closure GitHub secrets. Optional countdown RPC not implemented (3.6 skipped).
+
+## Remaining tasks
+
+Phase 3 implementation complete except optional 3.6. Unchecked implementation rows:
+
+- [ ] 3.6 GREEN (optional MAY): public countdown 00:00 may RPC-release that booking from `apps/dashboard/src/app/features/booking/pages/public/public-booking-deposit-hold.ts`; clearing sessionStorage is not occupancy. skipped/N/A this slice (optional MAY; stay under 400-line budget). <!-- sdd-owner: implementation -->
+- [ ] 4.1–4.8 (slice 4 operator reject)
+
+## Workload / PR boundary
+
+- Authored production+test diff excluding OpenSpec: **258 lines** (workflow 39 + function 100 + static contract 114 + config.toml +5).
+- Under 400-line budget. No `size:exception`.
+- Current PR boundary: PR 3 of 4 on `feat/close-deposit-coordination-s3` stacked on slice 2. Follow-up: slice 4 on a later stacked branch targeting `dev`.
+- Did not commit or push.
+
+## Not done
+
+No commit, no push, no PR. Slice 4 not implemented. Task 3.6 skipped/N/A. Per-env `RELEASE_EXPIRED_BOOKING_HOLDS_FUNCTION_URL` / `RELEASE_EXPIRED_BOOKING_HOLDS_CRON_SECRET` wiring is ops, not this slice.
+
