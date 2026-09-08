@@ -214,9 +214,15 @@
                       @if (depositPending(turno)) {
                       <button type="button" (click)="confirmDepositReceived(turno.id, $event)" title="Confirmar seña"
                         data-testid="turno-confirm-deposit-action"
-                        [disabled]="confirmingDepositId() === turno.id"
+                        [disabled]="confirmingDepositId() === turno.id || rejectingDepositId() === turno.id"
                         class="h-12 px-3 flex items-center justify-center rounded-full bg-[#7C3AED] text-[10px] font-black uppercase tracking-wider text-white shadow-lg">
                         Confirmar seña
+                      </button>
+                      <button type="button" (click)="rejectBookingDepositUnseen(turno.id, $event)" title="No la veo"
+                        data-testid="turno-reject-deposit-action"
+                        [disabled]="confirmingDepositId() === turno.id || rejectingDepositId() === turno.id"
+                        class="h-12 px-3 flex items-center justify-center rounded-full bg-bg-primary border border-white/5 text-[10px] font-black uppercase tracking-wider text-text-secondary shadow-lg">
+                        No la veo
                       </button>
                       }
                       @if (turno.estado === 'pendiente') {
