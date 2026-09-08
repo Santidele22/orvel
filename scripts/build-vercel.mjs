@@ -1,5 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -66,6 +67,40 @@ async function writePatchedVercelOutputConfig() {
   await writeFile(outputConfigPath, `${JSON.stringify(config, null, 2)}\n`);
 }
 
+function loadEsbuild() {
+  try {
+    const requireFromLanding = createRequire(join(landingDir, 'package.json'));
+    const astroPackageJson = requireFromLanding.resolve('astro/package.json');
+    const vitePackageJson = createRequire(astroPackageJson).resolve('vite/package.json');
+    const esbuild = createRequire(vitePackageJson)('esbuild');
+    if (typeof esbuild.build !== 'function') {
+      throw new Error('esbuild.build is not a function');
+    }
+    return esbuild;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load esbuild via landing vite: ${detail}`);
+  }
+}
+
+async function emitBookingShareEdgeFunction() {
+  const funcDir = join(landingOutputDir, 'functions', 'booking-share.func');
+  await mkdir(funcDir, { recursive: true });
+  const esbuild = loadEsbuild();
+  await esbuild.build({
+    absWorkingDir: rootDir,
+    entryPoints: [join(landingDir, 'src', 'edge', 'booking-share.ts')],
+    bundle: true,
+    format: 'esm',
+    outfile: join(funcDir, 'index.js'),
+    platform: 'neutral',
+    target: 'es2022',
+    legalComments: 'none'
+  });
+  const vcConfig = { runtime: 'edge', entrypoint: 'index.js' };
+  await writeFile(join(funcDir, '.vc-config.json'), `${JSON.stringify(vcConfig)}\n`);
+}
+
 async function main() {
   await rm(join(dashboardDir, 'dist'), { recursive: true, force: true });
   await run('pnpm', ['--dir', 'apps/dashboard', 'run', 'build', '--base-href', '/', '--deploy-url', '/dashboard/']);
@@ -82,6 +117,7 @@ async function main() {
   await mkdir(dashboardStaticDir, { recursive: true });
   await cp(dashboardBrowserDir, dashboardStaticDir, { recursive: true });
   await writePatchedVercelOutputConfig();
+      await emitBookingShareEdgeFunction();
 
   await rm(rootOutputDir, { recursive: true, force: true });
   await mkdir(dirname(rootOutputDir), { recursive: true });
