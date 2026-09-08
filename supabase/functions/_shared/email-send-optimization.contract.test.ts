@@ -38,3 +38,11 @@ Deno.test("premium activation email is enqueued on plan_code update and rendered
   assertStringIncludes(outbox, 'template_key === "premium_activated"');
   assertStringIncludes(outbox, "renderPremiumActivatedEmail");
 });
+
+Deno.test("deposit client emails are rendered by outbox template keys", async () => {
+  const outbox = await Deno.readTextFile(outboxUrl);
+  assertStringIncludes(outbox, 'template_key === "appointment_deposit_instructions"');
+  assertStringIncludes(outbox, 'template_key === "appointment_hold_released"');
+  assertStringIncludes(outbox, "renderAppointmentDepositInstructionsEmail");
+  assertStringIncludes(outbox, "renderAppointmentHoldReleasedEmail");
+});

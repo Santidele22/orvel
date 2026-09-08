@@ -772,3 +772,162 @@ Deno.test("pending seña skips appointment_confirmation until operator confirm",
     "operator confirm must accept pending and claim_pending holds",
   );
 });
+
+function latestClientDepositEmailMigrationName(names: string[]): string {
+  const matches = names
+    .filter((name) => /^20260908\d+_deposit_.*email.*\.sql$/i.test(name))
+    .sort();
+  return matches.at(-1) ?? "";
+}
+
+async function readClientDepositEmailMigration(): Promise<{ name: string; sql: string }> {
+  const entries: string[] = [];
+  for await (const entry of Deno.readDir(migrationsDir)) {
+    if (entry.isFile && entry.name.endsWith(".sql")) entries.push(entry.name);
+  }
+  const name = latestClientDepositEmailMigrationName(entries);
+  assert(
+    name.length > 0 && name > "20260907190000_admin_manual_booking_professional_free.sql",
+    "client deposit emails must live in a 20260908*_deposit_*email*.sql migration after 20260907190000",
+  );
+  return { name, sql: await readText(new URL(name, migrationsDir)) };
+}
+
+Deno.test("pending self-service insert enqueues appointment_deposit_instructions without rewriting create_public_booking", async () => {
+  const { sql } = await readClientDepositEmailMigration();
+  const allSql = await readAllSqlMigrations();
+  const helper = latestFunctionBodyMatching(
+    allSql,
+    "enqueue_appointment_deposit_instructions_email",
+    (candidate) => /appointment_deposit_instructions/i.test(candidate),
+  );
+
+  assert(
+    !/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.create_public_booking/i.test(sql),
+    "client deposit email migration must not CREATE OR REPLACE create_public_booking",
+  );
+  assert(
+    /AFTER\s+INSERT\s+ON\s+public\.bookings/i.test(sql),
+    "deposit instructions must use AFTER INSERT on public.bookings",
+  );
+  assert(
+    /WHEN\s*\([\s\S]*NEW\.deposit_status\s*=\s*'pending'[\s\S]*NEW\.source\s*=\s*'client-self-service'/i
+      .test(sql),
+    "deposit instructions trigger must WHEN deposit_status=pending AND source='client-self-service'",
+  );
+  assert(
+    /SECURITY\s+DEFINER/i.test(sql) && /search_path\s*=\s*public\s*,\s*pg_temp/i.test(sql),
+    "deposit email helpers must be SECURITY DEFINER with search_path public, pg_temp",
+  );
+  assert(
+    /FROM\s+public\.customers/i.test(helper),
+    "instructions helper must join customers for email",
+  );
+  assert(
+    /deposit_alias/i.test(helper) && /deposit_cbu/i.test(helper),
+    "instructions helper must read business_settings alias/CBU",
+  );
+  assert(
+    /deposit_amount_pesos|deposit_code/i.test(helper),
+    "instructions helper must read booking deposit amount and code",
+  );
+  assert(
+    /v_customer_email\s+IS\s+NULL|IF\s+[\s\S]*email[\s\S]*IS\s+NULL/i.test(helper),
+    "instructions helper must skip when customer email is missing",
+  );
+  assert(
+    /NOT\s+EXISTS[\s\S]*booking_id[\s\S]*template_key\s*=\s*'appointment_deposit_instructions'/i
+      .test(helper),
+    "instructions enqueue must be idempotent on (booking_id, appointment_deposit_instructions)",
+  );
+  assert(
+    !/reembolso|devoluci[oó]n|refund/i.test(sql),
+    "client deposit emails must not use refund language",
+  );
+});
+
+Deno.test("confirm_booking_deposit_received remints manage links before appointment_confirmation", async () => {
+  const body = latestFunctionBodyMatching(
+    await readAllSqlMigrations(),
+    "confirm_booking_deposit_received",
+    (candidate) => /appointment_confirmation/i.test(candidate),
+  );
+
+  assert(
+    /encode\s*\(\s*extensions\.gen_random_bytes\s*\(\s*32\s*\)\s*,\s*'hex'\s*\)/i.test(body),
+    "confirm RPC must remint a manage bearer with gen_random_bytes(32)",
+  );
+  assert(
+    /_hash_manage_token\s*\(/i.test(body),
+    "confirm RPC must store only manage_token_hash via _hash_manage_token",
+  );
+  assert(
+    /manage_token_expires_at[\s\S]{0,80}ends_at\s*\+\s*interval\s+'1 hour'/i.test(body),
+    "confirm RPC must set manage_token_expires_at to ends_at + interval '1 hour'",
+  );
+  assert(
+    /'view'[\s\S]{0,80}\/booking\/manage\?token='/i.test(body),
+    "confirm confirmation payload must include links.view with /booking/manage?token=",
+  );
+  assert(
+    /'cancel'[\s\S]{0,120}\/booking\/manage\?token='[\s\S]{0,40}action=cancel/i.test(body),
+    "confirm confirmation payload must include links.cancel",
+  );
+  assert(
+    /'reschedule'[\s\S]{0,120}\/booking\/manage\?token='[\s\S]{0,40}action=reschedule/i.test(body),
+    "confirm confirmation payload must include links.reschedule",
+  );
+  assert(
+    /NOT\s+EXISTS[\s\S]*template_key\s*=\s*'appointment_confirmation'/i.test(body),
+    "confirm enqueue must keep NOT EXISTS on appointment_confirmation",
+  );
+  assert(
+    !/SET\s+[\s\S]*\bmanage_token\s*=/i.test(body),
+    "confirm RPC must never write plaintext onto bookings.manage_token",
+  );
+});
+
+Deno.test("released hold enqueues appointment_hold_released without rewriting release_expired_booking_hold", async () => {
+  const { sql } = await readClientDepositEmailMigration();
+  const allSql = await readAllSqlMigrations();
+  const helper = latestFunctionBodyMatching(
+    allSql,
+    "enqueue_appointment_hold_released_email",
+    (candidate) => /appointment_hold_released/i.test(candidate),
+  );
+
+  assert(
+    !/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.release_expired_booking_hold/i.test(sql),
+    "client deposit email migration must not restate release_expired_booking_hold",
+  );
+  assert(
+    /AFTER\s+UPDATE\s+OF\s+deposit_status\s+ON\s+public\.bookings/i.test(sql),
+    "hold-released email must use AFTER UPDATE OF deposit_status on public.bookings",
+  );
+  assert(
+    /WHEN\s*\([\s\S]*NEW\.deposit_status\s*=\s*'released'[\s\S]*OLD\.deposit_status\s+IN\s*\(\s*'pending'\s*,\s*'claim_pending'\s*\)/i
+      .test(sql),
+    "hold-released trigger must WHEN NEW.released and OLD in pending, claim_pending",
+  );
+  assert(
+    /FROM\s+public\.customers/i.test(helper),
+    "hold-released helper must join customers for email",
+  );
+  assert(
+    /v_customer_email\s+IS\s+NULL|IF\s+[\s\S]*email[\s\S]*IS\s+NULL/i.test(helper),
+    "hold-released helper must skip when customer email is missing",
+  );
+  assert(
+    /NOT\s+EXISTS[\s\S]*booking_id[\s\S]*template_key\s*=\s*'appointment_hold_released'/i
+      .test(helper),
+    "hold-released enqueue must be idempotent on (booking_id, appointment_hold_released)",
+  );
+  assert(
+    !/\/booking\/manage\?token=/i.test(helper),
+    "hold-released payload must not include manage links",
+  );
+  assert(
+    !/reembolso|devoluci[oó]n|refund/i.test(helper),
+    "hold-released helper must not use refund language",
+  );
+});
