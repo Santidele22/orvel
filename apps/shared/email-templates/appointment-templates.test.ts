@@ -157,14 +157,18 @@ describe('appointment-templates', () => {
   });
 
   describe('renderAppointmentHoldReleasedEmail', () => {
-    it('says the slot was released and includes no manage links or refund language', () => {
+    it('says the booking did not confirm because the seña was unpaid in time, with no manage links or refund language', () => {
       const result = renderAppointmentHoldReleasedEmail(MINIMAL_DATA);
       expectValidEmailPayload(result);
-      expect(result.subject).toMatch(/se liber[oó] el horario/i);
-      expect(result.html).toMatch(/horario se liber/i);
+      expect(result.subject).toBe('El turno no se confirmó');
+      expect(result.html).toContain('El turno no se confirmó');
+      expect(result.html).toContain(
+        'No se acreditó la seña a tiempo. El turno no se confirmó y el horario quedó disponible.',
+      );
       expect(result.html).not.toContain('orvel.test/turno/123');
       expect(result.html).not.toMatch(/gestionar turno/i);
       expect(result.html.toLowerCase()).not.toMatch(/reembolso|devoluci[oó]n|refund/);
+      expect(result.html.toLowerCase()).not.toMatch(/rechaz/);
     });
   });
 
