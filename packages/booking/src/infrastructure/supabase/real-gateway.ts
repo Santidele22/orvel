@@ -21,7 +21,9 @@ import type {
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
   AdminStatusUpdatePayload,
-  ConfirmBookingDepositPayload
+  ConfirmBookingDepositPayload,
+  ClaimBookingDepositPayload,
+  RejectBookingDepositUnseenPayload
 } from '../../types';
 
 type BookingNotificationRow = {
@@ -794,6 +796,70 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         data: {
           bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
           depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async claimBookingDeposit(
+    payload: ClaimBookingDepositPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: 'claim_pending' }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('claim_booking_deposit', {
+        manage_token: payload.manageToken,
+        note: payload.note ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? '',
+          depositStatus: 'claim_pending'
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async rejectBookingDepositUnseen(
+    payload: RejectBookingDepositUnseenPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: 'released' }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('reject_booking_deposit_unseen', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: 'released'
         }
       };
     } catch (err) {

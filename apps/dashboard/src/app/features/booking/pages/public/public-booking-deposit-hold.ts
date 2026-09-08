@@ -1,6 +1,9 @@
 export const DEPOSIT_HOLD_RELEASE_COPY = 'Si no se confirma la seña, el horario se libera.';
 export const DEPOSIT_HOLD_NEXT_STEPS_COPY =
-  'Transferí, mandá el comprobante por WhatsApp y listo. No hace falta volver acá. Te confirmamos por mail.';
+  'Transferí y avisá con Ya transferí. El comprobante por WhatsApp es opcional. Te confirmamos por mail cuando el negocio confirme la seña.';
+export const DEPOSIT_HOLD_CLAIM_CTA = 'Ya transferí';
+export const DEPOSIT_HOLD_CLAIMED_COPY =
+  'Avisamos al negocio. Te confirmamos por mail cuando confirmen la seña.';
 
 export function computeServiceDepositHoldAmount(price: number, percent: number): number {
   if (!percent) {

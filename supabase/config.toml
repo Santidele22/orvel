@@ -457,3 +457,8 @@ verify_jwt = true
 # with CRON_KEY / x-cron-key / Bearer, same as appointment-reminders-24h.
 [functions.purge-elapsed-bookings]
 verify_jwt = false
+
+# Recurring expired seña hold release. An external scheduler POSTs this function
+# with CRON_KEY / x-cron-key / Bearer, same as purge-elapsed-bookings.
+[functions.release-expired-booking-holds]
+verify_jwt = false
