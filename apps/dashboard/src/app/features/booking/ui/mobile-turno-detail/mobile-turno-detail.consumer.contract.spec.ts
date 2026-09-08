@@ -26,4 +26,18 @@ describe('MobileTurnoDetailComponent capability-service consumer', () => {
     expect(template).toMatch(/depositStatus/);
     expect(`${source}\n${template}`).toMatch(/isDepositUnpaid/);
   });
+
+  it('offers Confirmar seña on detail via DashboardService.confirmDepositReceived', () => {
+    expect(template).toContain('Confirmar seña');
+    expect(source).toMatch(/DashboardService/);
+    expect(source).toMatch(/confirmDepositReceived/);
+    expect(`${source}\n${template}`).toMatch(/isDepositUnpaid/);
+    expect(source).not.toMatch(/confirmBookingDepositReceived/);
+  });
+
+  it('labels claimed holds Seña avisada and highlights claim_pending more strongly', () => {
+    expect(template).toContain('Seña avisada');
+    expect(template).toMatch(/claim_pending/);
+    expect(template).toContain('data-testid="deposit-claimed-highlight"');
+  });
 });

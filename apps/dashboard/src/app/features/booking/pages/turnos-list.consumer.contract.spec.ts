@@ -45,4 +45,17 @@ describe('TurnosListPage capability-service consumer', () => {
     expect(source).toMatch(/isDepositUnpaid/);
     expect(source).toMatch(/from ['"]@orvel\/booking\/application['"]/);
   });
+
+  it('offers Confirmar seña on unpaid list rows via DashboardService.confirmDepositReceived', () => {
+    expect(template).toContain('Confirmar seña');
+    expect(template).toMatch(/depositPending\s*\(\s*turno\s*\)/);
+    expect(source).toMatch(/dashboardService\.confirmDepositReceived/);
+    expect(source).not.toMatch(/confirmBookingDepositReceived/);
+    expect(source).not.toMatch(/claimBookingDeposit/);
+  });
+
+  it('highlights claim_pending holds more strongly than pending unpaid holds', () => {
+    expect(template).toMatch(/depositStatus\s*===\s*['"]claim_pending['"]/);
+    expect(template).toContain('data-testid="deposit-claimed-highlight"');
+  });
 });

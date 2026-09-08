@@ -747,6 +747,21 @@ export class TurnosListPage implements OnInit, OnDestroy {
     return isDepositUnpaid(turno.depositStatus);
   }
 
+  protected confirmingDepositId = signal<string | null>(null);
+
+  protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const userId = this.currentAdminActorId();
+    if (!userId || this.confirmingDepositId()) return;
+    this.confirmingDepositId.set(bookingId);
+    try {
+      await this.dashboardService.confirmDepositReceived(bookingId, userId);
+      await this.refreshTurnosFromSource();
+    } finally {
+      this.confirmingDepositId.set(null);
+    }
+  }
+
   protected formatFecha(fecha: Date): string {
     return fecha.toLocaleDateString('es-AR', {
       weekday: 'short',
