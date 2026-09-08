@@ -74,3 +74,16 @@ test('deploy-promotion uses separate QA and prod Supabase access tokens', async 
     'Shared SUPABASE_ACCESS_TOKEN would let a prod rotate clobber QA (or the reverse).',
   );
 });
+
+test('deploy-promotion publishes process-email-outbox and release-expired-booking-holds', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.match(
+    source,
+    /supabase functions deploy process-email-outbox --project-ref \$\{\{ steps\.target\.outputs\.supabase_ref \}\}/,
+  );
+  assert.match(
+    source,
+    /supabase functions deploy release-expired-booking-holds --project-ref \$\{\{ steps\.target\.outputs\.supabase_ref \}\}/,
+  );
+});

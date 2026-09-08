@@ -60,6 +60,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
         run: supabase functions deploy process-email-outbox --project-ref ${{ steps.target.outputs.supabase_ref }}
 
+      - name: Deploy release-expired-booking-holds
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+        run: supabase functions deploy release-expired-booking-holds --project-ref ${{ steps.target.outputs.supabase_ref }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.0.8
