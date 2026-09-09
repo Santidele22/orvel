@@ -3,6 +3,17 @@ export const OPERATOR_WEB_PUSH_EVENT_TYPES = [
   "appointment.cancelled",
   "appointment.rescheduled",
   "appointment.reminder",
+  "lifecycle.briefing",
+  "lifecycle.first_turno_soon",
+  "lifecycle.empty_agenda",
+  "lifecycle.stale_deposit_claim",
+  "onboarding.no_services",
+  "onboarding.no_hours",
+  "onboarding.copy_link",
+  "onboarding.share_day7",
+  "retention.first_public_booking",
+  "retention.public_gap_7d",
+  "retention.customer_cancelled_twice",
 ] as const;
 
 export type VapidEnv = {
