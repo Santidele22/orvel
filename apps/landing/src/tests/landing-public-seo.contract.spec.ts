@@ -119,6 +119,57 @@ describe('Contract: landing public SEO', () => {
     expect(plan).not.toMatch(/application\/ld\+json/);
   });
 
+  it('locks home layout title and description to category SEO copy', async () => {
+    const index = await readFile(new URL('../pages/index.astro', import.meta.url), 'utf8');
+
+    expect(index).toContain('Orvel — Software de gestión de turnos para peluquería, uñas y barbería');
+    expect(index).toContain(
+      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Seña por alias o CBU, sin Mercado Pago. 14 días de Premium gratis.',
+    );
+  });
+
+  it('enriches home SoftwareApplication with description and featureList, without ratings', async () => {
+    const index = await readFile(new URL('../pages/index.astro', import.meta.url), 'utf8');
+
+    expect(index).toContain(
+      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Seña por alias o CBU, sin Mercado Pago. 14 días de Premium gratis.',
+    );
+    expect(index).toMatch(/featureList/);
+    expect(index).toContain('Agenda de turnos');
+    expect(index).toContain('Turnero público por link');
+    expect(index).toContain('Varios profesionales');
+    expect(index).toContain('Seña por alias o CBU');
+    expect(index).not.toMatch(/aggregateRating/);
+  });
+
+  it('emits FAQPage JSON-LD from the home FAQ component', async () => {
+    const faq = await readFile(
+      new URL('../components/organisms/prelaunch/PrelaunchFaq.astro', import.meta.url),
+      'utf8',
+    );
+    const plan = await readFile(new URL('../pages/plan.astro', import.meta.url), 'utf8');
+
+    expect(faq).toMatch(/FAQPage/);
+    expect(faq).toMatch(/application\/ld\+json/);
+    expect(plan).not.toMatch(/Organization/);
+    expect(plan).not.toMatch(/SoftwareApplication/);
+    expect(plan).not.toMatch(/application\/ld\+json/);
+  });
+
+  it('keeps the home h1 and adds crawlable category copy after the lead', async () => {
+    const hero = await readFile(
+      new URL('../components/organisms/prelaunch/PrelaunchHero.astro', import.meta.url),
+      'utf8',
+    );
+
+    expect(hero).toContain('Menos ida y vuelta.');
+    expect(hero).toContain('Más salón.');
+    expect(hero).toContain('Tu cliente reserva. Vos atendés. El celular deja de mandar.');
+    expect(hero).toContain(
+      'Software de gestión de turnos para peluquerías, uñas, barberías y estética.',
+    );
+  });
+
   it('marks billing subscription and the custom 404 as noindex, nofollow Layout pages', async () => {
     const billing = await readFile(new URL('../pages/billing/subscription.astro', import.meta.url), 'utf8');
     const notFound = await readFile(new URL('../pages/404.astro', import.meta.url), 'utf8');
