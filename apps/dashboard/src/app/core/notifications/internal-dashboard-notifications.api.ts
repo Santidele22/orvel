@@ -8,14 +8,25 @@ export type DashboardNotificationEventType =
   | 'appointment.created'
   | 'appointment.cancelled'
   | 'appointment.rescheduled'
-  | 'appointment.reminder';
+  | 'appointment.reminder'
+  | 'lifecycle.briefing'
+  | 'lifecycle.first_turno_soon'
+  | 'lifecycle.empty_agenda'
+  | 'lifecycle.stale_deposit_claim'
+  | 'onboarding.no_services'
+  | 'onboarding.no_hours'
+  | 'onboarding.copy_link'
+  | 'onboarding.share_day7'
+  | 'retention.first_public_booking'
+  | 'retention.public_gap_7d'
+  | 'retention.customer_cancelled_twice';
 
 export interface DashboardNotification {
   id: string;
   status: DashboardNotificationStatus;
   eventType: DashboardNotificationEventType;
   businessId: string;
-  appointmentId: string;
+  appointmentId: string | null;
   title: string;
   body: string;
   createdAt: string;
