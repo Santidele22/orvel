@@ -50,6 +50,11 @@ const ONBOARDING_ONCE_FLAGS = [
   "onboarding_share_day7_notified_at",
 ] as const;
 
+const RETENTION_ONCE_FLAGS = [
+  "retention_first_public_notified_at",
+  "retention_gap7_notified_at",
+] as const;
+
 function functionBody(sql: string, name: string): string {
   const pattern = new RegExp(
     `create\\s+or\\s+replace\\s+function\\s+public\\.${name}\\s*\\([\\s\\S]*?\\)\\s*returns[\\s\\S]*?as\\s+\\$\\$([\\s\\S]*?)\\$\\$`,
@@ -92,6 +97,10 @@ async function readLatestOpsMigration(): Promise<{ name: string; sql: string }> 
 
 async function readLatestOnboardingMigration(): Promise<{ name: string; sql: string }> {
   return readLatestNamedMigration("operator_lifecycle_onboarding");
+}
+
+async function readLatestRetentionMigration(): Promise<{ name: string; sql: string }> {
+  return readLatestNamedMigration("operator_lifecycle_retention");
 }
 
 Deno.test("ops migration unique idempotency index and helper catch unique_violation", async () => {
@@ -394,4 +403,114 @@ Deno.test("mark_booking_link_copied is authenticated set-if-null and PWA install
   assertStringIncludes(pwa, "window.location.href");
   assertEquals(/mark_booking_link_copied/.test(pwa), false);
   assertEquals(/booking_link_copied_at/.test(pwa), false);
+});
+
+Deno.test("retention migration first-public trigger is AFTER INSERT and once per business", async () => {
+  const { sql } = await readLatestRetentionMigration();
+  const triggerFn = functionBody(sql, "trgfn_operator_lifecycle_first_public_booking");
+  const triggerDef = functionDefinition(sql, "trgfn_operator_lifecycle_first_public_booking");
+
+  assertMatch(sql, /ALTER\s+TABLE\s+public\.business_settings/i);
+  for (const column of RETENTION_ONCE_FLAGS) {
+    assertStringIncludes(sql, `ADD COLUMN IF NOT EXISTS ${column} timestamptz`);
+  }
+
+  assertStringIncludes(triggerDef, "SECURITY DEFINER");
+  assertMatch(triggerDef, /RETURNS\s+trigger/i);
+  assertMatch(
+    sql,
+    /CREATE\s+TRIGGER\s+trg_operator_lifecycle_first_public_booking\s+AFTER\s+INSERT\s+ON\s+public\.bookings/i,
+  );
+  assertEquals(/pg_cron/i.test(sql), false);
+  assertStringIncludes(triggerFn, "client-self-service");
+  assertStringIncludes(triggerFn, "retention.first_public_booking");
+  assertStringIncludes(triggerFn, "Primera reserva pública");
+  assertStringIncludes(triggerFn, "booking:");
+  assertStringIncludes(triggerFn, "retention_first_public_notified_at");
+  assertMatch(triggerFn, /p_appointment_id\s*:=\s*NEW\.id/i);
+  assertMatch(triggerFn, /count\(\*\)/i);
+  assertEquals(/status\s*(<>|!=|NOT\s+IN)\s*'cancelled'/i.test(triggerFn), false);
+  assertStringIncludes(triggerFn, "account_closed_at IS NOT NULL");
+  assertStringIncludes(triggerFn, "_insert_operator_lifecycle_notification");
+  assertMatch(triggerFn, /EXCEPTION\s+WHEN\s+OTHERS\s+THEN\s+RETURN\s+NEW/i);
+});
+
+Deno.test("retention migration cancel-twice trigger fires at cancelled count 2 without actor column", async () => {
+  const { sql } = await readLatestRetentionMigration();
+  const triggerFn = functionBody(sql, "trgfn_operator_lifecycle_customer_cancelled_twice");
+  const triggerDef = functionDefinition(sql, "trgfn_operator_lifecycle_customer_cancelled_twice");
+
+  assertStringIncludes(triggerDef, "SECURITY DEFINER");
+  assertMatch(
+    sql,
+    /CREATE\s+TRIGGER\s+trg_operator_lifecycle_customer_cancelled_twice\s+AFTER\s+INSERT\s+OR\s+UPDATE\s+OF\s+status\s+ON\s+public\.bookings/i,
+  );
+  assertStringIncludes(triggerFn, "retention.customer_cancelled_twice");
+  assertStringIncludes(triggerFn, "Mismo cliente canceló dos veces");
+  assertStringIncludes(triggerFn, "customer:");
+  assertStringIncludes(triggerFn, "cancel-2");
+  assertStringIncludes(triggerFn, "customer_id");
+  assertMatch(triggerFn, /NEW\.customer_id\s+IS\s+NULL/i);
+  assertMatch(triggerFn, /status\s*=\s*'cancelled'|NEW\.status\s+IS\s+DISTINCT\s+FROM\s+'cancelled'/i);
+  assertMatch(triggerFn, /count\(\*\)/i);
+  assertMatch(triggerFn, /(?:<>|!=|=)\s*2/);
+  assertEquals(/cancel_actor|cancelled_by|cancel_source/i.test(sql), false);
+  assertStringIncludes(triggerFn, "_insert_operator_lifecycle_notification");
+  assertStringIncludes(triggerFn, "account_closed_at IS NOT NULL");
+  assertMatch(triggerFn, /EXCEPTION\s+WHEN\s+OTHERS\s+THEN\s+RETURN\s+NEW/i);
+});
+
+Deno.test("retention clock branch 10 live-rearms public gap and does not insert instant types", async () => {
+  const { sql } = await readLatestRetentionMigration();
+  const rpcDef = functionDefinition(sql, "enqueue_operator_lifecycle_pushes");
+  const rpcBody = functionBody(sql, "enqueue_operator_lifecycle_pushes");
+
+  assertMatch(rpcDef, /RETURNS\s+integer/i);
+  assertMatch(
+    sql,
+    /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.enqueue_operator_lifecycle_pushes\(\)\s+FROM\s+PUBLIC\s*,\s*anon\s*,\s*authenticated/i,
+  );
+  assertMatch(
+    sql,
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.enqueue_operator_lifecycle_pushes\(\)\s+TO\s+service_role/i,
+  );
+  assertStringIncludes(rpcBody, "account_closed_at IS NOT NULL");
+  assertEquals(/pg_cron/i.test(sql), false);
+  assertEquals(/last_login_at/.test(sql), false);
+  assertEquals(/last_seen/.test(sql), false);
+  assertEquals(/_assert_business_accepts_public_bookings/.test(sql), false);
+  assertEquals(/notification_email_outbox/i.test(sql), false);
+  assertEquals(/DROP\s+TRIGGER\s+IF\s+EXISTS\s+trg_enqueue_web_push_outbox/i.test(sql), false);
+
+  for (const eventType of [...OPS_TYPES, ...ONBOARDING_TYPES]) {
+    assertStringIncludes(rpcBody, `'${eventType}'`);
+  }
+  assertStringIncludes(rpcBody, "'retention.public_gap_7d'");
+  assertEquals(rpcBody.includes("'retention.first_public_booking'"), false);
+  assertEquals(rpcBody.includes("'retention.customer_cancelled_twice'"), false);
+
+  assertStringIncludes(rpcBody, "7 días sin reservas públicas");
+  assertStringIncludes(rpcBody, "La última reserva pública fue hace más de una semana.");
+  assertStringIncludes(rpcBody, "client-self-service");
+  assertStringIncludes(rpcBody, "public_turnero_disabled_at IS NULL");
+  assertStringIncludes(rpcBody, "interval '7 days'");
+  assertStringIncludes(rpcBody, "retention_gap7_notified_at");
+  assertMatch(
+    rpcBody,
+    /retention_gap7_notified_at\s+IS\s+NULL\s+OR\s+retention_gap7_notified_at\s*<\s*[\s\S]{0,80}created_at/i,
+  );
+  assertMatch(rpcBody, /retention_gap7_notified_at\s*=\s*now\(\)/i);
+  assertStringIncludes(rpcBody, "booking:");
+  assertStringIncludes(rpcBody, "'onboarding.share_day7'");
+  assertEquals(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\._insert_operator_lifecycle_notification[\s\S]{0,200}\b(anon|authenticated)\b/i
+      .test(sql),
+    false,
+  );
+  assertEquals(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.trgfn_operator_lifecycle_[\s\S]{0,80}\b(anon|authenticated)\b/i.test(
+      sql,
+    ),
+    false,
+  );
 });
