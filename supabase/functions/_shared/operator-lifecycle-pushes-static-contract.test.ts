@@ -11,12 +11,8 @@ const deployPromotionUrl = new URL(
   "../../../.github/workflows/deploy-promotion.yml",
   import.meta.url,
 );
-const homePageUrl = new URL(
-  "../../../apps/dashboard/src/app/features/dashboard-home/pages/dashboard-home.page.ts",
-  import.meta.url,
-);
-const settingsPageUrl = new URL(
-  "../../../apps/dashboard/src/app/features/settings/pages/configuracion.page.ts",
+const pwaInstallPageUrl = new URL(
+  "../../../apps/dashboard/src/app/features/pwa-install/pages/pwa-install.page.ts",
   import.meta.url,
 );
 const pushSwUrl = new URL("../../../apps/dashboard/src/orvel-push-sw.js", import.meta.url);
@@ -29,17 +25,30 @@ const OPS_TYPES = [
   "lifecycle.stale_deposit_claim",
 ] as const;
 
-const SLICE_2_3_TYPES = [
+const ONBOARDING_TYPES = [
   "onboarding.no_services",
   "onboarding.no_hours",
   "onboarding.copy_link",
   "onboarding.share_day7",
+] as const;
+
+const RETENTION_TYPES = [
   "retention.first_public_booking",
   "retention.public_gap_7d",
   "retention.customer_cancelled_twice",
 ] as const;
 
+const SLICE_2_3_TYPES = [...ONBOARDING_TYPES, ...RETENTION_TYPES] as const;
+
 const ELEVEN_TYPES = [...OPS_TYPES, ...SLICE_2_3_TYPES] as const;
+
+const ONBOARDING_ONCE_FLAGS = [
+  "booking_link_copied_at",
+  "onboarding_no_services_notified_at",
+  "onboarding_no_hours_notified_at",
+  "onboarding_copy_link_notified_at",
+  "onboarding_share_day7_notified_at",
+] as const;
 
 function functionBody(sql: string, name: string): string {
   const pattern = new RegExp(
@@ -63,17 +72,26 @@ function functionDefinition(sql: string, name: string): string {
   return definition;
 }
 
-async function readLatestOpsMigration(): Promise<{ name: string; sql: string }> {
+async function readLatestNamedMigration(suffix: string): Promise<{ name: string; sql: string }> {
   const names: string[] = [];
+  const pattern = new RegExp(`_${suffix}\\.sql$`);
   for await (const entry of Deno.readDir(migrationsDir)) {
-    if (entry.isFile && /_operator_lifecycle_ops\.sql$/.test(entry.name)) {
+    if (entry.isFile && pattern.test(entry.name)) {
       names.push(entry.name);
     }
   }
   names.sort();
   const name = names.at(-1);
-  assert(name, "expected newest supabase/migrations/*_operator_lifecycle_ops.sql");
+  assert(name, `expected newest supabase/migrations/*_${suffix}.sql`);
   return { name, sql: await Deno.readTextFile(new URL(name, migrationsDir)) };
+}
+
+async function readLatestOpsMigration(): Promise<{ name: string; sql: string }> {
+  return readLatestNamedMigration("operator_lifecycle_ops");
+}
+
+async function readLatestOnboardingMigration(): Promise<{ name: string; sql: string }> {
+  return readLatestNamedMigration("operator_lifecycle_onboarding");
 }
 
 Deno.test("ops migration unique idempotency index and helper catch unique_violation", async () => {
@@ -246,18 +264,12 @@ Deno.test("lifecycle workflow posts every 15 minutes with dedicated cron secrets
 Deno.test("slice-1 clock no-ops and does not instrument copy-link or reminder email", async () => {
   const { sql } = await readLatestOpsMigration();
   const rpcBody = functionBody(sql, "enqueue_operator_lifecycle_pushes");
-  const home = await Deno.readTextFile(homePageUrl);
-  const settings = await Deno.readTextFile(settingsPageUrl);
   const pushSw = await Deno.readTextFile(pushSwUrl);
 
   assertMatch(rpcBody, /ISODOW[\s\S]{0,80}BETWEEN\s+1\s+AND\s+5/i);
   assertMatch(rpcBody, /LIMIT\s+1/i);
   assertEquals(/mark_booking_link_copied/.test(sql), false);
   assertEquals(/booking_link_copied_at/.test(sql), false);
-  assertEquals(/mark_booking_link_copied/.test(home), false);
-  assertEquals(/booking_link_copied_at/.test(home), false);
-  assertEquals(/mark_booking_link_copied/.test(settings), false);
-  assertEquals(/booking_link_copied_at/.test(settings), false);
   assertStringIncludes(pushSw, "/dashboard/turnos");
 
   let reminderFiles = 0;
@@ -265,4 +277,121 @@ Deno.test("slice-1 clock no-ops and does not instrument copy-link or reminder em
     if (entry.isFile) reminderFiles += 1;
   }
   assert(reminderFiles > 0, "appointment-reminders-24h must remain present and untouched by this contract");
+});
+
+Deno.test("onboarding migration adds once-flag columns and clock branches 5-8", async () => {
+  const { sql } = await readLatestOnboardingMigration();
+  const rpcDef = functionDefinition(sql, "enqueue_operator_lifecycle_pushes");
+  const rpcBody = functionBody(sql, "enqueue_operator_lifecycle_pushes");
+
+  assertMatch(sql, /ALTER\s+TABLE\s+public\.business_settings/i);
+  for (const column of ONBOARDING_ONCE_FLAGS) {
+    assertStringIncludes(sql, `ADD COLUMN IF NOT EXISTS ${column} timestamptz`);
+  }
+  assertEquals(/retention_first_public_notified_at/.test(sql), false);
+  assertEquals(/retention_gap7_notified_at/.test(sql), false);
+
+  assertMatch(rpcDef, /RETURNS\s+integer/i);
+  assertMatch(
+    sql,
+    /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.enqueue_operator_lifecycle_pushes\(\)\s+FROM\s+PUBLIC\s*,\s*anon\s*,\s*authenticated/i,
+  );
+  assertMatch(
+    sql,
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.enqueue_operator_lifecycle_pushes\(\)\s+TO\s+service_role/i,
+  );
+  assertStringIncludes(rpcBody, "account_closed_at IS NOT NULL");
+  assertStringIncludes(rpcBody, "COALESCE(businesses.timezone, 'America/Argentina/Buenos_Aires')");
+  assertEquals(/pg_cron/i.test(sql), false);
+  assertEquals(/last_login_at/.test(sql), false);
+  assertEquals(/professional_hours/.test(rpcBody), false);
+  assertEquals(/notification_email_outbox/i.test(rpcBody), false);
+
+  for (const eventType of [...OPS_TYPES, ...ONBOARDING_TYPES]) {
+    assertStringIncludes(rpcBody, `'${eventType}'`);
+  }
+  for (const eventType of RETENTION_TYPES) {
+    assertEquals(rpcBody.includes(`'${eventType}'`), false, `slice 2 RPC must not insert ${eventType}`);
+  }
+
+  for (const eventType of ONBOARDING_TYPES) {
+    const typeIndex = rpcBody.indexOf(`'${eventType}'`);
+    assert(typeIndex >= 0, `missing ${eventType}`);
+    const window = rpcBody.slice(Math.max(0, typeIndex - 400), typeIndex + 500);
+    assertStringIncludes(window, "'once'");
+    assertMatch(window, /p_appointment_id\s*:=\s*NULL/i);
+  }
+
+  assertStringIncludes(rpcBody, "'onboarding.no_services'");
+  assertStringIncludes(rpcBody, "Faltan servicios");
+  assertStringIncludes(rpcBody, "Todavía no hay un servicio activo.");
+  assertStringIncludes(rpcBody, "onboarding_no_services_notified_at");
+  assertMatch(rpcBody, /is_active/);
+  assertMatch(
+    rpcBody,
+    /timezone\([\s\S]{0,80}created_at[\s\S]{0,80}\)::date|[\s\S]{0,40}created_at[\s\S]{0,80}timezone/i,
+  );
+  assertMatch(rpcBody, /onboarding\.no_services[\s\S]{0,800}>=\s*1|v_day_n\s*>=\s*1/i);
+
+  assertStringIncludes(rpcBody, "'onboarding.no_hours'");
+  assertStringIncludes(rpcBody, "Faltan horarios");
+  assertStringIncludes(rpcBody, "No hay un día con horario habilitado.");
+  assertStringIncludes(rpcBody, "onboarding_no_hours_notified_at");
+  assertMatch(rpcBody, /monday['"]?[\s\S]{0,120}tuesday['"]?[\s\S]{0,120}wednesday['"]?[\s\S]{0,120}thursday['"]?[\s\S]{0,120}friday/i);
+  assertStringIncludes(rpcBody, "(value->>'enabled') = 'true'");
+  assertEquals(
+    rpcBody.includes('{"monday":{"enabled":true,"start":"09:00","end":"18:00"}'),
+    false,
+    "default weekday 09-18 JSON must not be treated as HOURS_ALL_CLOSED",
+  );
+  assertMatch(rpcBody, /onboarding\.no_hours[\s\S]{0,800}>=\s*2|v_day_n\s*>=\s*2/i);
+
+  assertStringIncludes(rpcBody, "'onboarding.copy_link'");
+  assertStringIncludes(rpcBody, "Compartí tu link");
+  assertStringIncludes(rpcBody, "Tu turnero está listo.");
+  assertStringIncludes(rpcBody, "https://orvel.pro/booking/");
+  assertStringIncludes(rpcBody, "onboarding_copy_link_notified_at");
+  assertStringIncludes(rpcBody, "booking_link_copied_at IS NULL");
+  assertMatch(rpcBody, /onboarding\.copy_link[\s\S]{0,800}>=\s*3|v_day_n\s*>=\s*3/i);
+
+  assertStringIncludes(rpcBody, "'onboarding.share_day7'");
+  assertStringIncludes(rpcBody, "Sin reservas públicas");
+  assertStringIncludes(rpcBody, "A una semana, nadie reservó desde el link.");
+  assertStringIncludes(rpcBody, "onboarding_share_day7_notified_at");
+  assertStringIncludes(rpcBody, "client-self-service");
+  assertEquals(/status\s*(<>|!=|NOT\s+IN)\s*'cancelled'/i.test(rpcBody), false);
+  assertMatch(rpcBody, /onboarding\.share_day7[\s\S]{0,800}>=\s*7|v_day_n\s*>=\s*7/i);
+});
+
+Deno.test("mark_booking_link_copied is authenticated set-if-null and PWA install does not call it", async () => {
+  const { sql } = await readLatestOnboardingMigration();
+  const def = functionDefinition(sql, "mark_booking_link_copied");
+  const body = functionBody(sql, "mark_booking_link_copied");
+  const pwa = await Deno.readTextFile(pwaInstallPageUrl);
+
+  assertMatch(def, /mark_booking_link_copied\s*\(\s*p_business_id\s+uuid\s*\)/i);
+  assertMatch(def, /RETURNS\s+timestamptz/i);
+  assertStringIncludes(def, "SECURITY DEFINER");
+  assertMatch(def, /search_path\s*=\s*public,\s*pg_temp/i);
+  assertStringIncludes(body, "can_manage_business");
+  assertMatch(body, /booking_link_copied_at\s*=\s*(COALESCE\s*\(\s*booking_link_copied_at\s*,\s*now\(\)\s*\)|now\(\))/i);
+  assertEquals(/working_hours/.test(body), false);
+  assertEquals(/onboarding_no_services_notified_at/.test(body), false);
+  assertMatch(
+    sql,
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.mark_booking_link_copied\s*\(\s*uuid\s*\)\s+TO\s+authenticated/i,
+  );
+  assertEquals(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.mark_booking_link_copied[\s\S]{0,80}\banon\b/i.test(sql),
+    false,
+  );
+  assertEquals(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\._insert_operator_lifecycle_notification[\s\S]{0,200}\b(anon|authenticated)\b/i
+      .test(sql),
+    false,
+  );
+
+  assertStringIncludes(pwa, "window.location.href");
+  assertEquals(/mark_booking_link_copied/.test(pwa), false);
+  assertEquals(/booking_link_copied_at/.test(pwa), false);
 });
