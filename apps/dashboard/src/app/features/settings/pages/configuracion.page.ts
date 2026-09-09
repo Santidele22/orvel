@@ -27,6 +27,7 @@ import {
   workingHoursToFormValue
 } from '../data-access/resolve-working-day-intervals';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
+import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
 import {
   requestSubscriptionCancellation,
   RequestSubscriptionCancellationError
@@ -217,7 +218,12 @@ export class ConfiguracionPage {
     } catch {
       this.urlCopied.set(false);
       this.urlCopyFailed.set(true);
+      return;
     }
+    void this.facade
+      .getActiveBusinessId()
+      .then((businessId) => markBookingLinkCopied(businessId, this.facade.getSupabaseClient()))
+      .catch(() => undefined);
   }
 
   openPublicBookingPortal(event: MouseEvent): void {
