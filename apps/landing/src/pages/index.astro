@@ -26,6 +26,9 @@ const organizationJsonLd = {
   logo: 'https://orvel.pro/logo.png',
 };
 
+const homeDescription =
+  'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Seña por alias o CBU, sin Mercado Pago. 14 días de Premium gratis.';
+
 const softwareJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -33,12 +36,19 @@ const softwareJsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   url: 'https://orvel.pro/',
+  description: homeDescription,
+  featureList: [
+    'Agenda de turnos',
+    'Turnero público por link',
+    'Varios profesionales',
+    'Seña por alias o CBU',
+  ],
 };
 ---
 
 <Layout
-  title="Orvel — Menos ida y vuelta. Más salón."
-  description="Tu cliente reserva. Vos atendés. Creá tu cuenta. 14 días de Premium gratis, sin tarjeta."
+  title="Orvel — Software de gestión de turnos para peluquería, uñas y barbería"
+  description={homeDescription}
 >
   <Fragment slot="jsonLd">
     <script type="application/ld+json" set:html={JSON.stringify(organizationJsonLd)} />

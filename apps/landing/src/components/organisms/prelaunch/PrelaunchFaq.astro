@@ -39,7 +39,22 @@ const faqs = [
     answer: 'Creá tu cuenta y listo. Premium incluye 14 días de prueba, sin tarjeta.'
   }
 ];
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
 ---
+
+<script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
 
 <section class="landing-section bg-bg-primary" id="faq">
   <div class="landing-container max-w-3xl">
