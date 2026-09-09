@@ -30,12 +30,16 @@ jobs:
             echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
             echo "site=combined" >> $GITHUB_OUTPUT
+            echo "landing_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
+            echo "dashboard_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "angular_config=production" >> $GITHUB_OUTPUT
-            echo "site=dashboard" >> $GITHUB_OUTPUT
+            echo "site=combined" >> $GITHUB_OUTPUT
+            echo "landing_url=https://orvel.pro" >> $GITHUB_OUTPUT
+            echo "dashboard_url=https://orvel.pro" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch: ${{ github.ref }}" >&2
             exit 1
@@ -82,9 +86,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Mark combined deploy as git branch qa
+      - name: Mark combined deploy as the pushed git branch
         if: ${{ steps.target.outputs.site == 'combined' }}
-        run: git switch -C qa
+        run: git switch -C ${{ github.ref_name }}
 
       - name: Build dashboard
         if: ${{ steps.target.outputs.site == 'dashboard' }}
@@ -99,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ steps.target.outputs.site }}" == "combined" ]]; then
-            URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --build-env PUBLIC_LANDING_URL=https://qa.orvel.pro --build-env PUBLIC_DASHBOARD_URL=https://qa.orvel.pro)
+            URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes ${{ steps.target.outputs.vercel_args }} --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }} --build-env PUBLIC_DASHBOARD_URL=${{ steps.target.outputs.dashboard_url }})
           else
             OUT=apps/dashboard/dist/salon-de-belleza/browser
             printf '%s\n' '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > "$OUT/vercel.json"
