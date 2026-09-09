@@ -11,6 +11,9 @@ const RATE_LIMIT_MAX_REQUESTS = 5;
 const FREE_CONFIRMATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
 const ALLOWED_DASHBOARD_ORIGINS = new Set([
+  "https://orvel.pro",
+  "https://www.orvel.pro",
+  "https://qa.orvel.pro",
   "https://dashboard.orvel.pro",
   "http://localhost:4200",
   "http://127.0.0.1:4200",
