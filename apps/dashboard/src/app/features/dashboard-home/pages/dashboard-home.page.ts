@@ -7,6 +7,7 @@ import { AuthService } from '../../../services/auth.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
+import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
@@ -364,7 +365,12 @@ export class DashboardHomeComponent {
     } catch {
       this.copied.set(false);
       this.copyFailed.set(true);
+      return;
     }
+    void this.businessFacade
+      .getActiveBusinessId()
+      .then((businessId) => markBookingLinkCopied(businessId, this.businessFacade.getSupabaseClient()))
+      .catch(() => undefined);
   }
 
   private async hydrateBusinessSettings(userId: string): Promise<void> {
