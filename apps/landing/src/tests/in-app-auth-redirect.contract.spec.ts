@@ -17,7 +17,7 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
     expect(redirect.pathname).not.toBe('/auth/login');
   });
 
-  it('from orvel.pro/auth/login hops to dashboard.orvel.pro/dashboard/login', () => {
+  it('from orvel.pro/auth/login stays on the combined prod host', () => {
     const redirect = new URL(
       buildInAppAuthRedirect(
         new URL('https://orvel.pro/auth/login'),
@@ -26,7 +26,7 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
       )
     );
 
-    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
+    expect(redirect.origin).toBe('https://orvel.pro');
     expect(redirect.pathname).toBe('/dashboard/login');
     expect(redirect.pathname).not.toBe('/auth/login');
   });
@@ -47,7 +47,7 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
       )
     );
 
-    expect(fromLanding.origin).toBe('https://dashboard.orvel.pro');
+    expect(fromLanding.origin).toBe('https://orvel.pro');
     expect(fromLanding.pathname).toBe('/dashboard/signup');
     expect(fromLanding.pathname).not.toBe('/auth/signup');
     expect(fromDashboard.origin).toBe('https://dashboard.orvel.pro');
