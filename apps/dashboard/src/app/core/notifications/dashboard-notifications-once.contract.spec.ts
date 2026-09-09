@@ -221,7 +221,21 @@ describe('Dashboard notifications once per shell', () => {
     await vi.waitFor(() => expect(mocks.listAdminNotifications).toHaveBeenCalledTimes(2));
   });
 
-  it('archiveAdminNotification drops that id from the visible list and unread count', async () => {
+  it('keeps business-level rows with a null appointmentId in the bell list', async () => {
+        mocks.listAdminNotifications.mockResolvedValue([
+          notification({ id: 'briefing', status: 'unread', appointmentId: null })
+        ]);
+
+        const service = await createService();
+        await service.refreshForAdmin();
+
+        expect(service.notifications()).toEqual([
+          expect.objectContaining({ id: 'briefing', appointmentId: null, status: 'unread' })
+        ]);
+        expect(service.unreadNotificationCount()).toBe(1);
+      });
+
+      it('archiveAdminNotification drops that id from the visible list and unread count', async () => {
     mocks.listAdminNotifications.mockResolvedValue([
       notification({ id: 'n1', status: 'unread' }),
       notification({ id: 'n2', status: 'read' })

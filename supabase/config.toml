@@ -462,3 +462,9 @@ verify_jwt = false
 # with CRON_KEY / x-cron-key / Bearer, same as purge-elapsed-bookings.
 [functions.release-expired-booking-holds]
 verify_jwt = false
+
+# Recurring operator lifecycle clock. An external scheduler POSTs this function
+# with CRON_KEY / x-cron-key / Bearer, same as release-expired-booking-holds.
+# Migrate the unique idempotency index before enabling the workflow.
+[functions.operator-lifecycle-pushes]
+verify_jwt = false

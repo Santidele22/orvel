@@ -61,6 +61,32 @@ Deno.test("appointment inbox event types include reminder for operator push", ()
   assertEquals(isOperatorWebPushEventType("system.welcome"), false);
 });
 
+const LIFECYCLE_WEB_PUSH_TYPES = [
+  "lifecycle.briefing",
+  "lifecycle.first_turno_soon",
+  "lifecycle.empty_agenda",
+  "lifecycle.stale_deposit_claim",
+  "onboarding.no_services",
+  "onboarding.no_hours",
+  "onboarding.copy_link",
+  "onboarding.share_day7",
+  "retention.first_public_booking",
+  "retention.public_gap_7d",
+  "retention.customer_cancelled_twice",
+] as const;
+
+Deno.test("eleven lifecycle types are operator web push; deposit.claimed is not", () => {
+  for (const eventType of LIFECYCLE_WEB_PUSH_TYPES) {
+    assertEquals(isOperatorWebPushEventType(eventType), true);
+  }
+  assertEquals(isOperatorWebPushEventType("deposit.claimed"), false);
+  assertEquals(isOperatorWebPushEventType("system.welcome"), false);
+  assertEquals(
+    buildOperatorWebPushPayload({ title: "Resumen de hoy", body: "Hoy tenés 3 turnos." }).url,
+    "/dashboard/turnos",
+  );
+});
+
 function unsignedJwt(role: string): string {
   const encode = (value: Record<string, unknown>) =>
     btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
