@@ -83,6 +83,23 @@ function createWorkingHours(enabledDays: WeekdayKey[]): Record<WeekdayKey, Worki
   }, {} as Record<WeekdayKey, WorkingDayHours>);
 }
 
+
+async function choosePublicService(
+  fixture: { componentInstance: unknown; detectChanges: () => void; whenStable: () => Promise<unknown> },
+  serviceId: string
+): Promise<void> {
+  const component = fixture.componentInstance as unknown as {
+    selectedServiceId: { set: (serviceId: string) => void };
+    onServiceChange: () => Promise<void>;
+  };
+  component.selectedServiceId.set(serviceId);
+  await component.onServiceChange();
+  fixture.detectChanges();
+  await fixture.whenStable();
+  await vi.runAllTimersAsync();
+  fixture.detectChanges();
+}
+
 function publicBookingFailureEvents(): PublicBookingFailureEvent[] {
   return vi.mocked(window.dispatchEvent).mock.calls
     .map(([event]) => event)
@@ -429,6 +446,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     fixture.detectChanges();
 
     // Assert
@@ -506,6 +524,8 @@ describe('public booking settings synchronization', () => {
     const serviceSelect = fixture.nativeElement.querySelector('select[name="selectedService"]') as HTMLSelectElement;
     expect(serviceSelect.textContent).toContain('Active service');
     expect(serviceSelect.textContent).not.toContain('Inactive service');
+    expect(publicBookingService.queryPublicSlotAvailability).not.toHaveBeenCalled();
+    await choosePublicService(fixture, 'active-service');
     expect(publicBookingService.queryPublicSlotAvailability).toHaveBeenCalledWith(expect.objectContaining({
       serviceId: 'active-service'
     }));
@@ -1080,6 +1100,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     fixture.detectChanges();
 
     // Assert
@@ -1175,6 +1196,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -1351,6 +1373,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     fixture.detectChanges();
 
     // Assert
@@ -1420,6 +1443,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     const component = fixture.componentInstance as unknown as {
       selectedDate: { set: (dateIso: string) => void };
       availabilitySlots: () => Array<{ startsAtIso: string }>;
@@ -1508,6 +1532,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     const component = fixture.componentInstance as unknown as {
       firstName: string;
       lastName: string;
@@ -1612,6 +1637,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     const component = fixture.componentInstance as unknown as {
       selectedSlot: string;
       firstName: string;
@@ -1701,6 +1727,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     const component = fixture.componentInstance as unknown as {
       firstName: string;
       lastName: string;
@@ -1803,6 +1830,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     fixture.detectChanges();
 
     const dayButtons = Array.from(fixture.nativeElement.querySelectorAll('[data-testid="booking-day-option"]')) as HTMLButtonElement[];
@@ -1915,6 +1943,7 @@ describe('public booking settings synchronization', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     await vi.runAllTimersAsync();
+    await choosePublicService(fixture, 'service-1');
     await fixture.whenStable();
     fixture.detectChanges();
 
