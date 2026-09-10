@@ -468,10 +468,14 @@ export class PublicBookingPage implements OnInit, OnDestroy {
         this.publicServices.set(mapped);
         const preloadService = this.preloadServiceId && mapped.some((service) => service.id === this.preloadServiceId)
           ? this.preloadServiceId
-          : mapped[0].id;
+          : '';
         this.selectedServiceId.set(preloadService);
         if (this.preloadStartsAtIso) {
           this.selectedDate.set(this.preloadStartsAtIso.split('T')[0]);
+        }
+        if (!preloadService) {
+          this.expandedStep.set('service');
+          return;
         }
         await this.loadProfessionalsForSelectedService();
         if (this.canShowScheduleStep()) {
