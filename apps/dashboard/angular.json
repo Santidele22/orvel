@@ -71,6 +71,7 @@
             ],
             "styles": [
               "src/styles/remixicon-used.css",
+              "node_modules/driver.js/dist/driver.css",
               "src/styles.css",
               "src/styles.scss"
             ],
