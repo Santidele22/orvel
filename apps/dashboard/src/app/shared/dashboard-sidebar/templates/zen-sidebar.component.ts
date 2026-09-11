@@ -10,7 +10,7 @@ import { SIDEBAR_LINKS, type SidebarLink } from '../sidebar-links.config';
       <div class="shrink-0 px-4 pt-5 pb-6" [class.px-3]="collapsed">
         <div class="flex items-center" [class.justify-between]="!collapsed" [class.flex-col]="collapsed" [class.justify-center]="collapsed" [class.gap-2]="collapsed">
           <div class="flex items-center min-w-0" [class.gap-3]="!collapsed" [class.justify-center]="collapsed">
-            <span class="flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10 shadow-lg shadow-black/10" [class.h-10]="!collapsed" [class.w-10]="!collapsed" [class.h-11]="collapsed" [class.w-11]="collapsed">
+            <span class="flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10 shadow-lg shadow-black/10" data-tour="sidebar-logo" [class.h-10]="!collapsed" [class.w-10]="!collapsed" [class.h-11]="collapsed" [class.w-11]="collapsed">
               <img src="/logo-white.png" alt="Orvel Logo" class="h-auto object-contain drop-shadow-lg" [class.w-7]="!collapsed" [class.w-8]="collapsed"/>
             </span>
           </div>
@@ -28,7 +28,7 @@ import { SIDEBAR_LINKS, type SidebarLink } from '../sidebar-links.config';
         </div>
       </div>
 
-      <nav class="flex-1 px-3 mt-1 overflow-y-auto no-scrollbar" [class.px-3]="collapsed">
+      <nav class="flex-1 px-3 mt-1 overflow-y-auto no-scrollbar" data-tour="sidebar-nav" [class.px-3]="collapsed">
         <div [class.space-y-7]="!collapsed" [class.space-y-3]="collapsed">
           <div class="space-y-2">
             @if (!collapsed) {

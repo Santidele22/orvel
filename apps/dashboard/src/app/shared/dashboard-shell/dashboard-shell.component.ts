@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
@@ -12,24 +12,43 @@ import { DashboardThemeName } from '../../core/theming/theme.tokens';
 import { DashboardSidebarComponent } from '../dashboard-sidebar/dashboard-sidebar.component';
 import { DashboardTopbarComponent } from '../dashboard-topbar/dashboard-topbar.component';
 import { MobileBottomNavComponent } from '../../core/shell/mobile-bottom-nav/mobile-bottom-nav.component';
+import { OperatorTourHelpButtonComponent } from '../../features/operator-tour/operator-tour-help-button.component';
+import { OperatorTourService } from '../../features/operator-tour/operator-tour.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
 import { logoutAndRedirect } from '../../core/auth/route-protection';
 import { navigateAfterLogout } from './logout-navigation';
 
+/**
+ * Auto-start budget for the operator onboarding tour: the shell waits for the
+ * dashboard home data to settle before opening, so content steps are not
+ * dropped by the runtime anchor probe.
+ */
+const TOUR_READY_POLL_MS = 250;
+const TOUR_READY_TIMEOUT_MS = 3000;
+
+const HOME_PATH_PATTERN = /\/dashboard\/inicio$/;
+
 @Component({
   selector: 'app-dashboard-shell',
   standalone: true,
-  imports: [RouterOutlet, DashboardSidebarComponent, DashboardTopbarComponent, MobileBottomNavComponent],
+  imports: [
+    RouterOutlet,
+    DashboardSidebarComponent,
+    DashboardTopbarComponent,
+    MobileBottomNavComponent,
+    OperatorTourHelpButtonComponent,
+  ],
   templateUrl: './dashboard-shell.component.html',
   styleUrl: './dashboard-shell.component.scss'
 })
-export class DashboardShellComponent implements AfterViewInit {
+export class DashboardShellComponent implements AfterViewInit, OnDestroy {
   private readonly host = inject(ElementRef<HTMLElement>);
   protected readonly router = inject(Router);
   protected readonly themeService = inject(ThemeService);
   protected readonly dashboardService = inject(DashboardService);
+  protected readonly operatorTour = inject(OperatorTourService);
   protected readonly structure = DASHBOARD_STRUCTURAL_TOKENS;
 
   // Contract hook: read selectedBusinessTypes from turnea.session.v1
@@ -61,6 +80,9 @@ export class DashboardShellComponent implements AfterViewInit {
     this.isSidebarCollapsed() ? 84 : this.activeTemplate().sidebarWidth
   );
 
+  private tourReadyPoll: ReturnType<typeof setTimeout> | undefined;
+  private tourGeneration = 0;
+
   constructor() {
     this.handleLogout = this.handleLogout.bind(this);
   }
@@ -68,6 +90,55 @@ export class DashboardShellComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     this.themeService.setTheme(this.activeTheme());
     applyDashboardTheme(this.host.nativeElement, this.activeTheme());
+    this.scheduleAutoTour();
+  }
+
+  ngOnDestroy(): void {
+    this.cancelPendingTour();
+  }
+
+  /** Opens the operator onboarding tour once per device on the first visit. */
+  private scheduleAutoTour(): void {
+    if (!this.operatorTour.canAutoStart() || !this.isHomeRoute()) {
+      return;
+    }
+
+    const generation = ++this.tourGeneration;
+    const deadline = Date.now() + TOUR_READY_TIMEOUT_MS;
+
+    const waitForHome = (): void => {
+      if (generation !== this.tourGeneration) return;
+
+      const anchorMounted = document.querySelector('[data-tour="home-metrics"]') !== null;
+      const skeletonGone =
+        document.querySelector('[data-testid="dashboard-home-loading-skeleton"]') === null;
+      const settled =
+        ((anchorMounted && skeletonGone) || Date.now() >= deadline) &&
+        Boolean(this.operatorTour.canAutoStart());
+
+      if (!settled) {
+        this.tourReadyPoll = setTimeout(waitForHome, TOUR_READY_POLL_MS);
+        return;
+      }
+
+      this.tourReadyPoll = undefined;
+      void this.operatorTour.run();
+    };
+
+    waitForHome();
+  }
+
+  private cancelPendingTour(): void {
+    this.tourGeneration += 1;
+    if (this.tourReadyPoll !== undefined) {
+      clearTimeout(this.tourReadyPoll);
+      this.tourReadyPoll = undefined;
+    }
+  }
+
+  private isHomeRoute(): boolean {
+    const url = this.router.url.split('?')[0].replace(/\/+$/, '');
+    return HOME_PATH_PATTERN.test(url);
   }
 
   protected onThemeChange(theme: DashboardThemeName): void {
