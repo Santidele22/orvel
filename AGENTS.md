@@ -75,6 +75,7 @@ Hard rules:
 | `apps/dashboard/` | Angular 21 PWA. Read `apps/dashboard/AGENTS.md` first. Run via `pnpm --dir apps/dashboard …`. |
 | `apps/landing/` | Astro 6 + Svelte 5. Read `apps/landing/AGENTS.md` first. Run via `pnpm --dir apps/landing …`. |
 | `apps/shared/` | Cross-app assets (currently email templates). Do not expand without Santi approval. |
+| `apps/ops/` | Internal Vue 3 prospect backoffice (Prospecta), hexagonal layout inside the app. Read `apps/ops/AGENTS.md` first. Deliberately outside the pnpm workspace and the root `check` gate; run via `pnpm --dir apps/ops …`. |
 | `packages/` | Shared contracts and types only when the source of truth is clear. `packages/shared/` is reserved — do not extract into it yet. |
 | `supabase/` | Edge functions and migrations. Follow Supabase Safety and `infra/context/supabase.md`. |
 | `openspec/` | SDD artifacts. Preserve existing changes; do not rewrite unrelated specs. |
