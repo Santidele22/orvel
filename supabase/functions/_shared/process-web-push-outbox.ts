@@ -3,6 +3,17 @@ export const OPERATOR_WEB_PUSH_EVENT_TYPES = [
   "appointment.cancelled",
   "appointment.rescheduled",
   "appointment.reminder",
+  "lifecycle.briefing",
+  "lifecycle.first_turno_soon",
+  "lifecycle.empty_agenda",
+  "lifecycle.stale_deposit_claim",
+  "onboarding.no_services",
+  "onboarding.no_hours",
+  "onboarding.copy_link",
+  "onboarding.share_day7",
+  "retention.first_public_booking",
+  "retention.public_gap_7d",
+  "retention.customer_cancelled_twice",
 ] as const;
 
 export type VapidEnv = {
@@ -29,12 +40,75 @@ export function shouldSkipWebPush(env: VapidEnv): boolean {
   return !env.VAPID_PRIVATE_KEY?.trim() || !env.VAPID_PUBLIC_KEY?.trim();
 }
 
+const REJECTED_PUBLIC_WEB_PUSH_ROLES = ["anon", "authenticated", "publishable"] as const;
+
+function timingSafeEqualString(left: string, right: string): boolean {
+  let difference = left.length ^ right.length;
+  const maxLength = Math.max(left.length, right.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  }
+  return difference === 0;
+}
+
+function getBearerToken(authorizationHeader: string | null): string | null {
+  if (!authorizationHeader?.startsWith("Bearer ")) return null;
+  const token = authorizationHeader.slice("Bearer ".length).trim();
+  return token || null;
+}
+
+function decodeJwtRole(bearerToken: string): string | null {
+  const parts = bearerToken.split(".");
+  if (parts.length !== 3 || !parts[1]) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=");
+    const json = new TextDecoder().decode(Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)));
+    const claims = JSON.parse(json) as { role?: unknown };
+    return typeof claims.role === "string" ? claims.role : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isPrivilegedWebPushAuthorization(input: {
+  authorizationHeader: string | null;
+  serviceRoleKey?: string;
+}): boolean {
+  const bearer = getBearerToken(input.authorizationHeader);
+  if (!bearer) return false;
+
+  const role = decodeJwtRole(bearer);
+  if (role && (REJECTED_PUBLIC_WEB_PUSH_ROLES as readonly string[]).includes(role)) {
+    return false;
+  }
+
+  const serviceRoleKey = input.serviceRoleKey?.trim() || "";
+  if (serviceRoleKey && timingSafeEqualString(bearer, serviceRoleKey)) return true;
+
+  // Safe only with verify_jwt=true on process-web-push-outbox (gateway verifies the JWT).
+  return role === "service_role";
+}
+
 export function isOperatorWebPushEventType(eventType: string): boolean {
   return (OPERATOR_WEB_PUSH_EVENT_TYPES as readonly string[]).includes(eventType);
 }
 
 export function buildOperatorWebPushPayload(input: { title: string; body: string }): OperatorWebPushPayload {
   return { title: input.title, body: input.body, url: "/dashboard/turnos" };
+}
+
+export function resolveWebPushDeliveryStatus(tally: { sent: number; gone: number; failed: number }): {
+  status: "sent" | "skipped" | "failed";
+  error: string | null;
+} {
+  if (tally.sent === 0 && tally.failed === 0 && tally.gone === 0) {
+    return { status: "skipped", error: "no_subscriptions" };
+  }
+  if (tally.failed > 0 && tally.sent === 0) {
+    return { status: "failed", error: "send_failed" };
+  }
+  return { status: "sent", error: null };
 }
 
 function goneStatus(statusCode: number | undefined): boolean {
@@ -124,8 +198,8 @@ export async function processWebPushOutbox(input: {
         send,
         onGone: (subscriptionId) => input.supabase.from("web_push_subscriptions").delete().eq("id", subscriptionId),
       });
-      const failed = result.failed > 0 && result.sent === 0;
-      await markOutbox(input.supabase, row.id, failed ? "failed" : "sent", failed ? "send_failed" : null);
+      const delivery = resolveWebPushDeliveryStatus(result);
+      await markOutbox(input.supabase, row.id, delivery.status, delivery.error);
     } catch {
       await markOutbox(input.supabase, row.id, "skipped", "send_unavailable");
     }

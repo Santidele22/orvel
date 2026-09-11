@@ -1,88 +1,99 @@
 # Agent Rules - Orvel Monorepo
 
-This repository follows **Funemon Lab** standards. These rules apply to the full Orvel monorepo and are the canonical project entry point for agents and humans.
+Canonical operating contract for agents and humans. This monorepo is the source of truth for Orvel (dashboard PWA, landing, Supabase). Product scope, architecture, environments, and Supabase detail live under `infra/context/`, not here.
+
+This file does not record product completeness. Treat `main` as production. Verify product claims against `infra/context/` and checked-in source; do not infer them from folder names or this contract.
 
 ## Communication
 
 - Speak Spanish with Santi.
-- Use English for agent-to-agent handoffs when delegation is needed.
-- Never fabricate, overclaim, or pretend certainty. If a fact is missing, unverifiable, or blocked by lack of access, say so and ask Santi.
+- Use English for agent-to-agent handoffs and for repository-facing artifacts (code, comments, commits, OpenSpec, tests, in-repo docs).
+- Never fabricate, overclaim, or pretend certainty. If a fact is missing, unverifiable, or blocked, say so and ask Santi.
 
 ## Context Priority
 
-Before planning or changing files, load/read context in this order:
+Before planning or changing files, read in this order:
 
-1. Root `AGENTS.md`.
-2. Relevant subtree `AGENTS.md` files, such as `apps/dashboard/AGENTS.md` or `apps/landing/AGENTS.md`.
-3. Root project skills, especially `project-skills/orvel-global-context/SKILL.md`.
-4. Relevant files under `infra/context/`.
+1. This file.
+2. The relevant subtree `AGENTS.md` (`apps/dashboard/AGENTS.md`, `apps/landing/AGENTS.md`).
+3. `infra/context/` — at least `product.md`, `architecture.md`, and `operational-rules.md`; add `supabase.md`, `environments.md`, and `deployment.md` when the task touches those areas.
+4. The active OpenSpec change under `openspec/changes/` and matching `openspec/specs/` when the work is an SDD change.
 5. ADRs and runbooks under `docs/`.
-6. Checked-in source files.
+6. Checked-in source.
 
-Always read the root Orvel global context skill and the relevant `infra/context/*` files before planning changes.
+Do not treat missing skill folders, ignored client dirs (`.opencode/`, `.funemon/`), or untracked trees as canonical guidance.
 
 ## Privacy and Repository Hygiene
 
-- Never commit `.funemon/`; it is local private metadata.
-- Keep `.funemon/plans/current.norg` as a local/private operational ledger only; update it for task/stage/blocker/slice changes when present, but never stage or publish it.
-- Never commit secrets, credentials, tokens, `.env` files, local caches, or generated artifacts.
-- Treat global client configuration, including OpenCode/Gemini integration, as managed outside this repository. Do not duplicate or modify global client config here.
-- Do not rely on ignored or client-specific configuration, such as `.opencode/`, as canonical project guidance. Only use per-repo client config when it already exists and is clearly project-local.
+- Never commit `.funemon/`, secrets, credentials, tokens, `.env` files, local caches, or generated artifacts.
+- `.funemon/plans/current.norg` is a local operational ledger only; update it when present, never stage it.
+- Global agent-client configuration (OpenCode, Gemini, Pi, and similar) is managed outside this repository. Do not duplicate it here.
 - Do not add absolute local paths to committed documentation or source.
 
-## Funemon Workflow
+## Workflow
 
-- R2-D2 is the orchestrator only: it does not implement code or documentation directly, and must delegate to the proper specialist.
-- Assess coordination before delegating or parallelizing. Default to sequential work when changes are small, tightly coupled, or consistency-sensitive.
-- Follow SDD/TDD: define or read the spec/design first, ask D-O/QA for tests before implementation, then implement only against the tested contract.
-- Use Red-Green-Refactor for feature and bug work; do not add untested behavior unless Santi explicitly approves an exception.
-- Preserve existing user changes. Inspect status before editing and keep changes scoped to the requested files.
+- Clarify scope, constraints, acceptance criteria, and non-goals before implementation.
+- Substantial or ambiguous work uses OpenSpec (`openspec/`) when Santi asks for SDD or accepts an SDD proposal. Do not invent a parallel spec store.
+- Follow strict TDD when tests exist: Red-Green-Refactor. Do not add untested behavior unless Santi explicitly approves an exception.
+- Prefer the contract-test layout already in the repo (`.contract.spec.ts`, `.contract.test.mjs`, Deno tests).
+- Inspect git status before editing. Preserve unrelated user changes. Keep the diff scoped to the requested files.
+- The parent session orchestrates. Do not silently expand into unrelated apps or packages.
 
 ## Git Workflow
 
-### 3-environment promotion flow
+### 3-environment promotion
 
-Orvel uses a strict 3-branch promotion: `feature → dev → qa → main`. Never skip a step.
+`feature → dev → qa → main`. Never skip a step.
 
 | Branch | Purpose | Receives from |
 |--------|---------|---------------|
-| `dev` | Integration. All feature branches land here first. | feature branches (via PR) |
-| `qa`  | Smoke test environment. Pre-release validation. | `dev` (via PR) |
-| `main` | Production. Releases only. | `qa` (via PR) |
+| `dev` | Integration | feature branches (via PR) |
+| `qa` | Smoke / pre-release | `dev` (via PR) |
+| `main` | Production | `qa` (via PR) |
 
-**Hard rules**:
-- Feature branches MUST merge to `dev` first. Never directly to `qa` or `main`.
-- `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
-- The 3 protected branches (`dev`, `qa`, `main`) have identical protection: linear history, 1 approving review, required CI check (`dashboard-booking-regressions`), `enforce_admins: true`, no force pushes, no deletions.
-- Since Santi is the sole owner, the "1 approving review" requirement blocks self-approval on PRs to protected branches. R2-D2 uses the admin workaround (temporarily relax protection, `--admin --squash`, restore) ONLY with explicit Santi approval per PR.
-- Branch protection on `dev` and `qa` should be relaxed (required_pull_request_reviews: null, enforce_admins: false) BEFORE pushing a merge of an out-of-date sync (e.g., syncing dev ← main). Restore the protection immediately after. The required status check will re-block push until CI runs on the new commit.
+Hard rules:
+
+- Feature branches merge to `dev` first. Never directly to `qa` or `main`.
+- `main` receives PRs only from `qa`.
+- Protected branches (`dev`, `qa`, `main`): linear history, 1 approving review, required CI check `dashboard-booking-regressions`, `enforce_admins: true`, no force pushes, no deletions.
+- Santi is the sole owner; self-approval on protected branches is blocked. The admin workaround (temporarily relax protection, `--admin --squash`, restore) is only with explicit Santi approval per PR.
+- Relax `dev`/`qa` review enforcement only to push an out-of-date sync (for example `dev ← main`); restore immediately after. The required status check still blocks until CI runs.
 
 ### Operational rules
 
-- Work on a branch and use a PR path when Santi asks for commits/PRs.
-- Do not push directly to `main`, `dev`, or `qa` (they're protected).
-- **Auto-push + auto-open PR workflow** (2026-07-29): After completing a coherent task block (e.g., end of an SDD phase, end of a PR slice, or end of an SDD change), R2-D2 may auto-commit the work, push the feature branch, and open a PR against `dev` without per-commit explicit Santi approval. The PR target is always `dev`; never `qa` or `main` directly. R2-D2 reports the PR URL after opening.
-- **Hermes PR review** (2026-08-19): After a PR is opened, wait for the Hermes bot to analyze it and leave an approve/reject comment that corroborates the linked issue. Do not ask Santi to merge until that comment exists, unless Hermes is unavailable and Santi explicitly overrides. A Hermes rejection is a stop: fix or answer it before asking for merge. Hermes does not replace CI or Santi's merge approval.
-- **Merge to protected branches still requires explicit Santi approval per PR.** R2-D2 may NOT merge to `dev` (or `qa`/`main`) without explicit Santi approval. The admin workaround (temporarily relax protection, `--admin --squash`, restore) remains gated behind explicit Santi approval per PR.
-- No direct push to `main`, `--force`, `reset --hard`, secrets, `.funemon/`, or check bypasses.
+- Work on a feature branch. Do not push directly to `dev`, `qa`, or `main`.
+- After a coherent task block, the orchestrator may commit, push the feature branch, and open a PR against `dev` without per-commit approval. PR target is always `dev`.
+- Merge to protected branches still requires explicit Santi approval per PR.
+- Do not ask Santi to merge until CI is green. If a PR review bot comments a rejection, treat it as a stop until it is fixed or Santi overrides.
+- No `--force`, no `reset --hard`, no secrets, no `.funemon/`, no check bypasses.
 - Keep changes small and scoped to the requested work.
 
 ## Scope Rules
 
-- `apps/dashboard/`: Angular dashboard. Read `apps/dashboard/AGENTS.md` before app-specific changes.
-- `apps/landing/`: Astro landing site. Read `apps/landing/AGENTS.md` before app-specific changes.
-- `apps/backoffices/`: Orvel staff operator Vite app at `/ops`. Read `apps/backoffices/AGENTS.md` before app-specific changes. Never import salon dashboard feature modules.
-- `supabase/`: Supabase functions and migrations. Follow the Supabase safety rules below and `infra/context/supabase.md`.
-- `infra/` and `docs/`: project context, operational notes, ADRs, and runbooks. Keep them concise, current, and evidence-based.
-- Root tooling is orchestration only unless Santi approves broader package-manager or architecture changes.
+| Path | Rule |
+|------|------|
+| `apps/dashboard/` | Angular 21 PWA. Read `apps/dashboard/AGENTS.md` first. Run via `pnpm --dir apps/dashboard …`. |
+| `apps/landing/` | Astro 6 + Svelte 5. Read `apps/landing/AGENTS.md` first. Run via `pnpm --dir apps/landing …`. |
+| `apps/shared/` | Cross-app assets (currently email templates). Do not expand without Santi approval. |
+| `apps/ops/` | Internal Vue 3 prospect backoffice (Prospecta), hexagonal layout inside the app. Read `apps/ops/AGENTS.md` first. Deliberately outside the pnpm workspace and the root `check` gate; run via `pnpm --dir apps/ops …`. |
+| `apps/backoffices/` | Orvel staff operator Vite app at `/ops`. Read `apps/backoffices/AGENTS.md` first. Never import salon dashboard feature modules. |
+| `packages/` | Shared contracts and types only when the source of truth is clear. `packages/shared/` is reserved — do not extract into it yet. |
+| `supabase/` | Edge functions and migrations. Follow Supabase Safety and `infra/context/supabase.md`. |
+| `openspec/` | SDD artifacts. Preserve existing changes; do not rewrite unrelated specs. |
+| `infra/`, `docs/` | Context, ADRs, runbooks. Keep concise, current, and evidence-based. |
+| `tests/e2e/`, `playwright.config.ts` | Playwright e2e. |
+| `scripts/`, `tools/` | Repo-local tooling. Do not change root package-manager or architecture without Santi approval. |
+
+Root `pnpm run check` is the default local verification gate (dashboard + landing builds, critical Supabase function tests, static checks). Use a narrower test command when the change is scoped to one app.
 
 ## Supabase Safety
 
 - Do not run destructive Supabase commands without Santi approval.
 - Do not run migration repair without Santi approval.
-- When Santi asks for Supabase schema or function changes and credentials/context are available, update or push those changes with the Supabase CLI immediately.
-- If credentials/context are missing, access is unavailable, or a Supabase command is blocked, stop and report the exact blocker.
+- When Santi asks for schema or function changes and credentials/context are available, update or push with the Supabase CLI immediately.
+- If credentials/context are missing, access is unavailable, or a command is blocked, stop and report the exact blocker.
 - Do not invent expected remote state. Use checked-in context, Supabase CLI output, or Santi-provided facts.
+- The documented pre-release linked project is `orvel-qa-dev`. Production identity is the non-revealing digest in `supabase/production-project-ref.sha256`. Do not invent project refs.
 
 ## Required Reporting
 

@@ -14,6 +14,7 @@ export interface WorkingDayHours {
   enabled: boolean;
   start: string;
   end: string;
+  intervals?: { start: string; end: string }[];
 }
 
 export interface BusinessSettings {
@@ -36,12 +37,18 @@ export interface BusinessSettings {
   allowMultipleServices?: boolean;
   cleanupTimeMinutes?: number;
   capacity?: number;
+  allowClientProfessionalSelection?: boolean;
   weekStartDay?: 'monday' | 'sunday';
   timeFormat?: '12h' | '24h';
   firstName?: string;
   lastName?: string;
   phone?: string;
   slug?: string;
+  depositEnabled?: boolean;
+  depositPercent?: number;
+  depositAmountPesos?: number | null;
+  depositAlias?: string;
+  depositCbu?: string;
 }
 
 export interface BusinessPublicView {
@@ -53,7 +60,13 @@ export interface BusinessPublicView {
     bufferMinutes: number;
     minNoticeMinutes: number;
     slotIntervalMinutes: number;
+    maxAdvanceDays: number;
     workingHours: Record<WeekdayKey, WorkingDayHours>;
+    depositEnabled?: boolean;
+    depositPercent?: number;
+    depositAlias?: string | null;
+    depositCbu?: string | null;
+    supportPhone?: string | null;
   };
   bookingPolicy: {
     autoConfirm: boolean;

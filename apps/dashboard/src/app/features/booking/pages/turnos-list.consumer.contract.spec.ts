@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./turnos-list.page.ts', import.meta.url), 'utf8');
 const template = readFileSync(new URL('./turnos-list.page.html', import.meta.url), 'utf8');
+const turnoModel = readFileSync(new URL('../models/turno.model.ts', import.meta.url), 'utf8');
 
 describe('TurnosListPage capability-service consumer', () => {
   it('does not import TurnoService or turno.facade', () => {
@@ -28,5 +29,42 @@ describe('TurnosListPage capability-service consumer', () => {
     expect(template).toContain('data-testid="turnos-desktop-empty-state"');
     expect(template).toContain('Todavía no hay turnos este día');
     expect(template).toMatch(/turnosLoadError\(\)\s*&&\s*hasAnyTurnos\(\)/);
+  });
+
+  it('types optional depositStatus on Turno from BookingDepositStatus', () => {
+    expect(turnoModel).toMatch(/depositStatus\?:\s*BookingDepositStatus/);
+    expect(turnoModel).toMatch(/from ['"]@orvel\/booking\/application['"]/);
+  });
+
+  it('desktop status pill uses appointment badge helper, not raw estado', () => {
+    expect(template).not.toMatch(/\{\{\s*turno\.estado\s*\}\}/);
+    expect(template).toMatch(/appointmentBadgeLabel\(\s*turno\s*\)/);
+    expect(template).toMatch(/depositPending\s*\(\s*turno\s*\)|isDepositUnpaid/);
+    expect(template).toMatch(/bg-amber-400\/10|bg-warning/);
+    expect(source).toMatch(/appointmentStatusLabel/);
+    expect(source).toMatch(/isDepositUnpaid/);
+    expect(source).toMatch(/from ['"]@orvel\/booking\/application['"]/);
+  });
+
+  it('offers Confirmar seña on unpaid list rows via DashboardService.confirmDepositReceived', () => {
+    expect(template).toContain('Confirmar seña');
+    expect(template).toMatch(/depositPending\s*\(\s*turno\s*\)/);
+    expect(source).toMatch(/dashboardService\.confirmDepositReceived/);
+    expect(source).not.toMatch(/confirmBookingDepositReceived/);
+    expect(source).not.toMatch(/claimBookingDeposit/);
+  });
+
+  it('highlights claim_pending holds more strongly than pending unpaid holds', () => {
+    expect(template).toMatch(/depositStatus\s*===\s*['"]claim_pending['"]/);
+    expect(template).toContain('data-testid="deposit-claimed-highlight"');
+  });
+
+  it('offers No la veo on unpaid list rows via DashboardService.rejectBookingDepositUnseen', () => {
+    expect(template).toContain('No la veo');
+    expect(template).toContain('Confirmar seña');
+    expect(source).toMatch(/dashboardService\.rejectBookingDepositUnseen/);
+    expect(source).toMatch(/dashboardService\.confirmDepositReceived/);
+    expect(template).not.toMatch(/strike/i);
+    expect(source).not.toMatch(/strike/i);
   });
 });

@@ -246,7 +246,8 @@ describe('M2 real admin new turno UX RED contract', () => {
       /data-testid=["']turno-admin-walk-in-name["']|data-testid=["']turno-admin-start-walk-in["']/i
     );
     expect(turnoFormTemplate, 'form must expose service selection').toMatch(/data-testid=["']turno-admin-service-select["']|name=["']servicio(?:Id)?["']/i);
-    expect(turnoFormTemplate, 'form must expose date selection').toMatch(/data-testid=["']turno-admin-date["']|type=["']date["']/i);
+    expect(turnoFormTemplate, 'form must expose date selection').toMatch(/data-testid=["']turno-admin-date["']/i);
+    expect(controlWithTestId(turnoFormTemplate, 'turno-admin-date'), 'Nuevo turno date must not stay an unconstrained native calendar').not.toMatch(/type=["']date["']/i);
     expect(turnoFormTemplate, 'time choices must be an explicit backend availability slot selector').toMatch(
       /data-testid=["']turno-admin-available-slot-select["']|data-testid=["']turno-admin-available-slot-option["']/i
     );
@@ -294,5 +295,21 @@ describe('M2 real admin new turno UX RED contract', () => {
     expect(saveBody, 'new-turno conflict/errors must be shown safely without treating failures as success').toMatch(/SLOT_CONFLICT|SLOT_COLLISION|conflict|no disponible|bloqueado/i);
     expect(saveBody + createBody, 'successful create must invalidate admin availability so stale slots cannot be reused').toMatch(/invalidateAdminAvailability|resetAvailability/i);
     expect(saveBody + turnosListSource, 'successful create must return to or refresh the turnos timeline/list').toMatch(/refreshTurnosFromSource|getAll\(\)|navigate\(\[\s*["']\/dashboard\/turnos["']/i);
+  });
+
+  it('offers Nuevo turno dates only from remaining-capacity days in the booking window', () => {
+    const dateControl = controlWithTestId(turnoFormTemplate, 'turno-admin-date');
+
+    expect(dateControl, 'date control must remain a styled select/chips control with the existing testid').toMatch(/^<select\b/i);
+    expect(turnoFormTemplate, 'date options must iterate remaining-capacity days, not a free calendar').toMatch(
+      /data-testid=["']turno-admin-date["'][\s\S]{0,900}@for \((?:date|day) of bookableDates\(\)/i
+    );
+    expect(turnoFormSource, 'service/duration/branch changes must refresh bookable days before hours').toMatch(/refreshBookableDays\(/);
+    expect(methodBody(turnoFormSource, 'onServicioChange'), 'service change must refresh bookable days').toMatch(/refreshBookableDays\(/);
+    expect(turnoFormTemplate, 'duration change must refresh bookable days').toMatch(
+      /data-testid=["']turno-admin-duration["'][\s\S]{0,280}refreshBookableDays\(/
+    );
+    expect(methodBody(turnoFormSource, 'onBranchSelectionChange'), 'branch change must refresh bookable days').toMatch(/refreshBookableDays\(/);
+    expect(turnoFormTemplate, 'hour options must stay remaining-capacity only').toMatch(/@for \(horario of disponibles\(\)/);
   });
 });

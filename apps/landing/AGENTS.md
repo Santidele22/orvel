@@ -1,21 +1,19 @@
 # Agent Rules - orvel-landing
 
-This project follows the **Funemon Lab** standards.
+Start with the root `AGENTS.md` before landing-specific work.
 
-Start with the root `AGENTS.md` and `project-skills/orvel-global-context/SKILL.md` before landing-specific work.
+Inherit root rules for orchestration, OpenSpec/TDD, `.funemon/` privacy, and the project-local vs global client-configuration boundary. Do not add landing-local agent-client config unless Santi explicitly asks or it already exists as project-local config.
 
-Inherit the root Funemon Lab rules for R2-D2 orchestration/delegation, SDD/TDD, `.funemon/` privacy, and the project-local vs global client configuration boundary. Do not add landing-local OpenCode/Gemini config unless Santi explicitly asks or it already exists as project-local config.
+## Stack
 
-## Project Architecture (Auto-detected)
-- **Languages**: JavaScript/TypeScript
-- **Framework**: Astro
-- **Stack**: TailwindCSS
-- **Database/Storage**: Supabase (Local config)
+- Language: TypeScript
+- App: Astro 6 + Svelte 5 + Tailwind v4
+- Adapter: `@astrojs/vercel`
+- Data: Supabase client for public/signup flows
 
-## Project Specifics
-- Focus: [Add project focus here]
-- Convention overrides: [Add any specific overrides here]
+## Project specifics
 
-## Reference
-- Global Rules: `~/.config/funemon-lab/agents/AGENTS.md`
-- Local Skills: `./project-skills/`
+- Focus: public Orvel marketing and signup entry (`apps/landing/src/pages/`).
+- Commands from repo root: `pnpm --dir apps/landing run …`
+- Tests: Vitest under `apps/landing/src/tests/`
+- Do not stack landing-local `.opencode/` / `.gemini/` config.

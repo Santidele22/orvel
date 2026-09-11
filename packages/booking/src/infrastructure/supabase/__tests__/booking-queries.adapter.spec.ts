@@ -11,6 +11,7 @@ const row = {
   starts_at: '2026-08-17T13:00:00.000Z',
   ends_at: '2026-08-17T13:30:00.000Z',
   status: 'booked',
+  deposit_status: 'pending',
   created_at: '2026-08-17T00:00:00.000Z'
 };
 const futureRow = {
@@ -35,7 +36,7 @@ describe('SupabaseBookingQueries adapter', () => {
       p_starts_at: '2026-08-17T00:00:00.000Z',
       p_ends_at: '2026-08-18T00:00:00.000Z'
     });
-    expect(listed).toMatchObject([{ id: 'b-1', clienteId: 'c-1', estado: 'confirmado', hora: '10:00' }]);
+    expect(listed).toMatchObject([{ id: 'b-1', clienteId: 'c-1', estado: 'confirmado', hora: '10:00', depositStatus: 'pending' }]);
   });
 
   it('returns availability windows as UTC Date timestamps for the UTC day', async () => {

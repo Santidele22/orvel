@@ -28,7 +28,7 @@
           </div>
           <div class="md:col-span-3">
             <button type="button" data-testid="category-create-form" 
-              [class]="ui.subtleAction + ' w-full flex items-center justify-center gap-2'"
+              [class]="ui.subtleAction + ' !h-12 w-full flex items-center justify-center gap-2'"
               (click)="openModal('categoria')">
               <i class="ri-folder-add-line"></i>
               <span>Categoría</span>
@@ -141,11 +141,7 @@
                           <div class="flex flex-wrap items-center gap-2">
                           <h3 class="text-base font-semibold text-text-primary tracking-tight truncate">{{ s['nombre'] }}</h3>
                           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm"
-                                 [ngClass]="{
-                                   'bg-primary-soft text-primary': s.tone === 'primary',
-                                   'bg-accent/20 text-accent': s.tone === 'accent',
-                                   'bg-white/10 text-text-primary': s.tone === 'neutral'
-                                 }">{{ s.badge }}</span>
+                                 [class]="badgeToneClass(s.tone)">{{ s.badge }}</span>
                           </div>
                         <div class="flex flex-wrap items-center gap-4 text-xs font-normal text-text-secondary opacity-70">
                           <span class="flex items-center gap-1.5">

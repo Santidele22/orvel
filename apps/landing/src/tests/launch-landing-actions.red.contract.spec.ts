@@ -6,7 +6,7 @@ const HERO_PATH = new URL('../components/organisms/Hero.astro', import.meta.url)
 const CTA_PATH = new URL('../components/organisms/CTA.astro', import.meta.url);
 const PRICING_PATH = new URL('../components/organisms/Pricing.astro', import.meta.url);
 const PLAN_CARD_PATH = new URL('../components/molecules/PlanCard.astro', import.meta.url);
-const INDEX_PATH = new URL('../pages/index.astro', import.meta.url);
+const LANZAMIENTO_PATH = new URL('../pages/lanzamiento.astro', import.meta.url);
 const LOGIN_PATH = new URL('../pages/auth/login.astro', import.meta.url);
 const AUTH_RETURN_TO_PATH = new URL('../lib/auth-return-to.ts', import.meta.url);
 
@@ -46,11 +46,11 @@ describe('RED Contract: active launch landing account/auth actions', () => {
   });
 
   it('mounts the final CTA section and wires its primary action to account creation', async () => {
-    const index = await source(INDEX_PATH);
+    const lanzamiento = await source(LANZAMIENTO_PATH);
     const cta = await source(CTA_PATH);
 
-    expect(index).toMatch(/<CTA\s*\/>/);
-    expect(index).not.toMatch(/<!--\s*<CTA\s*\/>\s*-->/);
+    expect(lanzamiento).toMatch(/<CTA\s*\/>/);
+    expect(lanzamiento).not.toMatch(/<!--\s*<CTA\s*\/>\s*-->/);
     expectVisibleAnchorTo(cta, /Activar|Comenzar|Empezar|Crear cuenta|Probalo hoy/, '/auth/signup/plan');
   });
 });
@@ -69,26 +69,26 @@ describe('RED Contract: active launch landing plan selection uses subscription/p
   });
 
   it('routes paid plan selection into current subscription/preapproval billing, not legacy checkout', async () => {
-    const index = await source(INDEX_PATH);
+    const lanzamiento = await source(LANZAMIENTO_PATH);
     const pricing = await source(PRICING_PATH);
     const planCard = await source(PLAN_CARD_PATH);
-    const activeLandingSources = `${index}\n${pricing}\n${planCard}`;
+    const activeLandingSources = `${lanzamiento}\n${pricing}\n${planCard}`;
 
-    expect(index).toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
-    expect(index).toContain('/auth/signup/credentials');
-    expect(index).toContain('/billing/subscription');
-    expect(index).toMatch(/plan=\$\{?planCode\}?|planCode/);
-    expect(index).not.toContain('/auth/login?plan=${planCode}&returnTo=/auth/signup/plan');
+    expect(lanzamiento).toMatch(/function\s+handlePlanSelection|const\s+handlePlanSelection/);
+    expect(lanzamiento).toContain('/auth/signup/credentials');
+    expect(lanzamiento).toContain('/billing/subscription');
+    expect(lanzamiento).toMatch(/plan=\$\{?planCode\}?|planCode/);
+    expect(lanzamiento).not.toContain('/auth/login?plan=${planCode}&returnTo=/auth/signup/plan');
 
     expect(activeLandingSources).not.toMatch(/\/api\/checkout|test-checkout|Comprar ahora/i);
     expect(activeLandingSources).not.toMatch(/checkout[_-]?session/i);
   });
 
   it('defers multi-sucursal outside the production MVP instead of selling it as a live billing add-on', async () => {
-    const index = await source(INDEX_PATH);
+    const lanzamiento = await source(LANZAMIENTO_PATH);
     const pricing = await source(PRICING_PATH);
     const planCard = await source(PLAN_CARD_PATH);
-    const activeLandingSources = `${index}\n${pricing}\n${planCard}`;
+    const activeLandingSources = `${lanzamiento}\n${pricing}\n${planCard}`;
 
     expect(activeLandingSources).not.toMatch(/\bAdd-on\b|Multi-sucursal disponible como add-on/i);
     expect(activeLandingSources).not.toMatch(/\+\s*\$?\s*(?:20\.000|20000)\s*(?:\/mes|por mes)?/i);

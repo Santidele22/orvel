@@ -69,10 +69,23 @@ export type ManageBookingInput = {
   nowIso: string;
 };
 
+export type PublicProfessional = {
+  id: string;
+  name: string;
+};
+
+export type BusinessProfessional = PublicProfessional & {
+  phone?: string | null;
+  email?: string | null;
+  active: boolean;
+  serviceIds: string[];
+};
+
 export type PublicSlotAvailabilityInput = {
   businessSlug: string;
   serviceId: string;
   dateIso: string;
+  professionalId?: string;
 };
 
 export type PublicSlot = {
@@ -86,6 +99,14 @@ export type PublicBookingConfirmation = {
   status: 'confirmed' | 'pending';
   source: 'client-self-service';
   manageToken?: string;
+  professionalId?: string;
+  professionalName?: string;
+  depositCode?: string;
+  depositAmount?: number;
+  depositAlias?: string;
+  depositCbu?: string;
+  depositHoldExpiresAt?: string;
+  depositHoldMessage?: string;
 };
 
 export type ManageBookingDetails = {
@@ -150,4 +171,19 @@ export type AdminStatusUpdatePayload = {
   bookingId: string;
   status: string;
   performedBy: string;
+};
+
+export type ConfirmBookingDepositPayload = {
+  bookingId: string;
+  performedBy?: string;
+};
+
+export type ClaimBookingDepositPayload = {
+  manageToken: string;
+  note?: string;
+};
+
+export type RejectBookingDepositUnseenPayload = {
+  bookingId: string;
+  performedBy?: string;
 };

@@ -20,12 +20,12 @@
   <div class="fixed inset-zen-xs z-50 flex items-center justify-center p-zen-lg">
     <button
       type="button"
-      class="absolute inset-zen-xs bg-text-primary [opacity:var(--zen-overlay-opacity)]"
+      class="absolute inset-zen-xs bg-transparent"
       data-testid="account-settings-modal-overlay"
       (click)="cancelAccountSettingsModal()"
     ></button>
     <div
-      class="relative w-full max-w-zen-content rounded-zen-card border border-border bg-surface p-zen-xxl shadow-xl"
+      class="relative w-full max-w-sm rounded-zen-card border border-border bg-surface p-zen-md shadow-xl"
       data-testid="account-settings-modal"
       role="dialog"
       aria-modal="true"

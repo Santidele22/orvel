@@ -2,7 +2,7 @@
   <div class="space-y-2">
     <p class="text-[11px] font-semibold uppercase tracking-wider text-primary-light">Ajuste de horario</p>
     <h3 id="configuracion-time-picker-title" class="text-2xl font-bold tracking-tight text-text-primary">
-      @if (ctx.editingField() === 'start') {
+      @if (ctx.editingField() === 'start' || ctx.editingField() === 'start2') {
         Hora de apertura
       } @else {
         Hora de cierre

@@ -20,7 +20,7 @@ export function buildDashboardAuthUrl(input: {
   source?: BillingSource;
   returnTo?: string | null;
 }): string {
-  const authPath = input.mode === 'signup' ? '/auth/signup' : '/auth/login';
+  const authPath = input.mode === 'signup' ? '/dashboard/signup' : '/dashboard/login';
   const authUrl = new URL(authPath, normalizeDashboardBaseUrl(input.dashboardOrigin));
   authUrl.searchParams.set('mode', input.mode === 'signup' ? 'signup' : 'login');
   if (input.source === 'subscription') {

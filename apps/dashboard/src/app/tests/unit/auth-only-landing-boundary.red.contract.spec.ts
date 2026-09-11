@@ -56,7 +56,7 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
     expect(existsSync(resolve(process.cwd(), 'src/app/features/auth/pages/in-app-signup-wizard.page.ts'))).toBe(true);
   });
 
-  it('redirects unauthenticated protected dashboard access to in-app /auth/login', async () => {
+  it('redirects unauthenticated protected dashboard access to in-app /dashboard/login', async () => {
     const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
 
     const access = await canAccessDashboardAsync(Date.now(), '/dashboard/inicio');
@@ -64,7 +64,8 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
 
     expect(access.allowed).toBe(false);
     expect(access.redirectTo).not.toContain('https://orvel.pro/auth/login');
-    expect(redirect.pathname).toBe('/auth/login');
+    expect(redirect.pathname).toBe('/dashboard/login');
+    expect(redirect.pathname).not.toBe('/auth/login');
     expect(redirect.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 });

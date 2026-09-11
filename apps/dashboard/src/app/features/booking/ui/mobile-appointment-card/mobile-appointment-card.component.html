@@ -21,6 +21,39 @@
 
     <!-- Bottom row: status pill -->
     <div class="flex items-center gap-1.5">
+      @if (isDepositUnpaid(turno().depositStatus) && (turno().estado === 'confirmado' || turno().estado === 'pendiente')) {
+        @if (turno().depositStatus === 'claim_pending') {
+          <span
+            data-testid="deposit-claimed-highlight"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning text-on-warning border-warning ring-2 ring-warning"
+          >
+            Seña avisada
+          </span>
+        } @else {
+          <span
+            data-testid="status-pill"
+            class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning border-warning/40"
+          >
+            Pendiente de seña
+          </span>
+        }
+        <button
+          type="button"
+          class="rounded-lg bg-primary px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+          [disabled]="confirmingDepositId() === turno().id || rejectingDepositId() === turno().id"
+          (click)="confirmDepositReceived($event)"
+        >
+          Confirmar seña
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-surface-container-high px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-secondary"
+          [disabled]="confirmingDepositId() === turno().id || rejectingDepositId() === turno().id"
+          (click)="rejectBookingDepositUnseen($event)"
+        >
+          No la veo
+        </button>
+      } @else {
       @switch (turno().estado) {
         @case ('confirmado') {
           <span
@@ -70,6 +103,7 @@
             {{ turno().estado }}
           </span>
         }
+      }
       }
     </div>
   </div>

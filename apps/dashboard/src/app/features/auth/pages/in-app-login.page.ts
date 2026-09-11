@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { afterNextRender, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { sanitizeReturnTo } from '../../../core/auth/route-protection';
@@ -126,7 +126,7 @@ const DEFAULT_RETURN_TO = '/dashboard/turnos';
     }
   `
 })
-export class InAppLoginPage implements OnInit {
+export class InAppLoginPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -136,10 +136,12 @@ export class InAppLoginPage implements OnInit {
   protected readonly errorMessage = signal('');
   protected readonly submitting = signal(false);
 
-  ngOnInit(): void {
-    if (this.auth.authenticated() || this.auth.isLogged()) {
-      void this.router.navigateByUrl(this.resolveReturnTo());
-    }
+  constructor() {
+    afterNextRender(() => {
+      if (this.auth.authenticated() || this.auth.isLogged()) {
+        this.navigateAfterCurrentView();
+      }
+    });
   }
 
   protected submit(): void {
@@ -148,13 +150,19 @@ export class InAppLoginPage implements OnInit {
     this.auth.login({ email: this.email.trim(), password: this.password }).subscribe({
       next: () => {
         this.submitting.set(false);
-        void this.router.navigateByUrl(this.resolveReturnTo());
+        this.navigateAfterCurrentView();
       },
       error: () => {
         this.submitting.set(false);
         this.errorMessage.set('Credenciales inválidas. Revisá email y contraseña.');
       }
     });
+  }
+
+  private navigateAfterCurrentView(): void {
+    setTimeout(() => {
+      void this.router.navigateByUrl(this.resolveReturnTo());
+    }, 0);
   }
 
   private resolveReturnTo(): string {

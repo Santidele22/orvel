@@ -94,6 +94,36 @@ describe('MobileAppointmentCard contract', () => {
     expect(templateSource).toMatch(/bg-warning/);
   });
 
+  it('unpaid seña pill is Pendiente de seña from depositStatus, not confirmado-only', () => {
+    expect(templateSource).toContain('Pendiente de seña');
+    expect(templateSource).toMatch(/depositStatus/);
+    expect(`${componentSource}\n${templateSource}`).toMatch(/isDepositUnpaid/);
+    expect(templateSource).not.toMatch(/turno\(\)\.estado\s*===\s*['"]confirmado['"]\s*\)\s*\{/);
+  });
+
+  it('offers Confirmar seña for unpaid deposits via DashboardService.confirmDepositReceived', () => {
+    expect(templateSource).toContain('Confirmar seña');
+    expect(componentSource).toMatch(/DashboardService/);
+    expect(componentSource).toMatch(/confirmDepositReceived/);
+    expect(`${componentSource}\n${templateSource}`).toMatch(/isDepositUnpaid/);
+    expect(componentSource).not.toMatch(/confirmBookingDepositReceived/);
+  });
+
+  it('labels claimed holds Seña avisada and highlights claim_pending more strongly', () => {
+    expect(templateSource).toContain('Seña avisada');
+    expect(templateSource).toMatch(/claim_pending/);
+    expect(templateSource).toContain('data-testid="deposit-claimed-highlight"');
+  });
+
+  it('offers No la veo for unpaid deposits without replacing Confirmar seña', () => {
+    expect(templateSource).toContain('No la veo');
+    expect(templateSource).toContain('Confirmar seña');
+    expect(componentSource).toMatch(/rejectBookingDepositUnseen/);
+    expect(componentSource).toMatch(/confirmDepositReceived/);
+    expect(templateSource).not.toMatch(/strike/i);
+    expect(componentSource).not.toMatch(/strike/i);
+  });
+
   it('template references bg-primary (Walk-in)', () => {
     expect(templateSource).toMatch(/bg-primary/);
   });

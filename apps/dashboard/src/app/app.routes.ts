@@ -1,5 +1,10 @@
-import { Routes } from '@angular/router';
+import { CanMatchFn, Routes } from '@angular/router';
 import { dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
+
+const isDashboardShellPath: CanMatchFn = (_route, segments) => {
+  const head = segments[0]?.path;
+  return head !== 'login' && head !== 'signup' && head !== 'auth';
+};
 
 export const routes: Routes = [
   {
@@ -10,6 +15,10 @@ export const routes: Routes = [
   {
     path: 'booking/manage',
     loadChildren: () => import('./public-booking.routes').then(m => m.manageBookingRoutes)
+  },
+  {
+    path: 'booking/:slug/:professionalSlug',
+    loadChildren: () => import('./public-booking.routes').then(m => m.publicBookingSlugRoutes)
   },
   {
     path: 'booking/:slug',
@@ -56,8 +65,23 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard/login',
-    redirectTo: '/auth/login',
-    pathMatch: 'full'
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'dashboard/signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
+  },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-login.page').then(m => m.InAppLoginPage)
+  },
+  {
+    path: 'signup',
+    loadComponent: () =>
+      import('./features/auth/pages/in-app-signup-wizard.page').then(m => m.InAppSignupWizardPage)
   },
   {
     path: 'dashboard',
@@ -65,6 +89,7 @@ export const routes: Routes = [
   },
   {
     path: '',
+    canMatch: [isDashboardShellPath],
     loadChildren: () => import('./dashboard-shell.routes').then(m => m.dashboardShellRoutes)
   }
 ];

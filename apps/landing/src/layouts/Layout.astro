@@ -4,22 +4,27 @@ import "remixicon/fonts/remixicon.css";
 import "@fontsource-variable/onest";
 import Preloader from "../components/organisms/Preloader.astro";
 import Analytics from "@vercel/analytics/astro";
+import { marketingCanonicalUrl } from "../lib/public-origin";
 
 interface Props {
     title: string;
     showPreloader?: boolean;
     description?: string;
+    robots?: string;
 }
 
 const {
     title,
     showPreloader = true,
     description = "Gestioná turnos y clientes con Orvel, el software simple para barberías, salones de uñas y masajes.",
+    robots = "index, follow",
 } = Astro.props;
+
+const canonicalUrl = marketingCanonicalUrl(Astro.url.pathname);
 ---
 
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es-AR" class="dark">
     <head>
         <meta charset="UTF-8" />
         <meta
@@ -29,25 +34,29 @@ const {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="canonical" href="https://orvel.pro/" />
+        <link rel="canonical" href={canonicalUrl} />
         <meta name="generator" content={Astro.generator} />
 
         <!-- SEO y Open Graph / Redes Sociales -->
-        <meta name="robots" content="index, follow" />
+        <meta name="robots" content={robots} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://orvel.pro/" />
+        <meta property="og:url" content={canonicalUrl} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content="https://orvel.pro/logo.png" />
+        <meta property="og:image" content="https://orvel.pro/og-share.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:locale" content="es_AR" />
         <meta property="og:site_name" content="Orvel" />
 
         <!-- Twitter / X -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content="https://orvel.pro/logo.png" />
+        <meta name="twitter:image" content="https://orvel.pro/og-share.png" />
 
         <title>{title}</title>
+        <slot name="jsonLd" />
         <Analytics />
     </head>
     <body class="bg-bg-primary text-text-primary antialiased">

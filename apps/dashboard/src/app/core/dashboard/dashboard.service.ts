@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
-import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
-import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
+import { appointmentStatusLabel, isDepositUnpaid, type BookingQueries, type BookingRecord } from '@orvel/booking/application';
+import { BOOKING_QUERIES, confirmBookingDepositReceived, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
@@ -162,6 +162,10 @@ export class DashboardService {
   /**
    * Returns a prioritized list of appointments for the home roadmap.
    */
+  loadedBookings(): BookingRecord[] {
+    return [...this.bookings(), ...this.adminBookings()];
+  }
+
   readonly featuredAppointments = computed(() => {
     const turnos = this.bookings();
     const services = this.servicioService.items();
@@ -208,7 +212,9 @@ export class DashboardService {
         ...t,
         clienteNombre: clientsMap.get(t.clienteId ?? '') || 'Cliente',
         servicioNombre: servicesMap.get(t.servicioId ?? '') || 'Servicio',
-        dateLabel
+        dateLabel,
+        badgeLabel: appointmentStatusLabel(t.estado, t.depositStatus),
+        depositPending: isDepositUnpaid(t.depositStatus)
       };
     });
   });
@@ -296,6 +302,34 @@ export class DashboardService {
     this.invalidate();
     this.bookings.set([]);
     this.adminBookings.set([]);
+  }
+
+  async confirmDepositReceived(bookingId: string, performedBy: string): Promise<boolean> {
+    const result = await confirmBookingDepositReceived({ bookingId, performedBy });
+    if (result.status !== 200 || result.error) {
+      return false;
+    }
+    this.invalidate();
+    this.refreshData();
+    return true;
+  }
+
+  async claimBookingDeposit(manageToken: string, note?: string): Promise<boolean> {
+    const result = await claimBookingDeposit({ manageToken, note });
+    if (result.status !== 200 || result.error) {
+      return false;
+    }
+    return true;
+  }
+
+  async rejectBookingDepositUnseen(bookingId: string, performedBy: string): Promise<boolean> {
+    const result = await rejectBookingDepositUnseen({ bookingId, performedBy });
+    if (result.status !== 200 || result.error) {
+      return false;
+    }
+    this.invalidate();
+    this.refreshData();
+    return true;
   }
 
   refreshData(): void {

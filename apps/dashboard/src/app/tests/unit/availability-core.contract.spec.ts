@@ -70,6 +70,54 @@ describe('Availability Core RED contract (pure logic)', () => {
     expect(slots).toEqual(['09:00', '09:30', '11:00', '11:30']);
   });
 
+  it('offers tuesday split intervals 09:00-13:30 and 16:00-20:00 for a 60-minute occupancy inside each window', async () => {
+    const { computeAvailableSlots } = await loadAvailabilityCore();
+    const { resolveWorkingDayIntervals } = await import(
+      '../../features/settings/data-access/resolve-working-day-intervals'
+    );
+
+    const workingWindows = resolveWorkingDayIntervals({
+      enabled: true,
+      start: '09:00',
+      end: '13:30',
+      intervals: [
+        { start: '09:00', end: '13:30' },
+        { start: '16:00', end: '20:00' }
+      ]
+    });
+
+    const slots = computeAvailableSlots({
+      date: '2026-04-21',
+      serviceDurationMinutes: 60,
+      slotIntervalMinutes: 30,
+      bufferMinutes: 0,
+      minNoticeMinutes: 0,
+      workingWindows,
+      occupiedWindows: []
+    });
+
+    expect(slots).toContain('12:30');
+    expect(slots).toContain('16:00');
+    expect(slots).not.toContain('13:00');
+    expect(slots).not.toContain('14:00');
+    expect(slots).not.toContain('15:30');
+
+    const halfHourSlots = computeAvailableSlots({
+      date: '2026-04-21',
+      serviceDurationMinutes: 30,
+      slotIntervalMinutes: 30,
+      bufferMinutes: 0,
+      minNoticeMinutes: 0,
+      workingWindows,
+      occupiedWindows: []
+    });
+
+    expect(halfHourSlots).toContain('13:00');
+    expect(halfHourSlots).toContain('16:00');
+    expect(halfHourSlots).not.toContain('14:00');
+    expect(halfHourSlots).not.toContain('15:30');
+  });
+
   it('applies buffer minutes around occupied windows before filtering collisions', async () => {
     const { computeAvailableSlots } = await loadAvailabilityCore();
 

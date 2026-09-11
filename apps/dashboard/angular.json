@@ -56,11 +56,22 @@
                 "input": "src/icons",
                 "output": "icons"
               },
+              {
+                "glob": "**/*",
+                "input": "src/icons",
+                "output": "dashboard/icons"
+              },
               "src/manifest.webmanifest",
+              {
+                "glob": "manifest.webmanifest",
+                "input": "src",
+                "output": "dashboard"
+              },
               "src/orvel-push-sw.js"
             ],
             "styles": [
               "src/styles/remixicon-used.css",
+              "node_modules/driver.js/dist/driver.css",
               "src/styles.css",
               "src/styles.scss"
             ],
@@ -109,6 +120,19 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "prebundle": {
+              "exclude": [
+                "@orvel/auth",
+                "@orvel/billing",
+                "@orvel/booking",
+                "@orvel/config",
+                "@orvel/domain",
+                "@orvel/shared",
+                "@orvel/types"
+              ]
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "salon-de-belleza:build:production"

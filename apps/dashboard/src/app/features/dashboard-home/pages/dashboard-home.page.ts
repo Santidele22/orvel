@@ -7,12 +7,80 @@ import { AuthService } from '../../../services/auth.service';
 import { BusinessService } from '../../settings/data-access/business.service';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
+import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
 import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { pickNextAppointment } from './pick-next-appointment';
 import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '../../../core/time/argentina-clock';
+import {
+  buildPremiumWhatsAppUrl,
+  countCurrentMonthBookings,
+  isPremiumReviewPending,
+  markPremiumReceiptSent,
+  readBrowserReviewStorage,
+  shouldShowPremiumReviewBanner,
+} from '../../../core/billing/premium-alias-receipt';
+import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
+
+const TWO_HOUR_STEP_MINUTES = 120;
+
+function parseClockMinutes(hhmm: string): number {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+  return hours * 60 + minutes;
+}
+
+function formatHhMm(totalMinutes: number): string {
+  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function formatFriendlyClock(hhmm: string): string {
+  const [hoursRaw, minutesRaw = '00'] = hhmm.split(':');
+  const hours = Number(hoursRaw);
+  if (!Number.isFinite(hours)) return hhmm;
+  return `${hours}:${minutesRaw.padStart(2, '0')}`;
+}
+
+function formatWorkingRangeCopy(start: string, end: string): string {
+  return `de ${formatFriendlyClock(start)} a ${formatFriendlyClock(end)}`;
+}
+
+type TodayAgendaTick = { minutes: number; label: string; isNow: boolean };
+
+function buildTodayAgendaTicks(
+  startMinutes: number,
+  endMinutes: number,
+  nowMinutes: number,
+): TodayAgendaTick[] {
+  const ticks: TodayAgendaTick[] = [];
+  if (endMinutes > startMinutes) {
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += TWO_HOUR_STEP_MINUTES) {
+      ticks.push({ minutes, label: formatHhMm(minutes), isNow: false });
+    }
+    if (ticks.at(-1)?.minutes !== endMinutes) {
+      ticks.push({ minutes: endMinutes, label: formatHhMm(endMinutes), isNow: false });
+    }
+  }
+
+  const nowTick: TodayAgendaTick = {
+    minutes: nowMinutes,
+    label: formatHhMm(nowMinutes),
+    isNow: true,
+  };
+  const exact = ticks.findIndex((tick) => tick.minutes === nowMinutes);
+  if (exact >= 0) {
+    ticks[exact] = nowTick;
+  } else {
+    ticks.push(nowTick);
+    ticks.sort((a, b) => a.minutes - b.minutes);
+  }
+  return ticks;
+}
 
 @Component({
   selector: 'app-dashboard-home',
@@ -72,6 +140,34 @@ export class DashboardHomeComponent {
     return isStandaloneDisplay();
   }
 
+  protected showPremiumReviewBanner(): boolean {
+    const plan = this.businessFacade.settings()?.plan ?? this.user()?.plan ?? 'FREE';
+    const premiumPaid = String(plan).trim().toUpperCase() === 'PREMIUM';
+    return shouldShowPremiumReviewBanner({
+      pending: isPremiumReviewPending(readBrowserReviewStorage()),
+      plan,
+      premiumPaid,
+    });
+  }
+
+  protected premiumWhatsAppUrl(): string {
+    return buildPremiumWhatsAppUrl();
+  }
+
+  protected markReceiptSent(): void {
+    const storage = readBrowserReviewStorage();
+    if (storage) {
+      markPremiumReceiptSent(storage);
+    }
+    this.receiptSent.set(true);
+  }
+
+  protected readonly maxMonthlyBookings = getPlanEntitlements('FREE').maxMonthlyBookings ?? 30;
+
+  protected readonly monthlyBookingCount = computed(() =>
+    countCurrentMonthBookings(this.dashboardService.loadedBookings(), this.dashboardService.now()),
+  );
+
   protected showWebPushCoach(): boolean {
     const notificationSupported = typeof Notification !== 'undefined';
     return evaluateOperatorWebPush({
@@ -96,6 +192,8 @@ export class DashboardHomeComponent {
   protected readonly stats = this.dashboardService.stats;
   protected readonly copied = signal(false);
   protected readonly copyFailed = signal(false);
+  protected readonly receiptSent = signal(false);
+  protected readonly confirmingDepositId = signal<string | null>(null);
   private hydratedUserId: string | null = null;
 
   constructor() {
@@ -169,18 +267,26 @@ export class DashboardHomeComponent {
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayKey = days[now.getDay()];
     const hours = state?.workingHours?.[dayKey] || { start: '09:00', end: '18:00', enabled: true };
-    
-    // Calculate total minutes of the working day
-    const [startH, startM] = hours.start.split(':').map(Number);
-    const [endH, endM] = hours.end.split(':').map(Number);
-    const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    const startMinutes = parseClockMinutes(hours.start);
+    const endMinutes = parseClockMinutes(hours.end);
 
     return {
       name: state?.businessName || 'Sucursal sin nombre',
       slug: state?.slug || '',
-      workingRange: `${hours.start} - ${hours.end}`,
-      totalMinutes: Math.max(0, totalMinutes)
+      workingRange: formatWorkingRangeCopy(hours.start, hours.end),
+      startMinutes,
+      endMinutes,
+      totalMinutes: Math.max(0, endMinutes - startMinutes)
     };
+  });
+
+  protected readonly todayAgendaTicks = computed(() => {
+    const info = this.businessInfo();
+    return buildTodayAgendaTicks(
+      info.startMinutes,
+      info.endMinutes,
+      readArgentinaClock(this.dashboardService.now()).minutes,
+    );
   });
 
   /** Informative message about current occupancy level */
@@ -231,6 +337,20 @@ export class DashboardHomeComponent {
     return Boolean(slug && slug !== 'id-pendiente');
   }
 
+  protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const userId = this.authService.user()?.id;
+    if (!userId || this.confirmingDepositId()) {
+      return;
+    }
+    this.confirmingDepositId.set(bookingId);
+    try {
+      await this.dashboardService.confirmDepositReceived(bookingId, userId);
+    } finally {
+      this.confirmingDepositId.set(null);
+    }
+  }
+
   protected async copyBookingUrl(): Promise<void> {
     this.copyFailed.set(false);
     if (!this.hasBookingUrl() || !navigator.clipboard?.writeText) {
@@ -245,7 +365,12 @@ export class DashboardHomeComponent {
     } catch {
       this.copied.set(false);
       this.copyFailed.set(true);
+      return;
     }
+    void this.businessFacade
+      .getActiveBusinessId()
+      .then((businessId) => markBookingLinkCopied(businessId, this.businessFacade.getSupabaseClient()))
+      .catch(() => undefined);
   }
 
   private async hydrateBusinessSettings(userId: string): Promise<void> {

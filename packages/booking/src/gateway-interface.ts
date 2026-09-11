@@ -1,4 +1,4 @@
-import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from './types';
+import { ApiResponse, BusinessPublicView, PublicSlotAvailabilityInput, PublicBookingPayload, ManageBookingInput, CancelBookingByTokenInput, RescheduleBookingByTokenInput, AdminManualBookingPayload, AdminBlockedTimePayload, AdminUpdateBookingPayload, AdminCancelBookingPayload, AdminRescheduleBookingPayload, AdminStatusUpdatePayload, ConfirmBookingDepositPayload, ClaimBookingDepositPayload, RejectBookingDepositUnseenPayload, PublicSlot, PublicBookingConfirmation, ManageBookingDetails } from './types';
 
 export type SupabaseBookingGateway = {
   resolveBusinessBySlug: (input: { businessSlug: string }) => Promise<ApiResponse<BusinessPublicView>>;
@@ -26,4 +26,13 @@ export type SupabaseBookingGateway = {
   cancelAdminBooking: (payload: AdminCancelBookingPayload) => Promise<ApiResponse<{ bookingId: string; status: 'cancelled' }>>;
   rescheduleAdminBooking: (payload: AdminRescheduleBookingPayload) => Promise<ApiResponse<{ bookingId: string; startsAtIso: string }>>;
   updateBookingStatus: (payload: AdminStatusUpdatePayload) => Promise<ApiResponse<{ bookingId: string; status: string }>>;
+  confirmBookingDepositReceived: (
+    payload: ConfirmBookingDepositPayload
+  ) => Promise<ApiResponse<{ bookingId: string; depositStatus: string }>>;
+  claimBookingDeposit: (
+    payload: ClaimBookingDepositPayload
+  ) => Promise<ApiResponse<{ bookingId: string; depositStatus: 'claim_pending' }>>;
+  rejectBookingDepositUnseen: (
+    payload: RejectBookingDepositUnseenPayload
+  ) => Promise<ApiResponse<{ bookingId: string; depositStatus: 'released' }>>;
 };

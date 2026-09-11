@@ -448,6 +448,14 @@ Deno.serve(async (req) => {
             const result = AppointmentTemplates.renderAppointmentRescheduleEmail(fullData);
             subject = result.subject;
             html = result.html;
+          } else if (template_key === "appointment_deposit_instructions") {
+            const result = AppointmentTemplates.renderAppointmentDepositInstructionsEmail(fullData);
+            subject = result.subject;
+            html = result.html;
+          } else if (template_key === "appointment_hold_released") {
+            const result = AppointmentTemplates.renderAppointmentHoldReleasedEmail(fullData);
+            subject = result.subject;
+            html = result.html;
           // Dead branch removed in 1.0.2; _business catch-all removed.
           // Templates business_notification / business_cancellation conservados
           // como exports en @orvel/shared/email-templates.

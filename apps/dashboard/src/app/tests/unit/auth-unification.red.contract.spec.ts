@@ -52,12 +52,14 @@ describe('RED: auth unification contract', () => {
     expect(guard).toMatch(/buildDashboardSignInRedirect/);
   });
 
-  it('redirects unauthenticated protected dashboard access to in-app /auth/login with sanitized returnTo', () => {
+  it('redirects unauthenticated protected dashboard access to in-app /dashboard/login with sanitized returnTo', () => {
     const routeProtection = source('src/app/core/auth/route-protection.ts');
 
-    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
+    expect(routeProtection).toMatch(/LOGIN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
+    expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
     expect(routeProtection).toMatch(/PARAM_BLOCKLIST|access_token|refresh_token|id_token/);
     expect(routeProtection).toMatch(/encodeURIComponent\(safeReturnTo\)/);
+    expect(routeProtection).not.toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
     expect(routeProtection).not.toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/login['"]/);
   });
 

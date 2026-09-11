@@ -1,82 +1,86 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { getSupabaseAuthClient } from '../../../core/auth/route-protection';
+import {
+  buildPremiumWhatsAppUrl,
+  copyPremiumAlias
+} from '../../../core/billing/premium-alias-receipt';
 import { AuthService } from '../../../services/auth.service';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
+import { startPremiumTrialForCurrentBusiness } from '../start-premium-trial.client';
+import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
+import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
 
 const AGENDA_ROUTE = '/dashboard/turnos';
 
 @Component({
   selector: 'app-in-app-signup-wizard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule],
   template: `
     <main class="in-app-auth">
-      <section class="in-app-auth__card" [class.in-app-auth__card--success]="wizard.step === 5">
-        @if (wizard.showsStepChrome()) {
-          <header class="in-app-auth__header">
-            @if (wizard.canGoBack()) {
-              <button type="button" class="in-app-auth__back" (click)="wizard.back()">Volver</button>
-            } @else {
-              <a routerLink="/auth/login" class="in-app-auth__back">Volver</a>
+      <section
+        class="in-app-auth__card"
+        [class.in-app-auth__card--success]="wizard.step === 5"
+        [class.in-app-auth__card--paso-final]="wizard.step === 6"
+      >
+        <header class="in-app-auth__header" [hidden]="!wizard.showsStepChrome()">
+          <button type="button" class="in-app-auth__back" [hidden]="!wizard.canGoBack()" (click)="back()">Volver</button>
+          <a href="/dashboard/login" class="in-app-auth__back" [hidden]="wizard.canGoBack()">Volver</a>
+          <div class="in-app-auth__dots" aria-label="Progreso" [hidden]="wizard.step === 6">
+            @for (dot of [1, 2, 3]; track dot) {
+              <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
             }
-            <div class="in-app-auth__dots" aria-label="Progreso">
-              @for (dot of [1, 2, 3, 4]; track dot) {
-                <span class="in-app-auth__dot" [class.is-active]="wizard.step === dot"></span>
-              }
-            </div>
-          </header>
-        }
+          </div>
+        </header>
 
-        @if (wizard.step === 1) {
+        <div [hidden]="wizard.step !== 1">
           <p class="in-app-auth__eyebrow">Paso 1</p>
           <h1>¿Cómo te llamás?</h1>
           <label class="in-app-auth__field">
             Tu nombre
-            <input name="ownerName" autocomplete="given-name" [(ngModel)]="wizard.ownerName" />
+            <input name="ownerName" autocomplete="given-name" [value]="wizard.ownerName" (input)="syncIdentityField('ownerName', $event)" />
           </label>
           <label class="in-app-auth__field">
             Apellido
-            <input name="ownerLastName" autocomplete="family-name" [(ngModel)]="wizard.ownerLastName" />
+            <input name="ownerLastName" autocomplete="family-name" [value]="wizard.ownerLastName" (input)="syncIdentityField('ownerLastName', $event)" />
           </label>
           <label class="in-app-auth__field">
             Nombre del negocio
-            <input name="businessName" [(ngModel)]="wizard.businessName" />
+            <input name="businessName" [value]="wizard.businessName" (input)="syncIdentityField('businessName', $event)" />
           </label>
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue()" (click)="wizard.continue()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue()" (click)="continue()">
             Continuar
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 2) {
+        <div [hidden]="wizard.step !== 2">
           <p class="in-app-auth__eyebrow">Paso 2</p>
           <h1>¿Qué rubro tenés?</h1>
-          <p class="in-app-auth__lede">Elegí uno o más. El primero es el Principal.</p>
+          <p class="in-app-auth__lede">Elegí un rubro.</p>
           <div class="in-app-auth__chips">
             @for (rubro of wizard.rubroCatalog(); track rubro.code) {
               <button
                 type="button"
                 class="in-app-auth__chip"
                 [class.is-selected]="wizard.selectedRubros.includes(rubro.code)"
-                (click)="wizard.toggleRubro(rubro.code)"
+                [class.is-dimmed]="wizard.selectedRubros.length === 1 && !wizard.selectedRubros.includes(rubro.code)"
+                [attr.aria-pressed]="wizard.selectedRubros.includes(rubro.code)"
+                (click)="toggleRubro(rubro.code)"
               >
                 {{ rubro.label }}
-                @if (wizard.principalRubro() === rubro.code) {
-                  <span class="in-app-auth__chip-badge">Principal</span>
-                }
               </button>
             }
           </div>
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue()" (click)="wizard.continue()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue()" (click)="continue()">
             Continuar
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 3) {
+        <div [hidden]="wizard.step !== 3">
           <p class="in-app-auth__eyebrow">Paso 3</p>
           <h1>Creá tu acceso</h1>
           <label class="in-app-auth__field">
@@ -85,7 +89,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="email"
               name="email"
               autocomplete="username"
-              [(ngModel)]="wizard.email"
+              [value]="wizard.email"
               (input)="syncAccessField('email', $event)"
             />
           </label>
@@ -95,7 +99,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="password"
               name="password"
               autocomplete="new-password"
-              [(ngModel)]="wizard.password"
+              [value]="wizard.password"
               (input)="syncAccessField('password', $event)"
             />
           </label>
@@ -105,7 +109,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
               type="password"
               name="confirmPassword"
               autocomplete="new-password"
-              [(ngModel)]="wizard.confirmPassword"
+              [value]="wizard.confirmPassword"
               (input)="syncAccessField('confirmPassword', $event)"
             />
           </label>
@@ -114,51 +118,62 @@ const AGENDA_ROUTE = '/dashboard/turnos';
           } @else if (wizard.accessError()) {
             <p class="in-app-auth__error" role="alert">{{ wizard.accessError() }}</p>
           }
-          <button type="button" class="in-app-auth__cta" [disabled]="!wizard.canContinue() || submitting()" (click)="createAccount()">
+          <button type="button" class="in-app-auth__cta" [disabled]="!canContinue() || submitting()" (click)="createAccount()">
             Crear cuenta
           </button>
-        }
+        </div>
 
-        @if (wizard.step === 4) {
-          <p class="in-app-auth__step-pill">Paso 4 de 4</p>
-          <h1>¿Qué plan querés?</h1>
-          <p class="in-app-auth__lede">Arrancás gratis igual. Vos decidís cuándo sumar más.</p>
-          <div class="in-app-auth__plans">
-            <article class="in-app-auth__plan">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Free</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--free">Activo ya</span>
-              </header>
-              <p class="in-app-auth__lede">Entrás ahora, sin pagar nada.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>1 local</li>
-                <li>1 rubro</li>
-                <li>Sin pago, sin tarjeta</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta in-app-auth__cta--light" (click)="chooseFree()">Empezar gratis</button>
-            </article>
-            <article class="in-app-auth__plan in-app-auth__plan--premium">
-              <header class="in-app-auth__plan-head">
-                <h2 class="in-app-auth__plan-title">Premium</h2>
-                <span class="in-app-auth__plan-badge in-app-auth__plan-badge--premium">Pendiente</span>
-              </header>
-              <p class="in-app-auth__lede">Lo pedís, lo activamos nosotros.</p>
-              <ul class="in-app-auth__plan-list">
-                <li>Más rubros</li>
-                <li>Agenda sin límites</li>
-                <li>No se cobra ni se activa solo</li>
-              </ul>
-              <button type="button" class="in-app-auth__cta" (click)="requestPremium()">Pedir Premium y entrar</button>
-            </article>
-          </div>
-        }
-
-        @if (wizard.step === 5) {
+        <div [hidden]="wizard.step !== 5">
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          <p class="in-app-auth__lede">Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.</p>
+          <p class="in-app-auth__lede">Tenés 14 días de Premium activos.</p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
-        }
+        </div>
+
+        <div [hidden]="wizard.step !== 6">
+          <p class="in-app-auth__step-pill">PASO FINAL</p>
+          <h1>Transferí y mandá el comprobante</h1>
+          <p class="in-app-auth__lede">
+            No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.
+          </p>
+          <div class="in-app-auth__paso-layout">
+            <article class="in-app-auth__plan in-app-auth__plan--premium">
+              <header class="in-app-auth__plan-head">
+                <p class="in-app-auth__plan-kicker">PLAN PREMIUM</p>
+                <span class="in-app-auth__pending-badge">Pago pendiente</span>
+              </header>
+              <p class="in-app-auth__price">$25.000/mes</p>
+              <ul class="in-app-auth__plan-list in-app-auth__plan-list--checks">
+                <li>Turnos ilimitados</li>
+                <li>1 local</li>
+              </ul>
+            </article>
+            <div class="in-app-auth__transfer">
+              <div class="in-app-auth__alias">
+                <p class="in-app-auth__plan-kicker">TRANSFERÍ A ESTE ALIAS</p>
+                <div class="in-app-auth__alias-row">
+                  <code>orvel.pagos</code>
+                  <button type="button" class="in-app-auth__copy" (click)="copyAlias()">
+                    {{ aliasCopied() ? 'Copiado' : 'Copiar' }}
+                  </button>
+                </div>
+              </div>
+              <ol class="in-app-auth__steps">
+                <li><span aria-hidden="true">1</span> Transferí los $25.000 al alias de arriba.</li>
+                <li><span aria-hidden="true">2</span> Mandá el comprobante por WhatsApp.</li>
+                <li><span aria-hidden="true">3</span> Entrá ya en Gratis, sin esperar a nadie.</li>
+                <li><span aria-hidden="true">4</span> Cuando lo validemos, pasás a Premium y te llega un mail.</li>
+              </ol>
+              <a class="in-app-auth__cta" [href]="whatsAppUrl()" target="_blank" rel="noopener noreferrer">
+                Enviar comprobante por WhatsApp
+              </a>
+              <p class="in-app-auth__gratis-note">Hasta entonces tu cuenta funciona en plan Gratis.</p>
+              <button type="button" class="in-app-auth__cta in-app-auth__cta--light" (click)="enterAgenda()">
+                Entrar a la agenda
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   `,
@@ -171,6 +186,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       -webkit-overflow-scrolling: touch;
       background: #0A0A0A;
     }
+    [hidden] { display: none !important; }
     .in-app-auth {
       box-sizing: border-box;
       min-height: 100%;
@@ -194,6 +210,11 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       background: transparent;
       padding: 24px 8px;
       text-align: center;
+    }
+    .in-app-auth__card--paso-final {
+      width: min(100%, 64rem);
+      background: #141A2C;
+      border-color: rgba(124, 92, 255, 0.28);
     }
     .in-app-auth__header {
       display: flex;
@@ -326,21 +347,15 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       align-items: center;
       gap: 8px;
       cursor: pointer;
-    }
-    .in-app-auth__chip-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: #7C3AED;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     }
     .in-app-auth__chip.is-selected {
+      background: #7C3AED;
       border-color: #7C3AED;
+      color: #F8F7FF;
+    }
+    .in-app-auth__chip.is-dimmed {
+      opacity: 0.38;
     }
     .in-app-auth__error { margin: 0 0 12px; color: #EF4444; font-weight: 600; }
     .in-app-auth__success-badge {
@@ -377,6 +392,116 @@ const AGENDA_ROUTE = '/dashboard/turnos';
       color: #0A0A0A;
     }
     .in-app-auth__cta--light:hover { background: #E2E8F0; }
+    .in-app-auth__paso-layout {
+      display: grid;
+      gap: 16px;
+    }
+    .in-app-auth__plan-kicker {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #9096AE;
+    }
+    .in-app-auth__pending-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border: 1px solid #FBBF24;
+      border-radius: 999px;
+      color: #FBBF24;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .in-app-auth__price {
+      margin: 0 0 16px;
+      font-size: 32px;
+      font-weight: 800;
+    }
+    .in-app-auth__plan-list--checks {
+      padding-left: 18px;
+    }
+    .in-app-auth__transfer {
+      display: grid;
+      gap: 16px;
+    }
+    .in-app-auth__alias {
+      padding: 16px;
+      border: 1px dashed rgba(124, 92, 255, 0.55);
+      border-radius: 16px;
+      background: #0A0E1B;
+    }
+    .in-app-auth__alias-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .in-app-auth__alias-row code {
+      font-size: 18px;
+      font-weight: 800;
+      color: #F8F7FF;
+    }
+    .in-app-auth__copy {
+      padding: 8px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: #7C5CFF;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .in-app-auth__steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+      color: #C9CCDA;
+    }
+    .in-app-auth__steps li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .in-app-auth__steps span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      border-radius: 999px;
+      background: #7C5CFF;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .in-app-auth__gratis-note {
+      margin: 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9096AE;
+    }
+    a.in-app-auth__cta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    @media (min-width: 768px) {
+      .in-app-auth__paso-layout {
+        grid-template-columns: 1fr 1.05fr;
+        align-items: start;
+      }
+    }
     @media (max-width: 640px) {
       .in-app-auth__chips { grid-template-columns: 1fr; }
     }
@@ -392,10 +517,41 @@ export class InAppSignupWizardPage {
   protected readonly wizard = new InAppSignupWizard();
   protected readonly errorMessage = signal('');
   protected readonly submitting = signal(false);
+  protected readonly aliasCopied = signal(false);
+  private readonly formTick = signal(0);
+
+  protected canContinue(): boolean {
+    this.formTick();
+    return this.wizard.canContinue();
+  }
+
+  protected continue(): void {
+    this.wizard.continue();
+    this.formTick.update(n => n + 1);
+  }
+
+  protected back(): void {
+    this.wizard.back();
+    this.formTick.update(n => n + 1);
+  }
+
+  protected toggleRubro(code: string): void {
+    this.wizard.toggleRubro(code);
+    this.formTick.update(n => n + 1);
+  }
+
+  protected syncIdentityField(
+    field: 'ownerName' | 'ownerLastName' | 'businessName',
+    event: Event
+  ): void {
+    this.wizard[field] = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.formTick.update(value => value + 1);
+  }
 
   protected syncAccessField(field: 'email' | 'password' | 'confirmPassword', event: Event): void {
     const value = (event.target as HTMLInputElement | null)?.value ?? '';
     this.wizard[field] = value;
+    this.formTick.update(n => n + 1);
   }
 
   protected async createAccount(): Promise<void> {
@@ -403,30 +559,64 @@ export class InAppSignupWizardPage {
     this.errorMessage.set('');
     this.submitting.set(true);
     try {
-      const payload = this.wizard.buildCreateAccountPayload();
-      const created = await createFreeAccountBusiness(payload);
-      if (!created.ok) {
-        this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
+      if (!this.wizard.createdFree) {
+        const payload = this.wizard.buildCreateAccountPayload();
+        const created = await createFreeAccountBusiness(payload);
+        if (!created.ok) {
+          this.errorMessage.set(created.message || 'No pudimos crear la cuenta.');
+          return;
+        }
+        await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
+        this.wizard.markAccountCreated();
+      }
+      const businessId = await this.resolveCurrentBusinessId();
+      if (!businessId) {
+        this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
         return;
       }
-      await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
-      this.wizard.markAccountCreated();
+      const supabase = createSupabaseBrowserClient({
+        supabaseUrl: SUPABASE_CONFIG.url,
+        supabaseAnonKey: SUPABASE_CONFIG.anonKey
+      });
+      const started = await startPremiumTrialForCurrentBusiness(businessId, supabase);
+      if (!started.ok) {
+        this.errorMessage.set(started.message);
+        return;
+      }
+      this.wizard.startPremiumTrial();
+      await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+      this.triggerSignupSuccessConfetti();
     } catch {
-      this.errorMessage.set('No pudimos crear la cuenta. Reintentá en unos segundos.');
+      this.errorMessage.set(
+        this.wizard.createdFree
+          ? 'No pudimos activar la prueba. Reintentá en unos segundos.'
+          : 'No pudimos crear la cuenta. Reintentá en unos segundos.'
+      );
     } finally {
       this.submitting.set(false);
     }
   }
 
-  protected chooseFree(): void {
-    this.wizard.chooseFree();
-    this.triggerSignupSuccessConfetti();
+  private async resolveCurrentBusinessId(): Promise<string | null> {
+    const auth = getSupabaseAuthClient();
+    const authState = await auth.getDashboardAuthState();
+    if (typeof authState.data?.business_id === 'string' && authState.data.business_id) {
+      return authState.data.business_id;
+    }
+    const session = await auth.getSession();
+    const metadataId = session.data.session?.user.user_metadata?.['business_id'];
+    return typeof metadataId === 'string' && metadataId ? metadataId : null;
   }
 
-  protected async requestPremium(): Promise<void> {
-    this.wizard.requestPremium();
-    this.triggerSignupSuccessConfetti();
-    await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+  protected whatsAppUrl(): string {
+    return buildPremiumWhatsAppUrl();
+  }
+
+  protected async copyAlias(): Promise<void> {
+    const copied = await copyPremiumAlias();
+    if (copied) {
+      this.aliasCopied.set(true);
+    }
   }
 
   private triggerSignupSuccessConfetti(): void {

@@ -43,13 +43,12 @@ describe('Integration contract: dashboard session actions are functional', () =>
     expect(shellHtml).toMatch(/<app-dashboard-topbar[\s\S]*\[onLogout\]=["']handleLogout["']/);
   });
 
-  it('DashboardTopbarComponent accepts onLogout and forwards it into the dynamic template inputs', async () => {
+  it('DashboardTopbarComponent accepts onLogout and forwards it to ZenTopbar', async () => {
     const topbarTs = await source(TOPBAR_TS);
     const topbarHtml = await source(TOPBAR_HTML);
 
     expect(topbarTs).toMatch(/@Input\(\)\s+onLogout\s*:\s*\(\s*\)\s*=>\s*(?:void|Promise<void>)/);
-    expect(topbarTs).toMatch(/\btemplateInputs\b[\s\S]*\bonLogout\s*:/);
-    expect(topbarHtml).toMatch(/\*ngComponentOutlet=["'][^"']*activeTemplate\(\)\.topbarComponent[\s\S]*inputs:\s*templateInputs\(\)/);
+    expect(topbarHtml).toMatch(/<app-zen-topbar[\s\S]*\[onLogout\]=["']onLogout["']/);
   });
 
   it('ZenTopbar removes decorative account menu actions while accepting legacy logout input', async () => {
@@ -86,10 +85,21 @@ describe('Integration contract: dashboard session actions are functional', () =>
     const zenSidebar = await source(ZEN_SIDEBAR_TS);
 
     expect(sidebarTs).toMatch(/@Output\(\)\s+logoutConfirm\s*=\s*new\s+EventEmitter<void>\(\)/);
-    expect(sidebarTs).toMatch(/onLogout:\s*\(\)\s*=>\s*this\.openLogoutConfirmModal\(\)/);
+    expect(sidebarTs).toMatch(/onLogoutBound\s*=\s*\(\)\s*=>\s*this\.openLogoutConfirmModal\(\)/);
     expect(sidebarHtml).toMatch(/data-testid=["']logout-confirm-action["'][\s\S]*\(click\)=["']confirmLogout\(\)["']/);
     expect(zenSidebar).toMatch(/@Input\(\)\s+onLogout\s*:/);
     expect(zenSidebar).toMatch(/data-testid=["']dashboard-sidebar-logout-action["']/);
     expect(zenSidebar).toMatch(/\(click\)=["']onLogout\(\)["']/);
+  });
+
+  it('sidebar logout confirm flag is a signal read by the template', async () => {
+    const sidebarTs = await source(SIDEBAR_TS);
+    const sidebarHtml = await source(SIDEBAR_HTML);
+
+    expect(sidebarTs).toMatch(/\bisLogoutConfirmModalOpen\s*=\s*signal\(\s*false\s*\)/);
+    expect(sidebarTs).toMatch(/\bopenLogoutConfirmModal[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*true\s*\)/);
+    expect(sidebarTs).toMatch(/\bconfirmLogout[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*false\s*\)/);
+    expect(sidebarTs).toMatch(/\bcancelLogout[\s\S]*\bisLogoutConfirmModalOpen\.set\(\s*false\s*\)/);
+    expect(sidebarHtml).toMatch(/@if\s*\(\s*isLogoutConfirmModalOpen\(\)\s*\)/);
   });
 });

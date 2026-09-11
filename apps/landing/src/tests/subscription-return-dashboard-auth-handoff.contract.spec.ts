@@ -36,15 +36,15 @@ describe('RED Contract: subscription return normalization handoff from landing',
       })
     );
 
-    expect(handoff.origin).toBe('https://orvel.pro');
-    expect(handoff.pathname).toBe('/auth/login');
-    expect(handoff.pathname).not.toBe('/dashboard/auth');
+    expect(handoff.origin).toBe('https://dashboard.orvel.pro');
+    expect(handoff.pathname).toBe('/dashboard/login');
+    expect(handoff.pathname).not.toBe('/auth/login');
     expect(handoff.searchParams.get('mode')).toBe('login');
     expect(handoff.searchParams.get('source')).toBe('subscription');
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio?from=subscription');
   });
 
-  it('maps signup handoff to landing signup plan instead of dashboard-owned signup pages', async () => {
+  it('maps signup handoff to dashboard-owned /dashboard/signup', async () => {
     const { buildDashboardAuthUrl } = await loadDashboardAuthHandoff();
 
     const handoff = new URL(
@@ -56,9 +56,9 @@ describe('RED Contract: subscription return normalization handoff from landing',
       })
     );
 
-    expect(handoff.origin).toBe('https://orvel.pro');
-    expect(handoff.pathname).toBe('/auth/signup/plan');
-    expect(handoff.pathname).not.toMatch(/^\/dashboard\/auth/);
+    expect(handoff.origin).toBe('https://dashboard.orvel.pro');
+    expect(handoff.pathname).toBe('/dashboard/signup');
+    expect(handoff.pathname).not.toBe('/auth/signup');
     expect(handoff.searchParams.get('returnTo')).toBe('/dashboard/inicio');
   });
 
@@ -89,33 +89,21 @@ describe('RED Contract: subscription return normalization handoff from landing',
     }
   });
 
-  it('treats source=subscription as UX context only and does not trust it for auth, payment verification, or entitlement grant', async () => {
+  it('treats the alias page as UX only and does not grant entitlements in the browser', async () => {
     const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
-
-    expect(source).toContain('buildSubscriptionLoginHandoffUrl');
-    expect(source).toContain("new URL('/auth/login', window.location.origin)");
-    expect(source).toContain("loginUrl.searchParams.set('source', 'subscription')");
-    expect(source).toContain('accountMaterialized');
 
     expect(source).not.toContain('signupWithProvider');
     expect(source).not.toContain('createSupabaseSignupAdapterFromEnv');
     expect(source).not.toContain('auth.updateUser');
     expect(source).not.toMatch(/data:\s*\{[\s\S]*plan[\s\S]*onboardingCompleted/i);
     expect(source).not.toMatch(/window\.location\.href\s*=\s*dashboardHome/);
+    expect(source).not.toMatch(/plan\s*=\s*['"]PREMIUM['"]/);
   });
 
-  it('keeps cancel, pending, and failure subscription states on landing without auto-granting dashboard access', async () => {
+  it('keeps the operator on Gratis copy without auto-granting dashboard Premium access', async () => {
     const source = await readFile(SUBSCRIPTION_PAGE, 'utf8');
 
-    expect(source).toContain("setUiState('pending')");
-    expect(source).toContain("setUiState('failed')");
-    expect(source).toContain("setUiState('cancelled')");
-
-    const statusHandlingOnly = source.slice(
-      source.indexOf("const paymentStatus"),
-      source.indexOf('const normalizedSubscriptionError')
-    );
-
-    expect(statusHandlingOnly).not.toMatch(/window\.location|auth\.updateUser|signupWithProvider/i);
+    expect(source).toContain('plan Gratis');
+    expect(source).not.toMatch(/auth\.updateUser|signupWithProvider/i);
   });
 });

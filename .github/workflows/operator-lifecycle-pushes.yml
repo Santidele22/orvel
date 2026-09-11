@@ -1,0 +1,42 @@
+name: Operator lifecycle pushes scheduler
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: operator-lifecycle-pushes-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke-operator-lifecycle-pushes:
+    name: Invoke operator-lifecycle-pushes Edge Function
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke operator lifecycle clock
+        env:
+          OPERATOR_LIFECYCLE_PUSHES_FUNCTION_URL: ${{ secrets.OPERATOR_LIFECYCLE_PUSHES_FUNCTION_URL }}
+          OPERATOR_LIFECYCLE_PUSHES_CRON_SECRET: ${{ secrets.OPERATOR_LIFECYCLE_PUSHES_CRON_SECRET }}
+        run: |
+          # Enable only after the unique idempotency index in
+          # supabase/migrations/*_operator_lifecycle_ops.sql is migrated.
+          # Missing secrets are an env gate: clocked events stay silent.
+          if [ -z "$OPERATOR_LIFECYCLE_PUSHES_FUNCTION_URL" ] || [ -z "$OPERATOR_LIFECYCLE_PUSHES_CRON_SECRET" ]; then
+            echo "Operator lifecycle pushes scheduler secrets are not configured."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent --output /dev/null \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-max-time 180 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer ${OPERATOR_LIFECYCLE_PUSHES_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$OPERATOR_LIFECYCLE_PUSHES_FUNCTION_URL"

@@ -6,8 +6,8 @@ interface Props {
 const { premiumPriceLabel = null } = Astro.props;
 
 const plansAnswer = premiumPriceLabel
-  ? `Gratis: hasta 30 turnos/mes en 1 local. Premium: ${premiumPriceLabel} ARS/mes, turnos ilimitados en 1 local. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.`
-  : 'Gratis: hasta 30 turnos/mes en 1 local. Premium: turnos ilimitados en 1 local. El precio de Premium se confirma al abrir. Los primeros 50 de la lista pueden llevar descuento en el primer mes de Premium.';
+  ? `Gratis: hasta 30 turnos/mes en 1 local. Premium: 14 días gratis, después ${premiumPriceLabel} ARS/mes, turnos ilimitados. En ambos: equipo (varios profesionales) y seña opcional en el turnero.`
+  : 'Gratis: hasta 30 turnos/mes en 1 local. Premium: 14 días gratis, después turnos ilimitados. En ambos: equipo (varios profesionales) y seña opcional en el turnero.';
 
 const faqs = [
   {
@@ -23,15 +23,38 @@ const faqs = [
     answer: 'No. Elige el servicio, la fecha y deja nombre, celular y email para confirmar.'
   },
   {
+    question: '¿Puedo trabajar con varios profesionales?',
+    answer: 'Sí. Cargás el equipo, sus servicios y horarios. El cliente puede elegir a quién, o no, según cómo lo configures.'
+  },
+  {
+    question: '¿Cómo funcionan las señas?',
+    answer: 'Son opcionales. Definís monto o porcentaje y tu alias o CBU. El cliente ve cómo señalar. No hay cobro online ni checkout de Mercado Pago.'
+  },
+  {
     question: '¿Cuáles son los planes?',
     answer: plansAnswer
   },
   {
-    question: '¿Cuándo sale?',
-    answer: 'Estamos en pre-lanzamiento. Te escribimos cuando abrimos. Los 50 primeros de la lista llevan el beneficio de fundador según la franja en la que entraron.'
+    question: '¿Cómo empiezo?',
+    answer: 'Creá tu cuenta y listo. Premium incluye 14 días de prueba, sin tarjeta.'
   }
 ];
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
 ---
+
+<script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
 
 <section class="landing-section bg-bg-primary" id="faq">
   <div class="landing-container max-w-3xl">

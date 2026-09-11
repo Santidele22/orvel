@@ -15,6 +15,14 @@ export type BookingResponse = {
   status: string;
   source: string;
   manageToken?: string;
+  professionalId?: string;
+  professionalName?: string;
+  depositCode?: string;
+  depositAmount?: number;
+  depositAlias?: string;
+  depositCbu?: string;
+  depositHoldExpiresAt?: string;
+  depositHoldMessage?: string;
 };
 
 export class PublicBookingService {
@@ -28,6 +36,7 @@ export class PublicBookingService {
     businessSlug: string;
     serviceId: string;
     dateIso: string;
+    professionalId?: string;
   }): Promise<ApiResponse<AvailabilityResponse>> {
     return this.gateway.queryPublicSlotAvailability(payload);
   }

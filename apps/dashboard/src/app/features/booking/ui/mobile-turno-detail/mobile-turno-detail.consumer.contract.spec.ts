@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./mobile-turno-detail.component.ts', import.meta.url), 'utf8');
+const template = readFileSync(new URL('./mobile-turno-detail.component.html', import.meta.url), 'utf8');
 
 describe('MobileTurnoDetailComponent capability-service consumer', () => {
   it('does not import TurnoService or turno.facade', () => {
@@ -18,5 +19,34 @@ describe('MobileTurnoDetailComponent capability-service consumer', () => {
   it('keeps router state as the primary path and optional-chaining on the fallback', () => {
     expect(source).toMatch(/getCurrentNavigation\(\)\?\.extras\.state/);
     expect(source).toMatch(/turno\(\)\?\.cliente\?\.telefono/);
+  });
+
+  it('status pill shows Pendiente de seña from depositStatus, not estado alone', () => {
+    expect(template).toContain('Pendiente de seña');
+    expect(template).toMatch(/depositStatus/);
+    expect(`${source}\n${template}`).toMatch(/isDepositUnpaid/);
+  });
+
+  it('offers Confirmar seña on detail via DashboardService.confirmDepositReceived', () => {
+    expect(template).toContain('Confirmar seña');
+    expect(source).toMatch(/DashboardService/);
+    expect(source).toMatch(/confirmDepositReceived/);
+    expect(`${source}\n${template}`).toMatch(/isDepositUnpaid/);
+    expect(source).not.toMatch(/confirmBookingDepositReceived/);
+  });
+
+  it('labels claimed holds Seña avisada and highlights claim_pending more strongly', () => {
+    expect(template).toContain('Seña avisada');
+    expect(template).toMatch(/claim_pending/);
+    expect(template).toContain('data-testid="deposit-claimed-highlight"');
+  });
+
+  it('offers No la veo on detail without replacing Confirmar seña', () => {
+    expect(template).toContain('No la veo');
+    expect(template).toContain('Confirmar seña');
+    expect(source).toMatch(/rejectBookingDepositUnseen/);
+    expect(source).toMatch(/confirmDepositReceived/);
+    expect(template).not.toMatch(/strike/i);
+    expect(source).not.toMatch(/strike/i);
   });
 });

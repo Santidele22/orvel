@@ -18,7 +18,7 @@ describe('KB-002 Contract: Supabase session guards after auth unification', () =
   it('unauthenticated or errored Supabase guard checks fail closed to in-app dashboard sign-in', () => {
     const routeProtection = source('src/app/core/auth/route-protection.ts');
 
-    expect(routeProtection).toMatch(/LOGIN_ROUTE\s*=\s*['"]\/auth\/login['"]/);
+    expect(routeProtection).toMatch(/LOGIN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
     expect(routeProtection).toMatch(/buildDashboardSignInRedirect\('\/dashboard'\)|buildDashboardSignInRedirect\("\/dashboard"\)/);
     expect(routeProtection).toMatch(/return\s*\{\s*allowed:\s*false,\s*redirectTo:\s*buildDashboardSignInRedirect\(/);
     expect(routeProtection).not.toMatch(/LOGIN_ROUTE\s*=\s*['"]\/login['"]/);

@@ -80,6 +80,7 @@ type PublicSlotAvailabilityInput = {
   businessSlug: string
   serviceId: string
   dateIso: string
+  professionalId?: string
 }
 
 type CancelBookingByTokenInput = ManageBookingInput
@@ -127,6 +128,11 @@ type AdminStatusUpdatePayload = {
   bookingId: string
   status: string
   performedBy: string
+}
+
+type ConfirmBookingDepositPayload = {
+  bookingId: string
+  performedBy?: string
 }
 
 const ALLOWED_BOOKING_STATUSES = ['booked', 'confirmed', 'completed', 'cancelled', 'canceled'] as readonly string[]
@@ -310,7 +316,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
     async createPublicBooking(
       payload: PublicBookingPayload
-    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' }>> {
+    ): Promise<ApiResponse<{ bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service'; professionalId?: string; professionalName?: string }>> {
       const validationFields = validatePublicBookingPayload(payload)
       if (validationFields.length > 0) {
         return validationError(validationFields)
@@ -366,7 +372,7 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       }
 
       const row = result.data as any;
-      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service' } = {
+      const responseData: { bookingId: string; status: 'confirmed' | 'pending'; manageToken?: string; source: 'client-self-service'; professionalId?: string; professionalName?: string } = {
         bookingId: row.booking_id,
         status: row.status === 'pending' ? 'pending' : 'confirmed',
         source: 'client-self-service'
@@ -374,6 +380,13 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
 
       if (row.manage_token ?? row.manageToken) {
         responseData.manageToken = row.manage_token ?? row.manageToken
+      }
+
+      if (row.professional_id) {
+        responseData.professionalId = String(row.professional_id)
+      }
+      if (row.professional_name) {
+        responseData.professionalName = String(row.professional_name)
       }
 
       return {
@@ -388,7 +401,8 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       const result = await client.rpc('query_public_slot_availability', {
         business_slug: input.businessSlug,
         service_id: input.serviceId,
-        date_iso: input.dateIso
+        date_iso: input.dateIso,
+        ...(input.professionalId?.trim() ? { professional_id: input.professionalId.trim() } : {})
       })
 
       if (result.error) {
@@ -831,6 +845,31 @@ export function createSupabaseBookingGateway({ client }: { client: SupabaseRpcCl
       return {
         status: 200,
         data: result.data as { bookingId: string; status: string }
+      }
+    },
+
+    async confirmBookingDepositReceived(
+      payload: ConfirmBookingDepositPayload
+    ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
+      const result = await client.rpc('confirm_booking_deposit_received', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      })
+
+      if (result.error) {
+        return {
+          status: 422,
+          error: mapRpcError(result.error, {})
+        }
+      }
+
+      const row = result.data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
+        }
       }
     }
   }

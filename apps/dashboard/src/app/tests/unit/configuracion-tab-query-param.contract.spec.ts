@@ -4,7 +4,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
@@ -35,6 +35,10 @@ describe('ConfiguracionPage tab query param behavior', () => {
           }
         },
         {
+          provide: Router,
+          useValue: { navigateByUrl: () => undefined }
+        },
+        {
           provide: BusinessService,
           useValue: {
             settings: signal(null).asReadonly(),
@@ -62,18 +66,20 @@ describe('ConfiguracionPage tab query param behavior', () => {
   it.each([
     ['perfil', 'perfil'],
     ['negocio', 'negocio']
-  ] as const)('selects the %s settings tab from ?tab=%s', (_label, tab) => {
+  ] as const)('selects the %s settings tab from ?tab=%s', async (_label, tab) => {
     const page = TestBed.runInInjectionContext(() => new ConfiguracionPage());
 
     queryParamMap.next(convertToParamMap({ tab }));
+    await Promise.resolve();
 
     expect(page.activeSettingsTab()).toBe(tab);
   });
 
-  it('ignores unsupported tab query params and keeps the default profile tab', () => {
+  it('ignores unsupported tab query params and keeps the default profile tab', async () => {
     const page = TestBed.runInInjectionContext(() => new ConfiguracionPage());
 
     queryParamMap.next(convertToParamMap({ tab: 'billing' }));
+    await Promise.resolve();
 
     expect(page.activeSettingsTab()).toBe('perfil');
   });

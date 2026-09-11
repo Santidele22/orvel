@@ -15,14 +15,6 @@ async function source(path: URL): Promise<string> {
   return readFile(path, 'utf8');
 }
 
-function sliceBetween(sourceText: string, startMarker: string, endMarker?: string): string {
-  const start = sourceText.indexOf(startMarker);
-  expect(start, `Missing start marker: ${startMarker}`).toBeGreaterThanOrEqual(0);
-  const end = endMarker ? sourceText.indexOf(endMarker, start + startMarker.length) : sourceText.length;
-  expect(end, `Missing end marker: ${endMarker}`).toBeGreaterThan(start);
-  return sourceText.slice(start, end);
-}
-
 describe('RED contract: paid signup uses server-side robust handoff into billing', () => {
   it('marker-only subscription URL with missing protected state shows recovery, not a generic temporary start failure', () => {
     const recovery = getInitialSubscriptionPageRecovery({
@@ -51,16 +43,12 @@ describe('RED contract: paid signup uses server-side robust handoff into billing
     expect(JSON.stringify({ recovery, readiness })).not.toMatch(/temporal|temporary|No pudimos iniciar (?:el pago|la suscripci[oó]n)/i);
   });
 
-  it('billing start sends a server-side intent reference/token instead of relying only on sessionStorage payload', async () => {
+  it('billing activation page no longer posts pending-signup PII to Mercado Pago start', async () => {
     const subscriptionSource = await source(SUBSCRIPTION_PAGE);
-    const clickFlow = sliceBetween(subscriptionSource, "fetch('/api/subscriptions/start'", 'const result = await response.json().catch(() => null);');
 
-    expect(clickFlow, 'POST /api/subscriptions/start must include the opaque server handoff identifier').toMatch(
-      /pending_signup_reference|pending_signup_token|intent_reference|intent_token|server_intent_reference|server_intent_token/i,
-    );
-    expect(clickFlow, 'protected PII payload from sessionStorage cannot be the only pending-signup source of truth').not.toMatch(
-      /pending_signup_intent:\s*\{[\s\S]*pendingSignupPayload\./,
-    );
+    expect(subscriptionSource).not.toMatch(/fetch\(['"]\/api\/subscriptions\/start['"]/);
+    expect(subscriptionSource).not.toMatch(/pending_signup_intent:\s*\{/);
+    expect(subscriptionSource).toContain('orvel.pagos');
   });
 
   it('cross-origin www/apex/reload-safe handoff can recover by URL reference or HttpOnly cookie binding', async () => {
@@ -69,7 +57,7 @@ describe('RED contract: paid signup uses server-side robust handoff into billing
     const createSubscriptionSource = await source(CREATE_SUBSCRIPTION_FUNCTION);
     const combined = `${subscriptionSource}\n${startApiSource}\n${createSubscriptionSource}`;
 
-    expect(combined, 'billing page/API/function must model an opaque recoverable pending-signup reference').toMatch(
+    expect(`${startApiSource}\n${createSubscriptionSource}`, 'billing API/function must model an opaque recoverable pending-signup reference').toMatch(
       /pending_signup_reference|pending_signup_token|intent_reference|intent_token|server_intent_reference|server_intent_token/i,
     );
     expect(combined, 'server handoff must bind the browser with an HttpOnly cookie for reload/origin safety').toMatch(

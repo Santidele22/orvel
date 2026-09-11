@@ -1,0 +1,53 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const pageTs = readFileSync(new URL('./public-booking.page.ts', import.meta.url), 'utf8');
+const pageHtml = readFileSync(new URL('./public-booking.page.html', import.meta.url), 'utf8');
+
+describe('Public booking professional picker', () => {
+  it('hides the picker unless allowClientProfessionalSelection is on', () => {
+    expect(pageHtml).toMatch(/data-testid=["']public-professional-picker["']/);
+    expect(pageHtml).toMatch(/canShowProfessionalTitle\(\)/);
+    expect(pageHtml).toMatch(/@if\s*\(canShowProfessionalStep\(\)\)[\s\S]{0,240}data-testid=["']public-professional-picker["']/);
+    expect(pageTs).toMatch(/allowClientProfessionalSelection/);
+    expect(pageTs).toMatch(/list_public_professionals_for_service|listPublicProfessionalsForService/);
+  });
+
+  it('defaults to no preference and only submits a specific professionalId', () => {
+    expect(pageHtml).toMatch(/Cualquier profesional/);
+    expect(pageTs).toMatch(/professionalId/);
+    expect(pageHtml).toMatch(/Te atiende/);
+  });
+
+  it('locks a dedicated professional turnero from the route slug', () => {
+    expect(pageTs).toMatch(/professionalSlug/);
+    expect(pageTs).toMatch(/resolvePublicProfessional/);
+    expect(pageTs).toMatch(/lockedProfessionalSlug/);
+  });
+
+  it('gates later booking steps until the previous step is complete', () => {
+    expect(pageTs).toMatch(/canShowProfessionalStep/);
+    expect(pageTs).toMatch(/canShowScheduleStep/);
+    expect(pageTs).toMatch(/canShowContactStep/);
+    expect(pageTs).toMatch(/professionalChoiceMade/);
+    expect(pageHtml).toMatch(/canShowScheduleStep\(\)/);
+    expect(pageHtml).toMatch(/canShowContactStep\(\)/);
+  });
+
+  it('does not show contact or seña until the client advances from schedule', () => {
+    expect(pageTs).toMatch(/canShowContactStep\(\)[\s\S]{0,180}expandedStep\(\) === 'contact'/);
+    expect(pageTs).not.toMatch(/preloadedSlot \|\| slots\[0\]/);
+    expect(pageTs).not.toMatch(/this\.selectedSlot = slots\[0\]\?\.startsAtIso/);
+    expect(pageHtml).toMatch(/canShowContactStep\(\)[\s\S]{0,400}booking-deposit-required-notice/);
+    expect(pageHtml).toMatch(/rescheduleMode\(\) \|\| canShowContactStep\(\)[\s\S]{0,240}booking-submit-action/);
+  });
+
+  it('keeps later step titles visible while content stays gated', () => {
+    expect(pageHtml).toMatch(/data-testid=["']public-schedule-step["'][\s\S]{0,500}Elegí día y horario[\s\S]{0,250}canShowScheduleStep\(\)/);
+    expect(pageHtml).toMatch(/data-testid=["']public-contact-step["']/);
+    expect(pageHtml).toMatch(/Tus datos/);
+    expect(pageTs).toMatch(/canShowProfessionalTitle/);
+    expect(pageTs).toMatch(/scheduleStepNumber/);
+    expect(pageTs).toMatch(/contactStepNumber/);
+  });
+});

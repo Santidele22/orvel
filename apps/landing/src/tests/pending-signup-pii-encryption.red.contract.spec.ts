@@ -42,20 +42,12 @@ describe('RED contract: Option A pending signup PII is encrypted + HMAC before p
     expect(storageWrites).toEqual([]);
   });
 
-  it('subscription page forwards only protected pending-signup payload fields to the start API', async () => {
+  it('subscription page does not forward pending-signup PII because activation no longer calls start', async () => {
     const subscriptionSource = await source(SUBSCRIPTION_PAGE);
-    const startClickFlow = sliceBetween(subscriptionSource, "initSubscriptionBtn.addEventListener('click'", 'const response = await fetch');
-    const requestBody = sliceBetween(subscriptionSource, 'body: JSON.stringify({', '})\n          });');
 
+    expect(subscriptionSource).not.toMatch(/fetch\(['"]\/api\/subscriptions\/start['"]/);
     for (const key of PLAINTEXT_PII_KEYS) {
-      expect(startClickFlow, `subscription page must not read plaintext ${key} from storage`).not.toContain(`SIGNUP_STORAGE_KEYS.${key}`);
-      expect(requestBody, `subscription start payload must not include plaintext ${key}`).not.toMatch(
-        new RegExp(`\\b${key}\\s*[,}:]`),
-      );
-    }
-
-    for (const field of PROTECTED_PENDING_FIELDS) {
-      expect(requestBody).toMatch(new RegExp(`${field}_(encrypted|hmac)`));
+      expect(subscriptionSource, `subscription page must not persist plaintext ${key}`).not.toContain(`SIGNUP_STORAGE_KEYS.${key}`);
     }
   });
 

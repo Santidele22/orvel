@@ -82,6 +82,39 @@
             <div>
               <p class="text-xs text-text-tertiary uppercase tracking-wider font-medium">Estado</p>
               <div class="mt-1.5">
+                @if (isDepositUnpaid(turno()?.depositStatus) && (turno()?.estado === 'confirmado' || turno()?.estado === 'pendiente')) {
+                  @if (turno()?.depositStatus === 'claim_pending') {
+                    <span
+                      data-testid="deposit-claimed-highlight"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning text-on-warning border-warning ring-2 ring-warning"
+                    >
+                      Seña avisada
+                    </span>
+                  } @else {
+                    <span
+                      data-testid="status-pill"
+                      class="inline-block rounded-full border px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning border-warning/40"
+                    >
+                      Pendiente de seña
+                    </span>
+                  }
+                  <button
+                    type="button"
+                    class="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white"
+                    [disabled]="confirmingDepositId() === turno()?.id || rejectingDepositId() === turno()?.id"
+                    (click)="confirmDepositReceived()"
+                  >
+                    Confirmar seña
+                  </button>
+                  <button
+                    type="button"
+                    class="mt-2 w-full rounded-xl bg-surface-container-high px-4 py-3 text-sm font-bold text-text-secondary"
+                    [disabled]="confirmingDepositId() === turno()?.id || rejectingDepositId() === turno()?.id"
+                    (click)="rejectBookingDepositUnseen()"
+                  >
+                    No la veo
+                  </button>
+                } @else {
                 @switch (turno()?.estado) {
                   @case ('confirmado') {
                     <span
@@ -131,6 +164,7 @@
                       {{ turno()?.estado }}
                     </span>
                   }
+                }
                 }
               </div>
             </div>

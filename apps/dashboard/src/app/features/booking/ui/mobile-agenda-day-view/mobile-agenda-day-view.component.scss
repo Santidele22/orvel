@@ -3,8 +3,8 @@
   flex-direction: column;
   height: 100%;
 
-  /* Bottom margin to clear the FAB + bottom-nav */
-  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+  /* Clear the FAB; shell main already clears nav + home indicator */
+  padding-bottom: 5rem;
 }
 
 /* Hide scrollbar for the day strip */

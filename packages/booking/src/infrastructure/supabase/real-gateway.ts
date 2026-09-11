@@ -20,7 +20,10 @@ import type {
   AdminUpdateBookingPayload,
   AdminCancelBookingPayload,
   AdminRescheduleBookingPayload,
-  AdminStatusUpdatePayload
+  AdminStatusUpdatePayload,
+  ConfirmBookingDepositPayload,
+  ClaimBookingDepositPayload,
+  RejectBookingDepositUnseenPayload
 } from '../../types';
 
 type BookingNotificationRow = {
@@ -161,7 +164,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     }
   }
 
-  async queryPublicSlotAvailability({ businessSlug, serviceId, dateIso }: PublicSlotAvailabilityInput): Promise<ApiResponse<{ slots: PublicSlot[] }>> {
+  async queryPublicSlotAvailability({ businessSlug, serviceId, dateIso, professionalId }: PublicSlotAvailabilityInput): Promise<ApiResponse<{ slots: PublicSlot[] }>> {
     if (!businessSlug?.trim() || !serviceId?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
       return {
         status: 422,
@@ -175,12 +178,16 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
     try {
       const supabase = this.supabaseClient;
 
-      // Call the improved PostgreSQL RPC
-      const { data, error } = await supabase.rpc('query_public_slot_availability', {
+      const rpcArgs: Record<string, string> = {
         business_slug: normalizePublicBookingSlug(businessSlug),
         service_id: serviceId,
         date_iso: dateIso
-      });
+      };
+      if (professionalId?.trim()) {
+        rpcArgs['professional_id'] = professionalId.trim();
+      }
+
+      const { data, error } = await supabase.rpc('query_public_slot_availability', rpcArgs);
 
       if (error) {
         const mapped = mapRpcErrorToApiError(error as { message?: string });
@@ -251,17 +258,6 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       };
     }
 
-    if (payload.professionalId) {
-      return {
-        status: 422,
-        error: {
-          code: 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN',
-          message: 'Client professional selection is forbidden by booking policy'
-        }
-      };
-    }
-
-    // Call real Supabase RPC to create booking
     try {
       const supabase = this.supabaseClient;
       const { data, error } = await supabase.rpc('create_public_booking', {
@@ -274,13 +270,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
           phone: payload.client.phone
         },
         notes: payload.notes,
+        professional_id: payload.professionalId || null,
         branch_id: null
       });
 
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
         const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
-          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' ? 422 : 400;
+          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' || apiError.code === 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN' ? 422 : 400;
         logMutationFailure({
           operation: 'create_public_booking',
           error,
@@ -296,6 +293,20 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         manage_token?: string;
         manageToken?: string;
         db_atomic_visibility_notifications?: boolean;
+        professional_id?: string;
+        professional_name?: string;
+        deposit_code?: string;
+        depositCode?: string;
+        deposit_amount?: number | string;
+        depositAmount?: number | string;
+        deposit_alias?: string;
+        depositAlias?: string;
+        deposit_cbu?: string;
+        depositCbu?: string;
+        deposit_hold_expires_at?: string;
+        depositHoldExpiresAt?: string;
+        deposit_hold_message?: string;
+        depositHoldMessage?: string;
       };
       const bookingId = bookingResult.booking_id;
       const branchId = bookingResult.branch_id;
@@ -327,6 +338,41 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
 
       if (manageToken) {
         responseData.manageToken = manageToken;
+      }
+
+      if (bookingResult.professional_id) {
+        responseData.professionalId = String(bookingResult.professional_id);
+      }
+      if (bookingResult.professional_name) {
+        responseData.professionalName = bookingResult.professional_name;
+      }
+
+      const depositCode = bookingResult.deposit_code ?? bookingResult.depositCode;
+      if (depositCode) {
+        responseData.depositCode = String(depositCode);
+        const depositAmount = bookingResult.deposit_amount ?? bookingResult.depositAmount;
+        if (depositAmount != null && depositAmount !== '') {
+          const amount = Number(depositAmount);
+          if (Number.isFinite(amount)) {
+            responseData.depositAmount = amount;
+          }
+        }
+        const depositAlias = bookingResult.deposit_alias ?? bookingResult.depositAlias;
+        if (depositAlias) {
+          responseData.depositAlias = String(depositAlias);
+        }
+        const depositCbu = bookingResult.deposit_cbu ?? bookingResult.depositCbu;
+        if (depositCbu) {
+          responseData.depositCbu = String(depositCbu);
+        }
+        const depositHoldExpiresAt = bookingResult.deposit_hold_expires_at ?? bookingResult.depositHoldExpiresAt;
+        if (depositHoldExpiresAt) {
+          responseData.depositHoldExpiresAt = String(depositHoldExpiresAt);
+        }
+        const depositHoldMessage = bookingResult.deposit_hold_message ?? bookingResult.depositHoldMessage;
+        if (depositHoldMessage) {
+          responseData.depositHoldMessage = String(depositHoldMessage);
+        }
       }
 
       return {
@@ -718,6 +764,102 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         data: {
           bookingId: (data as { bookingId?: string; booking_id?: string })?.bookingId ?? (data as { booking_id?: string })?.booking_id ?? payload.bookingId,
           status: (data as { status?: string })?.status ?? payload.status
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async confirmBookingDepositReceived(
+    payload: ConfirmBookingDepositPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: string }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('confirm_booking_deposit_received', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: row?.depositStatus ?? row?.deposit_status ?? 'paid'
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async claimBookingDeposit(
+    payload: ClaimBookingDepositPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: 'claim_pending' }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('claim_booking_deposit', {
+        manage_token: payload.manageToken,
+        note: payload.note ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? '',
+          depositStatus: 'claim_pending'
+        }
+      };
+    } catch (err) {
+      const error = err as { message?: string };
+      return {
+        status: 400,
+        error: mapRpcErrorToApiError(error)
+      };
+    }
+  }
+
+  async rejectBookingDepositUnseen(
+    payload: RejectBookingDepositUnseenPayload
+  ): Promise<ApiResponse<{ bookingId: string; depositStatus: 'released' }>> {
+    try {
+      const supabase = this.supabaseClient;
+      const { data, error } = await supabase.rpc('reject_booking_deposit_unseen', {
+        booking_id: payload.bookingId,
+        performed_by: payload.performedBy ?? null
+      });
+
+      if (error) {
+        const apiError = mapRpcErrorToApiError(error as { message?: string });
+        return { status: 400, error: apiError };
+      }
+
+      const row = data as { bookingId?: string; booking_id?: string; depositStatus?: string; deposit_status?: string } | null;
+      return {
+        status: 200,
+        data: {
+          bookingId: row?.bookingId ?? row?.booking_id ?? payload.bookingId,
+          depositStatus: 'released'
         }
       };
     } catch (err) {

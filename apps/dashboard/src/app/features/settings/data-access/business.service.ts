@@ -105,6 +105,119 @@ export class BusinessService {
     return this.supabaseClient || null;
   }
 
+  async listPublicProfessionalsForService(
+    businessSlug: string,
+    serviceId: string
+  ): Promise<Array<{ id: string; name: string }>> {
+    if (!this.supabaseClient) return [];
+    const { data, error } = await this.supabaseClient.rpc('list_public_professionals_for_service', {
+      business_slug: normalizePublicBookingSlug(businessSlug),
+      service_id: serviceId
+    });
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row: { id: string; name: string }) => ({
+      id: String(row.id),
+      name: String(row.name)
+    }));
+  }
+
+  async resolvePublicProfessional(
+    businessSlug: string,
+    professionalSlug: string
+  ): Promise<{ id: string; name: string; slug: string; serviceIds: string[] } | null> {
+    if (!this.supabaseClient) return null;
+    const { data, error } = await this.supabaseClient.rpc('resolve_public_professional', {
+      business_slug: normalizePublicBookingSlug(businessSlug),
+      professional_slug: normalizePublicBookingSlug(professionalSlug)
+    });
+    if (error || !data || typeof data !== 'object') return null;
+    const row = data as Record<string, unknown>;
+    return {
+      id: String(row['id'] ?? ''),
+      name: String(row['name'] ?? ''),
+      slug: String(row['slug'] ?? ''),
+      serviceIds: Array.isArray(row['service_ids']) ? (row['service_ids'] as string[]).map(String) : []
+    };
+  }
+
+  async listBusinessProfessionals(businessId: string): Promise<Array<{
+    id: string;
+    name: string;
+    slug: string;
+    phone: string | null;
+    email: string | null;
+    active: boolean;
+    serviceIds: string[];
+  }>> {
+    if (!this.supabaseClient) return [];
+    const { data, error } = await this.supabaseClient.rpc('list_business_professionals', {
+      p_business_id: businessId
+    });
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row: Record<string, unknown>) => ({
+      id: String(row['id']),
+      name: String(row['name'] ?? ''),
+      slug: String(row['slug'] ?? ''),
+      phone: (row['phone'] as string | null) ?? null,
+      email: (row['email'] as string | null) ?? null,
+      active: row['active'] !== false,
+      serviceIds: Array.isArray(row['service_ids']) ? (row['service_ids'] as string[]).map(String) : []
+    }));
+  }
+
+  async listProfessionalHours(professionalId: string): Promise<Array<{ dayOfWeek: number; start: string; end: string }>> {
+    if (!this.supabaseClient) return [];
+    const { data, error } = await this.supabaseClient.rpc('list_professional_hours', {
+      p_professional_id: professionalId
+    });
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row: Record<string, unknown>) => ({
+      dayOfWeek: Number(row['day_of_week']),
+      start: String(row['start_time'] ?? '').slice(0, 5),
+      end: String(row['end_time'] ?? '').slice(0, 5)
+    }));
+  }
+
+  async replaceProfessionalHours(
+    professionalId: string,
+    hours: Array<{ dayOfWeek: number; start: string; end: string; enabled: boolean }>
+  ): Promise<void> {
+    if (!this.supabaseClient) return;
+    const { error } = await this.supabaseClient.rpc('replace_professional_hours', {
+      p_professional_id: professionalId,
+      p_hours: hours.map((hour) => ({
+        day_of_week: hour.dayOfWeek,
+        start: hour.start,
+        end: hour.end,
+        enabled: hour.enabled
+      }))
+    });
+    if (error) throw error;
+  }
+
+  async upsertBusinessProfessional(payload: {
+    businessId: string;
+    id?: string | null;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    active?: boolean;
+    serviceIds?: string[];
+  }): Promise<string | null> {
+    if (!this.supabaseClient) return null;
+    const { data, error } = await this.supabaseClient.rpc('upsert_business_professional', {
+      p_business_id: payload.businessId,
+      p_id: payload.id || null,
+      p_name: payload.name,
+      p_phone: payload.phone ?? null,
+      p_email: payload.email ?? null,
+      p_active: payload.active ?? true,
+      p_service_ids: payload.serviceIds ?? []
+    });
+    if (error) throw error;
+    return data ? String(data) : null;
+  }
+
   setActiveBusiness(id: string) {
     this.activeBusinessId.set(id);
     localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, id);
@@ -220,12 +333,16 @@ export class BusinessService {
 
     const { error: profileError } = await this.supabaseClient
       .from('profiles')
-      .update({
-        first_name: settings.firstName ?? '',
-        last_name: settings.lastName ?? '',
-        phone: settings.phone ?? ''
-      })
-      .eq('id', context.ownerId);
+      .upsert(
+        {
+          id: context.ownerId,
+          first_name: settings.firstName ?? '',
+          last_name: settings.lastName ?? '',
+          phone: settings.phone ?? '',
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'id' }
+      );
 
     if (profileError) {
       throw this.failLoad('No se pudo guardar el perfil.', 'PROFILE_SAVE_FAILED');
@@ -268,7 +385,13 @@ export class BusinessService {
         cancellation_window_minutes: settings.cancelationGracePeriod,
         auto_confirm: settings.autoConfirm,
         max_advance_days: settings.maxAdvanceDays,
-        capacity: settings.capacity
+        capacity: settings.capacity,
+        allow_client_professional_selection: settings.allowClientProfessionalSelection ?? false,
+        deposit_enabled: settings.depositEnabled ?? false,
+        deposit_percent: settings.depositPercent ?? 0,
+        deposit_alias: settings.depositAlias ?? '',
+        deposit_cbu: settings.depositCbu ?? '',
+        support_phone: settings.phone ?? ''
       });
 
     if (error) {
@@ -410,6 +533,12 @@ export class BusinessService {
       allowMultipleServices: settings?.allow_multiple_services,
       cleanupTimeMinutes: formDefaults.cleanupTimeMinutes,
       capacity: formDefaults.capacity,
+      allowClientProfessionalSelection: settings?.allow_client_professional_selection ?? false,
+      depositEnabled: settings?.deposit_enabled ?? false,
+      depositPercent: Number(settings?.deposit_percent ?? 0),
+      depositAmountPesos: settings?.deposit_amount_pesos == null ? null : Number(settings.deposit_amount_pesos),
+      depositAlias: settings?.deposit_alias ?? '',
+      depositCbu: settings?.deposit_cbu ?? '',
       weekStartDay: settings?.week_start_day,
       timeFormat: settings?.time_format,
       firstName: profile?.first_name ?? settings?.first_name ?? '',
@@ -523,10 +652,16 @@ export class BusinessService {
         bufferMinutes: settings?.bufferMinutes ?? settings?.buffer_minutes ?? DEFAULT_BOOKING_POLICY.bufferMinutes,
         minNoticeMinutes: settings?.minNoticeMinutes ?? settings?.min_notice_minutes ?? DEFAULT_BOOKING_POLICY.minNoticeMinutes,
         slotIntervalMinutes: settings?.slotIntervalMinutes ?? settings?.slot_interval_minutes ?? DEFAULT_BOOKING_POLICY.slotIntervalMinutes,
+        maxAdvanceDays: settings?.maxAdvanceDays ?? settings?.max_advance_days ?? 30,
         workingHours: resolveWorkingHours(
           settings?.workingHours ?? settings?.working_hours,
           this.getDefaultWorkingHours()
-        )
+        ),
+        depositEnabled: settings?.depositEnabled ?? settings?.deposit_enabled ?? false,
+        depositPercent: Number(settings?.depositPercent ?? settings?.deposit_percent ?? 0),
+        depositAlias: settings?.depositAlias ?? settings?.deposit_alias ?? null,
+        depositCbu: settings?.depositCbu ?? settings?.deposit_cbu ?? null,
+        supportPhone: settings?.supportPhone ?? settings?.support_phone ?? null
       },
       bookingPolicy: {
         autoConfirm: bookingPolicy?.autoConfirm ?? bookingPolicy?.auto_confirm ?? true,

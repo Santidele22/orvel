@@ -7,14 +7,14 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf
 describe('Contract: landing pricing and signup navigation hotfix', () => {
   it('renders FREE in home pricing instead of filtering it out', () => {
     const pricing = source('src/components/organisms/Pricing.astro');
-    const index = source('src/pages/index.astro');
+    const lanzamiento = source('src/pages/lanzamiento.astro');
     const planCard = source('src/components/molecules/PlanCard.astro');
 
     expect(pricing).toContain('plansWithBilling.map');
     expect(pricing).not.toMatch(/filter\s*\([^)]*code\s*!==\s*['"]FREE['"]/);
     expect(planCard).toContain("case 'FREE': return 'Empezar gratis'");
     expect(planCard).toContain("{isFree && \"Que entren y usen el producto.\"}");
-    expect(index).not.toMatch(/planCode\s*===\s*['"]FREE['"][\s\S]{0,240}classList\.add\(['"]hidden['"]\)/);
+    expect(lanzamiento).not.toMatch(/planCode\s*===\s*['"]FREE['"][\s\S]{0,240}classList\.add\(['"]hidden['"]\)/);
   });
 
   it('shows an accessible login back link to home', () => {

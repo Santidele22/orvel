@@ -8,7 +8,7 @@
 
 | #   | Diagrama                                                                                                | Audiencia | Cubre                                                                                  |
 | --- | ------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------- |
-| 01  | [Target system architecture (post-release-2.0)](./01-monorepo-architecture.md)                         | Todos     | Target: sin MP, sin outbox, 5 tablas, 3-env, multi-profesional                         |
+| 01  | [System architecture (C4 sketch)](./01-monorepo-architecture.md)                                        | Todos     | Sketch only; canonical shape is `infra/context/architecture.md`. No MP checkout in v1  |
 | 02  | [Public booking flow (current `dev`)](./02-booking-public.md)                                           | Todos     | Booking público end-to-end: URL → slot query → create_public_booking → email outbox → manage/cancel/reschedule |
 | 03  | _pendiente_                                                                                             |           |                                                                                        |
 | 05  | _pendiente_                                                                                             |           |                                                                                        |
@@ -16,13 +16,13 @@
 | 07  | _pendiente_                                                                                             |           |                                                                                        |
 | 08  | _pendiente_                                                                                             |           |                                                                                        |
 
-Pendientes (target, en este orden; slot 02 ya ocupado por `02-booking-public` que documenta el flujo actual de `dev` — el booking-target ya no es "limbo" porque el flujo está implementado, ver `02-booking-public.md` § Known gaps):
+Pendientes (opcionales; no bloquean el v1. Slot 02 es el flujo de booking actual):
 
-- 03-auth-target — flujo de auth admin + público + session handoff en target
+- 03-auth — flujo de auth admin + público + session handoff
 - 05-pwa-sw-idb-boundary — qué hace y qué NO hace el service worker
-- 06-cicd-3env-promotion — pipeline CI + 3-env promotion target
-- 07-multi-profesional — modeling target-only (NUEVO)
-- 08-schema-5-tablas — entity-relationship de las 5 tablas target
+- 06-cicd-3env-promotion — pipeline CI + promoción (ver también `operational-rules.md`)
+- 07-multi-profesional — detalle de modelado (el producto ya lo tiene)
+- 08-schema — entity-relationship del schema actual
 
 ## Archived
 

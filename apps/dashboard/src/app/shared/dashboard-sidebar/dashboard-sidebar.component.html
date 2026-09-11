@@ -1,6 +1,11 @@
-<ng-container 
-  *ngComponentOutlet="activeTemplate().sidebarComponent; 
-                     inputs: templateInputs()" 
+<app-zen-sidebar
+  [activeTheme]="theme"
+  [businessName]="businessName"
+  [dashboards]="dashboards"
+  [collapsed]="collapsed"
+  [onThemeChange]="onThemeChangeBound"
+  [onToggleCollapse]="onToggleCollapseBound"
+  [onLogout]="onLogoutBound"
 />
 
 <div class="sr-only sm:block md:block lg:block" data-testid="dashboard-sidebar-responsive">
@@ -47,7 +52,7 @@
   <button type="button" (click)="openLogoutConfirmModal()" data-testid="logout-action">Cerrar sesión</button>
 </div>
 
-@if (isLogoutConfirmModalOpen) {
+@if (isLogoutConfirmModalOpen()) {
 <section data-testid="logout-confirm-modal" class="fixed inset-(--zen-space-xs) z-[70] flex items-center justify-center bg-(--text)/40 p-(--zen-space-lg)">
   <div class="w-full max-w-sm rounded-2xl bg-(--surface) p-(--zen-space-lg) shadow-2xl">
     <h2 class="text-sm font-bold">Cerrar sesión</h2>
