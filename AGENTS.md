@@ -76,6 +76,7 @@ Hard rules:
 | `apps/landing/` | Astro 6 + Svelte 5. Read `apps/landing/AGENTS.md` first. Run via `pnpm --dir apps/landing …`. |
 | `apps/shared/` | Cross-app assets (currently email templates). Do not expand without Santi approval. |
 | `apps/ops/` | Internal Vue 3 prospect backoffice (Prospecta), hexagonal layout inside the app. Read `apps/ops/AGENTS.md` first. Deliberately outside the pnpm workspace and the root `check` gate; run via `pnpm --dir apps/ops …`. |
+| `apps/backoffices/` | Orvel staff operator Vite app at `/ops`. Read `apps/backoffices/AGENTS.md` first. Never import salon dashboard feature modules. |
 | `packages/` | Shared contracts and types only when the source of truth is clear. `packages/shared/` is reserved — do not extract into it yet. |
 | `supabase/` | Edge functions and migrations. Follow Supabase Safety and `infra/context/supabase.md`. |
 | `openspec/` | SDD artifacts. Preserve existing changes; do not rewrite unrelated specs. |

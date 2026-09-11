@@ -1,6 +1,7 @@
 packages:
   - apps/landing
   - apps/dashboard
+  - apps/backoffices
   - apps/shared/*
   - packages/*
 
