@@ -66,8 +66,8 @@ import { OperatorTourService } from './operator-tour.service';
         outline-offset: 2px;
       }
 
-      /* The tour hides the button with `visibility` (Tailwind `invisible`), never
-         `display`, because driver.js stages its final step against this node. */
+      /* The tour hides the button with visibility (Tailwind invisible), never
+         display, because driver.js stages its final step against this node. */
       @media (min-width: 1024px) {
         .operator-tour-help {
           bottom: 1.5rem;

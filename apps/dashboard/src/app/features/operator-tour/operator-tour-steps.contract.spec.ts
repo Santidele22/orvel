@@ -10,7 +10,7 @@ import {
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
-  type TourSurfaceEnvironment,
+  type TourMatchMediaEnvironment,
 } from './operator-tour-steps';
 
 const dashboardRoot = resolve(process.cwd(), 'src/app');
@@ -60,10 +60,10 @@ describe('operator tour steps contract', () => {
   });
 
   it('resolves the surface from a matchMedia-like environment', () => {
-    const desktopEnv: TourSurfaceEnvironment = {
+    const desktopEnv: TourMatchMediaEnvironment = {
       matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.desktop }),
     };
-    const mobileEnv: TourSurfaceEnvironment = {
+    const mobileEnv: TourMatchMediaEnvironment = {
       matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.mobile }),
     };
 

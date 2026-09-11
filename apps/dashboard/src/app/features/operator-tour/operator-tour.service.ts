@@ -5,7 +5,7 @@ import {
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
-  type TourSurfaceEnvironment,
+  type TourMatchMediaEnvironment,
 } from './operator-tour-steps';
 import { createOperatorTourStorage } from './operator-tour-storage';
 
@@ -36,7 +36,13 @@ export class OperatorTourService {
   private readonly destroyRef = inject(DestroyRef, { optional: true });
 
   private readonly storage = createOperatorTourStorage();
-  private readonly loadDriver: DriverLoader = () => import('driver.js');
+  /**
+   * driver.js publishes its own `Config`/`Driver` types. This service keeps only
+   * the narrow slice above so the library's types do not leak through the
+   * feature, so the dynamic import is narrowed once, here.
+   */
+  private readonly loadDriver: DriverLoader = () =>
+    import('driver.js') as unknown as Promise<DriverModule>;
 
   private driver: DriverInstance | undefined;
   /** False during a programmatic teardown, so it does not count as completion. */
@@ -121,7 +127,7 @@ export class OperatorTourService {
     return resolveTourSurface(environment ?? {});
   }
 
-  private matchMediaEnvironment(): TourSurfaceEnvironment | undefined {
+  private matchMediaEnvironment(): TourMatchMediaEnvironment | undefined {
     try {
       if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
         return undefined;
