@@ -214,7 +214,7 @@ export function main(argv = process.argv.slice(2)) {
       console.error(`check-migration-drift: ${violation.code}: ${violation.message}`);
     }
     console.error(
-      `check-migration-drift: ${violations.length} violation(s) merging '${base}' into '${head}'; align the migration filenames on 'dev' first`
+      `check-migration-drift: ${violations.length} violation(s) in the merge result of '${head}' onto '${base}'; align the migration filenames on 'dev' first`
     );
     return 1;
   }

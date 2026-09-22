@@ -192,6 +192,8 @@ test('CLI reproduces the retimestamp incident and clears once filenames are alig
   assert.match(drifted.stderr, /20260828120000_purge_elapsed_bookings\.sql/);
   assert.match(drifted.stderr, /20260906211000_purge_elapsed_bookings\.sql/);
   assert.match(drifted.stderr, /MIGRATION_NOT_CARRIED_BY_HEAD/);
+  assert.match(drifted.stderr, /2 violation\(s\) in the merge result of 'dev' onto 'qa'/);
+  assert.doesNotMatch(drifted.stderr, /merging 'qa' into 'dev'/);
 
   git(repo, ['checkout', '-q', 'dev']);
   git(repo, ['mv', 'supabase/migrations/20260828120000_purge_elapsed_bookings.sql', 'supabase/migrations/20260906211000_purge_elapsed_bookings.sql']);
