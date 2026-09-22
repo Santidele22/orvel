@@ -14,7 +14,7 @@ Orvel runs in four distinct environments: local development, `dev`, `qa`, and `m
 
 - Integration environment. All feature branches land here first via PR.
 - Receives: feature branches (via PR).
-- CI gate `dashboard-booking-regressions` runs on PRs targeting `dev`.
+- CI gate: check `Dashboard booking regressions` (job `dashboard-booking-regressions`) runs on PRs targeting `dev`.
 - Required env vars: same names as local development; values are provisioned in the environment, never in the repo.
 
 ## qa
