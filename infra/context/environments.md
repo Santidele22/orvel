@@ -30,3 +30,9 @@ Orvel runs in four distinct environments: local development, `dev`, `qa`, and `m
 - Receives: `qa → main` PRs only. Never from `dev` or a feature branch.
 - Supabase production linkage: authenticated linked project, identity checked against the non-revealing digest in `supabase/production-project-ref.sha256`.
 - Required env vars: same names as local development; values are provisioned in the environment, never in the repo.
+
+## Reserved secrets
+
+- The `orvel-qa` and `orvel-prod` GitHub environments hold `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` secrets that no workflow references: `deploy-promotion.yml` passes only `PUBLIC_LANDING_URL` and `PUBLIC_DASHBOARD_URL` as build env.
+- The variable names themselves are still live. `scripts/build-vercel.mjs` reads them from the process environment during the Vercel build and bakes them into `dashboard/runtime-env.js`; local development reads them from `.env.local`; `packages/config/src/dashboard-env.ts` and `apps/landing/src/lib/plans.ts` consume them at runtime.
+- They are kept deliberately as reserved. Do not remove them as dead secrets without confirming with Santi.
