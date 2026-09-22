@@ -84,3 +84,4 @@ Thumbs.db
 .funemon/local.json
 .funemon/cache/
 .funemon/sessions/
+.vercel
