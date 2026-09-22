@@ -57,10 +57,10 @@ Hard rules:
 - Never commit directly to `qa` or `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev` and is exactly how `dev` and `qa` diverged on migration filenames (#943, #945, #1030).
 - Keep `dev`'s `supabase/migrations/` filenames identical to `qa`/`main`. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
 - `main` receives PRs only from `qa`.
-- Protected branches (`dev`, `qa`, `main`): linear history, 1 approving review, required CI check `dashboard-booking-regressions`, `enforce_admins: true`, no force pushes, no deletions.
-- Santi is the sole owner; self-approval on protected branches is blocked. The admin workaround (temporarily relax protection, `--admin --squash`, restore) is only with explicit Santi approval per PR.
-- Relax `dev`/`qa` review enforcement only to push an out-of-date sync (for example `dev ← main`); restore immediately after. The required status check still blocks until CI runs.
-- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`) and restore review enforcement immediately. That sync is the only sanctioned use of the review relaxation.
+- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `qa`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`qa`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy the `qa` check, because a required check that never runs never reports.
+- Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset: `gh pr merge <n> --squash --admin`, only with explicit Santi approval per PR. No ruleset is ever relaxed.
+- Back-sync PRs into `dev` (`dev ← qa`, `dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
+- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
 
 ### Operational rules
 
