@@ -693,7 +693,7 @@ export function createAccountClosureHandler(
       });
     }
 
-    if (!isAuthorizedClosureRequest(req, getSecret("ACCOUNT_CLOSURE_CRON_SECRET"))) {
+    if (!isAuthorizedClosureRequest(req, getSecret("CRON_KEY"))) {
       return new Response(JSON.stringify({ error: "UNAUTHORIZED" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },

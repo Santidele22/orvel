@@ -11,6 +11,7 @@ const accountClosureWorkflowUrl = new URL(
   "../../../.github/workflows/account-closure.yml",
   import.meta.url,
 );
+const accountClosureFunctionUrl = new URL("../account-closure/index.ts", import.meta.url);
 const occupancyContractUrl = new URL(
   "./manual-booking-deposits-static-contract.test.ts",
   import.meta.url,
@@ -50,6 +51,26 @@ Deno.test("release cron function rejects missing or bad CRON_KEY with 401 and do
   assertStringIncludes(config, "[functions.release-expired-booking-holds]");
   assertMatch(config, /\[functions\.release-expired-booking-holds\]\s*\nverify_jwt\s*=\s*false/);
   assertMatch(config, /external scheduler POSTs/i);
+});
+
+Deno.test("account closure cron function authenticates with the shared CRON_KEY before processing", async () => {
+  const source = await Deno.readTextFile(accountClosureFunctionUrl);
+
+  assertStringIncludes(source, 'getSecret("CRON_KEY")');
+  assertEquals(
+    /ACCOUNT_CLOSURE_CRON_SECRET/.test(source),
+    false,
+    "account-closure must read the shared CRON_KEY secret, not a per-function secret name",
+  );
+
+  const unauthorizedIndex = source.search(/isAuthorizedClosureRequest\(/);
+  const processIndex = source.search(/await\s+processDueAccountClosures\(/);
+
+  assert(unauthorizedIndex >= 0, "account-closure must gate on CRON_KEY");
+  assert(
+    processIndex > unauthorizedIndex,
+    "account-closure must reject unauthorized requests before processing closures",
+  );
 });
 
 Deno.test("release cron workflow missing FUNCTION_URL / CRON_SECRET fails like account-closure", async () => {
