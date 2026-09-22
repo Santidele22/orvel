@@ -439,6 +439,8 @@ verify_jwt = true
 # Account closure is invoked by a privileged scheduler after paid-through access ends.
 # Deployment follow-up: configure the external scheduler to POST this function with
 # `Authorization: Bearer $ACCOUNT_CLOSURE_CRON_SECRET` or `x-cron-key`.
+# The function reads the shared `CRON_KEY` secret, so the scheduler secret and the
+# function secret must hold the same value.
 [functions.account-closure]
 verify_jwt = false
 
