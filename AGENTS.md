@@ -61,6 +61,7 @@ Hard rules:
 
 ### Operational rules
 
+- Every new task starts from an up-to-date `dev`: `git fetch origin --prune`, then `git switch -c <type>/<slug> origin/dev`. Never branch from a stale local `dev` or from another feature branch.
 - Work on a feature branch. Do not push directly to `dev`, `qa`, or `main`.
 - After a coherent task block, the orchestrator may commit, push the feature branch, and open a PR against `dev` without per-commit approval. PR target is always `dev`.
 - Merge to protected branches still requires explicit Santi approval per PR.
