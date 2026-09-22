@@ -13,6 +13,7 @@ funemon.project.json
 # Client-specific local agent/tooling metadata
 .opencode/
 .atl/
+.pi/
 
 # Brand assets handoff (move to company-os repo, then delete this folder)
 to-company-os-export/
@@ -21,12 +22,16 @@ to-company-os-export/
 marketing/
 screenshots/
 
+# Local HyperFrames video production (large binary media, not committed)
+videos/
+
 # Skill registry locks (local cache)
 skills-lock.json
 *.build-lock.recovery-*/
 
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build outputs and generated artifacts
 /marketing/
@@ -61,6 +66,14 @@ pnpm-debug.log*
 .cache/
 .eslintcache
 .stylelintcache
+
+# Local code-graph index and agent scratch output
+.codegraph/
+/nul
+/_arch_lines.txt
+/_arch_snip.txt
+/_snip2.txt
+/_snip3.txt
 
 # OS/editor
 .DS_Store

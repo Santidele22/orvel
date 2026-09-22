@@ -1,5 +1,12 @@
 {
   "framework": null,
   "buildCommand": "pnpm run build:vercel",
-  "installCommand": "pnpm install"
+  "installCommand": "pnpm install",
+  "git": {
+    "deploymentEnabled": {
+      "dev": false,
+      "qa": false,
+      "main": false
+    }
+  }
 }
