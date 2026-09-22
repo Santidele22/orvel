@@ -13,7 +13,7 @@
     "build:landing": "pnpm --dir apps/landing run build",
     "build:vercel": "node scripts/build-vercel.mjs",
     "check": "pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check && pnpm run test:supabase:trial-reminder:ci",
-    "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm --dir apps/dashboard run build",
+    "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm run test:dashboard:contracts && pnpm --dir apps/dashboard run build",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm run test:landing:tutorial && pnpm run test:landing:build-lock && pnpm --dir apps/landing run build",
     "security:audit:prod": "pnpm audit --prod",
@@ -50,6 +50,7 @@
     "test:supabase:trial-reminder:operational": "node --test scripts/trial-reminder-*.test.mjs",
     "trial-reminder:production": "scripts/trial-reminder-production-launcher.mjs",
     "test:dashboard:time-picker": "pnpm --dir apps/dashboard exec vitest run src/app/tests/integration/configuracion-time-picker-modal-accessibility.contract.spec.ts",
+    "test:dashboard:contracts": "pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/dashboard-environment-source.contract.spec.ts src/app/tests/unit/generate-dashboard-env.script.spec.ts src/app/tests/unit/deploy-promotion-workflow.contract.spec.ts src/app/tests/unit/vercel-output-security-headers.contract.spec.ts",
     "test:landing:tutorial": "pnpm --dir apps/landing exec vitest run src/tests/hero-tutorial-dialog.contract.spec.ts",
     "test:landing:build-lock": "pnpm --dir apps/landing exec vitest run src/tests/landing-build-idempotency.contract.spec.ts"
   },
