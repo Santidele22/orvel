@@ -3,11 +3,11 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
+    "start": "node scripts/generate-dashboard-env.mjs && ng serve",
+    "build": "node scripts/generate-dashboard-env.mjs --production && ng build",
     "check:servicios:compile": "node scripts/qa/check-servicios-compile-red.mjs",
     "check:calendar-picker:scss:red": "node scripts/qa/check-calendar-picker-scss-red.mjs",
-    "watch": "ng build --watch --configuration development",
+    "watch": "node scripts/generate-dashboard-env.mjs && ng build --watch --configuration development",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

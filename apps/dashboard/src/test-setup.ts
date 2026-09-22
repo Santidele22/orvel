@@ -4,12 +4,13 @@
 // Polyfills needed for Node.js test environment
 
 // Set up environment variables BEFORE importing anything else
-// This must be done before any code tries to access process.env
+// This must be done before any code tries to access process.env.
+// Values are synthetic placeholders: never point tests at a real project.
 if (!process.env['NEXT_PUBLIC_SUPABASE_URL']) {
-  process.env['NEXT_PUBLIC_SUPABASE_URL'] = 'https://tzqgwziyiospmvpdgbnt.supabase.co';
+  process.env['NEXT_PUBLIC_SUPABASE_URL'] = 'https://dashboard-tests.invalid';
 }
 if (!process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']) {
-  process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] = 'sb_publishable_JH2uY3XfVHFujz_KnMdZPA_rZnHsi8i';
+  process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] = 'test-anon-key';
 }
 
 // Mock localStorage

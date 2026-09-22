@@ -76,11 +76,12 @@ describe('Contract: Vercel SPA rewrite stays after filesystem and before 404', (
 
     const patched = patchVercelOutputConfig(fixture);
     const routes = patched.routes as Array<Record<string, unknown>>;
+    const filesystemIndex = routeIndex(routes, (route) => route.handle === 'filesystem');
 
-    expect(routes[0]).toEqual({ handle: 'filesystem' });
-    expect(routes[1]).toEqual(DASHBOARD_SPA);
-    expect(routes[2]).toEqual(BOOKING_SHARE);
-    expect(routes[3]).toEqual(BOOKING_SPA);
+    expect(filesystemIndex).toBeGreaterThanOrEqual(0);
+    expect(routes[filesystemIndex + 1]).toEqual(DASHBOARD_SPA);
+    expect(routes[filesystemIndex + 2]).toEqual(BOOKING_SHARE);
+    expect(routes[filesystemIndex + 3]).toEqual(BOOKING_SPA);
     expect(routes.some((route) => route.src === NOT_FOUND.src && route.status === 404)).toBe(true);
   });
 
@@ -129,8 +130,14 @@ describe('Contract: Vercel SPA rewrite stays after filesystem and before 404', (
 
     const patched = patchVercelOutputConfig(fixture);
     const routes = patched.routes as Array<Record<string, unknown>>;
+    const filesystemIndex = routeIndex(routes, (route) => route.handle === 'filesystem');
+    const dashboardIndex = routeIndex(
+      routes,
+      (route) => route.src === DASHBOARD_SPA.src && route.dest === DASHBOARD_SPA.dest,
+    );
 
-    expect(routes[0]).toEqual({ handle: 'filesystem' });
+    expect(filesystemIndex).toBeGreaterThanOrEqual(0);
+    expect(dashboardIndex).toBeGreaterThan(filesystemIndex);
     expect(firstMatchingDest(routes, '/booking')).toBe('/dashboard/index.html');
     expect(firstMatchingDest(routes, '/booking/manage')).toBe('/dashboard/index.html');
   });

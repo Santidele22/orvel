@@ -28,6 +28,7 @@ supabase/.temp/
 .env.*
 .env.local
 !.env.example
+src/environments/environment.generated.ts
 
 # Funemon local metadata
 .funemon/
