@@ -1,0 +1,70 @@
+/*
+* Remix Icon v4.9.1
+* https://remixicon.com
+* https://github.com/Remix-Design/RemixIcon
+*
+* Copyright RemixIcon.com
+* Released under the Remix Icon License 1.0
+*
+* Date: 2026-01-29
+*/
+/* Landing subset: used ri-* classes only. Font files stay in the remixicon package. */
+@font-face {
+  font-family: "remixicon";
+  src: url("../../node_modules/remixicon/fonts/remixicon.woff2") format("woff2");
+  font-display: swap;
+}
+
+[class^="ri-"], [class*=" ri-"] {
+  font-family: 'remixicon' !important;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ri-alarm-warning-line:before { content: "\ea1d"; }
+.ri-arrow-down-line:before { content: "\ea4c"; }
+.ri-arrow-down-s-line:before { content: "\ea4e"; }
+.ri-arrow-left-line:before { content: "\ea60"; }
+.ri-arrow-right-line:before { content: "\ea6c"; }
+.ri-arrow-up-s-line:before { content: "\ea78"; }
+.ri-bank-card-line:before { content: "\ea92"; }
+.ri-calendar-check-line:before { content: "\eb23"; }
+.ri-calendar-line:before { content: "\eb27"; }
+.ri-chat-3-line:before { content: "\eb51"; }
+.ri-check-line:before { content: "\eb7b"; }
+.ri-checkbox-circle-fill:before { content: "\eb80"; }
+.ri-checkbox-circle-line:before { content: "\eb81"; }
+.ri-close-line:before { content: "\eb99"; }
+.ri-dashboard-line:before { content: "\ec14"; }
+.ri-door-open-line:before { content: "\ec4c"; }
+.ri-download-line:before { content: "\ec5a"; }
+.ri-history-line:before { content: "\ee17"; }
+.ri-home-heart-line:before { content: "\ee2a"; }
+.ri-instagram-line:before { content: "\ee66"; }
+.ri-link:before { content: "\eeb2"; }
+.ri-links-line:before { content: "\eeb8"; }
+.ri-lock-line:before { content: "\eece"; }
+.ri-mail-check-line:before { content: "\eeee"; }
+.ri-map-pin-line:before { content: "\ef14"; }
+.ri-menu-3-line:before { content: "\ef34"; }
+.ri-notification-3-line:before { content: "\ef94"; }
+.ri-play-circle-line:before { content: "\f009"; }
+.ri-price-tag-3-line:before { content: "\f023"; }
+.ri-prohibited-line:before { content: "\f3a0"; }
+.ri-refresh-line:before { content: "\f064"; }
+.ri-rocket-line:before { content: "\f096"; }
+.ri-scissors-cut-line:before { content: "\f0c1"; }
+.ri-scissors-line:before { content: "\f0c3"; }
+.ri-smartphone-line:before { content: "\f15a"; }
+.ri-sparkling-2-line:before { content: "\f36b"; }
+.ri-stack-line:before { content: "\f181"; }
+.ri-star-fill:before { content: "\f186"; }
+.ri-team-line:before { content: "\f1ee"; }
+.ri-time-line:before { content: "\f20f"; }
+.ri-timer-line:before { content: "\f215"; }
+.ri-user-add-line:before { content: "\f25e"; }
+.ri-user-line:before { content: "\f264"; }
+.ri-user-unfollow-line:before { content: "\f278"; }
+.ri-volume-mute-line:before { content: "\f29e"; }
+.ri-whatsapp-line:before { content: "\f2bc"; }
