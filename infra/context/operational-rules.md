@@ -42,13 +42,14 @@ Hard rules:
 - Never commit directly to `qa` or `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev` and is exactly how `dev` and `qa` diverged on migration filenames (#943, #945, #1030).
 - Keep `dev`'s `supabase/migrations/` filenames identical to `qa`/`main`. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
 - `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
-- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `qa`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`qa`) requires the `Migration drift guard` check. Excluding `.github/workflows/**` from a promotion branch leaves `ci-gate` satisfied but blocks that branch, because a required check that never runs never reports.
+- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `qa`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`qa`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy the `qa` check, because a required check that never runs never reports.
 - Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset: `gh pr merge <n> --squash --admin`, only with explicit Santi approval per PR. No ruleset is ever relaxed.
-- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`) and restore review enforcement immediately. That sync is the only sanctioned use of the review relaxation.
+- Back-sync PRs into `dev` (`dev ← qa`, `dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
+- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
 - **Do not merge `origin/dev` into `qa` (or `qa` into `main`).** Promotion is squash-copied trees. Git commit counts across hops lie; compare `git diff` of the two tips. Copy the file delta onto a branch from the destination. Never rename an already-applied migration on a single branch: a retimestamp must land on `dev` first and then promote, or the next merge leaves both variants and the drift guard rejects the promotion.
 
 ## CI Gate
 
-- Required CI check on protected branches: `dashboard-booking-regressions` (`.github/workflows/booking-regression.yml`). That workflow currently runs on PRs to `dev` and `main`, not `qa`.
+- Required CI check on protected branches: check `Dashboard booking regressions` (job `dashboard-booking-regressions` in `.github/workflows/booking-regression.yml`). That workflow currently runs on PRs to `dev` and `main`, not `qa`.
 - Root `pnpm run check` is the default local gate.
 - No direct push to `main`, no `--force`, no `reset --hard`, no secrets or `.funemon/` in commits.

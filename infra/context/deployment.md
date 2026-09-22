@@ -4,7 +4,7 @@
 
 - Sequence: `feature → dev → qa → main`. Skip no step.
 - Per-branch rules live in repository rulesets: `pr-reviews` on `dev`/`qa`/`main` (1 approving review, squash merges only, no deletions, no force pushes), `ci-gate` on `dev`/`main` (required check `Dashboard booking regressions`, branch must be up to date) and `promotion-drift-guard` on `qa` (required check `Migration drift guard`).
-- Required CI gate: `dashboard-booking-regressions` (job defined in `.github/workflows/booking-regression.yml`).
+- Required CI gate: check `Dashboard booking regressions` (job `dashboard-booking-regressions` in `.github/workflows/booking-regression.yml`).
 - Merging to a protected branch requires explicit Santi approval per PR. No protection is relaxed: `gh pr merge <n> --squash --admin` uses the owner's per-PR bypass on `pr-reviews`, while `ci-gate` and `promotion-drift-guard` still cannot be bypassed. Never direct-push to `main`, never `--force`, never bypass a required check.
 - After each promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
 
