@@ -92,6 +92,10 @@ jobs:
 
       - name: Build dashboard
         if: ${{ steps.target.outputs.site == 'dashboard' }}
+        env:
+          # Public client values; accepted as repository/environment secrets or variables.
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL || vars.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY || vars.PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           pnpm --dir apps/dashboard exec node scripts/generate-dashboard-env.mjs --production
           pnpm --dir apps/dashboard exec ng build --configuration=${{ steps.target.outputs.angular_config }}
