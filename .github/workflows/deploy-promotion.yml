@@ -92,7 +92,9 @@ jobs:
 
       - name: Build dashboard
         if: ${{ steps.target.outputs.site == 'dashboard' }}
-        run: pnpm --dir apps/dashboard exec ng build --configuration=${{ steps.target.outputs.angular_config }}
+        run: |
+          pnpm --dir apps/dashboard exec node scripts/generate-dashboard-env.mjs --production
+          pnpm --dir apps/dashboard exec ng build --configuration=${{ steps.target.outputs.angular_config }}
 
       - name: Deploy to Vercel
         id: deploy

@@ -78,8 +78,8 @@ type RpcResult<T> = { data: T | null; error: unknown };
 // =============================================================================
 
 const MOCK_VALID_ENV: DashboardRuntimeEnv = {
-  SUPABASE_URL: 'https://tzqgwziyiospmvpdgbnt.supabase.co',
-  SUPABASE_ANON_KEY: 'sb_publishable_JH2uY3XfVHFujz_KnMdZPA_rZnHsi8i'
+  SUPABASE_URL: 'https://dashboard-tests.supabase.co',
+  SUPABASE_ANON_KEY: 'test-anon-key'
 };
 
 const MOCK_MISSING_ENV: Record<string, string | undefined> = {
@@ -708,8 +708,8 @@ describe('KB-001.5: Success Criteria - All Tests Should Pass After Implementatio
   });
 
   it('KB-001.5.2 - Environment variables should be properly configured', async () => {
-    process.env.SUPABASE_URL = 'https://tzqgwziyiospmvpdgbnt.supabase.co';
-    process.env.SUPABASE_ANON_KEY = 'sb_publishable_JH2uY3XfVHFujz_KnMdZPA_rZnHsi8i';
+    process.env.SUPABASE_URL = 'https://dashboard-tests.supabase.co';
+    process.env.SUPABASE_ANON_KEY = 'test-anon-key';
 
     const { loadDashboardRuntimeEnv } = await import('../../core/runtime/dashboard-env');
     const env = loadDashboardRuntimeEnv();
