@@ -39,10 +39,13 @@
 Hard rules:
 
 - Feature branches MUST merge to `dev` first. Never directly to `qa` or `main`.
+- Never commit directly to `qa` or `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev` and is exactly how `dev` and `qa` diverged on migration filenames (#943, #945, #1030).
+- Keep `dev`'s `supabase/migrations/` filenames identical to `qa`/`main`. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
 - `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
 - Protected branches (`dev`, `qa`, `main`): linear history, 1 approving review, required CI check `dashboard-booking-regressions`, `enforce_admins: true`, no force pushes, no deletions.
 - Self-approval is blocked. Admin squash is only with explicit Santi approval per PR.
-- **Do not merge `origin/dev` into `qa` (or `qa` into `main`).** Promotion is squash-copied trees. Git commit counts across hops lie; compare `git diff` of the two tips. Copy the file delta onto a branch from the destination; do not rename already-applied migration files.
+- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`) and restore review enforcement immediately. That sync is the only sanctioned use of the review relaxation.
+- **Do not merge `origin/dev` into `qa` (or `qa` into `main`).** Promotion is squash-copied trees. Git commit counts across hops lie; compare `git diff` of the two tips. Copy the file delta onto a branch from the destination. Never rename an already-applied migration on a single branch: a retimestamp must land on `dev` first and then promote, or the next merge leaves both variants and the drift guard rejects the promotion.
 
 ## CI Gate
 
