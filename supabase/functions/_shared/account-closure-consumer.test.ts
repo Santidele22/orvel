@@ -10,6 +10,7 @@ const accountClosureOwnerFkMigrationPath = new URL(
   "../../migrations/20260708223500_business_owner_fk_set_null_for_account_closure.sql",
   import.meta.url,
 );
+const accountClosureFunctionPath = new URL("../account-closure/index.ts", import.meta.url);
 const accountClosurePublicBookingMigrationPath = new URL(
   "../../migrations/20260708234500_account_closure_blocks_public_booking.sql",
   import.meta.url,
@@ -211,6 +212,19 @@ Deno.test("account closure migration blocks public booking for closed preserved 
   assertMatch(migration, /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.create_public_booking[\s\S]*_assert_business_accepts_public_bookings\(v_business_id\)/i);
   assertMatch(migration, /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.query_public_slot_availability[\s\S]*_assert_business_accepts_public_bookings\(v_business_id\)/i);
   assertEquals(/DELETE\s+FROM\s+public\.businesses/i.test(migration), false);
+});
+
+Deno.test("account closure authenticates with the shared CRON_KEY before processing", async () => {
+  const source = await Deno.readTextFile(accountClosureFunctionPath);
+
+  assertMatch(source, /getSecret\("CRON_KEY"\)/);
+  assertMatch(source, /isAuthorizedClosureRequest\(req,\s*getSecret\("CRON_KEY"\)\)/);
+  assertMatch(source, /isAuthorizedClosureRequest\([\s\S]*await\s+processDueAccountClosures\(/);
+  assertEquals(
+    /ACCOUNT_CLOSURE_CRON_SECRET/.test(source),
+    false,
+    "account-closure must read the shared CRON_KEY secret, not a per-function secret name",
+  );
 });
 
 Deno.test("account closure processes free local cancellation with null closure and paid-through dates immediately", async () => {
