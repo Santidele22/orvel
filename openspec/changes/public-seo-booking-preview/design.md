@@ -53,7 +53,7 @@ Current leftover auth routes (`src/pages/auth*.astro`) 302 into the dashboard an
 
 | Option | Tradeoff | Decision |
 |--------|----------|----------|
-| Keep `logo.png` (800×400) as `og:image` | Crops badly in WhatsApp | Rejected |
+| Keep `logo.png` (600×262) as `og:image` | Crops badly in WhatsApp | Rejected |
 | SVG or live canvas/Satori card per request | Runtime generator; Edge CPU; not in scope | Rejected |
 | Per-tenant logo | No `logo_url` column in schema | Rejected |
 | One checked-in raster at `apps/landing/public/og-share.png` (1200×630 PNG) | Same file for marketing and booking; served from origin root after Astro copies `public/` to `.vercel/output/static/` | **Chosen** |
