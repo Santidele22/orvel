@@ -4,7 +4,7 @@
 
 Make Orvel’s public marketing surface crawlable and shareable as itself, and make public booking links preview as the **business**, not the Angular SPA title `Orvel`.
 
-WhatsApp and Instagram crawlers do not execute JS. Today they see `apps/dashboard/src/index.html` (`<title>Orvel</title>`) because production rewrites `/booking/*` to that shell. The landing Layout hardcodes canonical and `og:url` to `https://orvel.pro/`, has no robots/sitemap, no JSON-LD, a dead Instagram `href="#"`, and uses an 800×400 wordmark as `og:image`.
+WhatsApp and Instagram crawlers do not execute JS. Today they see `apps/dashboard/src/index.html` (`<title>Orvel</title>`) because production rewrites `/booking/*` to that shell. The landing Layout hardcodes canonical and `og:url` to `https://orvel.pro/`, has no robots/sitemap, no JSON-LD, a dead Instagram `href="#"`, and uses a 600×262 wordmark as `og:image`.
 
 This change ships **technical SEO on `apps/landing`** plus a **server-rewritten HTML head** for `GET /booking/:slug`. Public booking UX stays the Angular PWA. Do not Angular-SSR the dashboard. Do not turn tenant slugs into a Google directory.
 
@@ -42,7 +42,7 @@ No booking rewrite.
 5. One H1 on `/lanzamiento` (demote the CTA heading). One H1 on `/plan`.
 6. `404.astro`.
 7. Organization / SoftwareApplication JSON-LD on the home path only.
-8. Real 1200×630 OG/Twitter image; stop using `logo.png` (800×400) as `og:image`.
+8. Real 1200×630 OG/Twitter image; stop using `logo.png` (600×262) as `og:image`.
 9. Footer Instagram → `https://www.instagram.com/orvel.pro/`.
 
 ### Slice B — Booking share head (Approach 1)
