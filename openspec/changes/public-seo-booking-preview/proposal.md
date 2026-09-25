@@ -42,7 +42,7 @@ No booking rewrite.
 5. One H1 on `/lanzamiento` (demote the CTA heading). One H1 on `/plan`.
 6. `404.astro`.
 7. Organization / SoftwareApplication JSON-LD on the home path only.
-8. Real 1200×630 OG/Twitter image; stop using `logo.png` (800×400) as `og:image`.
+8. Real 1200×630 OG/Twitter image; stop using `logo.png` (600×262) as `og:image`.
 9. Footer Instagram → `https://www.instagram.com/orvel.pro/`.
 
 ### Slice B — Booking share head (Approach 1)
