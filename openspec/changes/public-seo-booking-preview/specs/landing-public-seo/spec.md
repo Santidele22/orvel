@@ -147,7 +147,7 @@ The home path MUST include Organization and SoftwareApplication JSON-LD. Other l
 
 ### Requirement: Shared 1200 By 630 Open Graph Image
 
-Marketing Open Graph and Twitter images MUST use one Orvel image whose dimensions are 1200×630. The 800×400 wordmark `logo.png` MUST NOT be used as `og:image` or `twitter:image`.
+Marketing Open Graph and Twitter images MUST use one Orvel image whose dimensions are 1200×630. The 600×262 wordmark `logo.png` MUST NOT be used as `og:image` or `twitter:image`.
 
 #### Scenario: Marketing share image is the 1200 by 630 asset
 
