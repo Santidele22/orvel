@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`orvel-app` is the v3 Orvel product: a single TypeScript monolith deployed as one Cloudflare Worker that serves both the HTTP API and the built UI assets. It is not launched yet, and the Angular app in `dashboard` remains the live product whose `dev → qa → main` promotion path this app does not affect.
+`orvel-app` is the v3 Orvel product: a single TypeScript monolith deployed as one Cloudflare Worker that serves both the HTTP API and the built UI assets. It is not launched yet. The live product is the Angular app in `dashboard` and the Astro app in `landing`, both of which keep their `dev → qa → main` promotion path and are untouched by this app.
 
 Today the app holds folder structure and tooling configuration only. There is no application source, no stub and no placeholder implementation, and none should be added without an approved slice. Code, identifiers, comments, tests and docs are written in English; product copy shown to users is Spanish (Rioplatense).
 
@@ -36,6 +36,18 @@ tests/e2e            Playwright end-to-end specs
 - `tsconfig.node.json` covers the tooling configs (`vite.config.ts`, `vitest.config.ts`) with `types: ["node"]`, so a mistake there fails `typecheck` instead of surfacing at runtime.
 - One subject per file. When a rule is unclear, ask Santi instead of inventing an answer.
 
+## Where the behaviour comes from
+
+The old app is the source of truth for what the product does, and this branch does not carry it. Read it from `dev`:
+
+- reusable domain logic: `git show dev:packages/booking/src/domain/booking-core.ts` (275 lines, 7 specs) and `dev:packages/booking/src/domain/availability-core.ts` (128 lines, golden test)
+- the rest of the portable logic: `git show dev:packages/domain/src/reference-catalog.ts`, `dev:apps/dashboard/src/app/core/time/argentina-clock.ts`
+- the rules that currently live in Postgres, whose shape is readable from their callers: `git show dev:packages/booking/src/infrastructure/supabase/real-gateway.ts` (873 lines, one wrapper per RPC) and the mappers under `dev:apps/dashboard/src/app/core/api/`
+
+On `dev` the apps live under `apps/`, so their paths start with `apps/dashboard/…` or `apps/landing/…`; `packages/`, `supabase/` and `scripts/` sit at that branch's root.
+
+Port what is already written and tested before writing new code. Do not copy framework or Supabase coupling: the old code carries Angular, RxJS and snake_case rows that must be stripped on the way in.
+
 ## Commands
 
 These scripts are the intended interface of `package.json`. They are NOT runnable yet: dependencies are deliberately not installed, and no command has been verified in this app. Do not report a green result for a command you did not actually run.
@@ -60,8 +72,8 @@ Vitest contract specs are named `*.contract.spec.ts`; Playwright end-to-end spec
 
 ## Prohibitions
 
-- Do not extract anything into `packages/` yet.
-- Do not modify `dashboard` or `landing` from this app's work.
+- Do not modify `dashboard/` or `landing/` from this app's work: they are the live product.
+- This branch has no shared package layer. Keep code inside the app; do not re-create `packages/` to share something early.
 - Do not commit secrets, `.dev.vars`, `.env` files or a real `account_id`.
 - Do not invent version numbers, account ids, URLs or secret values.
 - Do not add a third infrastructure runtime, and do not import an adapter outside a composition root.

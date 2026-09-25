@@ -1,7 +1,7 @@
 import {
   isValidPublicBookingSlug,
   normalizePublicBookingSlug,
-} from '../../../../packages/booking/src/public-booking-slug';
+} from '../../../packages/booking/src/public-booking-slug';
 import { MARKETING_ORIGIN, OG_SHARE_URL } from './public-origin';
 
 export type BookingShareHead = {

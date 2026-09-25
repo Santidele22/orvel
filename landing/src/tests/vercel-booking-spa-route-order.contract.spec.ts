@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { patchVercelOutputConfig } from '../../../../scripts/vercel-output-config.mjs';
+import { patchVercelOutputConfig } from '../../../scripts/vercel-output-config.mjs';
 
 const BOOKING_SPA = { src: '/booking(?:/.*)?', dest: '/dashboard/index.html' };
 const DASHBOARD_SPA = { src: '/dashboard(?:/.*)?', dest: '/dashboard/index.html' };

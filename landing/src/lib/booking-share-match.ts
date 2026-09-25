@@ -1,4 +1,4 @@
-import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../../packages/booking/src/public-booking-slug';
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../../packages/booking/src/public-booking-slug';
 
 const TENANT_PATH = /^\/booking\/(?!manage(?:\/|$))([^/]+)(?:\/[^/]+)?\/?$/;
 

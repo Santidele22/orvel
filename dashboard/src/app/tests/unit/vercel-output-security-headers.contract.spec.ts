@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SECURITY_HEADERS,
   patchVercelOutputConfig,
-} from '../../../../../../scripts/vercel-output-config.mjs';
+} from '../../../../../scripts/vercel-output-config.mjs';
 
 const EXPECTED_SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
