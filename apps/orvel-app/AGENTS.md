@@ -39,6 +39,10 @@ tests/e2e            Playwright end-to-end specs
 
 These scripts are the intended interface of `package.json`. They are NOT runnable yet: dependencies are deliberately not installed, and no command has been verified in this app. Do not report a green result for a command you did not actually run.
 
+Two failures are expected on this empty skeleton and must not be "fixed":
+`typecheck` and `build:ui` fail with `TS18003 No inputs were found in config file`, because the included layers still hold no `.ts` file — never add a stub to silence it.
+Once the first source file exists, the not-yet-installed type packages surface as `TS2688` (`@cloudflare/workers-types` for `tsconfig.worker.json`, `vite/client` for `tsconfig.ui.json`) until dependencies are added with `pnpm add --save-exact`.
+
 | Script | Command |
 | --- | --- |
 | `dev:ui` | `vite` |
@@ -63,4 +67,8 @@ Vitest contract specs are named `*.contract.spec.ts`; Playwright end-to-end spec
 
 ## Status
 
-Skeleton only: folder structure plus tooling configuration. No source code, no migrations, no deploy, and nothing verified by execution. `package.json` has no `dependencies` and no `devDependencies` on purpose; they arrive with `pnpm add --save-exact` when implementation starts.
+Skeleton only: folder structure plus tooling configuration. No source code, no migrations, no deploy.
+
+Verified by execution: every JSON and JSONC config parses, and the core boundary is real, not declared — with TypeScript 5.9.3, a probe using `document` and `fetch` inside `src/domain` fails under `tsconfig.core.json` (`TS2584`, `TS2304`) and compiles clean under the same config with `DOM` added to `lib`.
+
+Not verified: no `package.json` script has ever run, because the dependencies they need are deliberately absent. `package.json` has no `dependencies` and no `devDependencies` on purpose; they arrive with `pnpm add --save-exact` when implementation starts. The wrangler SPA `not_found_handling` interaction with `/api` routing and the Vite `root` resolution are also unverified.
