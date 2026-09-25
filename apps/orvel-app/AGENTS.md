@@ -33,22 +33,23 @@ tests/e2e            Playwright end-to-end specs
 - `src/contracts` holds the wire DTOs shared by both inbound adapters: types and validation schemas only, no logic, and no imports from domain, application or infrastructure.
 - Dependency direction is one-way: `ui` and `server` depend on `application`, which depends on `domain`. `infrastructure` implements the ports declared in `application` and is referenced only from a composition root.
 - `tsconfig.core.json` exists so that a broken boundary fails `pnpm run typecheck` instead of being caught in review: it compiles `src/domain`, `src/application` and `src/contracts` with `"types": []` and `lib: ["ES2023"]`, so no DOM and no Worker global is available and importing Vue, Hono, Drizzle or a Workers API from those layers is a compile error.
+- `tsconfig.node.json` covers the tooling configs (`vite.config.ts`, `vitest.config.ts`) with `types: ["node"]`, so a mistake there fails `typecheck` instead of surfacing at runtime.
 - One subject per file. When a rule is unclear, ask Santi instead of inventing an answer.
 
 ## Commands
 
 These scripts are the intended interface of `package.json`. They are NOT runnable yet: dependencies are deliberately not installed, and no command has been verified in this app. Do not report a green result for a command you did not actually run.
 
-Two failures are expected on this empty skeleton and must not be "fixed":
+Failures to expect on this empty skeleton, none of which may be "fixed":
 `typecheck` and `build:ui` fail with `TS18003 No inputs were found in config file`, because the included layers still hold no `.ts` file — never add a stub to silence it.
-Once the first source file exists, the not-yet-installed type packages surface as `TS2688` (`@cloudflare/workers-types` for `tsconfig.worker.json`, `vite/client` for `tsconfig.ui.json`) until dependencies are added with `pnpm add --save-exact`.
+Once the first source file exists, the not-yet-installed type packages surface as `TS2688` until dependencies are added with `pnpm add --save-exact`: `@cloudflare/workers-types` for `tsconfig.worker.json`, `vite/client` for `tsconfig.ui.json`, and `node` for `tsconfig.node.json`.
 
 | Script | Command |
 | --- | --- |
 | `dev:ui` | `vite` |
 | `dev:worker` | `wrangler dev` |
 | `build:ui` | `vue-tsc -p tsconfig.ui.json --noEmit && vite build` |
-| `typecheck` | `tsc -p tsconfig.core.json && tsc -p tsconfig.worker.json && vue-tsc -p tsconfig.ui.json --noEmit` |
+| `typecheck` | `tsc -p tsconfig.core.json && tsc -p tsconfig.node.json && tsc -p tsconfig.worker.json && vue-tsc -p tsconfig.ui.json --noEmit` |
 | `test` | `vitest run` |
 | `test:watch` | `vitest` |
 | `db:generate` | `drizzle-kit generate` |
