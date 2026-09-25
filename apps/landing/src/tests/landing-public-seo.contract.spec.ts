@@ -107,6 +107,26 @@ describe('Contract: landing public SEO', () => {
     expect(source).not.toMatch(/href=["']#["']/);
   });
 
+  it('renders the Footer Instagram link with the visible @orvel.pro handle', async () => {
+    const source = await readFile(new URL('../components/organisms/Footer.astro', import.meta.url), 'utf8');
+
+    expect(source).toContain('@orvel.pro');
+    expect(source).toContain('ri-instagram-line');
+    expect(source).toMatch(/<span[^>]*>\s*@orvel\.pro\s*<\/span>/);
+  });
+
+  it('lifts the Footer Instagram link out of the dim wrapper and names it from its visible text', async () => {
+    const source = await readFile(new URL('../components/organisms/Footer.astro', import.meta.url), 'utf8');
+    const anchor = source.match(/<a\b[^>]*instagram\.com\/orvel\.pro\/[\s\S]*?<\/a>/)?.[0] ?? '';
+
+    expect(anchor).not.toBe('');
+    expect(anchor).toMatch(/text-(?:text-secondary|text-primary)\b/);
+    expect(anchor).toMatch(/hover:text-primary\b/);
+    expect(anchor).toMatch(/aria-hidden=["']true["']/);
+    expect(source).not.toMatch(/opacity-60/);
+    expect(source).not.toMatch(/aria-label=["']Instagram["']/);
+  });
+
   it('emits Organization and SoftwareApplication JSON-LD only from index.astro', async () => {
     const index = await readFile(new URL('../pages/index.astro', import.meta.url), 'utf8');
     const plan = await readFile(new URL('../pages/plan.astro', import.meta.url), 'utf8');
