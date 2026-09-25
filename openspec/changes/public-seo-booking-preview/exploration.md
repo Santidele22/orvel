@@ -25,7 +25,7 @@ Consequence: `/booking/*` never hits Astro page handlers in production. Any book
 | No `robots.txt` / sitemap | Confirmed: no `robots.txt` or `sitemap*` in the repo. |
 | Canonical + `og:url` hardcoded to `https://orvel.pro/` | Confirmed in `apps/landing/src/layouts/Layout.astro`. Every page that uses Layout advertises the homepage URL. |
 | Default description exists; home overrides title/description | Confirmed. Default: “Gestioná turnos y clientes…”. Home (`index.astro`) sets title “Orvel — Menos ida y vuelta. Más salón.” and a distinct description. |
-| OG image `https://orvel.pro/logo.png` (not 1200×630) | Confirmed. File is `apps/landing/public/logo.png` (wordmark, **800×400**). Same URL on `twitter:image`. |
+| OG image `https://orvel.pro/logo.png` (not 1200×630) | Confirmed. File is `apps/landing/public/logo.png` (wordmark, **600×262**). Same URL on `twitter:image`. |
 | `html lang="es"` not `es-AR` | Confirmed. Dashboard `index.html` is also `lang="es"`. |
 | No JSON-LD | Confirmed: no `application/ld+json` in landing. |
 | `/lanzamiento` two H1s | Confirmed. `Hero.astro` H1 “Gestioná tu salón con intención.” plus `CTA.astro` H1 “Detené el caos. Subí el nivel.” |
@@ -87,7 +87,7 @@ Landing SEO:
 - `apps/landing/src/pages/index.astro`, `lanzamiento.astro`, `plan.astro`, `billing/subscription.astro`, `terminos-y-condiciones.astro`
 - `apps/landing/src/components/organisms/Hero.astro`, `CTA.astro`, `Roadmap.astro`, `Footer.astro`, `prelaunch/PrelaunchHero.astro`
 - New: `apps/landing/public/robots.txt`, sitemap (static or SSR), `apps/landing/src/pages/404.astro`
-- New OG asset under `apps/landing/public/` (1200×630) — do not keep using 800×400 `logo.png` as `og:image`
+- New OG asset under `apps/landing/public/` (1200×630) — do not keep using 600×262 `logo.png` as `og:image`
 - Tests under `apps/landing/src/tests/` (new contract specs)
 
 Booking preview (host + data, not a new app):
