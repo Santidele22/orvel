@@ -1,0 +1,18 @@
+# Dependencies and build output.
+node_modules/
+dist/
+
+# Local Wrangler state and local-only variables.
+.wrangler/
+.dev.vars
+
+# Environment files. The names-only manifest stays tracked.
+.env
+.env.*
+!.env.example
+
+# Coverage output.
+coverage/
+
+# Playwright artifacts for this app, kept outside the app directory.
+../../.cache/orvel-app-playwright-results/

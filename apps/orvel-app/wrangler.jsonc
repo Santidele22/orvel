@@ -1,0 +1,28 @@
+{
+  // Single deployable: this Worker serves the HTTP API and the built UI assets.
+  "name": "orvel-app",
+  "main": "src/server/worker.ts",
+
+  // Raise this deliberately, never by drift. A date in the future is rejected by wrangler.
+  "compatibility_date": "2026-09-25",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./dist/ui",
+    "binding": "ASSETS",
+    // SPA fallback for the UI shell. Must be verified against the installed wrangler
+    // version before slice 0: the fallback has to leave `/api` routing untouched and
+    // must never swallow API requests.
+    "not_found_handling": "single-page-application"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // Not declared yet, each added later by the slice that needs it:
+  // - routes and custom domains
+  // - KV namespaces, R2 buckets and Queue bindings
+  // - every secret (set with `wrangler secret put` or Cloudflare secrets; a value is never committed)
+  // No `account_id` is committed: the account is resolved by the deployer's wrangler login.
+}
