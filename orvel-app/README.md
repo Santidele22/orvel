@@ -4,7 +4,7 @@ Orvel v3 rewrites the booking product as a single TypeScript monolith: a Vue 3 P
 
 ## Status
 
-Skeleton only. This tree is folder structure plus tooling configuration: no application source, no stubs, no migrations, no deploy. Nothing here is running yet, and the Angular app in `apps/dashboard` is still the live product.
+Skeleton only. This tree is folder structure plus tooling configuration: no application source, no stubs, no migrations, no deploy. Nothing here is running yet, and the Angular app in `dashboard` is still the live product.
 
 ## Folder map
 

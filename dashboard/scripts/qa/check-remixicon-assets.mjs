@@ -38,7 +38,7 @@ if (!landingLayout.includes('import "../styles/remixicon-used.css";')) {
 }
 
 if (!existsSync(landingSubsetPath)) {
-  failures.push('Landing subset stylesheet apps/landing/src/styles/remixicon-used.css is missing.');
+  failures.push('Landing subset stylesheet landing/src/styles/remixicon-used.css is missing.');
 } else {
   const landingSubset = readFileSync(landingSubsetPath, 'utf8');
 

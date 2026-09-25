@@ -7,7 +7,7 @@ import type { TurneaSession, TurneaSessionUser } from '@orvel/auth';
 /**
  * Runtime body of `validateSessionSchema`.
  *
- * Extracted to `apps/dashboard/src/app/core/auth/` because it depends on
+ * Extracted to `dashboard/src/app/core/auth/` because it depends on
  * app-internal `ALLOWED_SELECTED_BUSINESS_TYPES` (derived from onboarding
  * reference catalog). The type signature lives in `@orvel/auth`.
  *

@@ -8,11 +8,11 @@ Inherit root rules for orchestration, OpenSpec/TDD, `.funemon/` privacy, and the
 
 - Language: TypeScript
 - App: Angular 21 + `@angular/pwa` (mobile-first; the desktop dashboard is an explicit carve-out)
-- Data: Supabase via the thin anonymous client in `apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts`
+- Data: Supabase via the thin anonymous client in `dashboard/src/app/core/api/supabase-booking/real-gateway.ts`
 
 ## Project specifics
 
-- Public booking routes: `/booking/:slug`, `/booking/:slug/:professionalSlug`, and `/booking/manage` (`apps/dashboard/src/app/features/booking/pages/public/`).
-- Commands from repo root: `pnpm --dir apps/dashboard run …`
-- Tests: Vitest contract specs under `apps/dashboard/src/app/tests/`
+- Public booking routes: `/booking/:slug`, `/booking/:slug/:professionalSlug`, and `/booking/manage` (`dashboard/src/app/features/booking/pages/public/`).
+- Commands from repo root: `pnpm --dir dashboard run …`
+- Tests: Vitest contract specs under `dashboard/src/app/tests/`
 - Do not stack dashboard-local `.opencode/` / `.gemini/` config.

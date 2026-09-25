@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates apps/dashboard/src/environments/environment.generated.ts from the
+ * Generates dashboard/src/environments/environment.generated.ts from the
  * process environment plus the repo `.env` files.
  *
  * The dashboard must never hardcode a Supabase URL or key in committed source.
