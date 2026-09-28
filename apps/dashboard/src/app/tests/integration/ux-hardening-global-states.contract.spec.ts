@@ -15,7 +15,7 @@ const CORE_STATE_CONTRACTS = {
     hooks: ['services-loading-state', 'services-empty-state', 'services-error-state']
   },
   clientes: {
-    file: 'src/app/pages/dashboard/clientes/clientes.page.html',
+    file: 'src/app/features/clientes/pages/clientes.page.html',
     hooks: ['clients-loading-state', 'clients-empty-state', 'clients-error-state']
   },
   configuracion: {

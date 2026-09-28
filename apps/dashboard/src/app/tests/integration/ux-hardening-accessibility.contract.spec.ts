@@ -7,7 +7,7 @@ const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.
 const SIDEBAR_HTML = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html';
 const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
 const SERVICIOS_HTML = 'src/app/features/servicios/pages/servicios.page.html';
-const CLIENTES_HTML = 'src/app/pages/dashboard/clientes/clientes.page.html';
+const CLIENTES_HTML = 'src/app/features/clientes/pages/clientes.page.html';
 const CONFIG_HTML = 'src/app/features/settings/pages/configuracion.page.html';
 const UI_STATE_COMPONENT_TS =
   'src/app/shared/components/ui-state-message/ui-state-message.component.ts';

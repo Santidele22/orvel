@@ -62,7 +62,7 @@ describe('DB-FIX-001 RED - Gestionar bajas must be soft delete only', () => {
 
   it('exposes explicit UI path for low-risk deactivation (not create modal)', () => {
     const clientesTs = readSource('src/app/pages/dashboard/clientes/clientes.page.ts');
-    const clientesHtml = readSource('src/app/pages/dashboard/clientes/clientes.page.html');
+    const clientesHtml = readSource('src/app/features/clientes/pages/clientes.page.html');
     const merged = `${clientesTs}\n${clientesHtml}`;
 
     expect(merged).toMatch(/data-testid=["']clientes-deactivate-action["']/i);
