@@ -14,6 +14,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
+import { ACTIVE_BUSINESS_ID_SOURCE } from '../../core/business/business-directory.ports';
 import { ConfiguracionPage } from '../../features/settings/pages/configuracion.page';
 import { requestSubscriptionCancellation } from '../../features/billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
 
@@ -86,6 +87,7 @@ describe('Configuracion account cancellation modal behavior', () => {
             save: vi.fn(async () => undefined),
           },
         },
+        { provide: ACTIVE_BUSINESS_ID_SOURCE, useExisting: BusinessService },
         {
           provide: AuthService,
           useValue: {
