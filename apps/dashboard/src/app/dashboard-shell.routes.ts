@@ -1,6 +1,14 @@
 import { Routes } from '@angular/router';
 import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
 import { DashboardService } from './core/dashboard/dashboard.service';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from './core/dashboard/dashboard-data.ports';
+import { ClienteService } from './features/clientes/data-access/cliente.service';
+import { ServicioService } from './features/servicios/data-access/servicio.service';
+import { BusinessService } from './features/settings/data-access/business.service';
 import { provideBookingQueries } from './features/booking/booking-queries.providers';
 
 export const dashboardShellChildren: Routes = [
@@ -46,7 +54,14 @@ export const dashboardShellRoutes: Routes = [
       import('./shared/dashboard-shell/dashboard-shell.component').then(m => m.DashboardShellComponent),
     canActivate: [dashboardAuthGuard],
     canActivateChild: [dashboardAuthChildGuard],
-    providers: [provideBookingQueries(), DashboardService],
+    providers: [
+      provideBookingQueries(),
+      DashboardService,
+      // Bind core dashboard read ports to the feature implementations.
+      { provide: DASHBOARD_CLIENTE_SOURCE, useExisting: ClienteService },
+      { provide: DASHBOARD_SERVICIO_SOURCE, useExisting: ServicioService },
+      { provide: DASHBOARD_BUSINESS_SOURCE, useExisting: BusinessService }
+    ],
     children: dashboardShellChildren
   }
 ];
