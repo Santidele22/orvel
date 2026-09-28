@@ -70,7 +70,7 @@ describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
     expect(template).toContain('Transferí y mandá el comprobante');
     expect(template).toContain('No usamos Mercado Pago ni tarjeta');
     expect(template).toContain('PLAN PREMIUM');
-    expect(template).toContain('$25.000/mes');
+    expect(template).toContain('$9.000/mes');
     expect(template).toContain('Pago pendiente');
     expect(template).toContain('Turnos ilimitados');
     expect(template).toContain('1 local');
@@ -78,7 +78,7 @@ describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
     expect(template).toContain('orvel.pagos');
     expect(template).toContain('Copiar');
     expect(template).toContain('copyAlias()');
-    expect(template).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(template).toContain('Transferí los $9.000 al alias de arriba.');
     expect(template).toContain('Mandá el comprobante por WhatsApp.');
     expect(template).toContain('Entrá ya en Gratis, sin esperar a nadie.');
     expect(template).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');

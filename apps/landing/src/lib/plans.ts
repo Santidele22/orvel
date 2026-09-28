@@ -280,7 +280,7 @@ function getStaticPlans(): Plan[] {
       code: 'PREMIUM',
       name: 'Premium',
       description: 'Para recibir turnos ilimitados en tu local principal.',
-      price: 25000,
+      price: 9000,
       price_quarterly: 0,
       price_annual: 0,
       currency: 'ARS',

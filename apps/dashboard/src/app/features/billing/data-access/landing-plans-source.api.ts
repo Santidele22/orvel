@@ -58,9 +58,9 @@ const PLAN_COPY: Record<CanonicalPlanCode, { name: string; priceMonthlyCents: nu
   },
   PREMIUM: {
     name: 'Premium',
-    priceMonthlyCents: 2_500_000,
+    priceMonthlyCents: 900_000,
     billingCadences: {
-      monthly: 25_000
+      monthly: 9_000
     }
   }
 };

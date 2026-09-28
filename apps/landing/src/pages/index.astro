@@ -16,7 +16,7 @@ import Footer from '../components/organisms/Footer.astro';
 const plans = await getActivePlans();
 const plansWithBilling = plans.map((plan) => calculateBillingPrices(plan));
 const premium = plansWithBilling.find((plan) => plan.code === 'PREMIUM');
-const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` : '$25.000';
+const premiumPriceLabel = premium ? `$${premium.price.toLocaleString('es-AR')}` : '$9.000';
 
 const organizationJsonLd = {
   '@context': 'https://schema.org',

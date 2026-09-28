@@ -32,7 +32,7 @@ describe('Contract: Orvel pricing plans and MVP branch add-on deferral', () => {
     const pricingSource = await readFile(PRICING_PATH, 'utf8');
     const plansSource = await readFile(PLANS_PATH, 'utf8');
 
-    for (const expected of ['25000']) {
+    for (const expected of ['9000']) {
       expect(plansSource).toContain(expected);
     }
 

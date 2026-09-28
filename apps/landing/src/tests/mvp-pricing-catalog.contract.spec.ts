@@ -14,7 +14,7 @@ describe('Contract: MVP landing pricing catalog', () => {
 
     expect(plans).toContain("const CANONICAL_PLAN_ORDER = ['FREE', 'PREMIUM']");
     expect(plans).toContain("code: 'PREMIUM'");
-    expect(plans).toContain('price: 25000');
+    expect(plans).toContain('price: 9000');
     expect(plans).not.toMatch(/code:\s*['"](?:STARTER|GROWTH|PRO)['"]/);
   });
 
@@ -34,10 +34,66 @@ describe('Contract: MVP landing pricing catalog', () => {
     const subscriptionPage = source('src/pages/billing/subscription.astro');
 
     expect(subscriptionPage).toContain('PREMIUM');
-    expect(subscriptionPage).toContain('$25.000/mes');
+    expect(subscriptionPage).toContain('$9.000/mes');
     expect(subscriptionPage).toContain('orvel.pagos');
     expect(subscriptionPage).not.toMatch(/Hasta 15 turnos/i);
     expect(subscriptionPage).not.toMatch(/\$12\s*\/\s*mes|\$22\s*\/\s*mes|\$39\s*\/\s*mes/);
     expect(subscriptionPage).not.toMatch(/quarterly|annual/);
+  });
+
+  it('moves all three catalog price surfaces to ARS 9.000 in one migration', () => {
+    const migration = source(
+      '../../supabase/migrations/20260928120000_premium_monthly_price_9000.sql'
+    );
+
+    // public.plans.price — major units, read by get_active_plans().
+    expect(migration).toMatch(/price = 9000/);
+    // public.plan_prices.amount_cents — minor units, read by the billing surfaces.
+    expect(migration).toMatch(/amount_cents = 900000/);
+    // public.mp_plan_catalog.amount — legacy Mercado Pago catalog.
+    expect(migration).toMatch(/amount = 9000/);
+
+    expect(migration).toMatch(/WHERE code = 'PREMIUM'/);
+    expect(migration).toMatch(/WHERE plan_code = 'PREMIUM'/);
+    expect(migration).toMatch(/WHERE tier_code = 'PREMIUM_MONTHLY'/);
+  });
+
+  it('keeps the Premium monthly price at ARS 9.000 on every shipped surface', () => {
+    expect(source('src/lib/plans.ts')).toContain('price: 9000');
+    expect(source('src/pages/index.astro')).toContain("'$9.000'");
+    expect(source('src/lib/premium-alias-receipt.ts')).toContain("PREMIUM_PRICE_COPY = '$9.000'");
+    expect(source('src/pages/billing/subscription.astro')).toContain('$9.000/mes');
+
+    expect(
+      source('../dashboard/src/app/features/billing/data-access/landing-plans-source.api.ts')
+    ).toContain('priceMonthlyCents: 900_000');
+    expect(source('../dashboard/src/app/core/billing/premium-alias-receipt.ts')).toContain(
+      "PREMIUM_PRICE_COPY = '$9.000'"
+    );
+    expect(
+      source('../dashboard/src/app/features/billing/pages/billing-subscription.page.html')
+    ).toContain('$9.000/mes');
+    expect(
+      source('../dashboard/src/app/features/auth/pages/in-app-signup-wizard.page.ts')
+    ).toContain('$9.000/mes');
+  });
+
+  it('leaves no ARS 25.000 Premium price behind on a shipped surface', () => {
+    const shippedSurfaces = [
+      'src/lib/plans.ts',
+      'src/pages/index.astro',
+      'src/pages/billing/subscription.astro',
+      'src/lib/premium-alias-receipt.ts',
+      '../dashboard/src/app/core/billing/premium-alias-receipt.ts',
+      '../dashboard/src/app/features/billing/data-access/landing-plans-source.api.ts',
+      '../dashboard/src/app/features/billing/pages/billing-subscription.page.html',
+      '../dashboard/src/app/features/auth/pages/in-app-signup-wizard.page.ts'
+    ];
+
+    for (const surface of shippedSurfaces) {
+      expect(source(surface), `${surface} still ships the old Premium price`).not.toMatch(
+        /25\.000|25000|2_500_000/
+      );
+    }
   });
 });

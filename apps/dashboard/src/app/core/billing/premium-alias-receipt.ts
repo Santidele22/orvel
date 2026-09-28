@@ -1,8 +1,8 @@
 export const PREMIUM_TRANSFER_ALIAS = 'orvel.pagos';
-export const PREMIUM_PRICE_COPY = '$25.000';
+export const PREMIUM_PRICE_COPY = '$9.000';
 export const PREMIUM_WHATSAPP_NUMBER = '5492944667161';
 export const PREMIUM_WHATSAPP_MESSAGE =
-  'Hola, te mando el comprobante de Premium Orvel ($25.000). Alias orvel.pagos.';
+  'Hola, te mando el comprobante de Premium Orvel ($9.000). Alias orvel.pagos.';
 export const PREMIUM_REVIEW_STORAGE_KEY = 'orvel.premium_review';
 export const PREMIUM_REVIEW_PENDING = 'pending';
 export const PREMIUM_RECEIPT_SENT_STORAGE_KEY = 'orvel.premium_review_receipt_sent';
