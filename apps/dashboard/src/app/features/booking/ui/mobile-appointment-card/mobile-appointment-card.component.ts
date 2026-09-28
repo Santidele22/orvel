@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { isDepositUnpaid } from '@orvel/booking/application';
 import type { TurnoWithRelations } from '../../models/turno.model';
 import { DashboardService } from '../../../../core/dashboard/dashboard.service';
-import { AuthService } from '../../../../services/auth.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-mobile-appointment-card',

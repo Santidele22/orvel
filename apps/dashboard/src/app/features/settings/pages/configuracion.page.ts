@@ -16,7 +16,7 @@ import { ThemeService } from '../../../core/theming/theme.service';
 import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme.component';
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';

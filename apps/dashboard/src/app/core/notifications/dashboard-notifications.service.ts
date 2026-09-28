@@ -1,5 +1,5 @@
 import { Injectable, computed, signal, inject, OnDestroy } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../auth/auth.service';
 import { createSupabaseClient } from '../runtime/supabase-client';
 import {
   archiveNotification,

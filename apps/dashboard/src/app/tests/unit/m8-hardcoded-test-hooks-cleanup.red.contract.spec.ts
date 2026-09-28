@@ -118,7 +118,7 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
 
   it('mock sessions/providers are explicitly dev/test gated and cannot create productive auto-login identity', () => {
     const authAndOnboardingSource = [
-      readApp('services/auth.service.ts'),
+      readApp('core/auth/auth.service.ts'),
       readIfExists(path.join(APP_ROOT, 'core/auth/mock-login-business-types.ts')),
       readIfExists(path.join(APP_ROOT, 'features/onboarding/pages/onboarding-business-step.page.ts')),
       readIfExists(path.join(APP_ROOT, 'core/auth/route-protection.ts'))

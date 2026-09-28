@@ -66,7 +66,7 @@ function createBusinessSettingsFacade(): BusinessSettingsFacade {
 }
 
 beforeAll(async () => {
-  const authMod = await import('../../services/auth.service');
+  const authMod = await import('../../core/auth/auth.service');
   AuthServiceToken = authMod.AuthService;
   const mod = await import('../../features/settings/data-access/business-settings.facade');
   BusinessSettingsFacadeCtor = mod.BusinessSettingsFacade;

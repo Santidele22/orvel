@@ -21,6 +21,9 @@
 
     <app-mobile-bottom-nav />
 
-    <app-operator-tour-help-button />
+    @let tourHelpComponent = tourHelp;
+    @if (tourHelpComponent) {
+      <ng-container [ngComponentOutlet]="tourHelpComponent" />
+    }
   </div>
 </div>

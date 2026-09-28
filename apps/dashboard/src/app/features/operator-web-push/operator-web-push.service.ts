@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { createSupabaseClient } from '../../core/runtime/supabase-client';
 import { BusinessService } from '../settings/data-access/business.service';
 import { readVapidPublicKey } from './operator-web-push-eligibility';

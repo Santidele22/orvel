@@ -10,9 +10,11 @@ import { of } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
-import { ClienteService } from '../../../features/clientes/data-access/cliente.service';
-import { ServicioService } from '../../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../../features/settings/data-access/business.service';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from '../dashboard-data.ports';
 import { DashboardService } from '../dashboard.service';
 
 const homePageSource = readFileSync(
@@ -96,9 +98,9 @@ function createService(queries: BookingQueries, clients = [{ id: 'c-1', nombre: 
       provideZonelessChangeDetection(),
       DashboardService,
       { provide: BOOKING_QUERIES, useValue: queries },
-      { provide: ClienteService, useValue: { items: signal(clients), getAll: () => of(clients) } },
-      { provide: ServicioService, useValue: { items: signal(services), getAll: () => of(services) } },
-      { provide: BusinessService, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } }
+      { provide: DASHBOARD_CLIENTE_SOURCE, useValue: { items: signal(clients), getAll: () => of(clients) } },
+      { provide: DASHBOARD_SERVICIO_SOURCE, useValue: { items: signal(services), getAll: () => of(services) } },
+      { provide: DASHBOARD_BUSINESS_SOURCE, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } }
     ]
   });
   return TestBed.inject(DashboardService);

@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import type { SupabaseAuthClient, SupabaseSession } from '../../core/auth/supabase-auth.client';
 
 const authClient = vi.hoisted(() => ({

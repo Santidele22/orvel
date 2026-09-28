@@ -25,7 +25,11 @@ export type BusinessTypeCode =
   | 'masajes'
   | 'otro';
 
-export const ONBOARDING_BUSINESS_TYPES_STORAGE_KEY = 'turnea.onboarding.rubros.v1';
+import {
+  ONBOARDING_BUSINESS_TYPES_STORAGE_KEY
+} from '../../../core/storage/browser-storage-keys';
+
+export { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY };
 
 const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 

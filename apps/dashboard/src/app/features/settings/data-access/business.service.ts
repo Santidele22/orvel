@@ -6,7 +6,7 @@ import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-cl
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
 import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
 import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';

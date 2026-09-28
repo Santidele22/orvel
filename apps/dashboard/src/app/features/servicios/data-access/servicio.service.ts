@@ -8,7 +8,7 @@ import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, S
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { inject } from '@angular/core';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
 import { BusinessService } from '../../settings/data-access/business.service';

@@ -13,7 +13,7 @@ import {
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { BusinessService } from '../../settings/data-access/business.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
