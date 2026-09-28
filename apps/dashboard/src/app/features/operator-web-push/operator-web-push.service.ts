@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { createSupabaseClient } from '../../core/runtime/supabase-client';
-import { BusinessService } from '../settings/data-access/business.service';
+import { ACTIVE_BUSINESS_ID_SOURCE } from '../../core/business/business-directory.ports';
 import { readVapidPublicKey } from './operator-web-push-eligibility';
 
 export type OperatorWebPushStatus = 'enabled' | 'unsupported' | 'denied' | 'off';
@@ -21,7 +21,7 @@ function toUint8Array(base64Url: string): Uint8Array {
 @Injectable({ providedIn: 'root' })
 export class OperatorWebPushService {
   private readonly authService = inject(AuthService);
-  private readonly businessService = inject(BusinessService);
+  private readonly activeBusinessId = inject(ACTIVE_BUSINESS_ID_SOURCE);
   readonly status = signal<OperatorWebPushStatus>('off');
 
   async enableFromUserGesture(): Promise<void> {
@@ -105,7 +105,7 @@ export class OperatorWebPushService {
       return;
     }
 
-    const businessId = await this.businessService.getActiveBusinessId();
+    const businessId = await this.activeBusinessId.getActiveBusinessId();
     const { data, error } = await createSupabaseClient()
       .from('web_push_subscriptions')
       .select('business_id')
@@ -126,7 +126,7 @@ export class OperatorWebPushService {
       throw new Error(PERSIST_ERROR);
     }
 
-    const businessId = await this.businessService.getActiveBusinessId();
+    const businessId = await this.activeBusinessId.getActiveBusinessId();
     const payload = subscription.toJSON();
     const endpoint = payload.endpoint;
     const p256dh = payload.keys?.['p256dh'];

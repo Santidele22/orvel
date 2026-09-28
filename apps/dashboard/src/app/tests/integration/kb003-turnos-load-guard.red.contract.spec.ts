@@ -5,8 +5,8 @@
 // Tests will pass after Magnus implements real Supabase queries
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { ClienteService } from '../../services/cliente.service';
-import type { ServicioService } from '../../services/servicio.service';
+import type { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import type { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { firstValueFrom } from 'rxjs';
 import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = cwd();
 const DESIGN_SYSTEM_PATH = 'DESIGN_SYSTEM.md';
 const ZEN_SCOPE = [
-  'src/app/pages/dashboard',
+  'src/app/features',
   'src/app/shared/dashboard-shell',
   'src/app/shared/dashboard-sidebar',
   'src/app/shared/dashboard-topbar'

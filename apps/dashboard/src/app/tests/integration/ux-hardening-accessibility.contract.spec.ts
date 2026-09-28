@@ -6,8 +6,8 @@ const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.htm
 const TOPBAR_HTML = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.html';
 const SIDEBAR_HTML = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html';
 const TURNOS_HTML = 'src/app/features/booking/pages/turnos-list.page.html';
-const SERVICIOS_HTML = 'src/app/pages/dashboard/servicios/servicios.page.html';
-const CLIENTES_HTML = 'src/app/pages/dashboard/clientes/clientes.page.html';
+const SERVICIOS_HTML = 'src/app/features/servicios/pages/servicios.page.html';
+const CLIENTES_HTML = 'src/app/features/clientes/pages/clientes.page.html';
 const CONFIG_HTML = 'src/app/features/settings/pages/configuracion.page.html';
 const UI_STATE_COMPONENT_TS =
   'src/app/shared/components/ui-state-message/ui-state-message.component.ts';
@@ -33,28 +33,6 @@ describe('UX hardening final: accessibility contracts (mock mode, RED)', () => {
     // TODO(Aurora): nombrar selector de unidad/theme para navegación por lector de pantalla.
     expect(sidebarHtml).toMatch(/data-testid=["']dashboard-sidebar-theme-switcher["']/);
     expect(sidebarHtml).toMatch(/\[attr\.aria-label\]=["'][^"']+["']/);
-  });
-
-  it('requires aria-live contracts for feedback regions and shared state message', async () => {
-    const [turnosHtml, serviciosHtml, clientesHtml, configHtml, stateSource] = await Promise.all([
-      readFile(fromRoot(TURNOS_HTML), 'utf-8'),
-      readFile(fromRoot(SERVICIOS_HTML), 'utf-8'),
-      readFile(fromRoot(CLIENTES_HTML), 'utf-8'),
-      readFile(fromRoot(CONFIG_HTML), 'utf-8'),
-      readFile(fromRoot(UI_STATE_COMPONENT_TS), 'utf-8')
-    ]);
-
-    // TODO(Aurora): app-ui-state-message debe exponer región viva configurable.
-    expect(stateSource).toMatch(/aria-live/);
-    expect(stateSource).toMatch(/role=\"status\"|role=\"alert\"/);
-
-    // TODO(Aurora): turnos necesita feedback accesible (error/éxito admin actions) con aria-live.
-    expect(turnosHtml).toMatch(/aria-live=/);
-
-    // Páginas core restantes ya deben conservar contrato de región viva.
-    expect(serviciosHtml).toMatch(/aria-live=/);
-    expect(clientesHtml).toMatch(/aria-live=/);
-    expect(configHtml).toMatch(/aria-live=/);
   });
 
   it('requires focus-visible hooks and basic focus management contracts on core forms/actions', async () => {

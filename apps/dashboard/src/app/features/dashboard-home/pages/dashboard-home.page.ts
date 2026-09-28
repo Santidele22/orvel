@@ -3,8 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../../core/theming/theme.service';
-import { AuthService } from '../../../services/auth.service';
-import { BusinessService } from '../../settings/data-access/business.service';
+import { AuthService } from '../../../core/auth/auth.service';
+import {
+  ACTIVE_BUSINESS_ID_SOURCE,
+  BUSINESS_SETTINGS_SOURCE
+} from '../../../core/business/business-directory.ports';
+import { createSupabaseClient } from '../../../core/runtime/supabase-client';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
@@ -132,7 +136,8 @@ export class DashboardHomeComponent {
   protected readonly dashboardService = inject(DashboardService);
   protected readonly themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
-  private readonly businessFacade = inject(BusinessService);
+  private readonly businessSettings = inject(BUSINESS_SETTINGS_SOURCE);
+  private readonly activeBusinessId = inject(ACTIVE_BUSINESS_ID_SOURCE);
   private readonly webPush = inject(OperatorWebPushService);
   protected readonly isMobile = createIsMobileSignal().isMobile;
 
@@ -141,7 +146,7 @@ export class DashboardHomeComponent {
   }
 
   protected showPremiumReviewBanner(): boolean {
-    const plan = this.businessFacade.settings()?.plan ?? this.user()?.plan ?? 'FREE';
+    const plan = this.businessSettings.settings()?.plan ?? this.user()?.plan ?? 'FREE';
     const premiumPaid = String(plan).trim().toUpperCase() === 'PREMIUM';
     return shouldShowPremiumReviewBanner({
       pending: isPremiumReviewPending(readBrowserReviewStorage()),
@@ -261,7 +266,7 @@ export class DashboardHomeComponent {
 
   /** Business configuration details for the right sidebar */
   protected readonly businessInfo = computed(() => {
-    const state = this.businessFacade.settings();
+    const state = this.businessSettings.settings();
     const now = this.dashboardService.now();
     
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -323,7 +328,7 @@ export class DashboardHomeComponent {
   });
 
   protected bookingUrl(): string {
-    const state = this.businessFacade.settings();
+    const state = this.businessSettings.settings();
     const slug = state?.slug?.trim();
     if (!slug || slug === 'id-pendiente') {
       return 'Link de reservas no disponible';
@@ -333,7 +338,7 @@ export class DashboardHomeComponent {
   }
 
   protected hasBookingUrl(): boolean {
-    const slug = this.businessFacade.settings()?.slug?.trim();
+    const slug = this.businessSettings.settings()?.slug?.trim();
     return Boolean(slug && slug !== 'id-pendiente');
   }
 
@@ -367,18 +372,17 @@ export class DashboardHomeComponent {
       this.copyFailed.set(true);
       return;
     }
-    void this.businessFacade
-      .getActiveBusinessId()
-      .then((businessId) => markBookingLinkCopied(businessId, this.businessFacade.getSupabaseClient()))
+    void this.activeBusinessId.getActiveBusinessId()
+      .then((businessId) => markBookingLinkCopied(businessId, createSupabaseClient()))
       .catch(() => undefined);
   }
 
   private async hydrateBusinessSettings(userId: string): Promise<void> {
-    if (this.businessFacade.hasHydratedSnapshot(userId) || (this.hydratedUserId === userId && this.businessFacade.settings())) {
+    if (this.businessSettings.hasHydratedSnapshot(userId) || (this.hydratedUserId === userId && this.businessSettings.settings())) {
       return;
     }
 
     this.hydratedUserId = userId;
-    await this.businessFacade.loadFromSupabase(userId);
+    await this.businessSettings.loadFromSupabase(userId);
   }
 }

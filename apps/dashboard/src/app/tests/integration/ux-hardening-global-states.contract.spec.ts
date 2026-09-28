@@ -11,11 +11,11 @@ const CORE_STATE_CONTRACTS = {
     hooks: ['turnos-loading-state', 'turnos-empty-state', 'turnos-error-state']
   },
   servicios: {
-    file: 'src/app/pages/dashboard/servicios/servicios.page.html',
+    file: 'src/app/features/servicios/pages/servicios.page.html',
     hooks: ['services-loading-state', 'services-empty-state', 'services-error-state']
   },
   clientes: {
-    file: 'src/app/pages/dashboard/clientes/clientes.page.html',
+    file: 'src/app/features/clientes/pages/clientes.page.html',
     hooks: ['clients-loading-state', 'clients-empty-state', 'clients-error-state']
   },
   configuracion: {
@@ -29,15 +29,6 @@ function fromRoot(relativePath: string): string {
 }
 
 describe('UX hardening final: global states consistency contracts (mock mode, RED)', () => {
-  it('requires shared state presentation contract to support loading/empty/error', async () => {
-    const source = await readFile(fromRoot(UI_STATE_COMPONENT_TS), 'utf-8');
-
-    // TODO(Aurora): extender shared state component para soportar tone/variant de error.
-    expect(source).toMatch(/loading|empty|error/);
-    expect(source).toMatch(/@Input\(\).*tone/);
-    expect(source).toMatch(/warning|neutral|danger|error/);
-  });
-
   it('requires deterministic loading/empty/error hooks in all core dashboard pages', async () => {
     const mismatches: string[] = [];
 

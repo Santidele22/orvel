@@ -59,7 +59,7 @@ describe('Dashboard bugfix product decisions contract', () => {
 
   it('defines a temporary frontend category mapping by business type with fallback Otro and no schema dependency', () => {
     const servicioSource = readDashboardFile('src/app/features/servicios/data-access/servicio.service.ts');
-    const legacyServicioSource = readDashboardFile('src/app/services/servicio.service.ts');
+    const legacyServicioSource = readDashboardFile('src/app/features/servicios/data-access/servicio.service.ts');
     const combined = `${servicioSource}\n${legacyServicioSource}`;
 
     expect(combined).toMatch(/map.*BusinessType.*Categor|businessType.*Categor|get.*Categor.*BusinessType/i);

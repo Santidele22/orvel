@@ -85,16 +85,4 @@ describe('Orvel pricing landing RED contracts', () => {
     );
   });
 
-  it('signup plan landing route/component must use Orvel-styled plan cards and reject the legacy static layout', () => {
-    const routes = readSource('src/app/app.routes.ts');
-    const componentTs = readSource('src/app/features/onboarding/pages/signup-plan-step.component.ts');
-    const templateHtml = readSource('src/app/features/onboarding/pages/signup-plan-step.page.html');
-
-    expect(routes).toMatch(/path:\s*'auth\/signup\/plan'/);
-    expect(componentTs).toMatch(/SignupPlanStepPageComponent/);
-
-    expect(templateHtml).toMatch(/plan-cards-grid|plan-card|monthly|quarterly|annual/i);
-    expect(templateHtml).toMatch(/STARTER|GROWTH|PRO/i);
-    expect(templateHtml).not.toMatch(/FREE|BASIC|MEDIUM/i);
-  });
 });

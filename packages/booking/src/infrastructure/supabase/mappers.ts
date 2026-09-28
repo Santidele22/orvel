@@ -156,6 +156,9 @@ export function mapResolvedBusinessToPublicView(payload: unknown): BusinessPubli
   };
 }
 
+/** Reader-facing copy for the anonymous turnero being switched off. */
+export const PUBLIC_TURNERO_DISABLED_MESSAGE = 'Public booking is temporarily unavailable.';
+
 // Map Supabase RPC error to ApiError while preserving safe diagnostics for operational logs.
 export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
   const code = error.code || '';
@@ -182,6 +185,13 @@ export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
     if (code === domainCode || message.includes(domainCode)) {
       return apiError(domainCode, message, error);
     }
+  }
+  // `_assert_business_accepts_public_bookings` rejects the anonymous turnero
+  // while the business has not confirmed its email. It is a product state, not
+  // a validation failure: the client must be able to show an "unavailable"
+  // message instead of a generic validation error.
+  if (code === 'PUBLIC_TURNERO_DISABLED' || message.includes('PUBLIC_TURNERO_DISABLED')) {
+    return apiError('PUBLIC_TURNERO_DISABLED', PUBLIC_TURNERO_DISABLED_MESSAGE, error);
   }
   if (code === 'TOKEN_REVOKED' || message.includes('TOKEN_REVOKED')) {
     return apiError('TOKEN_REVOKED', message, error);
