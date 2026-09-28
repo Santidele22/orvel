@@ -5,7 +5,7 @@ const zenHtml = readFileSync(
   new URL('../pages/themes/configuracion-zen-theme.component.html', import.meta.url),
   'utf8'
 );
-const serviceTs = readFileSync(new URL('./business.service.ts', import.meta.url), 'utf8');
+const serviceTs = readFileSync(new URL('../../../core/business/business.service.ts', import.meta.url), 'utf8');
 const pageTs = readFileSync(new URL('../pages/configuracion.page.ts', import.meta.url), 'utf8');
 
 const GHOST_FORM_CONTROLS = [

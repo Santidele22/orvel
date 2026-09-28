@@ -10,7 +10,7 @@ import {
   getBranchContextService,
   resetBranchContextSession
 } from '../../../core/branches/branch-context.service';
-import { BusinessService } from './business.service';
+import { BusinessService } from '../../../core/business/business.service';
 
 const USER_ID = 'user-1';
 const BUSINESS_ID = 'business-owned';

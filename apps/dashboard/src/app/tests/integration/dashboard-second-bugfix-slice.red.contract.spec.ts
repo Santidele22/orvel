@@ -128,7 +128,7 @@ function readSettingsSources(): string {
     'src/app/features/settings/pages/configuracion.page.html',
     'src/app/features/settings/pages/themes/configuracion-zen-theme.component.ts',
     'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html',
-    'src/app/features/settings/data-access/business.service.ts'
+    'src/app/core/business/business.service.ts'
   ].map(readDashboardSource).join('\n');
 }
 

@@ -16,7 +16,7 @@ import {
   DASHBOARD_TOUR,
   DASHBOARD_TOUR_HELP_COMPONENT
 } from '../../core/shell/dashboard-chrome.ports';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import { BusinessService } from '../../core/business/business.service';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { OperatorTourHelpButtonComponent } from '../../features/operator-tour/operator-tour-help-button.component';

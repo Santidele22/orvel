@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const serviceTs = readFileSync(
-  resolve(process.cwd(), 'src/app/features/settings/data-access/business.service.ts'),
+  resolve(process.cwd(), 'src/app/core/business/business.service.ts'),
   'utf8'
 );
 const pageTs = readFileSync(

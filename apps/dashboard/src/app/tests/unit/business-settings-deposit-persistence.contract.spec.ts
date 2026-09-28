@@ -69,7 +69,7 @@ function extractObjectLiteralAfter(sourceText: string, marker: string): string {
 
 describe('WU3 business settings deposit persistence', () => {
   const facadeSource = readUtf8('src/app/features/settings/data-access/business-settings.facade.ts');
-  const serviceSource = readUtf8('src/app/features/settings/data-access/business.service.ts');
+  const serviceSource = readUtf8('src/app/core/business/business.service.ts');
   const pageSource = readUtf8('src/app/features/settings/pages/configuracion.page.ts');
   const zenTemplate = readUtf8('src/app/features/settings/pages/themes/configuracion-zen-theme.component.html');
   const typesSource = readUtf8('../../packages/types/src/business.model.ts');

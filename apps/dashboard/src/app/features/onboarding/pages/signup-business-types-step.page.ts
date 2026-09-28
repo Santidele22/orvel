@@ -21,7 +21,7 @@ import {
   persistBusinessTypes,
   readBusinessTypes
 } from '../data-access/onboarding-business-types-storage';
-import { persistPlanSelection, readPlanSelection } from '../data-access/onboarding-plan-storage';
+import { persistPlanSelection, readPlanSelection } from '../../../core/storage/onboarding-plan-storage';
 import {
   buildInitialBusinessSettingsForOnboarding,
   isAllowedOnboardingBusinessType,

@@ -91,10 +91,10 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../features/onboarding/data-access/onboarding-plan-storage');
+    module = await import('../../core/storage/onboarding-plan-storage');
   } catch {
     throw new Error(
-      'TODO(Aurora): create src/app/features/onboarding/data-access/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage).'
+      'TODO(Aurora): create src/app/core/storage/onboarding-plan-storage.ts exporting ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage).'
     );
   }
 
@@ -105,7 +105,7 @@ async function loadOnboardingPlanStorageModule(): Promise<OnboardingPlanStorageM
 
   if (!ONBOARDING_PLAN_STORAGE_KEY || !readPlanSelection) {
     throw new Error(
-      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage) in src/app/features/onboarding/data-access/onboarding-plan-storage.ts'
+      'Missing exports ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection(storage) in src/app/core/storage/onboarding-plan-storage.ts'
     );
   }
 

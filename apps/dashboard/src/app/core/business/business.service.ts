@@ -1,15 +1,15 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { Observable, from, throwError, map, tap } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
+import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '@orvel/booking';
-import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../../models/business.model';
-import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
-import { AuthService } from '../../../core/auth/auth.service';
-import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
-import { emitPublicBookingFailureEvent } from '../../../core/observability/public-booking-operational-events';
-import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import { Business, BusinessSettings, WeekdayKey, WorkingDayHours, BusinessPublicView } from '../../models/business.model';
+import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
+import { AuthService } from '../auth/auth.service';
+import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../storage/onboarding-plan-storage';
+import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
+import { ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
 import {
   mapNullableSettingsToFormDefaults,
   resolveWorkingHours

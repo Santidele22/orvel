@@ -58,7 +58,7 @@ const pageHtml = readSource('src/app/features/settings/pages/configuracion.page.
 const zenHtml = readSource(
   'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html'
 );
-const serviceTs = readSource('src/app/features/settings/data-access/business.service.ts');
+const serviceTs = readSource('src/app/core/business/business.service.ts');
 
 describe('Issue #348 - settings load/persist visibility', () => {
   it('exposes a visible load error with retry and does not patch defaults after a failed load', () => {
@@ -143,7 +143,7 @@ describe('Issue #361 - settings null form defaults', () => {
 
   it('maps nullable settings rows to numbers and default working hours the form accepts', async () => {
     const { mapNullableSettingsToFormDefaults } = await import(
-      '../../features/settings/data-access/map-nullable-settings-to-form-defaults'
+      '../../core/business/map-nullable-settings-to-form-defaults'
     );
 
     const mapped = mapNullableSettingsToFormDefaults(
@@ -166,7 +166,7 @@ describe('Issue #361 - settings null form defaults', () => {
 
   it('keeps finite stored knobs and falls back when working hours miss days', async () => {
     const { mapNullableSettingsToFormDefaults } = await import(
-      '../../features/settings/data-access/map-nullable-settings-to-form-defaults'
+      '../../core/business/map-nullable-settings-to-form-defaults'
     );
 
     const storedHours = {

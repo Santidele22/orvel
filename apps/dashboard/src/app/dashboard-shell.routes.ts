@@ -8,7 +8,7 @@ import {
 } from './core/dashboard/dashboard-data.ports';
 import { ClienteService } from './features/clientes/data-access/cliente.service';
 import { ServicioService } from './features/servicios/data-access/servicio.service';
-import { BusinessService } from './features/settings/data-access/business.service';
+import { BusinessService } from './core/business/business.service';
 import { provideBookingQueries } from './features/booking/booking-queries.providers';
 import { OperatorTourHelpButtonComponent } from './features/operator-tour/operator-tour-help-button.component';
 import { OperatorTourService } from './features/operator-tour/operator-tour.service';

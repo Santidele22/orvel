@@ -4,7 +4,7 @@ import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
 import { AuthService } from '../../../core/auth/auth.service';
 import { isAllowedOnboardingBusinessType } from '../../onboarding/data-access/business-type-defaults';
-import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
+import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../../core/storage/onboarding-plan-storage';
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 
 export type WeekdayKey =

@@ -12,7 +12,7 @@ import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
 import { createMockTurnoService } from '../helpers/turno-service-testbed';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import { BusinessService } from '../../core/business/business.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 

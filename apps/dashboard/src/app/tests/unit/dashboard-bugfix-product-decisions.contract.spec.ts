@@ -78,7 +78,7 @@ describe('Dashboard bugfix product decisions contract', () => {
 
   it('settings hydrates idempotently when auth arrives late and does not gate saved settings on slug validity', () => {
     const settingsPage = readDashboardFile('src/app/features/settings/pages/configuracion.page.ts');
-    const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
+    const businessService = readDashboardFile('src/app/core/business/business.service.ts');
 
     expect(settingsPage).toMatch(/effect\(\(\)\s*=>[\s\S]*authService\.user\(\)\?\.id[\s\S]*hydrateBusinessSettings/i);
     expect(`${settingsPage}\n${businessService}`).toMatch(/hydratedUserId/);
@@ -111,7 +111,7 @@ describe('Dashboard bugfix product decisions contract', () => {
   });
 
   it('does not persist or hydrate internal plan from public business_settings', () => {
-    const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
+    const businessService = readDashboardFile('src/app/core/business/business.service.ts');
     const businessSettingsFacade = readDashboardFile('src/app/features/settings/data-access/business-settings.facade.ts');
     const onboardingBusinessTypesStep = readDashboardFile('src/app/features/onboarding/pages/signup-business-types-step.page.ts');
 
@@ -131,7 +131,7 @@ describe('Dashboard bugfix product decisions contract', () => {
   });
 
   it('public booking resolver uses the RPC boundary instead of raw public settings queries', () => {
-    const businessService = readDashboardFile('src/app/features/settings/data-access/business.service.ts');
+    const businessService = readDashboardFile('src/app/core/business/business.service.ts');
 
     expect(businessService).toMatch(/rpc\(['"]resolve_business_by_slug['"]/);
     expect(businessService).not.toMatch(/resolveBusinessBySlug[\s\S]*\.from\(['"]business_settings['"]\)[\s\S]*\.select\(['"]\*['"]\)/);

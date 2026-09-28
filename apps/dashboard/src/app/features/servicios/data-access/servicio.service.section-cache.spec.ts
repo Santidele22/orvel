@@ -7,7 +7,7 @@ import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/auth/auth.service';
-import { BusinessService } from '../../settings/data-access/business.service';
+import { BusinessService } from '../../../core/business/business.service';
 import { ServicioService } from './servicio.service';
 
 async function flushDelay(ms = 350): Promise<void> {

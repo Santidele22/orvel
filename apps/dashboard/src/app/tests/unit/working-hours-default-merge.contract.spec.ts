@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { WeekdayKey, WorkingDayHours } from '../../models/business.model';
-import { resolveWorkingHours } from '../../features/settings/data-access/map-nullable-settings-to-form-defaults';
+import { resolveWorkingHours } from '../../core/business/map-nullable-settings-to-form-defaults';
 
 const defaultHours: Record<WeekdayKey, WorkingDayHours> = {
   monday: { enabled: true, start: '09:00', end: '18:00' },
@@ -14,7 +14,7 @@ const defaultHours: Record<WeekdayKey, WorkingDayHours> = {
 };
 
 const serviceTs = readFileSync(
-  new URL('../../features/settings/data-access/business.service.ts', import.meta.url),
+  new URL('../../core/business/business.service.ts', import.meta.url),
   'utf8'
 );
 

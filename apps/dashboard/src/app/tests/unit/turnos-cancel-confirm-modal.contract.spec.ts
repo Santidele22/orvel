@@ -21,7 +21,7 @@ import { ClienteService } from '../../features/clientes/data-access/cliente.serv
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../core/theming/theme.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import { BusinessService } from '../../core/business/business.service';
 import { Router } from '@angular/router';
 
 const BRANCH_ID = 'branch-cancel-modal-001';

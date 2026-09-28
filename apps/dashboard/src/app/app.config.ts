@@ -12,7 +12,7 @@ import {
   PUBLIC_BUSINESS_DIRECTORY_SOURCE,
   WORKING_HOURS_DEFAULTS_SOURCE
 } from './core/business/business-directory.ports';
-import { BusinessService } from './features/settings/data-access/business.service';
+import { BusinessService } from './core/business/business.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [

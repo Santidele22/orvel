@@ -10,9 +10,9 @@
  * - readPlanSelection(storage): Retrieves the stored plan or null
  */
 
-import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../plans/plan-entitlements';
 
-import { ONBOARDING_PLAN_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import { ONBOARDING_PLAN_STORAGE_KEY } from './browser-storage-keys';
 
 export { ONBOARDING_PLAN_STORAGE_KEY };
 

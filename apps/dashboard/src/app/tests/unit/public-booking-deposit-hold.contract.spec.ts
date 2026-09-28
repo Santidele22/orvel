@@ -182,7 +182,7 @@ describe('public booking deposit hold success copy', () => {
     expect(typesSource).toMatch(/depositPercent/);
 
     const resolverSource = readUtf8(
-      'src/app/features/settings/data-access/business.service.ts'
+      'src/app/core/business/business.service.ts'
     );
     expect(resolverSource).toMatch(/depositEnabled/);
     expect(resolverSource).toMatch(/depositPercent/);

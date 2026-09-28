@@ -23,7 +23,7 @@ function readConfiguracionZenTemplate(): string {
 function readBusinessServiceSource(): string {
   const servicePath = resolve(
     process.cwd(),
-    'src/app/features/settings/data-access/business.service.ts'
+    'src/app/core/business/business.service.ts'
   );
 
   return existsSync(servicePath) ? readFileSync(servicePath, 'utf-8') : '';

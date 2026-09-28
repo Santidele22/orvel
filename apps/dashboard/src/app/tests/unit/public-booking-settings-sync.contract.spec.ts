@@ -12,7 +12,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { BusinessPublicView, WeekdayKey, WorkingDayHours } from '../../models/business.model';
 import { PublicBookingService } from '../../features/booking/data-access/public-booking.service';
 import { PublicBookingPage } from '../../features/booking/pages/public/public-booking.page';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import { BusinessService } from '../../core/business/business.service';
 import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '../../core/business/business-directory.ports';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import {
@@ -38,7 +38,7 @@ type BusinessServiceModule = {
 
 async function loadBusinessServiceModule(): Promise<BusinessServiceModule> {
   try {
-    const mod = await import('../../features/settings/data-access/business.service');
+    const mod = await import('../../core/business/business.service');
     const BusinessService = mod['BusinessService'] as BusinessServiceModule['BusinessService'] | undefined;
 
     if (!BusinessService) {
@@ -48,7 +48,7 @@ async function loadBusinessServiceModule(): Promise<BusinessServiceModule> {
     return { BusinessService };
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/features/settings/data-access/business.service.ts exporting BusinessService.'
+      'TODO(Magnus): add src/app/core/business/business.service.ts exporting BusinessService.'
     );
   }
 }
