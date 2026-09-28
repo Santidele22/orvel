@@ -22,11 +22,13 @@ export interface DashboardOnboardingPayload {
 
 export type DashboardOnboardingPayloadReader = (storage: Storage) => DashboardOnboardingPayload;
 
-const EMPTY_ONBOARDING_PAYLOAD: DashboardOnboardingPayload = {
-  selectedRubros: [],
-  selectedTemplateIds: [],
-  preloadedCatalog: { categories: [], services: [] }
-};
+function emptyOnboardingPayload(): DashboardOnboardingPayload {
+  return {
+    selectedRubros: [],
+    selectedTemplateIds: [],
+    preloadedCatalog: { categories: [], services: [] }
+  };
+}
 
 export const DASHBOARD_TOUR = new InjectionToken<DashboardTourPort | null>('DASHBOARD_TOUR', {
   factory: () => null
@@ -39,5 +41,6 @@ export const DASHBOARD_TOUR_HELP_COMPONENT = new InjectionToken<Type<unknown> | 
 
 export const DASHBOARD_ONBOARDING_PAYLOAD = new InjectionToken<DashboardOnboardingPayloadReader>(
   'DASHBOARD_ONBOARDING_PAYLOAD',
-  { factory: () => () => EMPTY_ONBOARDING_PAYLOAD }
+  // A fresh object per read: the default must not be a shared mutable singleton.
+  { factory: () => () => emptyOnboardingPayload() }
 );

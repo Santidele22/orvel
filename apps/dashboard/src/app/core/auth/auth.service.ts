@@ -1,6 +1,8 @@
 // Auth Service - Manejo de autenticación
-// Preparado para migración a Supabase Auth
-// SECURE: Tokens are encrypted before storing in localStorage
+//
+// Delegates session persistence to supabase-js, which stores the session under
+// the `orvel.supabase.auth` key. The dashboard-side "encrypted token storage"
+// helper was removed (it could not protect against XSS in the same JS context).
 
 import { Injectable, signal } from '@angular/core';
 import { Observable, from, tap, map } from 'rxjs';
@@ -116,7 +118,6 @@ export class AuthService {
   logout(): void {
     this.supabase.signOut().then(() => {
       this.currentUser.set(null);
-      this.isAuthenticated.set(null as any); // Force cleanup
       this.isAuthenticated.set(false);
       this.token.set(null);
     });
