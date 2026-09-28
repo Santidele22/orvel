@@ -8,12 +8,83 @@ export const BOOKING_SHARE_REWRITE = { src: BOOKING_SHARE_SRC, dest: '/booking-s
 // never reached production. `config.json` has no `headers` property: the Build
 // Output API only applies them through a route, so they ship as a catch-all route
 // with `continue: true`.
-export const SECURITY_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-};
+
+// One year, deliberately without `includeSubDomains` or `preload`: this project
+// has no DNS inventory in the repository, and both flags are hard to walk back
+// once browsers cache them.
+export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000';
+
+const BASE_SUPABASE_ORIGINS = ['https://*.supabase.co'];
+const VERCEL_INSIGHTS_ORIGINS = ['https://*.vercel-insights.com'];
+
+function normalizeOrigin(origin) {
+  if (!origin) return null;
+  try {
+    const { origin: parsed } = new URL(origin);
+    return parsed === 'null' ? null : parsed;
+  } catch {
+    return null;
+  }
+}
+
+// Supabase Realtime runs over a websocket, so connect-src needs the wss:// twin of
+// every allowed https:// origin. `dashboard-notifications.service.ts` subscribes
+// to a channel, so a missing wss entry would silently kill live notifications.
+function websocketTwin(origin) {
+  return origin.startsWith('https://') ? `wss://${origin.slice('https://'.length)}` : null;
+}
+
+/**
+ * Content-Security-Policy for the combined deployment.
+ *
+ * `script-src` keeps `'unsafe-inline'` on purpose: `apps/dashboard/src/index.html`
+ * boots the PWA with three inline scripts and an inline `onload` handler, so a
+ * strict `script-src 'self'` would break the splash screen and the retry guard.
+ * Moving those scripts to files is the follow-up that lets this directive drop
+ * inline. Everything else is locked down, and `connect-src` is what actually
+ * bounds token exfiltration if an XSS ever lands.
+ */
+export function buildContentSecurityPolicy({ supabaseOrigin, extraConnectOrigins = [] } = {}) {
+  const supabaseOrigins = [normalizeOrigin(supabaseOrigin), ...BASE_SUPABASE_ORIGINS].filter(Boolean);
+  const connectSrc = [
+    "'self'",
+    ...new Set([
+      ...supabaseOrigins,
+      ...supabaseOrigins.map(websocketTwin).filter(Boolean),
+      'wss://*.supabase.co',
+      ...VERCEL_INSIGHTS_ORIGINS,
+      ...extraConnectOrigins.filter(Boolean),
+    ]),
+  ];
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    `img-src 'self' data: blob: ${supabaseOrigins.join(' ')}`,
+    `connect-src ${connectSrc.join(' ')}`,
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+  ];
+  return directives.join('; ');
+}
+
+export function buildSecurityHeaders(options = {}) {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': STRICT_TRANSPORT_SECURITY,
+    'Content-Security-Policy': buildContentSecurityPolicy(options),
+  };
+}
+
+export const SECURITY_HEADERS = buildSecurityHeaders();
 
 const SECURITY_HEADERS_ROUTE_SRC = '/(.*)';
 const FILESYSTEM_HANDLE = { handle: 'filesystem' };
@@ -31,15 +102,15 @@ function hostingRouteCopies() {
   return HOSTING_ROUTES.map((rewrite) => ({ ...rewrite }));
 }
 
-function securityHeadersRoute() {
-  return { src: SECURITY_HEADERS_ROUTE_SRC, headers: { ...SECURITY_HEADERS }, continue: true };
+function securityHeadersRoute(options) {
+  return { src: SECURITY_HEADERS_ROUTE_SRC, headers: buildSecurityHeaders(options), continue: true };
 }
 
-function withSecurityHeaders(routes) {
-  return [securityHeadersRoute(), ...routes.filter((route) => !isManagedHeadersRoute(route))];
+function withSecurityHeaders(routes, options) {
+  return [securityHeadersRoute(options), ...routes.filter((route) => !isManagedHeadersRoute(route))];
 }
 
-export function patchVercelOutputConfig(config) {
+export function patchVercelOutputConfig(config, options = {}) {
   const existingRoutes = Array.isArray(config?.routes) ? [...config.routes] : [];
   const withoutHostingRoutes = existingRoutes.filter(
     (route) => !HOSTING_ROUTES.some((rewrite) => isSameRewrite(route, rewrite)),
@@ -56,5 +127,5 @@ export function patchVercelOutputConfig(config) {
         ]
       : [{ ...FILESYSTEM_HANDLE }, ...hostingRoutes, ...withoutHostingRoutes];
 
-  return { ...config, routes: withSecurityHeaders(routes) };
+  return { ...config, routes: withSecurityHeaders(routes, options) };
 }

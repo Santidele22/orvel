@@ -63,7 +63,11 @@ async function writeDashboardRuntimeEnv(browserDir) {
 
 async function writePatchedVercelOutputConfig() {
   const rawConfig = await readFile(outputConfigPath, 'utf8');
-  const config = patchVercelOutputConfig(JSON.parse(rawConfig));
+  // The deploy knows its Supabase origin; add it to connect-src/img-src on top of
+  // the `https://*.supabase.co` fallback so a custom domain also works.
+  const config = patchVercelOutputConfig(JSON.parse(rawConfig), {
+    supabaseOrigin: process.env.PUBLIC_SUPABASE_URL ?? '',
+  });
   await writeFile(outputConfigPath, `${JSON.stringify(config, null, 2)}\n`);
 }
 
