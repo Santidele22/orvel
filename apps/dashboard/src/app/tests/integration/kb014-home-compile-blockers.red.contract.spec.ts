@@ -4,12 +4,12 @@ import { join } from 'path';
 
 const HOME_TEMPLATE_PATH = join(
   process.cwd(),
-  'src/app/pages/dashboard/home/dashboard-home.page.html'
+  'src/app/features/dashboard-home/pages/dashboard-home.page.html'
 );
 
 const HOME_COMPONENT_PATH = join(
   process.cwd(),
-  'src/app/pages/dashboard/home/dashboard-home.page.ts'
+  'src/app/features/dashboard-home/pages/dashboard-home.page.ts'
 );
 
 const DASHBOARD_SERVICE_PATH = join(

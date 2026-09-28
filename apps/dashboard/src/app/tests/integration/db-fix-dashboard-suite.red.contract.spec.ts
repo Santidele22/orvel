@@ -91,8 +91,8 @@ describe('DB-FIX-002 RED - Loading skeletons for appointments views', () => {
 
 describe('DB-FIX-003 RED - Service edit/delete must target selected service', () => {
   it('binds edit and delete buttons to selected service identity', () => {
-    const serviciosTs = readSource('src/app/pages/dashboard/servicios/servicios.page.ts');
-    const serviciosHtml = readSource('src/app/pages/dashboard/servicios/servicios.page.html');
+    const serviciosTs = readSource('src/app/features/servicios/pages/servicios.page.ts');
+    const serviciosHtml = readSource('src/app/features/servicios/pages/servicios.page.html');
     const merged = `${serviciosTs}\n${serviciosHtml}`;
 
     expect(merged).toMatch(/\(click\)=\"openEditServicio\(s\.id\)\"/);
@@ -101,7 +101,7 @@ describe('DB-FIX-003 RED - Service edit/delete must target selected service', ()
   });
 
   it('delete action follows soft-delete contract when domain supports active flag', () => {
-    const serviciosTs = readSource('src/app/pages/dashboard/servicios/servicios.page.ts');
+    const serviciosTs = readSource('src/app/features/servicios/pages/servicios.page.ts');
     const servicioServiceTs = readSource('src/app/services/servicio.service.ts');
     const merged = `${serviciosTs}\n${servicioServiceTs}`;
 
@@ -160,7 +160,7 @@ describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned
   it('home consumes dynamic metric IDs with DASHBOARD_SYSTEM core set', () => {
     // DB-FIX-007: Check source code for dynamic metrics using signals from services
     const serviceSource = readSource('src/app/core/dashboard/dashboard.service.ts');
-    const homeSource = readSource('src/app/pages/dashboard/home/dashboard-home.page.ts');
+    const homeSource = readSource('src/app/features/dashboard-home/pages/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 
     // Must use real services (BookingQueries, ClienteService) for dynamic data
@@ -182,7 +182,7 @@ describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned
 
   it('keeps one actionable main KPI and avoids mixed business contexts', () => {
     const serviceSource = readSource('src/app/core/dashboard/dashboard.service.ts');
-    const homeSource = readSource('src/app/pages/dashboard/home/dashboard-home.page.ts');
+    const homeSource = readSource('src/app/features/dashboard-home/pages/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 
     expect(merged).toMatch(/(mainKPI|main_kpi)/);

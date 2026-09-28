@@ -11,7 +11,7 @@ const CORE_STATE_CONTRACTS = {
     hooks: ['turnos-loading-state', 'turnos-empty-state', 'turnos-error-state']
   },
   servicios: {
-    file: 'src/app/pages/dashboard/servicios/servicios.page.html',
+    file: 'src/app/features/servicios/pages/servicios.page.html',
     hooks: ['services-loading-state', 'services-empty-state', 'services-error-state']
   },
   clientes: {
