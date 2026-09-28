@@ -105,6 +105,15 @@ async function runPostBookingSideEffect(operation: string, effect: () => Promise
 // Resolves SupabaseClient through the SUPABASE_CLIENT DI token; the adapter is
 // provided at the application root via useFactory (see app.config.ts) and never
 // creates its own client at module scope.
+/**
+ * Public booking RPCs reject with product-state codes that are not request
+ * validation failures. They surface as 422 so the client can render an
+ * "unavailable" message instead of a generic bad request.
+ */
+function publicBookingErrorStatus(mapped: { code: string }): number {
+  return mapped.code === 'PUBLIC_TURNERO_DISABLED' ? 422 : 400;
+}
+
 export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
   private readonly supabaseClient: SupabaseClient;
 
@@ -187,13 +196,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
 
       if (error) {
         const mapped = mapRpcErrorToApiError(error as { message?: string });
+        const statusCode = publicBookingErrorStatus(mapped);
         logMutationFailure({
           operation: 'query_public_slot_availability',
           error,
-          response: { status: 400, error: mapped }
+          response: { status: statusCode, error: mapped }
         });
         return {
-          status: 400,
+          status: statusCode,
           error: mapped
         };
       }
@@ -210,13 +220,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       };
     } catch (err) {
       const mapped = mapRpcErrorToApiError(err as { message?: string });
+      const statusCode = publicBookingErrorStatus(mapped);
       logMutationFailure({
         operation: 'query_public_slot_availability',
         error: err,
-        response: { status: 400, error: mapped }
+        response: { status: statusCode, error: mapped }
       });
       return {
-        status: 400,
+        status: statusCode,
         error: mapped
       };
     }
@@ -273,7 +284,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
         const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
-          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' || apiError.code === 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN' ? 422 : 400;
+          apiError.code === 'PUBLIC_TURNERO_DISABLED' || apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' || apiError.code === 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN' ? 422 : 400;
         logMutationFailure({
           operation: 'create_public_booking',
           error,
