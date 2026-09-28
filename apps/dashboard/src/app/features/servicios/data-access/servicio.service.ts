@@ -595,16 +595,13 @@ export class ServicioService {
       return [];
     }
 
-    let query = supabaseClient
-      .from('services')
-      .select('*')
-      .eq('business_id', businessId);
-
-    if (options.activeOnly) {
-      query = query.eq('is_active', true);
-    }
-
-    const { data: rows, error } = await query.order('name', { ascending: true });
+    // Read through the SECURITY DEFINER RPC: the tenant filter and the
+    // active-only rule for non-managers are enforced by the database, so an
+    // anonymous caller can no longer enumerate another business's catalogue.
+    const { data: rows, error } = await supabaseClient.rpc('list_public_services', {
+      p_business_id: businessId,
+      p_active_only: options.activeOnly === true
+    });
 
     if (error) {
       if (this.isSupabaseSchemaUnavailableError(error.message)) {
@@ -613,7 +610,7 @@ export class ServicioService {
       throw new Error(error.message || 'SERVICIOS_LOAD_ERROR');
     }
 
-    return (rows ?? []).map(row => this.mapSupabaseRowToServicio(row as Record<string, unknown>));
+    return (rows ?? []).map((row: Record<string, unknown>) => this.mapSupabaseRowToServicio(row));
   }
 
   private async createServicioInSupabase(supabaseClient: SupabaseClient, dto: CreateServicioDTO): Promise<Servicio> {
