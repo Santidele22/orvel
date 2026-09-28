@@ -9,7 +9,7 @@ import { Subject } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { ACTIVE_BUSINESS_ID_SOURCE } from '../../core/business/business-directory.ports';

@@ -11,11 +11,11 @@ import { firstValueFrom } from 'rxjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { ClienteService } from '../../services/cliente.service';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import type { CreateClienteDTO } from '../../models/cliente.model';
 
 function readClienteServiceSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/services/cliente.service.ts');
+  const tsPath = resolve(process.cwd(), 'src/app/features/clientes/data-access/cliente.service.ts');
   return existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
 }
 

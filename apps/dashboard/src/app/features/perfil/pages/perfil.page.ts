@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { logoutAndRedirect } from '../../../core/auth/route-protection';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { navigateAfterLogout } from '../../../shared/dashboard-shell/logout-navigation';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { BUSINESS_SETTINGS_SOURCE } from '../../../core/business/business-directory.ports';

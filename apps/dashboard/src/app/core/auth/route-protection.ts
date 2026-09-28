@@ -3,7 +3,7 @@ import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../stora
 import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
-import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
+import { isCatalogBusinessType } from '../catalog/business-type-validation';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
@@ -287,7 +287,7 @@ export function hasCompletedMandatoryOnboarding(metadata: Record<string, unknown
   const plan = metadata['plan'];
   const businessType = metadata['tipoNegocio'] ?? metadata['businessType'] ?? metadata['business_type'];
 
-  return onboardingCompleted && hasCanonicalOrLegacyPlan(plan) && isAllowedOnboardingBusinessType(businessType);
+  return onboardingCompleted && hasCanonicalOrLegacyPlan(plan) && isCatalogBusinessType(businessType);
 }
 
 /**
@@ -321,7 +321,7 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
       if (
         serverState?.dashboard_ready === true &&
         hasSelectedPlanCode(serverState.selected_plan_code) &&
-        isAllowedOnboardingBusinessType(serverState.business_type)
+        isCatalogBusinessType(serverState.business_type)
       ) {
         allowedDashboardAuthUserId = userId;
         return { allowed: true };

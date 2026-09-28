@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../../core/theming/theme.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_SETTINGS_SOURCE

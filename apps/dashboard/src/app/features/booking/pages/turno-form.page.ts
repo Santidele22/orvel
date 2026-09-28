@@ -16,7 +16,7 @@ import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_PROFESSIONALS_SOURCE
 } from '../../../core/business/business-directory.ports';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';

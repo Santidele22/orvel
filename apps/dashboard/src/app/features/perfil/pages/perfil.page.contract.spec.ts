@@ -5,7 +5,7 @@ const source = readFileSync(new URL('./perfil.page.ts', import.meta.url), 'utf8'
 
 describe('PerfilPage contract', () => {
   it('shows signed-in nombre and email from AuthService', () => {
-    expect(source).toMatch(/from\s+['"][^'"]*services\/auth\.service['"]/);
+    expect(source).toMatch(/from\s+['"][^'"]*core\/auth\/auth\.service['"]/);
     expect(source).toMatch(/user\(\s*\)\?\.nombre/);
     expect(source).toMatch(/user\(\s*\)\?\.email/);
   });

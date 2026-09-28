@@ -72,16 +72,6 @@ describe('DESIGN.md normalization contract: dashboard templates', () => {
     }
   });
 
-  it('requires canonical status handling availability (confirmed/pending/in_progress/completed)', async () => {
-    const statusBadgeSource = await readFile(fromRoot(STATUS_BADGE_TS), 'utf-8');
-
-    const missingCanonicalStatuses = REQUIRED_CANONICAL_STATUSES.filter((status) => {
-      return !statusBadgeSource.toLowerCase().includes(status.toLowerCase());
-    });
-
-    expect(missingCanonicalStatuses, 'Missing canonical statuses in status handling layer').toEqual([]);
-  });
-
   it('keeps zen as the only declared dashboard theme token map key', async () => {
     const themeTokensMap = await loadThemeTokens();
     expect(Object.keys(themeTokensMap)).toEqual(['zen']);

@@ -11,7 +11,7 @@ import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-
 import { of } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { ACTIVE_BUSINESS_ID_SOURCE } from '../../core/business/business-directory.ports';

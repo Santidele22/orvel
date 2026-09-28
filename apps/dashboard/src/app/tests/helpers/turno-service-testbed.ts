@@ -1,11 +1,11 @@
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { of, throwError, from } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import type { BookingCrudService, BookingSchedulingService } from '@orvel/booking/application';
 import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
-import { ClienteService } from '../../services/cliente.service';
-import { ServicioService } from '../../services/servicio.service';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 
 const QA_BRANCH_ID = 'branch-qa-001';
 const QA_BUSINESS_ID = 'biz-qa-001';

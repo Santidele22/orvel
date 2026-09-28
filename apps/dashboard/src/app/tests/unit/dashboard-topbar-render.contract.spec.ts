@@ -9,7 +9,7 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { provideRouter } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { DashboardNotificationsService } from '../../core/notifications/dashboard-notifications.service';
 import { ZenTopbarComponent } from '../../shared/dashboard-topbar/templates/zen-topbar.component';
 

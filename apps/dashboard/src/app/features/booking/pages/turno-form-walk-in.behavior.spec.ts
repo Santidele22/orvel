@@ -18,7 +18,7 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_PROFESSIONALS_SOURCE

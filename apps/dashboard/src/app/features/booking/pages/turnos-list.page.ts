@@ -17,7 +17,7 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { CalendarPickerComponent } from '../../../shared/components/calendar-picker/calendar-picker.component';
 import { ThemeService } from '../../../core/theming/theme.service';
 import { Turno, TurnoEstado, CreateTurnoDTO, TurnoWithRelations } from '../models/turno.model';
