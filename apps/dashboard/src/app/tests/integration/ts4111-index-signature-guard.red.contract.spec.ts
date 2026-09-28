@@ -9,11 +9,11 @@ type ForbiddenAccess = {
 
 const FORBIDDEN_DOT_ACCESS: ForbiddenAccess[] = [
   {
-    file: 'src/app/services/cliente.service.ts',
+    file: 'src/app/features/clientes/data-access/cliente.service.ts',
     snippets: ['customer.full_name', 'row.created_at', 'row.updated_at', 'item.serviciosFavoritos', 'sanitized.createdAt']
   },
   {
-    file: 'src/app/services/servicio.service.ts',
+    file: 'src/app/features/servicios/data-access/servicio.service.ts',
     snippets: ['payload.name', 'payload.duration_minutes', 'row.created_at', 'item.duracionMinutos', 'sanitized.createdAt']
   },
   {

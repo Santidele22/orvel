@@ -3,7 +3,7 @@ import { afterNextRender, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { sanitizeReturnTo } from '../../../core/auth/route-protection';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 const DEFAULT_RETURN_TO = '/dashboard/turnos';
 

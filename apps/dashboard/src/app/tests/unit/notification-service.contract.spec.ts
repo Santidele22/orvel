@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MockNotificationService } from '../../services/notification.service';
+import { MockNotificationService } from '../helpers/mock-notification.service';
 
 describe('MockNotificationService RED contract (email-only MVP)', () => {
   beforeEach(() => {

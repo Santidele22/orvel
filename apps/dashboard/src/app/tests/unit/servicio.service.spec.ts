@@ -5,7 +5,7 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ServicioService } from '../../services/servicio.service';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { CreateServicioDTO } from '../../models/servicio.model';
 
 describe('ServicioService - Unit Tests', () => {

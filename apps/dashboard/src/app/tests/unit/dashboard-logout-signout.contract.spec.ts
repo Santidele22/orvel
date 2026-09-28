@@ -112,10 +112,10 @@ describe('dashboard logout signOut contract', () => {
   });
 
   it('AuthService uses the route-protection cached auth client instead of creating a second one', () => {
-    const source = readFileSync(new URL('../../services/auth.service.ts', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../core/auth/auth.service.ts', import.meta.url), 'utf8');
 
     expect(source).toMatch(/getSupabaseAuthClient/);
-    expect(source).toMatch(/from\s+['"][^'"]*core\/auth\/route-protection['"]/);
+    expect(source).toMatch(/from\s+['"][^'"]*route-protection['"]/);
     expect(source).not.toMatch(/createSupabaseAuthClient\s*\(/);
   });
 });

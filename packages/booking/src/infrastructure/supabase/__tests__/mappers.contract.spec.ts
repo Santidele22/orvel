@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapBusinessToPublicView, mapRpcErrorToApiError } from '../mappers';
+import { PUBLIC_TURNERO_DISABLED_MESSAGE, mapBusinessToPublicView, mapRpcErrorToApiError } from '../mappers';
 
 describe('mapBusinessToPublicView source-of-truth mapping', () => {
   it('uses businesses for public identity even if legacy settings identity fields are present', () => {
@@ -42,8 +42,21 @@ describe('mapRpcErrorToApiError self-service token policy mappings', () => {
   );
 });
 
-describe('mapRpcErrorToApiError booking domain diagnostics', () => {
-  it.each(['BOOKING_VALIDATION_ERROR', 'BRANCH_NOT_FOUND', 'SERVICE_NOT_FOUND'] as const)(
+describe('mapRpcErrorToApiError anonymous turnero gate', () => {
+  it('maps PUBLIC_TURNERO_DISABLED to reader-facing copy instead of a generic validation error', () => {
+    expect(
+      mapRpcErrorToApiError({
+        code: 'P0001',
+        message: 'PUBLIC_TURNERO_DISABLED'
+      })
+    ).toEqual({
+      code: 'PUBLIC_TURNERO_DISABLED',
+      message: PUBLIC_TURNERO_DISABLED_MESSAGE
+    });
+  });
+});
+
+describe('mapRpcErrorToApiError booking domain diagnostics', () => {  it.each(['BOOKING_VALIDATION_ERROR', 'BRANCH_NOT_FOUND', 'SERVICE_NOT_FOUND'] as const)(
     'preserves %s from the direct RPC code',
     (code) => {
       expect(

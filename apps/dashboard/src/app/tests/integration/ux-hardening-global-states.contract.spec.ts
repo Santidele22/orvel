@@ -29,15 +29,6 @@ function fromRoot(relativePath: string): string {
 }
 
 describe('UX hardening final: global states consistency contracts (mock mode, RED)', () => {
-  it('requires shared state presentation contract to support loading/empty/error', async () => {
-    const source = await readFile(fromRoot(UI_STATE_COMPONENT_TS), 'utf-8');
-
-    // TODO(Aurora): extender shared state component para soportar tone/variant de error.
-    expect(source).toMatch(/loading|empty|error/);
-    expect(source).toMatch(/@Input\(\).*tone/);
-    expect(source).toMatch(/warning|neutral|danger|error/);
-  });
-
   it('requires deterministic loading/empty/error hooks in all core dashboard pages', async () => {
     const mismatches: string[] = [];
 

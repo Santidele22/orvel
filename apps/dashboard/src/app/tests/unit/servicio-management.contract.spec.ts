@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { firstValueFrom } from 'rxjs';
-import { ServicioService } from '../../services/servicio.service';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 
 type ServicioFormValidatorModule = {
   validateServicioDraft: (input: {
