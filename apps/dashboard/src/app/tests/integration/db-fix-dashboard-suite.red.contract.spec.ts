@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { firstValueFrom } from 'rxjs';
 
-import { ClienteService } from '../../services/cliente.service';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 
 function readSource(relativePath: string): string {
@@ -102,7 +102,7 @@ describe('DB-FIX-003 RED - Service edit/delete must target selected service', ()
 
   it('delete action follows soft-delete contract when domain supports active flag', () => {
     const serviciosTs = readSource('src/app/pages/dashboard/servicios/servicios.page.ts');
-    const servicioServiceTs = readSource('src/app/services/servicio.service.ts');
+    const servicioServiceTs = readSource('src/app/features/servicios/data-access/servicio.service.ts');
     const merged = `${serviciosTs}\n${servicioServiceTs}`;
 
     expect(merged).toMatch(/(softDelete|deactivate|activo:\s*false|isActive:\s*false)/i);
