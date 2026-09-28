@@ -7,7 +7,7 @@ import {
   buildPremiumWhatsAppUrl,
   copyPremiumAlias
 } from '../../../core/billing/premium-alias-receipt';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
 import { startPremiumTrialForCurrentBusiness } from '../start-premium-trial.client';

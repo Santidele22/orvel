@@ -5,8 +5,8 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { ClienteService } from '../../services/cliente.service';
-import type { ServicioService } from '../../services/servicio.service';
+import type { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import type { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { CreateTurnoDTO, TurnoEstado } from '../../features/booking/models/turno.model';
 import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 

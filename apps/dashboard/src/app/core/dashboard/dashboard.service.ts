@@ -1,9 +1,11 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
 import { appointmentStatusLabel, isDepositUnpaid, type BookingQueries, type BookingRecord } from '@orvel/booking/application';
 import { BOOKING_QUERIES, confirmBookingDepositReceived, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
-import { ClienteService } from '../../features/clientes/data-access/cliente.service';
-import { ServicioService } from '../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from './dashboard-data.ports';
 import { WeekdayKey } from '../../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { ArgentinaClockService } from '../time/argentina-clock.service';
@@ -20,9 +22,9 @@ import {
 })
 export class DashboardService {
   private readonly bookingQueries = inject<BookingQueries>(BOOKING_QUERIES);
-  private readonly clienteService = inject(ClienteService);
-  private readonly servicioService = inject(ServicioService);
-  private readonly businessService = inject(BusinessService);
+  private readonly clienteService = inject(DASHBOARD_CLIENTE_SOURCE);
+  private readonly servicioService = inject(DASHBOARD_SERVICIO_SOURCE);
+  private readonly businessService = inject(DASHBOARD_BUSINESS_SOURCE);
   private readonly destroyRef = inject(DestroyRef);
   readonly now = inject(ArgentinaClockService).now;
   private readonly bookings = signal<BookingRecord[]>([]);

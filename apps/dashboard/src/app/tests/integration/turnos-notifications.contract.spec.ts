@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateTurnoDTO } from '../../features/booking/models/turno.model';
-import { MockNotificationService } from '../../services/notification.service';
+import { MockNotificationService } from '../helpers/mock-notification.service';
 import { createMockTurnoService } from '../helpers/turno-service-testbed';
 
 describe('TurnoService + notifications integration RED contract (mock mode)', () => {

@@ -6,8 +6,8 @@ import {
 import {
   mergeTemplateCatalogs,
   sanitizeSelectedTemplateIds,
-  TemplateCatalog
-} from '../../features/onboarding/data-access/onboarding-templates';
+  type TemplateCatalog
+} from '@orvel/domain';
 
 export const ALLOWED_SELECTED_BUSINESS_TYPES = REQUIRED_RUBROS;
 

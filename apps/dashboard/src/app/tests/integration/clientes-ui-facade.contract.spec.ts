@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { firstValueFrom } from 'rxjs';
-import { ClienteService } from '../../services/cliente.service';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 
 type ClienteListItem = {
   id: string;
