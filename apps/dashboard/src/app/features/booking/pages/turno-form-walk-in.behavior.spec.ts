@@ -19,6 +19,10 @@ import {
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
 import { AuthService } from '../../../services/auth.service';
+import {
+  ACTIVE_BUSINESS_ID_SOURCE,
+  BUSINESS_PROFESSIONALS_SOURCE
+} from '../../../core/business/business-directory.ports';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import type { Cliente } from '../../../models/cliente.model';
 import type { Servicio } from '../../../models/servicio.model';
@@ -120,6 +124,14 @@ describe('TurnoFormPage walk-in behavior', () => {
           useValue: {
             user: authenticatedUser.asReadonly()
           }
+        },
+        {
+          provide: ACTIVE_BUSINESS_ID_SOURCE,
+          useValue: { getActiveBusinessId: vi.fn().mockResolvedValue('business-1') }
+        },
+        {
+          provide: BUSINESS_PROFESSIONALS_SOURCE,
+          useValue: { listBusinessProfessionals: vi.fn().mockResolvedValue([]) }
         }
       ]
     });

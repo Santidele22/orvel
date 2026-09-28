@@ -11,7 +11,10 @@ import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-st
 import { AuthService } from '../../../services/auth.service';
 import { inject } from '@angular/core';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
-import { BusinessService } from '../../settings/data-access/business.service';
+import {
+  BUSINESS_SETTINGS_SOURCE,
+  type BusinessSettingsSource
+} from '../../../core/business/business-directory.ports';
 
 type ServicioMutationScope = {
   tenantContext: { accountId: string };
@@ -1023,9 +1026,9 @@ export class ServicioService {
     }
   }
 
-  private resolveBusinessSettings(): BusinessService | null {
+  private resolveBusinessSettings(): BusinessSettingsSource | null {
     try {
-      return inject(BusinessService);
+      return inject(BUSINESS_SETTINGS_SOURCE);
     } catch {
       return null;
     }

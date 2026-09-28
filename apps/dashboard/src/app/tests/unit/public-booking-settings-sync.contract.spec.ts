@@ -13,6 +13,7 @@ import type { BusinessPublicView, WeekdayKey, WorkingDayHours } from '../../mode
 import { PublicBookingService } from '../../features/booking/data-access/public-booking.service';
 import { PublicBookingPage } from '../../features/booking/pages/public/public-booking.page';
 import { BusinessService } from '../../features/settings/data-access/business.service';
+import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '../../core/business/business-directory.ports';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import {
   PUBLIC_BOOKING_FAILURE_EVENT,
@@ -427,6 +428,8 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -496,6 +499,8 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -570,6 +575,8 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -626,6 +633,7 @@ describe('public booking settings synchronization', () => {
             getDefaultWorkingHours: vi.fn()
           }
         },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useExisting: BusinessService },
         {
           provide: ServicioService,
           useValue: {
@@ -688,6 +696,7 @@ describe('public booking settings synchronization', () => {
             getDefaultWorkingHours: vi.fn()
           }
         },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useExisting: BusinessService },
         {
           provide: ServicioService,
           useValue: {
@@ -757,6 +766,7 @@ describe('public booking settings synchronization', () => {
           provide: BusinessService,
           useValue: { resolveBusinessBySlug: vi.fn(), getDefaultWorkingHours: vi.fn() }
         },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useExisting: BusinessService },
         {
           provide: ServicioService,
           useValue: { getByBusinessId: vi.fn() }
@@ -859,6 +869,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: { getByBusinessId: vi.fn(() => of([{ id: 'service-1', nombre: 'Corte', precio: 1000, duration_minutes: 30, activo: true }])) }
@@ -923,6 +934,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1000,6 +1012,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         { provide: ServicioService, useValue: servicioService },
         {
           provide: PublicBookingService,
@@ -1081,6 +1094,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1177,6 +1191,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1270,6 +1285,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1354,6 +1370,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1426,6 +1443,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1515,6 +1533,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1620,6 +1639,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1710,6 +1730,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1812,6 +1833,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
@@ -1851,6 +1873,7 @@ describe('public booking settings synchronization', () => {
             getDefaultWorkingHours: vi.fn()
           }
         },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useExisting: BusinessService },
         {
           provide: ServicioService,
           useValue: { getByBusinessId: vi.fn() }
@@ -1925,6 +1948,7 @@ describe('public booking settings synchronization', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: BusinessService, useValue: businessService },
+        { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useValue: businessService },
         {
           provide: ServicioService,
           useValue: {
