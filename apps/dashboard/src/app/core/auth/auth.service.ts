@@ -4,10 +4,10 @@
 
 import { Injectable, signal } from '@angular/core';
 import { Observable, from, tap, map } from 'rxjs';
-import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../models/user.model';
+import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../../models/user.model';
 
-import type { SupabaseAuthClient, SupabaseSession } from '../core/auth/supabase-auth.client';
-import { getSupabaseAuthClient } from '../core/auth/route-protection';
+import type { SupabaseAuthClient, SupabaseSession } from './supabase-auth.client';
+import { getSupabaseAuthClient } from './route-protection';
 
 @Injectable({
   providedIn: 'root'

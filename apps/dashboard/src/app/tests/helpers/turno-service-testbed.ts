@@ -1,7 +1,7 @@
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { of, throwError, from } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import type { BookingCrudService, BookingSchedulingService } from '@orvel/booking/application';
 import type { CreateTurnoDTO, Turno } from '../../features/booking/models/turno.model';
 import { ClienteService } from '../../services/cliente.service';

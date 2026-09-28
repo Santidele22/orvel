@@ -18,7 +18,7 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { getBranchContextService } from '../../../core/branches/branch-context.service';
 import { ArgentinaClockService } from '../../../core/time/argentina-clock.service';
 import type { Cliente } from '../../../models/cliente.model';

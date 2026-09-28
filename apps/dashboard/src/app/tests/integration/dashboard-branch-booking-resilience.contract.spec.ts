@@ -14,7 +14,7 @@ import { ClienteService } from '../../features/clientes/data-access/cliente.serv
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { ThemeService } from '../../core/theming/theme.service';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 const BRANCH_ID = 'branch-r4-001';
 const BUSINESS_ID = 'business-r4-001';

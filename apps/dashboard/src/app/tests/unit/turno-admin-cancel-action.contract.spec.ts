@@ -16,7 +16,7 @@ import {
 import { getBranchContextService } from '../../core/branches/branch-context.service';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { MockNotificationService } from '../../services/notification.service';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';

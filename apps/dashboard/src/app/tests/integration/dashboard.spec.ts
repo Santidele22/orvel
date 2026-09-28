@@ -5,7 +5,7 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import type { ClienteService } from '../../services/cliente.service';
 import type { ServicioService } from '../../services/servicio.service';
 import { createMockClienteService, createMockServicioService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
