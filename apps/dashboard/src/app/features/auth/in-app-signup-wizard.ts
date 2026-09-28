@@ -133,8 +133,7 @@ export class InAppSignupWizard {
     this.createdFree = true;
   }
 
-  startPremiumTrial(): void {
-    this.premiumRequested = true;
+  markSignupComplete(): void {
     this.step = 5;
   }
 
