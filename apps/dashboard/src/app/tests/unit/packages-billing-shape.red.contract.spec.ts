@@ -15,8 +15,7 @@
  * - The 3 dashboard old paths in core/payments/manual/ are explicit per-name
  *   re-export shims pointing at @orvel/billing (REQ-BILLING-3; no `export *`).
  * - The dashboard webhook idempotency path is a re-export shim (D3).
- * - 2 of the 3 dead re-shims in core/billing/ are absent (REQ-BILLING-DEL-1);
- *   landing-plans-source.api.ts is KEPT (dynamic-import consumer surfaced at apply).
+ * - The 3 dead re-shims in core/billing/ are absent (REQ-BILLING-DEL-1);
  * - pnpm-workspace.yaml still wires packages/* (REQ-BILLING-2).
  */
 
@@ -167,13 +166,16 @@ describe('@orvel/billing package shape contract (chore-extract-billing-package)'
     expect(shim).toContain('decideWebhookProcessing');
   });
 
-  it('2 of the 3 dead re-shims in core/billing/ are absent; landing-plans-source.api.ts is kept', () => {
-    // REQ-BILLING-DEL-1: zero-importer re-shims removed
+  it('all 3 dead re-shims in core/billing/ are absent', () => {
+    // REQ-BILLING-DEL-1: zero-importer re-shims removed.
+    // landing-plans-source.api.ts was kept at apply time because
+    // tests/integration/landing-orvel-pricing.red.contract.spec.ts imported it
+    // dynamically (deletion deferred). That consumer now imports
+    // features/billing/data-access/landing-plans-source.api directly, so the
+    // deferral is over and the shim is gone.
     expect(existsSync(DELETED_ENTITLEMENTS_RE_SHIM)).toBe(false);
     expect(existsSync(DELETED_SSM_RE_SHIM)).toBe(false);
-    // KEPT at apply: dynamic-import consumer surfaced in
-    // tests/integration/landing-orvel-pricing.red.contract.spec.ts (deletion deferred)
-    expect(existsSync(KEPT_LANDING_PLANS_SOURCE_SHIM)).toBe(true);
+    expect(existsSync(KEPT_LANDING_PLANS_SOURCE_SHIM)).toBe(false);
   });
 
   it('pnpm-workspace.yaml still wires packages/* (REQ-BILLING-2)', () => {

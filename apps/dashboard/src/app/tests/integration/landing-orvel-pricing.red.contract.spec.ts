@@ -65,7 +65,7 @@ describe('Orvel pricing landing RED contracts', () => {
   });
 
   it('landing pricing source must expose the 3x3 cadence matrix instead of monthly-only plan cards', async () => {
-    const source = await import('../../core/billing/landing-plans-source.api');
+    const source = await import('../../features/billing/data-access/landing-plans-source.api');
     const plans = await source.fetchLandingPlans();
 
     expect(plans).toHaveLength(3);
