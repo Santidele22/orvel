@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const SERVICIOS_HTML = 'src/app/pages/dashboard/servicios/servicios.page.html';
+const SERVICIOS_HTML = 'src/app/features/servicios/pages/servicios.page.html';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);

@@ -6,8 +6,8 @@ function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);
 }
 
-const STEP_HTML = 'src/app/pages/landing/onboarding-business-step.page.html';
-const STEP_TS = 'src/app/pages/landing/onboarding-business-step.page.ts';
+const STEP_HTML = 'src/app/features/onboarding/pages/onboarding-business-step.page.html';
+const STEP_TS = 'src/app/features/onboarding/pages/onboarding-business-step.page.ts';
 
 describe('Contract: landing onboarding business-step UI', () => {
   it('renders the onboarding copy exactly as requested', async () => {

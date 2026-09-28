@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readSql(path: string): string {
-  return readFileSync(resolve(process.cwd(), path), 'utf-8');
+  // The repo root is two levels up from apps/dashboard, where vitest runs.
+  return readFileSync(resolve(process.cwd(), '..', '..', path), 'utf-8');
 }
 
 describe('Orvel capacity booking RED contracts', () => {

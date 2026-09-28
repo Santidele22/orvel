@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const fromRoot = (relativePath: string) => resolve(process.cwd(), relativePath);
 
-const HOME_TS = 'src/app/pages/dashboard/home/dashboard-home.page.ts';
+const HOME_TS = 'src/app/features/dashboard-home/pages/dashboard-home.page.ts';
 const SHELL_HTML = 'src/app/shared/dashboard-shell/dashboard-shell.component.html';
 
 describe('KB015 · NG0203 runtime + shell visibility contracts (RED)', () => {

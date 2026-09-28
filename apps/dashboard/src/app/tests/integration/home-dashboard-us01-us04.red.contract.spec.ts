@@ -2,8 +2,8 @@ import { access, readFile } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const HOME_TS = 'src/app/pages/dashboard/home/dashboard-home.page.ts';
-const HOME_HTML = 'src/app/pages/dashboard/home/dashboard-home.page.html';
+const HOME_TS = 'src/app/features/dashboard-home/pages/dashboard-home.page.ts';
+const HOME_HTML = 'src/app/features/dashboard-home/pages/dashboard-home.page.html';
 
 async function readHomeTs(): Promise<string> {
   return readFile(HOME_TS, 'utf-8');
