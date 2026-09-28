@@ -19,6 +19,7 @@ import { AuthService } from '../../services/auth.service';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
+import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { ThemeService } from '../../core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { Router } from '@angular/router';
@@ -89,6 +90,14 @@ function createPage(cancelByAdmin: ReturnType<typeof vi.fn>, extras?: {
       { provide: ClienteService, useValue: { getAll: vi.fn(), items: signal([]) } },
       { provide: ServicioService, useValue: { getAll: vi.fn(), items: signal([]) } },
       { provide: ThemeService, useValue: { activeTheme: signal('zen') } },
+      {
+        provide: DashboardService,
+        useValue: {
+          now: signal(new Date('2026-10-01T12:00:00.000Z')),
+          isAdminBookingsWarm: vi.fn(() => false),
+          invalidate: vi.fn()
+        }
+      },
       {
         provide: BusinessService,
         useValue: {
