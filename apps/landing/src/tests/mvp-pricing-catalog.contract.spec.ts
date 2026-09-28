@@ -41,7 +41,7 @@ describe('Contract: MVP landing pricing catalog', () => {
     expect(subscriptionPage).not.toMatch(/quarterly|annual/);
   });
 
-  it('moves all three catalog price surfaces to ARS 9.000 in one migration', () => {
+  it('moves both catalog price surfaces to ARS 9.000 in one migration', () => {
     const migration = source(
       '../../supabase/migrations/20260928120000_premium_monthly_price_9000.sql'
     );
@@ -50,12 +50,13 @@ describe('Contract: MVP landing pricing catalog', () => {
     expect(migration).toMatch(/price = 9000/);
     // public.plan_prices.amount_cents — minor units, read by the billing surfaces.
     expect(migration).toMatch(/amount_cents = 900000/);
-    // public.mp_plan_catalog.amount — legacy Mercado Pago catalog.
-    expect(migration).toMatch(/amount = 9000/);
 
     expect(migration).toMatch(/WHERE code = 'PREMIUM'/);
     expect(migration).toMatch(/WHERE plan_code = 'PREMIUM'/);
-    expect(migration).toMatch(/WHERE tier_code = 'PREMIUM_MONTHLY'/);
+
+    // Mercado Pago is not integrated; the legacy catalog must stay untouched.
+    expect(migration).not.toMatch(/UPDATE\s+public\.mp_plan_catalog/i);
+    expect(migration).not.toMatch(/mp_plan_catalog\s*\n?\s*SET/i);
   });
 
   it('keeps the Premium monthly price at ARS 9.000 on every shipped surface', () => {
