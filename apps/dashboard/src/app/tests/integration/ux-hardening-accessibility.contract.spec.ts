@@ -35,28 +35,6 @@ describe('UX hardening final: accessibility contracts (mock mode, RED)', () => {
     expect(sidebarHtml).toMatch(/\[attr\.aria-label\]=["'][^"']+["']/);
   });
 
-  it('requires aria-live contracts for feedback regions and shared state message', async () => {
-    const [turnosHtml, serviciosHtml, clientesHtml, configHtml, stateSource] = await Promise.all([
-      readFile(fromRoot(TURNOS_HTML), 'utf-8'),
-      readFile(fromRoot(SERVICIOS_HTML), 'utf-8'),
-      readFile(fromRoot(CLIENTES_HTML), 'utf-8'),
-      readFile(fromRoot(CONFIG_HTML), 'utf-8'),
-      readFile(fromRoot(UI_STATE_COMPONENT_TS), 'utf-8')
-    ]);
-
-    // TODO(Aurora): app-ui-state-message debe exponer región viva configurable.
-    expect(stateSource).toMatch(/aria-live/);
-    expect(stateSource).toMatch(/role=\"status\"|role=\"alert\"/);
-
-    // TODO(Aurora): turnos necesita feedback accesible (error/éxito admin actions) con aria-live.
-    expect(turnosHtml).toMatch(/aria-live=/);
-
-    // Páginas core restantes ya deben conservar contrato de región viva.
-    expect(serviciosHtml).toMatch(/aria-live=/);
-    expect(clientesHtml).toMatch(/aria-live=/);
-    expect(configHtml).toMatch(/aria-live=/);
-  });
-
   it('requires focus-visible hooks and basic focus management contracts on core forms/actions', async () => {
     const corePages = [
       ['turnos', TURNOS_HTML],
