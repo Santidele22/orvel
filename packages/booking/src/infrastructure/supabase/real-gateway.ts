@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './supabase-client.token';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
 import type { SupabaseBookingGateway } from '../../gateway-interface';
-import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, mapPublicBookingCreateStatus } from './mappers';
+import { mapResolvedBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, mapPublicBookingCreateStatus } from './mappers';
 import { logMutationFailure } from '../../observability/mutation-error-log';
 import type {
   ApiResponse,
@@ -142,18 +142,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         };
       }
 
-      const businessRecord = data as { id: string; slug: string; name: string; timezone: string };
-
-      // Also fetch settings
-      const { data: settingsData } = await supabase
-        .from('business_settings')
-        .select('*')
-        .eq('business_id', businessRecord.id)
-        .maybeSingle();
-
+      // resolve_business_by_slug() is SECURITY DEFINER and returns the business
+      // identity, the booking policy and the operational settings, so the
+      // anonymous turnero must not read public.business_settings directly.
+      // Keeping this path table-free is what allows revoking anon's grants on
+      // that table (audit 2026-09-28, C-2/M-15).
       return {
         status: 200,
-        data: mapBusinessToPublicView(businessRecord, settingsData)
+        data: mapResolvedBusinessToPublicView(data)
       };
     } catch (err) {
       const error = err as { message?: string };
