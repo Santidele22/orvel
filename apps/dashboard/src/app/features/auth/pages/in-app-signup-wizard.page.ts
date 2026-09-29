@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { getSupabaseAuthClient } from '../../../core/auth/route-protection';
 import {
   buildPremiumWhatsAppUrl,
   copyPremiumAlias
@@ -10,9 +9,6 @@ import {
 import { AuthService } from '../../../core/auth/auth.service';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
-import { startPremiumTrialForCurrentBusiness } from '../start-premium-trial.client';
-import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
-import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
 
 const AGENDA_ROUTE = '/dashboard/turnos';
 
@@ -126,7 +122,9 @@ const AGENDA_ROUTE = '/dashboard/turnos';
         <div [hidden]="wizard.step !== 5">
           <p class="in-app-auth__success-badge" aria-hidden="true">✓</p>
           <h1>Ya estás adentro</h1>
-          <p class="in-app-auth__lede">Tenés 14 días de Premium activos.</p>
+          <p class="in-app-auth__lede">
+            Tu cuenta está lista y arranca en el plan Gratis. El Premium se activa a mano, cuando validamos la transferencia.
+          </p>
           <button type="button" class="in-app-auth__cta" (click)="enterAgenda()">Entrar a la agenda</button>
         </div>
 
@@ -569,43 +567,13 @@ export class InAppSignupWizardPage {
         await firstValueFrom(this.auth.login({ email: payload.email, password: payload.password }));
         this.wizard.markAccountCreated();
       }
-      const businessId = await this.resolveCurrentBusinessId();
-      if (!businessId) {
-        this.errorMessage.set('No pudimos activar la prueba. Reintentá en unos segundos.');
-        return;
-      }
-      const supabase = createSupabaseBrowserClient({
-        supabaseUrl: SUPABASE_CONFIG.url,
-        supabaseAnonKey: SUPABASE_CONFIG.anonKey
-      });
-      const started = await startPremiumTrialForCurrentBusiness(businessId, supabase);
-      if (!started.ok) {
-        this.errorMessage.set(started.message);
-        return;
-      }
-      this.wizard.startPremiumTrial();
-      await getSupabaseAuthClient().updateUser({ data: this.wizard.premiumRequestMetadata() });
+      this.wizard.markSignupComplete();
       this.triggerSignupSuccessConfetti();
     } catch {
-      this.errorMessage.set(
-        this.wizard.createdFree
-          ? 'No pudimos activar la prueba. Reintentá en unos segundos.'
-          : 'No pudimos crear la cuenta. Reintentá en unos segundos.'
-      );
+      this.errorMessage.set('No pudimos crear la cuenta. Reintentá en unos segundos.');
     } finally {
       this.submitting.set(false);
     }
-  }
-
-  private async resolveCurrentBusinessId(): Promise<string | null> {
-    const auth = getSupabaseAuthClient();
-    const authState = await auth.getDashboardAuthState();
-    if (typeof authState.data?.business_id === 'string' && authState.data.business_id) {
-      return authState.data.business_id;
-    }
-    const session = await auth.getSession();
-    const metadataId = session.data.session?.user.user_metadata?.['business_id'];
-    return typeof metadataId === 'string' && metadataId ? metadataId : null;
   }
 
   protected whatsAppUrl(): string {
