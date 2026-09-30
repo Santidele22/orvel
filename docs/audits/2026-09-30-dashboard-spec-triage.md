@@ -394,7 +394,9 @@ Each row is the decisive citation the triage used, copied verbatim from the per-
 
 ### Real code defects (`FIX_CODE`, 4)
 
-**`remixicon-subset.contract.spec.ts`** (B03, high, effort S)
+Opened as issues: #1081 (Remix subset), #1082 (slug authority), #1083 (duplicate loading copy), #1087 (kb010 mock).
+
+**`remixicon-subset.contract.spec.ts`** — issue [#1081](https://github.com/Santidele22/orvel/issues/1081) (B03, high, effort S)
 - **Subject**: Remix Icon subset stylesheet + mobile CSS budget: angular.json must not ship the full package CSS, the subset must cover every used ri-* class, Inter 400/600/700 only, production minify on / font inlining off
 - **Action**: Fix the app: add the five missing ri-* rules (ri-arrow-up-s-line, ri-question-line, ri-share-forward-line, ri-team-line, ri-wallet-3-line) with their `:before` codepoints copied from node_modules/remixicon/fonts/remixicon.css into src/styles/remixicon-used.css, then keep the spec as the coverage gate - ideally wiring the same coverage check into scripts/qa/check-remixicon-assets.mjs, which today validates only the angular.json/CDN half of the contract.
 - **Evidence**: spec:70-74 computes required = used ri-* classes that have a rule in node_modules/remixicon/fonts/remixicon.css, then requires them all in the subset; it fails with `expected [ 'ri-arrow-up-s-line', …(4) ] to deeply equal []`. Reproducing the spec's own logic over src/**/*.{html,ts} yields 79 used tokens, 74 required, exactly 5 missing, while the subset is otherwise live and hand-maintained (src/styles/remixicon-used.css, 4083 bytes, wired at angular.json:73).
@@ -402,21 +404,21 @@ Each row is the decisive citation the triage used, copied verbatim from the per-
 - **Evidence**: The other three tests pass and guard live invariants, so this is not a retired-subject source lock: angular.json:73 loads only src/styles/remixicon-used.css and not node_modules/remixicon/fonts/remixicon.css, src/index.html loads only Inter 400;600;700 with the print-media/noscript pattern, and the production optimization block keeps scripts/styles minify with fonts.inline false.
 - **Note**: scripts/qa/check-remixicon-assets.mjs enforces the angular.json/CDN/landing half of this contract but not the 'subset covers used classes' half, so this spec is currently the only guard for the 5 stale rules; the batch's own counts (DELETE 3, REWRITE 5, BACKLOG 1, FIX_CODE 1) match this being the single FIX_CODE.
 
-**`public-booking-slug-policy.red.contract.spec.ts`** (B05, medium, effort M)
+**`public-booking-slug-policy.red.contract.spec.ts`** — issue [#1082](https://github.com/Santidele22/orvel/issues/1082) (B05, medium, effort M)
 - **Subject**: Public booking slug ownership: server-generated canonical slug vs client-derived slug, plus settings hydration
 - **Action**: Remove the client slug authority: the fallback insert at business-settings.facade.ts:490 must not mint a slug via generateSlugFromName (defer to the server canonical path). Then rewrite spec:39 as behaviour (hydrate, assert the portal URL uses the persisted slug) and drop the placeholder check.
 - **Evidence**: src/app/features/settings/data-access/business-settings.facade.ts:490 - const slug = this.generateSlugFromName(name) is INSERTed into businesses (:495-501) from the live hydration path (:331), while the spec bans generateSlugFromName (spec:48).
 - **Evidence**: src/app/features/settings/pages/configuracion.page.ts:236-239 - publicBookingSlug() already prefers savedState()?.slug \|\| facade.settings()?.slug, so spec:39 is a false negative caused by extracting only the computed at :153.
 - **Note**: Test 1 passes: supabase/migrations/20260617130000_dashboard_auth_state.sql implements canonical_booking_slug plus a unique-suffix retry loop, so the server-owned decision is already accepted and the facade duplicates it.
 
-**`dashboard-section-skeletons.contract.spec.ts`** (B06, medium, effort S)
+**`dashboard-section-skeletons.contract.spec.ts`** — issue [#1083](https://github.com/Santidele22/orvel/issues/1083) (B06, medium, effort S)
 - **Subject**: Loading skeletons instead of copy on dashboard section pages (settings, turnos, servicios, clientes)
 - **Action**: Delete the leftover <p role="status">Cargando configuracion...</p> at configuracion-zen-theme.component.html:29; the skeleton that follows already carries data-testid=settings-loading-skeleton + role=status, so it is a duplicate announcement and the only thing keeping this 23/24-green file red.
 - **Evidence**: dashboard-section-skeletons.contract.spec.ts:51 asserts the settings template contains no 'Cargando configuracion' copy, but configuracion-zen-theme.component.html:29 still renders it immediately above the skeleton block at :30.
 - **Evidence**: The three sibling assertions in the same spec (turno-form, servicios, clientes) all pass, i.e. the shipped convention on every other page is skeleton-only with no copy.
 - **Note**: Product-visible copy removal, so it needs Santi's nod, but the duplicate role=status pair on the same loading branch is objectively redundant.
 
-**`kb010-configuracion-persistence-guard.red.contract.spec.ts`** (G1, high, effort S)
+**`kb010-configuracion-persistence-guard.red.contract.spec.ts`** — issue [#1087](https://github.com/Santidele22/orvel/issues/1087) (G1, high, effort S)
 - **Subject**: KB-010 BusinessSettingsFacade persistence: load/save against Supabase, working-hours and booking-policy roundtrip, sync/error signals, local fallback
 - **Action**: Complete the module mock: add ORVEL_SUPABASE_AUTH_STORAGE_KEY to the vi.mock('../../core/auth/supabase-config') factory at :32-37 (or spread importOriginal()), as mandatory-onboarding-dashboard-guard.red.contract.spec.ts:26-31 already does; then rerun and keep the passing tests.
 - **Evidence**: kb010-configuracion-persistence-guard.red.contract.spec.ts:32-37 mocks supabase-config with only SUPABASE_CONFIG, while src/app/core/runtime/supabase-client.factory.ts:2,11 reads ORVEL_SUPABASE_AUTH_STORAGE_KEY at module load; reproduced: vitest reports 12 skipped + 'No ... export is defined'
@@ -425,49 +427,51 @@ Each row is the decisive citation the triage used, copied verbatim from the per-
 
 ### Real, unimplemented requirements (`BACKLOG`, 7)
 
-**`zen-only-runtime-identifiers-gate.red.contract.spec.ts`** (B03, high, effort S)
+Opened as issues: #1080 (zen-only identifier gate), #1084 (session allowlist), #1085 (config-driven slots), #1086 (shared presentational components), #1088 (salon boundary), #1089 (billing entitlements), #1090 (entitlements contract owner).
+
+**`zen-only-runtime-identifiers-gate.red.contract.spec.ts`** — issue [#1080](https://github.com/Santidele22/orvel/issues/1080) (B03, high, effort S)
 - **Subject**: No industrial/chic/ink identifiers anywhere in dashboard runtime source
 - **Action**: Keep RED and out of CI (CI runs 14 spec files / 92 of 2049 tests - docs/audits/2026-09-28-dashboard-coupling.md, section 10). When the zen-only cleanup is scheduled, delete the dead non-zen sr-only nav mirror and the comments together with the per-theme slicing spec; this file then becomes the cheap static guard for the invariant.
 - **Evidence**: The single failure reports 182 files scanned and exactly 1 offending file: src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html (3 matches) [INDUSTRIAL, CHIC, INK] - the HTML comments at lines 31, 37 and 43. The runtime is otherwise zen-only (src/app/core/theming/theme.tokens.ts:11).
 - **Evidence**: Those three comments are load-bearing for a green spec: sidebar-navigation-stabilization.contract.spec.ts:43-58 uses `<!-- ZEN SIDEBAR -->` ... `<!-- INK SIDEBAR -->` as slice markers and passes 9/9 today, so the cleanup is blocked behind a decision about that spec.
 - **Note**: A grep-style identifier scan is the cheapest possible guard for this static invariant, so it should be kept, not rewritten - but it fails today, so it is a backlog item, not KEEP.
 
-**`dashboard-session-business-types.contract.spec.ts`** (B06, medium, effort S)
+**`dashboard-session-business-types.contract.spec.ts`** — issue [#1084](https://github.com/Santidele22/orvel/issues/1084) (B06, medium, effort S)
 - **Subject**: Zen-only session: dashboard business rules must keep 'zen' and drop removed demo types from the session
 - **Action**: Keep it red and out of every CI gate until the zen-only MVP ships; the acceptance note is that ALLOWED_SELECTED_BUSINESS_TYPES becomes ['zen'] as const, at which point sanitize(['industrial','zen','evil','ink']) === ['zen'].
 - **Evidence**: :99 expects sanitizeSelectedBusinessTypes(['industrial','zen','evil','ink']) === ['zen'], but core/auth/mock-login-business-types.ts:13 sets ALLOWED_SELECTED_BUSINESS_TYPES = REQUIRED_RUBROS, the 8 live catalog rubros (onboarding-rubros.ts:13; domain reference-catalog.ts:62-70), which exclude 'zen'.
 - **Evidence**: integration/zen-only-mvp-cleanup-gate.red.contract.spec.ts:40 demands ALLOWED_SELECTED_BUSINESS_TYPES = ['zen'] as const and is itself red (3/6), so the requirement is an open, wanted MVP slice rather than a regression.
 - **Note**: Three of the four cases pass only vacuously (an empty allowlist yields the zen fallback); confirm with Santi whether zen-only is still the direction or the rubro catalog supersedes it.
 
-**`turnos-availability-settings.contract.spec.ts`** (B06, medium, effort S)
+**`turnos-availability-settings.contract.spec.ts`** — issue [#1085](https://github.com/Santidele22/orvel/issues/1085) (B06, medium, effort S)
 - **Subject**: Config-driven slot generation: slotIntervalMinutes, buffer and notice settings must change the available slots
 - **Action**: Keep it red and out of every CI gate until the availability-settings slice ships; when getHorariosDisponiblesConConfiguracion exists on the real service, retarget the spec at it instead of the in-memory testbed, and drop the tautological determinism case at :16-47.
 - **Evidence**: :89 expects a 15-minute interval to yield more slots than a 30-minute one, but the fake ignores the config (tests/helpers/turno-service-testbed.ts:268 just delegates to getHorariosDisponibles) and no production module defines getHorariosDisponiblesConConfiguracion (grep: only the fake and specs).
 - **Evidence**: features/booking/pages/turno-core-slice6-admin-availability-ux-runtime.red.contract.spec.ts:97 demands getHorariosDisponiblesConConfiguracion in the real turno service source and is itself red, so the requirement is open and wanted.
 - **Note**: The settings model is live (features/settings/data-access/business.service.ts:38-40,:518-520); only availability-side consumption is missing.
 
-**`dashboard-atomic-layering-settings.contract.spec.ts`** (B07, medium, effort M)
+**`dashboard-atomic-layering-settings.contract.spec.ts`** — issue [#1086](https://github.com/Santidele22/orvel/issues/1086) (B07, medium, effort M)
 - **Subject**: Sprint 2 atomic-layering TODO: configuracion.page.ts should reuse at least one presentational component from shared/components.
 - **Action**: Keep it red and out of every CI gate (it is not in test:dashboard:contracts today), rename it to *.red.contract.spec.ts if the backlog bucket requires it, and leave the TODO as the acceptance note; do not delete until Santi decides the settings page must reuse shared presentational components.
 - **Evidence**: dashboard-atomic-layering-settings.contract.spec.ts:6-11,16-20 — targets the live src/app/features/settings/pages/configuracion.page.ts, is failed by an assertion, and carries `TODO(Aurora)`.
 - **Evidence**: configuracion.page.ts:15,41-47 — the page composes ZenThemeComponent plus ORVEL_SECTION_PRIMITIVES from shared/dashboard-section-primitives, not shared/components/; shared/components holds only calendar-picker today.
 - **Note**: Requirement is real and unimplemented, not broken behaviour: the strict_tdd convention expects a red contract to stay red until it ships. Needs a product/architecture call on whether 'shared/components/' is the mandated layer (the page already reuses shared section primitives).
 
-**`tenant-safety-salon-boundary-sb02.red.contract.spec.ts`** (G2, high, effort S)
+**`tenant-safety-salon-boundary-sb02.red.contract.spec.ts`** — issue [#1088](https://github.com/Santidele22/orvel/issues/1088) (G2, high, effort S)
 - **Subject**: SB-02 tenant boundary: createTenantSafeSalonService requires a non-empty accountId and refuses to read/rename another tenant's salon
 - **Action**: Treat as backlog, not gate: the spec is real behaviour over a service with zero non-test importers, and no production code touches the 'salon' domain. Either park spec+service behind a multi-branch tenancy issue, or delete both together.
 - **Evidence**: src/app/tests/integration/tenant-safety-salon-boundary-sb02.red.contract.spec.ts:61-97 drives a two-tenant fake repository and asserts cross-tenant read/rename returns null — real behaviour, no source text read.
 - **Evidence**: Repo grep for createTenantSafeSalonService/tenant-safe-salon matches only that spec (:31, :44, :69) and src/app/core/tenancy/tenant-safe-salon.service.ts:21 — no production consumer; account-plan-policy.ts:60 is the only other 'salon' consumer surface and it is itself test-only.
 - **Note**: Its loader catch text (TODO(Magnus) at :34-36) is stale: the module was written and the test passes today.
 
-**`billing-entitlements-catalog.red.contract.spec.ts`** (G2, medium, effort M)
+**`billing-entitlements-catalog.red.contract.spec.ts`** — issue [#1089](https://github.com/Santidele22/orvel/issues/1089) (G2, medium, effort M)
 - **Subject**: Billing subscription entitlements must resolve through the reference catalog: legacy aliases return PREMIUM with catalog limits, unknown plans fail closed to FREE, PREMIUM monthly bookings stay unlimited
 - **Action**: Treat as backlog: its behavioural half (injected RPC through getActiveSnapshot/assertEntitlement) is good, but its subject entitlements.api.ts is imported only by this spec, and :45-60 are source greps. Either find the productive caller or let module and guard leave the gate together.
 - **Evidence**: billing-entitlements-catalog.red.contract.spec.ts:62-129 is genuine behaviour (injected rpc rows through getActiveSnapshot and assertEntitlement), but repo grep for 'subscriptions/entitlements.api' finds only this spec at :10 — no production importer.
 - **Evidence**: billing-entitlements-catalog.red.contract.spec.ts:45-54 and :56-60 assert the source file contains no PLAN_LIMITS and does not return a legacy tier string, i.e. two of its seven tests cannot fail on any behavioural regression.
 - **Note**: Last touched by 790de77, 'fix(billing): simplify mvp pricing to free premium' (2026-07-07), which is exactly why the tier matrix here collapsed to FREE/PREMIUM.
 
-**`dashboard-core-backend-first.red.contract.spec.ts`** (G2, medium, effort M)
+**`dashboard-core-backend-first.red.contract.spec.ts`** — issue [#1090](https://github.com/Santidele22/orvel/issues/1090) (G2, medium, effort M)
 - **Subject**: Dashboard core is backend-first: catalog through get_dashboard_reference_catalog, entitlements through get_business_entitlements_snapshot with no fake BUSINESS_PLAN/BUSINESS_USAGE maps, and fail-closed when the backend snapshot is unavailable
 - **Action**: Treat as backlog: core/entitlements/server-entitlements.api.ts has no non-test importer. Keep the migration-contract it() (:99-109) and drop the symbol-absence snapshots (BOOTSTRAP_CATALOG_PAYLOAD, BUSINESS_PLAN, biz_qa_001) once one file owns the entitlement contract.
 - **Evidence**: dashboard-core-backend-first.red.contract.spec.ts:111-139 imports ../../core/entitlements/server-entitlements.api and asserts the snapshot limits and the fail-closed reason, while :99-109 extracts get_business_entitlements_snapshot from the migrations corpus and requires the four limit columns.
