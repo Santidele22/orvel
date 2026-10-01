@@ -33,7 +33,8 @@ vi.mock('../../core/auth/supabase-config', () => ({
   SUPABASE_CONFIG: {
     url: 'https://test.supabase.co',
     anonKey: 'test-anon-key'
-  }
+  },
+  ORVEL_SUPABASE_AUTH_STORAGE_KEY: 'orvel.supabase.auth'
 }));
 
 vi.mock('../../core/runtime/dashboard-env', () => ({
@@ -238,7 +239,7 @@ describe('KB-010.5 - Form state sync and error handling', () => {
     const { pageTs } = readConfiguracionSources();
     expect(pageTs).toMatch(/settingsForm\.invalid/);
     expect(pageTs).toMatch(/markAllAsTouched\(/);
-    expect(pageTs).toMatch(/formMessage\.set\(['"]Formulario inválido/i);
+    expect(pageTs).toMatch(/formMessage\.set\([`'"]Formulario inválido/i);
   });
 
   it('KB-010.5.2 @RED - exposes sync/error signals for remote persistence lifecycle', () => {
