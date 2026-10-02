@@ -16,6 +16,7 @@ import {
   DASHBOARD_SERVICIO_SOURCE
 } from '../dashboard-data.ports';
 import { DashboardService } from '../dashboard.service';
+import { localDateFromDateKey, readArgentinaClock } from '../../time/argentina-clock';
 
 const homePageSource = readFileSync(
   resolve(process.cwd(), 'src/app/features/dashboard-home/pages/dashboard-home.page.ts'),
@@ -35,7 +36,9 @@ function todayRecord(overrides: Partial<BookingRecord> = {}): BookingRecord {
     branchId: 'br-1',
     clienteId: 'c-1',
     servicioId: 's-1',
-    fecha: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+    // "Today" is the Argentina calendar day, which is what DashboardService compares against
+    // (`readArgentinaClock`); using the runner's local date breaks the comparison on a UTC machine.
+    fecha: localDateFromDateKey(readArgentinaClock(now).dateKey),
     hora: '23:59',
     duracionMinutos: 30,
     estado: 'confirmado',
@@ -63,8 +66,9 @@ class QueuedBookingQueries implements BookingQueries {
 }
 
 function setAfternoonNow(service: DashboardService): void {
-  const afternoon = new Date();
-  afternoon.setHours(15, 0, 0, 0);
+  // 15:00 on the Argentina calendar day. Argentina has had no DST since 2009, so the fixed -03:00
+  // offset is exact and the service's clock reads 15:00 ART whatever timezone the runner uses.
+  const afternoon = new Date(`${readArgentinaClock(new Date()).dateKey}T15:00:00-03:00`);
   service.now.set(afternoon);
 }
 
