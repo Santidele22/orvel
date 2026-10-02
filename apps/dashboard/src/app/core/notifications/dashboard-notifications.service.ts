@@ -11,6 +11,7 @@ import {
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 
 const REALTIME_REFRESH_DEBOUNCE_MS = 400;
 
@@ -22,6 +23,7 @@ function unreadCountFromList(items: readonly DashboardNotification[]): number {
 export class DashboardNotificationsService implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly branchContext = getBranchContextService();
+  private readonly environment = browserEnvironment();
   private readonly notificationsState = signal<DashboardNotification[]>([]);
   private readonly unreadNotificationCountState = signal(0);
   private readonly loadingState = signal(false);
@@ -31,6 +33,7 @@ export class DashboardNotificationsService implements OnDestroy {
   private loadedBusinessId: string | null = null;
   private inFlightRefresh: Promise<void> | null = null;
   private realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private unsubscribeVisibilityChange: (() => void) | null = null;
 
   readonly notifications = this.notificationsState.asReadonly();
   readonly unreadNotificationCount = this.unreadNotificationCountState.asReadonly();
@@ -40,18 +43,19 @@ export class DashboardNotificationsService implements OnDestroy {
 
   constructor() {
     registerSectionCacheInvalidator(() => this.clearCache());
-    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    this.unsubscribeVisibilityChange = this.environment.onVisibilityChange(this.onVisibilityChange);
     void this.init();
   }
 
   ngOnDestroy(): void {
-    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.unsubscribeVisibilityChange?.();
+    this.unsubscribeVisibilityChange = null;
     this.stopSubscription();
     this.clearRealtimeRefreshTimer();
   }
 
   private readonly onVisibilityChange = (): void => {
-    if (document.visibilityState === 'visible') {
+    if (this.environment.isVisible()) {
       void this.refreshForAdmin(undefined, { force: true });
     }
   };
@@ -95,7 +99,7 @@ export class DashboardNotificationsService implements OnDestroy {
     this.realtimeRefreshTimer = setTimeout(() => {
       this.realtimeRefreshTimer = null;
       void this.refreshForAdmin(undefined, { force: true });
-      window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+      this.environment.dispatchWindowEvent('operator.agenda.sync');
     }, REALTIME_REFRESH_DEBOUNCE_MS);
   }
 
