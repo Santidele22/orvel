@@ -1,5 +1,6 @@
 import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 
 export const PUBLIC_BOOKING_FAILURE_EVENT = 'orvel.public-booking.failure';
 
@@ -87,9 +88,7 @@ export function emitPublicBookingFailureEvent(input: {
     retryable: input.retryable ?? true
   };
 
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
-    window.dispatchEvent(new CustomEvent<PublicBookingFailureEvent>(PUBLIC_BOOKING_FAILURE_EVENT, { detail: event }));
-  }
+  browserEnvironment().dispatchWindowEvent(PUBLIC_BOOKING_FAILURE_EVENT, event);
 
   console.warn('[PublicBooking] Operational failure event emitted.', event);
   void recordPublicBookingFailure(event);
