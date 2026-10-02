@@ -189,14 +189,14 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toContain('No usamos Mercado Pago ni tarjeta');
     expect(page).toContain('orvel.pagos');
     expect(page).toContain('Copiar');
-    expect(page).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(page).toContain('Transferí los $9.000 al alias de arriba.');
     expect(page).toContain('Mandá el comprobante por WhatsApp.');
     expect(page).toContain('Entrá ya en Gratis, sin esperar a nadie.');
     expect(page).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');
     expect(page).toContain('Enviar comprobante por WhatsApp');
     expect(page).toContain('Hasta entonces tu cuenta funciona en plan Gratis.');
     expect(page).toContain('Pago pendiente');
-    expect(page).toContain('$25.000/mes');
+    expect(page).toContain('$9.000/mes');
     expect(page).toContain('Turnos ilimitados');
     expect(page).toContain('1 local');
     expect(page).toContain('PLAN PREMIUM');

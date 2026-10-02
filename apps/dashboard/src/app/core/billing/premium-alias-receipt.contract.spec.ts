@@ -20,7 +20,7 @@ describe('Premium alias receipt helpers', () => {
     const url = buildPremiumWhatsAppUrl();
     expect(url).toContain(`https://wa.me/${PREMIUM_WHATSAPP_NUMBER}`);
     expect(decodeURIComponent(url)).toContain(
-      'Hola, te mando el comprobante de Premium Orvel ($25.000). Alias orvel.pagos.',
+      'Hola, te mando el comprobante de Premium Orvel ($9.000). Alias orvel.pagos.',
     );
     expect(PREMIUM_TRANSFER_ALIAS).toBe('orvel.pagos');
   });

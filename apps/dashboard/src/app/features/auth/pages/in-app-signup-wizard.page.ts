@@ -140,7 +140,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 <p class="in-app-auth__plan-kicker">PLAN PREMIUM</p>
                 <span class="in-app-auth__pending-badge">Pago pendiente</span>
               </header>
-              <p class="in-app-auth__price">$25.000/mes</p>
+              <p class="in-app-auth__price">$9.000/mes</p>
               <ul class="in-app-auth__plan-list in-app-auth__plan-list--checks">
                 <li>Turnos ilimitados</li>
                 <li>1 local</li>
@@ -157,7 +157,7 @@ const AGENDA_ROUTE = '/dashboard/turnos';
                 </div>
               </div>
               <ol class="in-app-auth__steps">
-                <li><span aria-hidden="true">1</span> Transferí los $25.000 al alias de arriba.</li>
+                <li><span aria-hidden="true">1</span> Transferí los $9.000 al alias de arriba.</li>
                 <li><span aria-hidden="true">2</span> Mandá el comprobante por WhatsApp.</li>
                 <li><span aria-hidden="true">3</span> Entrá ya en Gratis, sin esperar a nadie.</li>
                 <li><span aria-hidden="true">4</span> Cuando lo validemos, pasás a Premium y te llega un mail.</li>

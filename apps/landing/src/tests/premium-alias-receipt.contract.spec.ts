@@ -37,14 +37,14 @@ describe('Premium alias + WhatsApp receipt (landing billing)', () => {
     expect(source).toContain('No usamos Mercado Pago ni tarjeta. Es una transferencia directa que validamos a mano.');
     expect(source).toMatch(/md:grid-cols-2/);
     expect(source).toContain('PLAN PREMIUM');
-    expect(source).toContain('$25.000/mes');
+    expect(source).toContain('$9.000/mes');
     expect(source).toContain('Pago pendiente');
     expect(source).toContain('Turnos ilimitados');
     expect(source).toContain('1 local');
     expect(source).toContain('TRANSFERÍ A ESTE ALIAS');
     expect(source).toContain(PREMIUM_TRANSFER_ALIAS);
     expect(source).toContain('Copiar');
-    expect(source).toContain('Transferí los $25.000 al alias de arriba.');
+    expect(source).toContain('Transferí los $9.000 al alias de arriba.');
     expect(source).toContain('Mandá el comprobante por WhatsApp.');
     expect(source).toContain('Entrá ya en Gratis, sin esperar a nadie.');
     expect(source).toContain('Cuando lo validemos, pasás a Premium y te llega un mail.');
@@ -56,7 +56,7 @@ describe('Premium alias + WhatsApp receipt (landing billing)', () => {
   it('builds the WhatsApp URL with the short Spanish prefill', () => {
     expect(buildPremiumWhatsAppUrl()).toContain(`https://wa.me/${PREMIUM_WHATSAPP_NUMBER}?text=`);
     expect(decodeURIComponent(buildPremiumWhatsAppUrl())).toContain(
-      'Hola, te mando el comprobante de Premium Orvel ($25.000). Alias orvel.pagos.',
+      'Hola, te mando el comprobante de Premium Orvel ($9.000). Alias orvel.pagos.',
     );
   });
 
