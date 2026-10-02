@@ -3,6 +3,8 @@ import { type SupabaseClient } from '@supabase/supabase-js';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
 import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { browserStorage } from '../storage/browser-storage.adapter';
+import type { KeyValueStorage } from '../storage/storage.port';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
 
 export type DashboardBranch = {
@@ -302,8 +304,8 @@ export class BranchContextService {
       .filter((row) => row.id.length > 0);
   }
 
-  private storage(): Storage | null {
-    return typeof window !== 'undefined' ? window.localStorage : null;
+  private storage(): KeyValueStorage | null {
+    return browserStorage();
   }
 }
 
