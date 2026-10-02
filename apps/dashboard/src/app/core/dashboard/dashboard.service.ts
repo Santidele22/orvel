@@ -227,28 +227,25 @@ export class DashboardService {
   readonly stats = computed(() => {
     const turnos = this.bookings();
     const clientes = this.clienteService.items();
-    
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyMs = hoy.getTime();
-    
+
+    // Same clock convention as agendaStatus/featuredAppointments: the Argentina calendar day, read
+    // from the injectable clock. Using the device's local midnight here made "today" disagree between
+    // the stats tile and the agenda on any device that is not on Argentina time.
+    const clock = readArgentinaClock(this.now());
+    const mesActual = clock.dateKey.slice(0, 7);
+
     // Average ticket today (completed appointments only)
-    const turnosCompletadosHoy = turnos.filter(t => {
-      if (!t.fecha) return false;
-      const d = new Date(t.fecha);
-      const tMs = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      return tMs === hoyMs && t.estado === 'completado';
-    });
+    const turnosCompletadosHoy = turnos.filter(t =>
+      !!t.fecha && civilDateKey(t.fecha) === clock.dateKey && t.estado === 'completado'
+    );
     
     const totalVentas = turnosCompletadosHoy.reduce((acc, t) => acc + (t.precio || 0), 0);
     const ticketPromedio = turnosCompletadosHoy.length > 0 ? totalVentas / turnosCompletadosHoy.length : 0;
     
     // New clients this month
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime();
     const nuevosClientes = clientes.filter(c => {
       if (!c.createdAt) return false;
-      const d = new Date(c.createdAt);
-      return d.getTime() >= primerDiaMes;
+      return readArgentinaClock(new Date(c.createdAt)).dateKey >= `${mesActual}-01`;
     }).length;
     
     return {
