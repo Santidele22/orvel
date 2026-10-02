@@ -28,6 +28,7 @@
 .ri-arrow-left-s-line:before { content: "\ea64"; }
 .ri-arrow-right-line:before { content: "\ea6c"; }
 .ri-arrow-right-s-line:before { content: "\ea6e"; }
+.ri-arrow-up-s-line:before { content: "\ea78"; }
 .ri-calendar-2-line:before { content: "\eb21"; }
 .ri-calendar-check-fill:before { content: "\eb22"; }
 .ri-calendar-check-line:before { content: "\eb23"; }
@@ -75,16 +76,19 @@
 .ri-notification-off-line:before { content: "\ef9c"; }
 .ri-phone-line:before { content: "\efec"; }
 .ri-pie-chart-line:before { content: "\effa"; }
+.ri-question-line:before { content: "\f045"; }
 .ri-scissors-2-fill:before { content: "\f0be"; }
 .ri-scissors-line:before { content: "\f0c3"; }
 .ri-search-line:before { content: "\f0d1"; }
 .ri-service-line:before { content: "\f0e2"; }
 .ri-settings-3-line:before { content: "\f0e6"; }
 .ri-settings-line:before { content: "\f0ee"; }
+.ri-share-forward-line:before { content: "\f0fd"; }
 .ri-share-line:before { content: "\f0fe"; }
 .ri-sparkling-2-fill:before { content: "\f36a"; }
 .ri-star-fill:before { content: "\f186"; }
 .ri-store-2-line:before { content: "\f1a5"; }
+.ri-team-line:before { content: "\f1ee"; }
 .ri-time-line:before { content: "\f20f"; }
 .ri-user-3-line:before { content: "\f256"; }
 .ri-user-add-line:before { content: "\f25e"; }
@@ -92,5 +96,6 @@
 .ri-user-heart-line:before { content: "\f263"; }
 .ri-user-line:before { content: "\f264"; }
 .ri-user-settings-line:before { content: "\f26e"; }
+.ri-wallet-3-line:before { content: "\f2ac"; }
 .ri-whatsapp-line:before { content: "\f2bc"; }
 .ri-wifi-off-line:before { content: "\f2c2"; }
