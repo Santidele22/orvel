@@ -1,18 +1,16 @@
 {
-  "revision": "6a4c6cf",
-  "recordedAt": "2026-10-01",
+  "revision": "d82738c",
+  "recordedAt": "2026-10-02",
   "issue": 1076,
   "notes": "Known-failing dashboard tests at `revision`. Exact parity is enforced by scripts/check-dashboard-failure-parity.mjs: no new failure is allowed, and every entry here must still be failing. Regenerate with `pnpm run test:dashboard:parity:update` whenever a fix lands or a batch of dead specs is deleted.",
   "totals": {
     "tests": 1828,
-    "passed": 1647,
+    "passed": 1659,
     "failed": 156,
-    "skipped": 25,
-    "collectionErrors": 1
+    "skipped": 13,
+    "collectionErrors": 0
   },
-  "collectionErrors": {
-    "src/app/tests/integration/kb010-configuracion-persistence-guard.red.contract.spec.ts": "[vitest] No \"ORVEL_SUPABASE_AUTH_STORAGE_KEY\" export is defined on the \"../../core/auth/supabase-config\" mock. Did you forget to return it from \"vi.mock\"?"
-  },
+  "collectionErrors": {},
   "failures": [
     "src/app/features/billing/data-access/subscriptions/subscription-state-machine.api.spec.ts :: RED contract: subscription state machine uses catalog canonical plans derives upgrade/downgrade order from catalog canonical FREE/STARTER/GROWTH/PRO order",
     "src/app/features/billing/data-access/subscriptions/subscription-state-machine.api.spec.ts :: RED contract: subscription state machine uses catalog canonical plans normalizes legacy BASIC/MEDIUM event inputs to canonical STARTER/GROWTH outputs",
