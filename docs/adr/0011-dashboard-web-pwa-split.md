@@ -2,7 +2,7 @@
 
 Split `apps/dashboard` into two execution targets — `web` (the desktop operator console) and `pwa` (the mobile installable product) — over a shared, platform-agnostic core, executed as a strangler rather than a rewrite.
 
-- **Status**: Proposed. This ADR is the Fase 0 deliverable of [#1098](https://github.com/Santidele22/orvel/issues/1098); option A is recommended and option B is its transitional step. Santi's acceptance is the gate before Fase 1 starts moving code.
+- **Status**: Accepted (2026-10-02). Santi accepted option A on 2026-10-02, which is the gate this ADR set for Fase 1 to start moving code. Option B stays available as the transitional step of the shell inside steps 2-3, not as the destination. This ADR was the Fase 0 deliverable of [#1098](https://github.com/Santidele22/orvel/issues/1098).
 - **Supersedes**: nothing. Complements [ADR 0010](0010-hexagonal-architecture.md) (ports and adapters, booking pilot) and issues [#1076](https://github.com/Santidele22/orvel/issues/1076) (internal decoupling) and [#1077](https://github.com/Santidele22/orvel/issues/1077) (native target).
 
 ## Context
