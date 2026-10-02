@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '../auth/supabase-config';
+import { browserStorage } from '../storage/browser-storage.adapter';
 import { REQUIRED_DASHBOARD_ENV_KEYS, type DashboardRuntimeEnv } from './dashboard-env';
 
 const DASHBOARD_SUPABASE_AUTH_OPTIONS = {
@@ -9,7 +10,7 @@ const DASHBOARD_SUPABASE_AUTH_OPTIONS = {
     persistSession: true,
     detectSessionInUrl: false,
     storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined
+    storage: browserStorage() ?? undefined
   }
 };
 

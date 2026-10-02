@@ -1,5 +1,6 @@
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from './session-contract';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { browserStorage } from '../storage/browser-storage.adapter';
 import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
 import { createSupabaseAuthClient } from './supabase-auth.client';
@@ -406,9 +407,10 @@ export async function logoutAndRedirect(): Promise<string> {
   }
 
   resetDashboardAuthAccessCache();
-  localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
-  localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
-  localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
+  const storage = browserStorage();
+  storage?.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
+  storage?.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
+  storage?.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   resetBranchContextSession();
   invalidateSectionCaches();
 

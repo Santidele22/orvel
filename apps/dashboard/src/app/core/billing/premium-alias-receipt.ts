@@ -1,3 +1,5 @@
+import { browserStorage } from '../storage/browser-storage.adapter';
+
 export const PREMIUM_TRANSFER_ALIAS = 'orvel.pagos';
 export const PREMIUM_PRICE_COPY = '$25.000';
 export const PREMIUM_WHATSAPP_NUMBER = '5492944667161';
@@ -84,9 +86,5 @@ export function countCurrentMonthBookings(
 }
 
 export function readBrowserReviewStorage(): ReviewStorage | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return window.localStorage ?? null;
+  return browserStorage();
 }
