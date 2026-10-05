@@ -8,7 +8,7 @@ import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_SETTINGS_SOURCE
 } from '../../../core/business/business-directory.ports';
-import { createSupabaseClient } from '../../../core/runtime/supabase-client';
+import { createSupabaseClient } from '../../../core/adapters/supabase/supabase-client';
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';

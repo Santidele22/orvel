@@ -4,7 +4,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { SUPABASE_CLIENT } from '@orvel/booking/infrastructure';
 
 import { routes } from './app.routes';
-import { createSupabaseClient } from './core/runtime/supabase-client';
+import { createSupabaseClient } from './core/adapters/supabase/supabase-client';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_PROFESSIONALS_SOURCE,

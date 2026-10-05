@@ -14,7 +14,7 @@ import {
   refreshRuntimeReferenceCatalog
 } from '../../../core/catalog/reference-catalog.gateway';
 import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
-import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
+import { createSupabaseBrowserClient } from '../../../core/adapters/supabase/supabase-auth.client';
 import {
   type BusinessTypeCode,
   ONBOARDING_BUSINESS_TYPES_STORAGE_KEY,

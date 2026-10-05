@@ -13,7 +13,7 @@ import {
   createSupabaseAuthClient,
   type SupabaseSession
 } from './supabase-auth.client';
-import { resetDashboardSupabaseClientCacheForTests } from '../runtime/supabase-client.factory';
+import { resetDashboardSupabaseClientCacheForTests } from './supabase-client.factory';
 
 describe('SupabaseAuthClientAdapter.onAuthStateChange contract', () => {
   beforeEach(() => {

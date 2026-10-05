@@ -193,7 +193,7 @@ export class BillingSubscriptionPage {
     try {
       const [{ SUPABASE_CONFIG }, { createSupabaseAuthClient }] = await Promise.all([
         import('../../../core/auth/supabase-config'),
-        import('../../../core/auth/supabase-auth.client')
+        import('../../../core/adapters/supabase/supabase-auth.client')
       ]);
       const authClient = createSupabaseAuthClient({
         supabaseUrl: SUPABASE_CONFIG.url,
