@@ -7,13 +7,15 @@
     "supabaseCliVersion": "2.98.2"
   },
   "scripts": {
-    "build": "pnpm run build:dashboard && pnpm run build:landing",
+    "build": "pnpm run build:dashboard && pnpm run build:dashboard-web && pnpm run build:landing",
     "build:dashboard": "pnpm --dir apps/dashboard run build",
+    "build:dashboard-web": "pnpm --dir apps/dashboard-web run build",
     "build:dashboard:bun": "bun run --cwd apps/dashboard build",
     "build:landing": "pnpm --dir apps/landing run build",
     "build:vercel": "node scripts/build-vercel.mjs",
-    "check": "pnpm run test:promotion-drift && pnpm run test:core && pnpm run test:dashboard:parity:unit && pnpm run check:dashboard && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check && pnpm run test:supabase:trial-reminder:ci && pnpm run test:dashboard:parity",
+    "check": "pnpm run test:promotion-drift && pnpm run test:core && pnpm run test:dashboard:parity:unit && pnpm run check:dashboard && pnpm run check:dashboard-web && pnpm run check:landing && pnpm run test:supabase:functions:critical && pnpm run supabase:functions:check && pnpm run test:supabase:trial-reminder:ci && pnpm run test:dashboard:parity",
     "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm run test:dashboard:contracts && pnpm --dir apps/dashboard run build",
+    "check:dashboard-web": "pnpm run test:dashboard-web && pnpm --dir apps/dashboard-web run build && node scripts/check-dashboard-web-pwa-artifacts.mjs",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
     "check:landing": "pnpm run test:landing:tutorial && pnpm run test:landing:build-lock && pnpm --dir apps/landing run build",
     "security:audit:prod": "pnpm audit --prod",
@@ -46,6 +48,7 @@
     "test:local-proxy": "node --test scripts/local-dev-proxy.test.mjs",
     "test:promotion-drift": "node --test scripts/check-migration-drift.test.mjs",
     "test:dashboard": "pnpm --dir apps/dashboard run test",
+    "test:dashboard-web": "pnpm --dir apps/dashboard-web run test",
     "test:core": "pnpm --dir packages/dashboard-core run test",
     "test:dashboard:parity:unit": "node --test scripts/check-dashboard-failure-parity.test.mjs",
     "test:dashboard:parity": "node scripts/check-dashboard-failure-parity.mjs",
@@ -62,6 +65,7 @@
   "workspaces": [
     "apps/landing",
     "apps/dashboard",
+    "apps/dashboard-web",
     "apps/shared/*",
     "packages/*"
   ],

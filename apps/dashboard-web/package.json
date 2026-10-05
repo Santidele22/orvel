@@ -1,0 +1,51 @@
+{
+  "name": "orvel-dashboard-web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "ng": "ng",
+    "start": "node ../dashboard/scripts/generate-dashboard-env.mjs && ng serve",
+    "build": "node ../dashboard/scripts/generate-dashboard-env.mjs --production && ng build",
+    "watch": "node ../dashboard/scripts/generate-dashboard-env.mjs && ng build --watch --configuration development",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.24",
+    "@angular/compiler": "^21.2.24",
+    "@angular/core": "^21.2.24",
+    "@angular/forms": "^21.2.24",
+    "@angular/platform-browser": "^21.2.24",
+    "@angular/router": "^21.2.24",
+    "@orvel/auth": "workspace:*",
+    "@orvel/billing": "workspace:*",
+    "@orvel/booking": "workspace:*",
+    "@orvel/config": "workspace:*",
+    "@orvel/dashboard-core": "workspace:*",
+    "@orvel/domain": "workspace:*",
+    "@orvel/shared": "workspace:*",
+    "@orvel/types": "workspace:*",
+    "@supabase/supabase-js": "^2.108.2",
+    "canvas-confetti": "^1.9.4",
+    "driver.js": "^1.8.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.4.1",
+    "zone.js": "^0.16.3"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.15",
+    "@angular/cli": "^21.2.15",
+    "@angular/compiler-cli": "^21.2.17",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^25.6.0",
+    "autoprefixer": "^10.5.4",
+    "jsdom": "^29.0.2",
+    "postcss": "^8.5.23",
+    "tailwindcss": "3",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.4"
+  }
+}
