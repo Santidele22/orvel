@@ -14,7 +14,7 @@ This is the SIXTH of 7 planned extractions (`auth` ✅, `booking` ✅, `domain` 
 
 - `apps/dashboard/src/environments/environment.ts` and `environment.prod.ts` stay in the dashboard forever.
 - Runtime env values, URLs, anon keys, tokens, and baked fallbacks stay in the dashboard.
-- `defaultEnvSource()` and the optional-source wrapper stay in `apps/dashboard/src/app/core/runtime/dashboard-env.ts`.
+- `defaultEnvSource()` and the optional-source wrapper stay in `apps/dashboard/src/app/core/runtime/dashboard-env.ts`; since Fase 3 of #1098 the fallback is *injected* there instead of importing `environment.ts`.
 - `SUPABASE_CONFIG` and the throw that reads runtime env stay in `apps/dashboard/src/app/core/auth/supabase-config.ts`.
 - Landing's duplicate storage-key constant is not migrated here.
 - `app.config.ts`, PostCSS, sidebar-links, settings pages, and Vercel project config are out.
@@ -23,7 +23,7 @@ This is the SIXTH of 7 planned extractions (`auth` ✅, `booking` ✅, `domain` 
 
 **(a) No baked secrets.** The package never imports `environment.ts` and never embeds URLs, anon keys, or tokens. Callers must pass an `EnvSource`.
 
-**(b) Dashboard owns the fallback.** The dashboard wrapper calls the package with `source ?? defaultEnvSource()`, and only that fallback may read `environment.supabaseUrl` / `environment.supabaseAnonKey`.
+**(b) Dashboard owns the fallback, and injects it.** The dashboard wrapper calls the package with `source ?? defaultEnvSource()`. Until Fase 3 of #1098 that fallback read `environment.supabaseUrl` / `environment.supabaseAnonKey` directly; because the shared core cannot import a per-app generated module, the app now calls `configureDashboardEnvironmentFallback()` from `apps/dashboard/src/app/runtime/configure-dashboard-environment.ts`, imported first in `main.ts`. The resolution order is unchanged: process env, then the document-injected runtime env, then the injected fallback.
 
 **(c) Explicit per-name shims.** Old dashboard paths re-export named symbols from `@orvel/config` (not `export *`), matching types/domain/billing.
 
