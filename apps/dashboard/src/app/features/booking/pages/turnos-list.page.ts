@@ -35,7 +35,7 @@ import { getBranchContextService } from '../../../core/branches/branch-context.s
 import { logMutationFailure } from '../../../core/observability/mutation-error-log';
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
-import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import { createIsMobileSignal } from '../../../core/platform/is-mobile';
 import {
   civilDateKey,
   filterLiveAvailableStarts,
