@@ -2,7 +2,7 @@
 
 Split `apps/dashboard` into two execution targets — `web` (the desktop operator console) and `pwa` (the mobile installable product) — over a shared, platform-agnostic core, executed as a strangler rather than a rewrite.
 
-- **Status**: Accepted (2026-10-02). Santi accepted option A on 2026-10-02, which is the gate this ADR set for Fase 1 to start moving code. Option B stays available as the transitional step of the shell inside steps 2-3, not as the destination. This ADR was the Fase 0 deliverable of [#1098](https://github.com/Santidele22/orvel/issues/1098).
+- **Status**: Accepted (2026-10-02). Santi accepted option A on 2026-10-02, which is the gate this ADR set for Fase 1 to start moving code. Option B stays available as the transitional step of the shell inside steps 2-3, not as the destination. This ADR was the Fase 0 deliverable of [#1098](https://github.com/Santidele22/orvel/issues/1098). **Fase 3 landed on 2026-10-05 and the revisit this ADR asked for is done: the two-app recommendation was re-checked against the measured cost and confirmed — see [Fase 3 outcome](#fase-3-outcome--the-revisit-this-adr-asked-for-measured-2026-10-05).**
 - **Supersedes**: nothing. Complements [ADR 0010](0010-hexagonal-architecture.md) (ports and adapters, booking pilot) and issues [#1076](https://github.com/Santidele22/orvel/issues/1076) (internal decoupling) and [#1077](https://github.com/Santidele22/orvel/issues/1077) (native target).
 
 ## Context
@@ -54,7 +54,7 @@ Creating the second app **before** step 1 is explicitly rejected: it would produ
 
 The classification is **data, not prose**: `apps/dashboard/src/app/core/platform/dashboard-targets.ts` holds it and `dashboard-targets.contract.spec.ts` walks the real router table (including lazy children and the two shell mounts) and fails when a route is unclassified. There is deliberately no `dashboard/**` catch-all, so a new route forces the decision.
 
-> **Amendment (2026-10-05, Fase 3 cortes 2-3).** The core behind step 1 now lives in `packages/dashboard-core` (`@orvel/dashboard-core`), so the classification data is at `packages/dashboard-core/src/platform/dashboard-targets.ts` and its contract spec — which tests the *app's* router table — moved to `apps/dashboard/src/app/tests/unit/dashboard-targets.contract.spec.ts`. Step 3 exists: `apps/dashboard-web` is a second Angular application that consumes that package, mounts only the `web`/`shared` surfaces, and whose build provably ships none of the four PWA artifacts (checked by `scripts/check-dashboard-web-pwa-artifacts.mjs`). While the strangler runs, `apps/dashboard-web` consumes the console features from `apps/dashboard/src/app/**` through one documented relative alias; the decision itself is unchanged, and the rest of this ADR is revisited when Fase 3 lands, as its Follow-ups say.
+> **Amendment (2026-10-05).** The core behind step 1 now lives in `packages/dashboard-core` (`@orvel/dashboard-core`), so the classification data is at `packages/dashboard-core/src/platform/dashboard-targets.ts` and its contract spec — which tests the *app's* router table — moved to `apps/dashboard/src/app/tests/unit/dashboard-targets.contract.spec.ts`. Step 3 also exists as `apps/dashboard-web`, which consumes that package and mounts only the `web`/`shared` surfaces. See **Fase 3 outcome** below for the measured cost and the verdict.
 
 ## Consequences
 
@@ -72,7 +72,37 @@ The classification is **data, not prose**: `apps/dashboard/src/app/core/platform
 | Only internal libraries, one app | This is [#1076](https://github.com/Santidele22/orvel/issues/1076). It improves the code but never creates the target seam. |
 | Microfrontends / runtime federation | No problem in this repository is caused by deploy independence, and the cost (shared dependencies, duplicated Angular runtime, routing complexity) is real. Rejected. |
 
+## Fase 3 outcome — the revisit this ADR asked for (measured, 2026-10-05)
+
+Fase 3 landed in five PRs: decouple the core ([#1113](https://github.com/Santidele22/orvel/pull/1113)), extract it to `packages/dashboard-core` ([#1115](https://github.com/Santidele22/orvel/pull/1115)), a dev-mode env regression it exposed ([#1116](https://github.com/Santidele22/orvel/pull/1116)), create `apps/dashboard-web` ([#1117](https://github.com/Santidele22/orvel/pull/1117)), and the install e2e plus the runtime smoke that closes the acceptance ([#1118](https://github.com/Santidele22/orvel/pull/1118)).
+
+**Verdict: the recommendation holds — one workspace, two applications, one shared package.** The measured cost is smaller than the ADR assumed, and the parts that were prose are now contracts. No superseding ADR is needed.
+
+| Cost this ADR accepted | Measured |
+|---|---|
+| Two builds | dashboard 7.6 s + dashboard-web 7.7 s (production, Angular 21, warm cache) |
+| CI duration | ~148 s median before Fase 3 → **172 s** after, and 30 s of that is the Playwright e2e step; the second build is ~8 s of it |
+| Two shells to keep in step | the web app is 8 production files (+2 specs); it reaches into the dashboard's `features`+`shared` trees (89 production files) through **16 relative specifiers**, and the shared bindings are imported from one place (`dashboardShellProviders`), not copied |
+| Second artifact | web **685 kB** vs PWA **700 kB** initial, with no booking lazy chunks at all |
+| Test surface | core 175, web 9, seam e2e 7; the dashboard's known-failure baseline is unchanged at 152 |
+
+**What the numbers changed about this ADR's reasoning:**
+
+- **The ordering rule was the right call, and cheaper than feared.** "Core first, second app second" was validated: corte 3 was a 36-file addition, not a rewrite, precisely because corte 1-2 had already removed the couplings. The extraction was nonetheless **bigger than the issue measured** — the core also depended on `models/`, on two `shared/` UI components (dead fields) and on the per-app generated environment, and 96 spec files referenced it by import or by path string. Step 1's "behind ports **and packages**" was accurate as a destination but took three cortes, not one.
+- **"The web build stops shipping PWA machinery" is now machine-checked, not aspirational.** Three contracts enforce it in different places: the route table (a `pwa` route may not be mounted), the source (no install/update/push/service-worker reference), and the artifact (`scripts/check-dashboard-web-pwa-artifacts.mjs` inspects both build outputs).
+- **"Two shells to keep in step" is real but bounded, and the bound is enforced.** The 16-specifier alias is the entire transitional coupling, it is documented in `apps/dashboard-web/AGENTS.md`, and it shrinks as features become package-owned.
+- **The new seam has its own failure mode, and it cost a regression.** Injecting the environment removed the core's last app-specific import but made the core depend on *when* the app configures it; a development build evaluates the entry module's body after its imports, so `ng serve` served a dead app while every build and unit gate stayed green. Fixed in #1116 and now guarded by a browser smoke. The lesson is not "don't split" — it is that a seam needs a gate that boots the product, which this ADR's Consequences section did not anticipate.
+
+**Alternatives re-checked against the measured cost:**
+
+| Option | Re-check |
+|---|---|
+| B — one app, two entry points behind a build flag | Still rejected as the destination. The artifact separation is now *proven* by contract rather than hoped for, and B would leave the service worker and the PWA features in the same build. |
+| C — only internal libraries, one app ([#1076](https://github.com/Santidele22/orvel/issues/1076)) | Partly delivered by accident: `@orvel/dashboard-core` is that extraction with a package boundary. It is no longer a substitute for the split, it is a step inside it. |
+
 ## Follow-ups
 
 - Fases 1-4 are specified with acceptance criteria in [#1098](https://github.com/Santidele22/orvel/issues/1098).
-- Revisit this ADR when Fase 3 lands: the recommendation to keep one workspace with two apps should be re-checked against the measured cost of two builds.
+- ~~Revisit this ADR when Fase 3 lands: the recommendation to keep one workspace with two apps should be re-checked against the measured cost of two builds.~~ **Done — see "Fase 3 outcome" above.**
+- **Fase 4** is what remains: give the web target its own origin and its own session storage key (this closes **S2** of the audit), and decide the deploy that goes with it.
+- The transitional alias should shrink as console features become package-owned; the boundary test in `apps/dashboard-web` is what keeps that visible.
