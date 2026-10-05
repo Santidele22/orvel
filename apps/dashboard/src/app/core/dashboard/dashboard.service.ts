@@ -16,6 +16,7 @@ import {
   readArgentinaClock,
   weekdayIndexFromDateKey,
 } from '../time/argentina-clock';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 
 @Injectable({
   providedIn: 'root'
@@ -255,6 +256,7 @@ export class DashboardService {
   });
 
   constructor() {
+    const environment = browserEnvironment();
     registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
@@ -263,19 +265,22 @@ export class DashboardService {
       this.refreshData();
     };
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (environment.isVisible()) {
         this.invalidate();
         this.refreshData();
       }
     };
-    window.addEventListener('booking.created', onAgendaSync);
-    window.addEventListener('operator.agenda.sync', onAgendaSync);
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    const unsubscribeAgendaEvents = [
+      environment.onWindowEvent('booking.created', onAgendaSync),
+      environment.onWindowEvent('operator.agenda.sync', onAgendaSync)
+    ];
+    const unsubscribeVisibilityChange = environment.onVisibilityChange(onVisibilityChange);
 
     this.destroyRef.onDestroy(() => {
-      window.removeEventListener('booking.created', onAgendaSync);
-      window.removeEventListener('operator.agenda.sync', onAgendaSync);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      for (const unsubscribe of unsubscribeAgendaEvents) {
+        unsubscribe();
+      }
+      unsubscribeVisibilityChange();
     });
   }
 

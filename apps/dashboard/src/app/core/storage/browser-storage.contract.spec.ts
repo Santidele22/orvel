@@ -37,9 +37,11 @@ function productionFiles(dir: string = CORE_DIR): string[] {
   return files;
 }
 
-/** Comments may name Web Storage; only code counts. */
+/** Comments may name Web Storage; only code counts. Line numbers must survive. */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 function webStorageOffenders(): string[] {
