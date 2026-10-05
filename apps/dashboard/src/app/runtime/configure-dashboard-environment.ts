@@ -9,7 +9,7 @@
  * (`core/auth/supabase-config.ts`) read the runtime env at module scope.
  */
 import { environment } from '../../environments/environment';
-import { configureDashboardEnvironmentFallback } from '../core/runtime/dashboard-env';
+import { configureDashboardEnvironmentFallback } from '@orvel/dashboard-core/runtime/dashboard-env';
 
 configureDashboardEnvironmentFallback({
   PUBLIC_SUPABASE_URL: environment.supabaseUrl,

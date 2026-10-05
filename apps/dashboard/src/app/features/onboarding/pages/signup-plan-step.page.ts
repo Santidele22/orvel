@@ -4,9 +4,9 @@
  * Contains the pure class without Angular dependencies.
  * This file can be imported by tests without Angular compilation.
  */
-import type { PlanCode } from '../../../core/plans/plan-entitlements';
+import type { PlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 import { getLandingPlansFallback } from '../../billing/data-access/landing-plans-source.api';
-import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 import { setCurrentStep } from '../data-access/onboarding-flow-state';
 
 // Re-export PlanCode for convenience

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getDefaultDashboardReferenceCatalog,
   resolveBusinessTypeCodeFromCatalog
-} from '../../core/catalog/reference-catalog';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
 
 type RubroSlug = 'peluqueria' | 'unas' | 'barberia' | 'spa' | 'pestanas' | 'cejas' | 'masajes' | 'otro';
 

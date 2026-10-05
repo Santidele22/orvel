@@ -9,4 +9,4 @@ export {
   canContinueOnboarding,
   toggleSelectedRubro,
   type RequiredRubro
-} from '../../../core/catalog/required-rubros';
+} from '@orvel/dashboard-core/catalog/required-rubros';

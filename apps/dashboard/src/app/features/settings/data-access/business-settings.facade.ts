@@ -1,11 +1,11 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/adapters/supabase/supabase-client.factory';
-import { AuthService } from '../../../core/auth/auth.service';
+import { loadDashboardRuntimeEnv } from '@orvel/dashboard-core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client.factory';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { isAllowedOnboardingBusinessType } from '../../onboarding/data-access/business-type-defaults';
 import { ONBOARDING_PLAN_STORAGE_KEY, readPlanSelection } from '../../onboarding/data-access/onboarding-plan-storage';
-import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 
 export type WeekdayKey =
   | 'monday'

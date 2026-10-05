@@ -30,16 +30,16 @@ function methodBody(sourceText: string, methodName: string): string {
 }
 
 describe('operator section cache contracts', () => {
-  const clientesPage = read('src/app/features/clientes/pages/clientes.page.ts');
-  const serviciosPage = read('src/app/features/servicios/pages/servicios.page.ts');
-  const turnosList = read('src/app/features/booking/pages/turnos-list.page.ts');
-  const configPage = read('src/app/features/settings/pages/configuracion.page.ts');
-  const businessService = read('src/app/features/settings/data-access/business.service.ts');
-  const dashboardService = read('src/app/core/dashboard/dashboard.service.ts');
-  const branchContext = read('src/app/core/branches/branch-context.service.ts');
-  const routeProtection = read('src/app/core/auth/route-protection.ts');
-  const clienteService = read('src/app/features/clientes/data-access/cliente.service.ts');
-  const servicioService = read('src/app/features/servicios/data-access/servicio.service.ts');
+  const clientesPage = read('../../apps/dashboard/src/app/features/clientes/pages/clientes.page.ts');
+  const serviciosPage = read('../../apps/dashboard/src/app/features/servicios/pages/servicios.page.ts');
+  const turnosList = read('../../apps/dashboard/src/app/features/booking/pages/turnos-list.page.ts');
+  const configPage = read('../../apps/dashboard/src/app/features/settings/pages/configuracion.page.ts');
+  const businessService = read('../../apps/dashboard/src/app/features/settings/data-access/business.service.ts');
+  const dashboardService = read('src/dashboard/dashboard.service.ts');
+  const branchContext = read('src/branches/branch-context.service.ts');
+  const routeProtection = read('src/auth/route-protection.ts');
+  const clienteService = read('../../apps/dashboard/src/app/features/clientes/data-access/cliente.service.ts');
+  const servicioService = read('../../apps/dashboard/src/app/features/servicios/data-access/servicio.service.ts');
 
   it('clientes and servicios pages seed from warm items and do not set loading true on remount', () => {
     const loadClients = methodBody(clientesPage, 'loadClients') || clientesPage;

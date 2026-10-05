@@ -1,6 +1,6 @@
 # @orvel/types
 
-Type-only dashboard models extracted from `apps/dashboard/src/app/models/`:
+Type-only dashboard models extracted from `packages/dashboard-core/src/models/`:
 
 - `branch.model.ts` — `Branch`, `CreateBranchDTO`, `SAME_CATEGORY_BRANCH_SCOPE_EXAMPLE`
 - `business.model.ts` — `Business`, `WeekdayKey`, `WorkingDayHours`, `BusinessSettings`, `BusinessPublicView`

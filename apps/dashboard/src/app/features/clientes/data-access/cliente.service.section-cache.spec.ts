@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { ClienteService } from './cliente.service';
 
 async function flushDelay(ms = 350): Promise<void> {

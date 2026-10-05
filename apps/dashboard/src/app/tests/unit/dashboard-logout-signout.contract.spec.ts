@@ -7,7 +7,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   signOut: vi.fn()
 }));
 
-vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
@@ -63,7 +63,7 @@ describe('dashboard logout signOut contract', () => {
       .mockResolvedValueOnce({ error: { message: 'Auth session missing' } })
       .mockResolvedValueOnce({ error: null });
 
-    const { logoutAndRedirect } = await import('../../core/auth/route-protection');
+    const { logoutAndRedirect } = await import('@orvel/dashboard-core/auth/route-protection');
     const redirectTo = await logoutAndRedirect();
 
     expect(supabaseAuthClientMock.signOut).toHaveBeenNthCalledWith(1);
@@ -75,7 +75,7 @@ describe('dashboard logout signOut contract', () => {
   it('does not treat a signOut { error } as success and does not navigate when both attempts fail', async () => {
     supabaseAuthClientMock.signOut.mockResolvedValue({ error: { message: 'network down' } });
 
-    const { logoutAndRedirect } = await import('../../core/auth/route-protection');
+    const { logoutAndRedirect } = await import('@orvel/dashboard-core/auth/route-protection');
 
     await expect(logoutAndRedirect()).rejects.toThrow(/network down/);
     expect(supabaseAuthClientMock.signOut).toHaveBeenNthCalledWith(1);
@@ -99,7 +99,7 @@ describe('dashboard logout signOut contract', () => {
       return { error: { message: 'global signOut failed' } };
     });
 
-    const { canAccessDashboardAsync, logoutAndRedirect } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, logoutAndRedirect } = await import('@orvel/dashboard-core/auth/route-protection');
 
     await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
     await logoutAndRedirect();
@@ -112,7 +112,7 @@ describe('dashboard logout signOut contract', () => {
   });
 
   it('AuthService uses the route-protection cached auth client instead of creating a second one', () => {
-    const source = readFileSync(new URL('../../core/auth/auth.service.ts', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../../../../../packages/dashboard-core/src/auth/auth.service.ts', import.meta.url), 'utf8');
 
     expect(source).toMatch(/getSupabaseAuthClient/);
     expect(source).toMatch(/from\s+['"][^'"]*route-protection['"]/);

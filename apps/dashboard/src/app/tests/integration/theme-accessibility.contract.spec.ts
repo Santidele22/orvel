@@ -77,14 +77,14 @@ function contrastRatio(colorA: string, colorB: string): number {
 }
 
 async function loadThemeMap(): Promise<ThemeMap> {
-  const module = await import('../../core/theming/theme.tokens');
+  const module = await import('@orvel/dashboard-core/theming/theme.tokens');
   const tokens =
     (module.DASHBOARD_THEME_TOKENS as ThemeMap | undefined) ??
     (module.themeTokens as ThemeMap | undefined);
 
   if (!tokens) {
     throw new Error(
-      'Missing DASHBOARD_THEME_TOKENS export in src/app/core/theming/theme.tokens.ts'
+      'Missing DASHBOARD_THEME_TOKENS export in ../../packages/dashboard-core/src/theming/theme.tokens.ts'
     );
   }
 

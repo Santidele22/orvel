@@ -10,7 +10,7 @@ import {
   classifyRoutePath,
   describeSurface,
   normalizeRoutePath
-} from './dashboard-targets';
+} from '@orvel/dashboard-core/platform/dashboard-targets';
 
 /**
  * Fase 0 of #1098: the web/pwa seam has to be machine-checkable, not a paragraph in an ADR.
@@ -49,7 +49,7 @@ describe('contract: dashboard target surfaces (#1098 Fase 0)', () => {
     expect(
       unclassified,
       'Every route must be classified for the web/pwa split. Add a pattern to DASHBOARD_TARGETS ' +
-        'in apps/dashboard/src/app/core/platform/dashboard-targets.ts with its reason.'
+        'in packages/dashboard-core/src/platform/dashboard-targets.ts with its reason.'
     ).toEqual([]);
   });
 

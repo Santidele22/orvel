@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDefaultDashboardReferenceCatalog } from '../../core/catalog/reference-catalog';
-import { CANONICAL_PLAN_CODES, getPlanEntitlements, normalizePlanCode } from '../../core/plans/plan-entitlements';
+import { getDefaultDashboardReferenceCatalog } from '@orvel/dashboard-core/catalog/reference-catalog';
+import { CANONICAL_PLAN_CODES, getPlanEntitlements, normalizePlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 
 describe('Contract: MVP dashboard billing catalog', () => {
   it('exposes only FREE and PREMIUM canonical plans', () => {

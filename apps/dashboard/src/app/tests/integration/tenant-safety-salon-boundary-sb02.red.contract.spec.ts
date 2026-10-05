@@ -28,11 +28,11 @@ type TenantSalonBoundaryModule = {
 
 async function loadTenantSafetyModule(): Promise<TenantSalonBoundaryModule> {
   try {
-    const mod = await import('../../core/tenancy/tenant-safe-salon.service');
+    const mod = await import('@orvel/dashboard-core/tenancy/tenant-safe-salon.service');
     return mod as TenantSalonBoundaryModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/tenancy/tenant-safe-salon.service.ts exporting createTenantSafeSalonService({ repository }).'
+      'TODO(Magnus): add ../../packages/dashboard-core/src/tenancy/tenant-safe-salon.service.ts exporting createTenantSafeSalonService({ repository }).'
     );
   }
 }

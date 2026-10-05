@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const apiPath = resolve(process.cwd(), 'src/app/core/notifications/internal-dashboard-notifications.api.ts');
+const apiPath = resolve(process.cwd(), 'src/notifications/internal-dashboard-notifications.api.ts');
 const api = readFileSync(apiPath, 'utf8');
 
 const unionMatch = api.match(/export type DashboardNotificationEventType\s*=([\s\S]*?);/);

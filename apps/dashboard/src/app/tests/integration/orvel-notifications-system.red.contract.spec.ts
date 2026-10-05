@@ -90,22 +90,22 @@ function readSqlCorpus(): string {
 
 async function loadDashboardNotificationsModule(): Promise<DashboardNotificationsModule> {
   try {
-    const mod = await import('../../core/notifications/internal-dashboard-notifications.api');
+    const mod = await import('@orvel/dashboard-core/notifications/internal-dashboard-notifications.api');
     return mod as DashboardNotificationsModule;
   } catch {
     throw new Error(
-      'TODO(Magnus/Aurora): add src/app/core/notifications/internal-dashboard-notifications.api.ts exporting admin-only list/count/mark-read/archive contracts for the existing dashboard bell.',
+      'TODO(Magnus/Aurora): add ../../packages/dashboard-core/src/notifications/internal-dashboard-notifications.api.ts exporting admin-only list/count/mark-read/archive contracts for the existing dashboard bell.',
     );
   }
 }
 
 async function loadOutboxEmailSenderModule(): Promise<OutboxEmailSenderModule> {
   try {
-    const mod = await import('../../core/notifications/outbox-email-sender');
+    const mod = await import('@orvel/dashboard-core/notifications/outbox-email-sender');
     return mod as OutboxEmailSenderModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/notifications/outbox-email-sender.ts queueing repository-rendered HTML through notification_email_outbox without browser provider calls.',
+      'TODO(Magnus): add ../../packages/dashboard-core/src/notifications/outbox-email-sender.ts queueing repository-rendered HTML through notification_email_outbox without browser provider calls.',
     );
   }
 }
@@ -123,7 +123,7 @@ async function loadAppointmentTemplatesModule(): Promise<AppointmentTemplatesMod
 
 async function loadBusinessWelcomeTemplatesModule(): Promise<BusinessWelcomeTemplatesModule> {
   try {
-    const mod = await import('../../core/notifications/templates/business-welcome-email-template');
+    const mod = await import('@orvel/dashboard-core/notifications/templates/business-welcome-email-template');
     return mod as BusinessWelcomeTemplatesModule;
   } catch {
     throw new Error(
@@ -248,7 +248,7 @@ describe('Orvel notification system RED contracts', () => {
   describe('2) Outbox email sender + repo HTML templates', () => {
     it('queues repository-rendered HTML and does not depend on provider templates from dashboard code', async () => {
       const sender = await loadOutboxEmailSenderModule();
-      const senderSourcePath = path.join(ROOT, 'src', 'app', 'core', 'notifications', 'outbox-email-sender.ts');
+      const senderSourcePath = path.join(ROOT, '../../packages/dashboard-core/src', 'notifications', 'outbox-email-sender.ts');
       const source = fs.existsSync(senderSourcePath) ? fs.readFileSync(senderSourcePath, 'utf8') : '';
 
       expect(typeof sender.queueHtmlEmail).toBe('function');

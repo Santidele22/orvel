@@ -10,12 +10,12 @@ import {
   DASHBOARD_BUSINESS_SOURCE,
   DASHBOARD_CLIENTE_SOURCE,
   DASHBOARD_SERVICIO_SOURCE
-} from '../../core/dashboard/dashboard-data.ports';
+} from '@orvel/dashboard-core/dashboard/dashboard-data.ports';
 import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
   DASHBOARD_TOUR_HELP_COMPONENT
-} from '../../core/shell/dashboard-chrome.ports';
+} from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';

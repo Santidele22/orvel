@@ -9,17 +9,17 @@ import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-
 import { ActivatedRoute } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BusinessPublicView, WeekdayKey, WorkingDayHours } from '../../models/business.model';
+import type { BusinessPublicView, WeekdayKey, WorkingDayHours } from '@orvel/dashboard-core/models/business.model';
 import { PublicBookingService } from '../../features/booking/data-access/public-booking.service';
 import { PublicBookingPage } from '../../features/booking/pages/public/public-booking.page';
 import { BusinessService } from '../../features/settings/data-access/business.service';
-import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '../../core/business/business-directory.ports';
+import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '@orvel/dashboard-core/business/business-directory.ports';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import {
   PUBLIC_BOOKING_FAILURE_EVENT,
   setPublicBookingFailureTelemetryClientFactoryForTests,
   type PublicBookingFailureEvent
-} from '../../core/observability/public-booking-operational-events';
+} from '@orvel/dashboard-core/observability/public-booking-operational-events';
 
 type ApiResponse<T> = {
   status: number;

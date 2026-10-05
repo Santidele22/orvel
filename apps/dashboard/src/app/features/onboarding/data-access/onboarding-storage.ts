@@ -7,7 +7,7 @@ import {
   TemplateCatalog
 } from './onboarding-templates';
 
-import { ONBOARDING_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+import { ONBOARDING_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
 
 export { ONBOARDING_STORAGE_KEY };
 

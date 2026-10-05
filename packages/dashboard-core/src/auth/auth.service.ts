@@ -6,7 +6,7 @@
 
 import { Injectable, signal } from '@angular/core';
 import { Observable, from, tap, map } from 'rxjs';
-import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../../models/user.model';
+import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../models/user.model';
 
 import type { SupabaseAuthClient, SupabaseSession } from '../adapters/supabase/supabase-auth.client';
 import { browserEnvironment } from '../platform/browser-environment.adapter';

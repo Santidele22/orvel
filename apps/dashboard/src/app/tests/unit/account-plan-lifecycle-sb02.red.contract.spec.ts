@@ -12,11 +12,11 @@ type AccountPlanPolicyModule = {
 
 async function loadAccountPlanPolicyModule(): Promise<AccountPlanPolicyModule> {
   try {
-    const mod = await import('../../core/accounts/account-plan-policy');
+    const mod = await import('@orvel/dashboard-core/accounts/account-plan-policy');
     return mod as AccountPlanPolicyModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/accounts/account-plan-policy.ts exporting resolveAccountPlanPolicy({ plan, premiumPaid }) and canCreateSalonUnderPlan({ plan, premiumPaid, currentSalons }).'
+      'TODO(Magnus): add ../../packages/dashboard-core/src/accounts/account-plan-policy.ts exporting resolveAccountPlanPolicy({ plan, premiumPaid }) and canCreateSalonUnderPlan({ plan, premiumPaid, currentSalons }).'
     );
   }
 }

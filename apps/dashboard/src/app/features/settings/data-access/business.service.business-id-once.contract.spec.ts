@@ -5,13 +5,13 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import {
   BranchContextService,
   getBranchContextService,
   resetBranchContextSession
-} from '../../../core/branches/branch-context.service';
-import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+} from '@orvel/dashboard-core/branches/branch-context.service';
+import { ACTIVE_BUSINESS_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
 import { BusinessService } from './business.service';
 
 const USER_ID = 'user-1';

@@ -7,7 +7,8 @@ const FORBIDDEN_IDENTIFIER = /\b(?:industrial|chic|ink)\b/gi;
 const SOURCE_SCOPES = [
   'src/app/features',
   'src/app/shared',
-  'src/app/core',
+  // Fase 3 of #1098: the shared core lives in packages/dashboard-core.
+  '../../packages/dashboard-core/src',
   'src/main.ts'
 ] as const;
 

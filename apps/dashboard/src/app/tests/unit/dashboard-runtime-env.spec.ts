@@ -3,7 +3,7 @@ import { environment } from '../../../environments/environment';
 import {
   configureDashboardEnvironmentFallback,
   loadDashboardRuntimeEnv
-} from '../../core/runtime/dashboard-env';
+} from '@orvel/dashboard-core/runtime/dashboard-env';
 
 describe('dashboard runtime env source order', () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');

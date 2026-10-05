@@ -30,9 +30,9 @@ function mobileSummaryBlock(source: string): string {
 }
 
 describe('DashboardHomePage mobile gating contract', () => {
-  it('imports createIsMobileSignal from ../../../core/platform/is-mobile', () => {
+  it('imports createIsMobileSignal from @orvel/dashboard-core/platform/is-mobile', () => {
     expect(componentSource).toMatch(
-      /import\s*\{[^}]*\bcreateIsMobileSignal\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/\.\.\/core\/platform\/is-mobile['"]/,
+      /import\s*\{[^}]*\bcreateIsMobileSignal\b[^}]*\}\s*from\s+['"]@orvel\/dashboard-core\/platform\/is-mobile['"]/,
     );
   });
 

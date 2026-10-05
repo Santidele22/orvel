@@ -54,6 +54,8 @@ Creating the second app **before** step 1 is explicitly rejected: it would produ
 
 The classification is **data, not prose**: `apps/dashboard/src/app/core/platform/dashboard-targets.ts` holds it and `dashboard-targets.contract.spec.ts` walks the real router table (including lazy children and the two shell mounts) and fails when a route is unclassified. There is deliberately no `dashboard/**` catch-all, so a new route forces the decision.
 
+> **Amendment (2026-10-05, Fase 3 corte 2).** The core behind step 1 now lives in `packages/dashboard-core` (`@orvel/dashboard-core`), so the classification data is at `packages/dashboard-core/src/platform/dashboard-targets.ts` and its contract spec — which tests the *app's* router table — moved to `apps/dashboard/src/app/tests/unit/dashboard-targets.contract.spec.ts`. The decision itself is unchanged; the rest of this ADR is revisited when Fase 3 lands, as its Follow-ups say.
+
 ## Consequences
 
 - The web build stops shipping PWA machinery, and each target gets its own budget.

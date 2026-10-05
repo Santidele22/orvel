@@ -8,7 +8,7 @@ import { ClienteService } from '../../features/clientes/data-access/cliente.serv
 import { ClientesUiFacade } from '../../features/clientes/data-access/clientes-ui.facade';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { ServiciosPage } from '../../features/servicios/pages/servicios.page';
-import { ThemeService } from '../../core/theming/theme.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 
 const mocks = vi.hoisted(() => ({
   branchContext: {
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('../../core/branches/branch-context.service', () => ({
+vi.mock('@orvel/dashboard-core/branches/branch-context.service', () => ({
   getBranchContextService: () => mocks.branchContext,
   registerSectionCacheInvalidator: () => undefined,
   invalidateSectionCaches: () => undefined

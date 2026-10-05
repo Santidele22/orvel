@@ -12,8 +12,8 @@
 
 import {
   resolveBusinessTypeCodeFromCatalog
-} from '../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 
 export type BusinessTypeCode =
   | 'peluqueria'
@@ -27,7 +27,7 @@ export type BusinessTypeCode =
 
 import {
   ONBOARDING_BUSINESS_TYPES_STORAGE_KEY
-} from '../../../core/storage/browser-storage-keys';
+} from '@orvel/dashboard-core/storage/browser-storage-keys';
 
 export { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY };
 

@@ -76,10 +76,10 @@ const rawCatalogFromSupabase = {
 
 async function loadCatalogModule(): Promise<CatalogModule> {
   try {
-    return (await import('../../core/catalog/reference-catalog')) as CatalogModule;
+    return (await import('@orvel/dashboard-core/catalog/reference-catalog')) as CatalogModule;
   } catch {
     throw new Error(
-      'TODO(BB-8): add src/app/core/catalog/reference-catalog.ts with normalization and alias helpers backed by get_dashboard_reference_catalog(), not hardcoded plan/business-type matrices.'
+      'TODO(BB-8): add ../../packages/dashboard-core/src/catalog/reference-catalog.ts with normalization and alias helpers backed by get_dashboard_reference_catalog(), not hardcoded plan/business-type matrices.'
     );
   }
 }

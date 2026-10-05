@@ -2,25 +2,25 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, computed, inject, sign
 import { NgComponentOutlet } from '@angular/common';
 import { Router, RouterOutlet } from '@angular/router';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
-import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
+import { resolveDashboardConfig } from '@orvel/dashboard-core/theming/dashboard-business-rules';
 import {
   DashboardFromSessionConfig,
   resolveDashboardConfigFromSession
-} from '../../core/theming/dashboard-session-business-types';
-import { applyDashboardTheme } from '../../core/theming/theme-runtime';
-import { DashboardThemeName } from '../../core/theming/theme.tokens';
+} from '@orvel/dashboard-core/theming/dashboard-session-business-types';
+import { applyDashboardTheme } from '@orvel/dashboard-core/theming/theme-runtime';
+import { DashboardThemeName } from '@orvel/dashboard-core/theming/theme.tokens';
 import { DashboardSidebarComponent } from '../dashboard-sidebar/dashboard-sidebar.component';
 import { DashboardTopbarComponent } from '../dashboard-topbar/dashboard-topbar.component';
-import { MobileBottomNavComponent } from '../../core/shell/mobile-bottom-nav/mobile-bottom-nav.component';
+import { MobileBottomNavComponent } from '@orvel/dashboard-core/shell/mobile-bottom-nav/mobile-bottom-nav.component';
 import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
   DASHBOARD_TOUR_HELP_COMPONENT
-} from '../../core/shell/dashboard-chrome.ports';
-import { ThemeService } from '../../core/theming/theme.service';
-import { DashboardService } from '../../core/dashboard/dashboard.service';
-import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
-import { logoutAndRedirect } from '../../core/auth/route-protection';
+} from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
+import { DASHBOARD_STRUCTURAL_TOKENS } from '@orvel/dashboard-core/theming/dashboard-structural.tokens';
+import { logoutAndRedirect } from '@orvel/dashboard-core/auth/route-protection';
 import { navigateAfterLogout } from './logout-navigation';
 
 /**

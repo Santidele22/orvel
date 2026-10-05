@@ -1,24 +1,24 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { DashboardService } from '../../../core/dashboard/dashboard.service';
-import { ThemeService } from '../../../core/theming/theme.service';
-import { AuthService } from '../../../core/auth/auth.service';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_SETTINGS_SOURCE
-} from '../../../core/business/business-directory.ports';
-import { createSupabaseClient } from '../../../core/adapters/supabase/supabase-client';
-import { WeekdayKey } from '../../../models/business.model';
-import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
-import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
-import { createIsMobileSignal } from '../../../core/platform/is-mobile';
-import { browserPlatform } from '../../../core/platform/platform.adapter';
+} from '@orvel/dashboard-core/business/business-directory.ports';
+import { createSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client';
+import { WeekdayKey } from '@orvel/dashboard-core/models/business.model';
+import { buildPublicBookingUrl } from '@orvel/dashboard-core/booking/public-booking-url';
+import { markBookingLinkCopied } from '@orvel/dashboard-core/booking/mark-booking-link-copied';
+import { createIsMobileSignal } from '@orvel/dashboard-core/platform/is-mobile';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
 import { pickNextAppointment } from './pick-next-appointment';
-import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '../../../core/time/argentina-clock';
+import { ARGENTINA_TIME_ZONE, readArgentinaClock } from '@orvel/dashboard-core/time/argentina-clock';
 import {
   buildPremiumWhatsAppUrl,
   countCurrentMonthBookings,
@@ -26,8 +26,8 @@ import {
   markPremiumReceiptSent,
   readBrowserReviewStorage,
   shouldShowPremiumReviewBanner,
-} from '../../../core/billing/premium-alias-receipt';
-import { getPlanEntitlements } from '../../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/billing/premium-alias-receipt';
+import { getPlanEntitlements } from '@orvel/dashboard-core/plans/plan-entitlements';
 
 const TWO_HOUR_STEP_MINUTES = 120;
 
