@@ -6,7 +6,8 @@
  * Asserts:
  * - package.json exports a single canonical entry (types + default → ./src/index.ts).
  * - package source has no environment.ts import, no supabase.co URLs, no sb_ / eyJ strings.
- * - dashboard-env.ts re-exports from @orvel/config (no export *) and owns the environment fallback.
+ * - dashboard-env.ts re-exports from @orvel/config (no export *) and takes the fallback by injection.
+ * - the app bootstrap module owns the generated-environment import.
  * - pnpm-workspace.yaml still wires packages/*.
  */
 
@@ -17,6 +18,16 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..');
 const PACKAGE_ROOT = join(REPO_ROOT, 'packages', 'config');
 const DASHBOARD_ENV = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'runtime', 'dashboard-env.ts');
+const DASHBOARD_ENV_BOOTSTRAP = join(
+  REPO_ROOT,
+  'apps',
+  'dashboard',
+  'src',
+  'app',
+  'runtime',
+  'configure-dashboard-environment.ts'
+);
+const DASHBOARD_MAIN = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'main.ts');
 
 function readSource(filePath: string): string {
   return readFileSync(filePath, 'utf8');
@@ -60,16 +71,26 @@ describe('@orvel/config package shape contract (chore-extract-config-package)', 
     expect(source).toContain('withLegacyPublicSupabaseAliases');
   });
 
-  it('dashboard-env.ts re-exports from @orvel/config and owns the environment fallback', () => {
+  it('dashboard-env.ts re-exports from @orvel/config and takes the environment fallback by injection', () => {
     const shim = readSource(DASHBOARD_ENV);
 
     expect(shim).toContain("from '@orvel/config'");
     expect(shim).not.toContain('export *');
     expect(shim).toContain('REQUIRED_DASHBOARD_ENV_KEYS');
     expect(shim).toContain('type DashboardRuntimeEnv');
-    expect(shim).toContain("from '../../../environments/environment'");
     expect(shim).toContain('function defaultEnvSource');
     expect(shim).toMatch(/export function loadDashboardRuntimeEnv\(\s*source\?:/);
+    // Fase 3 of #1098: the core cannot import the per-app generated environment module.
+    expect(shim).not.toContain("from '../../../environments/environment'");
+    expect(shim).toContain('export function configureDashboardEnvironmentFallback');
+  });
+
+  it('the dashboard app owns the build-time environment import', () => {
+    const bootstrap = readSource(DASHBOARD_ENV_BOOTSTRAP);
+
+    expect(bootstrap).toContain("from '../../environments/environment'");
+    expect(bootstrap).toContain('configureDashboardEnvironmentFallback');
+    expect(readSource(DASHBOARD_MAIN)).toContain('./app/runtime/configure-dashboard-environment');
   });
 
   it('pnpm-workspace.yaml still wires packages/*', () => {

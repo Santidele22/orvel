@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
-import { loadDashboardRuntimeEnv } from '../../core/runtime/dashboard-env';
+import {
+  configureDashboardEnvironmentFallback,
+  loadDashboardRuntimeEnv
+} from '../../core/runtime/dashboard-env';
 
 describe('dashboard runtime env source order', () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -10,6 +13,13 @@ describe('dashboard runtime env source order', () => {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   } as const;
+
+  function withoutProcessEnv(): void {
+    delete process.env.PUBLIC_SUPABASE_URL;
+    delete process.env.PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  }
 
   afterEach(() => {
     for (const [key, value] of Object.entries(originalKeys)) {
@@ -25,6 +35,8 @@ describe('dashboard runtime env source order', () => {
     } else {
       Reflect.deleteProperty(globalThis, 'window');
     }
+
+    configureDashboardEnvironmentFallback({});
   });
 
   it('uses window __ORVEL_DASHBOARD_ENV__ over baked environment when process env is incomplete', () => {
@@ -48,5 +60,36 @@ describe('dashboard runtime env source order', () => {
     expect(env.PUBLIC_SUPABASE_URL).toBe(windowEnv.PUBLIC_SUPABASE_URL);
     expect(env.PUBLIC_SUPABASE_ANON_KEY).toBe(windowEnv.PUBLIC_SUPABASE_ANON_KEY);
     expect(env.PUBLIC_SUPABASE_URL).not.toBe(environment.supabaseUrl);
+  });
+
+  // Fase 3 of #1098: the core can no longer import the per-app generated environment module, so the
+  // app injects it. This is the last resort after process env and the document-injected env.
+  it('uses the injected build-time fallback when process env and the document env are absent', () => {
+    withoutProcessEnv();
+    Reflect.deleteProperty(globalThis, 'window');
+
+    configureDashboardEnvironmentFallback({
+      PUBLIC_SUPABASE_URL: 'https://injected-fallback.example',
+      PUBLIC_SUPABASE_ANON_KEY: 'injected-fallback-anon-key'
+    });
+
+    const env = loadDashboardRuntimeEnv();
+
+    expect(env.PUBLIC_SUPABASE_URL).toBe('https://injected-fallback.example');
+    expect(env.PUBLIC_SUPABASE_ANON_KEY).toBe('injected-fallback-anon-key');
+  });
+
+  it('does not use the injected fallback when process env is complete', () => {
+    process.env.PUBLIC_SUPABASE_URL = 'https://from-process.example';
+    process.env.PUBLIC_SUPABASE_ANON_KEY = 'process-anon-key';
+
+    configureDashboardEnvironmentFallback({
+      PUBLIC_SUPABASE_URL: 'https://injected-fallback.example',
+      PUBLIC_SUPABASE_ANON_KEY: 'injected-fallback-anon-key'
+    });
+
+    const env = loadDashboardRuntimeEnv();
+
+    expect(env.PUBLIC_SUPABASE_URL).toBe('https://from-process.example');
   });
 });

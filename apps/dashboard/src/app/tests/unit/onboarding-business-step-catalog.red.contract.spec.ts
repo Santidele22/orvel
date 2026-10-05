@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { getDefaultDashboardReferenceCatalog } from '../../core/catalog/reference-catalog';
 
 const RUBROS_RELATIVE_PATH = 'src/app/features/onboarding/data-access/onboarding-rubros.ts';
+// Fase 3 of #1098: the rubro runtime moved into the core; the feature path is a re-export shim.
+const CORE_REQUIRED_RUBROS_RELATIVE_PATH = 'src/app/core/catalog/required-rubros.ts';
 const BUSINESS_STEP_RELATIVE_PATH = 'src/app/features/onboarding/pages/onboarding-business-step.page.ts';
 
 function readDashboardSource(relativePath: string): string {
@@ -11,12 +13,21 @@ function readDashboardSource(relativePath: string): string {
 }
 
 describe('RED contract: dashboard onboarding rubros use the reference catalog', () => {
-  it('CAT-ORU-001 @RED - onboarding-rubros.ts must not define REQUIRED_RUBROS as a local allowlist source of truth', () => {
-    const source = readDashboardSource(RUBROS_RELATIVE_PATH);
+  it('CAT-ORU-001 @RED - required-rubros must not define REQUIRED_RUBROS as a local allowlist source of truth', () => {
+    const source = readDashboardSource(CORE_REQUIRED_RUBROS_RELATIVE_PATH);
 
     expect(source, 'Rubro normalization/sanitization must read the dashboard reference catalog').toMatch(
       /REFERENCE_CATALOG|getDefaultDashboardReferenceCatalog|resolveBusinessTypeCodeFromCatalog|businessTypes/
     );
+    expect(source, 'Remove local REQUIRED_RUBROS array literal; derive codes from catalog.businessTypes').not.toMatch(
+      /(?:export\s+)?const\s+REQUIRED_RUBROS\s*=\s*\[[\s\S]*?\]\s*as\s+const/
+    );
+  });
+
+  it('CAT-ORU-001b @RED - the old feature path is a re-export shim with no local allowlist', () => {
+    const source = readDashboardSource(RUBROS_RELATIVE_PATH);
+
+    expect(source, 'The shim must re-export the core runtime').toContain('core/catalog/required-rubros');
     expect(source, 'Remove local REQUIRED_RUBROS array literal; derive codes from catalog.businessTypes').not.toMatch(
       /(?:export\s+)?const\s+REQUIRED_RUBROS\s*=\s*\[[\s\S]*?\]\s*as\s+const/
     );

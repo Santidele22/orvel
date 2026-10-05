@@ -2,7 +2,7 @@ import type { TurneaSession } from './session-contract';
 import {
   REQUIRED_RUBROS,
   sanitizeSelectedRubros
-} from '../../features/onboarding/data-access/onboarding-rubros';
+} from '../catalog/required-rubros';
 import {
   mergeTemplateCatalogs,
   sanitizeSelectedTemplateIds,

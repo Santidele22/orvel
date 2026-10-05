@@ -4,7 +4,7 @@ Types + import-free pure logic extracted from `apps/dashboard`:
 
 - `apps/dashboard/src/app/core/catalog/reference-catalog.ts` — the dashboard reference catalog model (`DashboardReferenceCatalog` + normalization/resolution helpers + the dev fixture).
 - `apps/dashboard/src/app/features/onboarding/data-access/onboarding-templates.ts` — the onboarding template catalog model (`TemplateCatalog` + merge/sanitize/preview helpers).
-- The `RequiredRubro` type from `apps/dashboard/src/app/features/onboarding/data-access/onboarding-rubros.ts` — the canonical business-type code type.
+- The `RequiredRubro` type, declared where the rubro runtime lives (`apps/dashboard/src/app/core/catalog/required-rubros.ts` since Fase 3 of #1098; previously `features/onboarding/data-access/onboarding-rubros.ts`) — the canonical business-type code type.
 
 This is the THIRD of 7 planned extractions (`auth` ✅, `booking` ✅, **`domain` ← this change**, `types`, `config`, `billing`, `shared`) and the **first pure-types extraction** of the funnel. It stages a future hexagonal architecture.
 
@@ -18,7 +18,7 @@ This is the THIRD of 7 planned extractions (`auth` ✅, `booking` ✅, **`domain
 The runtime that depends on the app-internal gateway stays in the dashboard:
 
 - `reference-catalog.gateway.ts` — Supabase `get_dashboard_reference_catalog` RPC + the runtime catalog snapshot (`getRuntimeReferenceCatalogSnapshot`).
-- `onboarding-rubros.ts` — the `REQUIRED_RUBROS` constant (derived from the runtime snapshot), `sanitizeSelectedRubros`, `normalizeRubro`, `canContinueOnboarding`, `toggleSelectedRubro`. The old path re-exports only the `RequiredRubro` type from `@orvel/domain`.
+- `core/catalog/required-rubros.ts` — since Fase 3 of #1098 the `REQUIRED_RUBROS` constant (derived from the runtime snapshot), `sanitizeSelectedRubros`, `normalizeRubro`, `canContinueOnboarding` and `toggleSelectedRubro` live in the core, so the core no longer imports a feature. The old `features/onboarding/data-access/onboarding-rubros.ts` path is a pure re-export shim with no logic.
 
 ## Key domain-specific decisions
 
