@@ -41,9 +41,18 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
 
   it('uses local landing origin for dashboard localhost redirects without requiring deployment env', () => {
     delete process.env.PUBLIC_LANDING_URL;
+    // Fase 1 of #1098: the core reads the host through the environment port, so
+    // the stub is a real-enough Location (a browser one always has `href`).
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
-      value: { location: { origin: 'http://localhost:4200', hostname: 'localhost' } }
+      value: {
+        location: {
+          origin: 'http://localhost:4200',
+          hostname: 'localhost',
+          protocol: 'http:',
+          href: 'http://localhost:4200/dashboard/inicio'
+        }
+      }
     });
 
     try {
@@ -62,7 +71,14 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     delete process.env.PUBLIC_LANDING_URL;
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
-      value: { location: { origin: 'https://qa.orvel.pro', hostname: 'qa.orvel.pro' } }
+      value: {
+        location: {
+          origin: 'https://qa.orvel.pro',
+          hostname: 'qa.orvel.pro',
+          protocol: 'https:',
+          href: 'https://qa.orvel.pro/dashboard/inicio'
+        }
+      }
     });
 
     try {
