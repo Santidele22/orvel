@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { WeekdayKey, WorkingDayHours } from '../../models/business.model';
+import type { WeekdayKey, WorkingDayHours } from '@orvel/dashboard-core/models/business.model';
 import { resolveWorkingHours } from '../../features/settings/data-access/map-nullable-settings-to-form-defaults';
 
 const defaultHours: Record<WeekdayKey, WorkingDayHours> = {

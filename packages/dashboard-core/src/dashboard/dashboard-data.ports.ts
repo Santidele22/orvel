@@ -1,8 +1,8 @@
 import { InjectionToken, type Signal } from '@angular/core';
 import type { Observable } from 'rxjs';
-import type { BusinessSettings } from '../../models/business.model';
-import type { Cliente } from '../../models/cliente.model';
-import type { Servicio } from '../../models/servicio.model';
+import type { BusinessSettings } from '../models/business.model';
+import type { Cliente } from '../models/cliente.model';
+import type { Servicio } from '../models/servicio.model';
 
 /**
  * Narrow read ports the dashboard metrics need from feature data-access

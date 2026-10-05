@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..');
 const PACKAGE_ROOT = join(REPO_ROOT, 'packages', 'config');
-const DASHBOARD_ENV = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'runtime', 'dashboard-env.ts');
+const DASHBOARD_ENV = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'runtime', 'dashboard-env.ts');
 const DASHBOARD_ENV_BOOTSTRAP = join(
   REPO_ROOT,
   'apps',

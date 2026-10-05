@@ -13,10 +13,10 @@ async function loadResolver(): Promise<ResolveDashboardConfigFn> {
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/theming/dashboard-business-rules');
+    module = await import('@orvel/dashboard-core/theming/dashboard-business-rules');
   } catch {
     throw new Error(
-      'Missing module src/app/core/theming/dashboard-business-rules.ts with resolveDashboardConfig(selectedBusinessTypes).'
+      'Missing module ../../packages/dashboard-core/src/theming/dashboard-business-rules.ts with resolveDashboardConfig(selectedBusinessTypes).'
     );
   }
 
@@ -24,7 +24,7 @@ async function loadResolver(): Promise<ResolveDashboardConfigFn> {
 
   if (!resolver) {
     throw new Error(
-      'Missing resolveDashboardConfig(selectedBusinessTypes) export in src/app/core/theming/dashboard-business-rules.ts'
+      'Missing resolveDashboardConfig(selectedBusinessTypes) export in ../../packages/dashboard-core/src/theming/dashboard-business-rules.ts'
     );
   }
 

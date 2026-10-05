@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../core/auth/auth.service';
-import type { SupabaseAuthClient, SupabaseSession } from '../../core/adapters/supabase/supabase-auth.client';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import type { SupabaseAuthClient, SupabaseSession } from '@orvel/dashboard-core/adapters/supabase/supabase-auth.client';
 
 const authClient = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -18,7 +18,7 @@ const authClient = vi.hoisted(() => ({
   onAuthStateChange: vi.fn()
 }));
 
-vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: vi.fn(() => authClient),
   ORVEL_SUPABASE_AUTH_STORAGE_KEY: 'orvel-dashboard-auth'
 }));

@@ -19,7 +19,7 @@ import { DashboardService } from '../dashboard.service';
 import { localDateFromDateKey, readArgentinaClock } from '../../time/argentina-clock';
 
 const homePageSource = readFileSync(
-  resolve(process.cwd(), 'src/app/features/dashboard-home/pages/dashboard-home.page.ts'),
+  resolve(process.cwd(), '../../apps/dashboard/src/app/features/dashboard-home/pages/dashboard-home.page.ts'),
   'utf8'
 );
 

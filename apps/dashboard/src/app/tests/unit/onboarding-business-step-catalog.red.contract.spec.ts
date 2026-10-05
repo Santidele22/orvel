@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { getDefaultDashboardReferenceCatalog } from '../../core/catalog/reference-catalog';
+import { getDefaultDashboardReferenceCatalog } from '@orvel/dashboard-core/catalog/reference-catalog';
 
 const RUBROS_RELATIVE_PATH = 'src/app/features/onboarding/data-access/onboarding-rubros.ts';
 // Fase 3 of #1098: the rubro runtime moved into the core; the feature path is a re-export shim.
-const CORE_REQUIRED_RUBROS_RELATIVE_PATH = 'src/app/core/catalog/required-rubros.ts';
+const CORE_REQUIRED_RUBROS_RELATIVE_PATH = '../../packages/dashboard-core/src/catalog/required-rubros.ts';
 const BUSINESS_STEP_RELATIVE_PATH = 'src/app/features/onboarding/pages/onboarding-business-step.page.ts';
 
 function readDashboardSource(relativePath: string): string {

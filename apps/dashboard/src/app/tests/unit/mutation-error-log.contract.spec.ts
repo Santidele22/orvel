@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { logMutationFailure, type MutationErrorLog } from '../../core/observability/mutation-error-log';
+import { logMutationFailure, type MutationErrorLog } from '@orvel/dashboard-core/observability/mutation-error-log';
 
 const EMAIL = 'client@example.com';
 const PHONE = '+5491112345678';

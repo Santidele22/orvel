@@ -2,9 +2,9 @@
 
 Types + import-free pure logic extracted from `apps/dashboard`:
 
-- `apps/dashboard/src/app/core/catalog/reference-catalog.ts` — the dashboard reference catalog model (`DashboardReferenceCatalog` + normalization/resolution helpers + the dev fixture).
+- `packages/dashboard-core/src/catalog/reference-catalog.ts` — the dashboard reference catalog model (`DashboardReferenceCatalog` + normalization/resolution helpers + the dev fixture).
 - `apps/dashboard/src/app/features/onboarding/data-access/onboarding-templates.ts` — the onboarding template catalog model (`TemplateCatalog` + merge/sanitize/preview helpers).
-- The `RequiredRubro` type, declared where the rubro runtime lives (`apps/dashboard/src/app/core/catalog/required-rubros.ts` since Fase 3 of #1098; previously `features/onboarding/data-access/onboarding-rubros.ts`) — the canonical business-type code type.
+- The `RequiredRubro` type, declared where the rubro runtime lives (`packages/dashboard-core/src/catalog/required-rubros.ts` since Fase 3 of #1098; previously `features/onboarding/data-access/onboarding-rubros.ts`) — the canonical business-type code type.
 
 This is the THIRD of 7 planned extractions (`auth` ✅, `booking` ✅, **`domain` ← this change**, `types`, `config`, `billing`, `shared`) and the **first pure-types extraction** of the funnel. It stages a future hexagonal architecture.
 

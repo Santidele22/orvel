@@ -140,8 +140,8 @@ async function resolveDefaultInvoker(): Promise<(payload: {
   }
 
   const [{ SUPABASE_CONFIG }, { createSupabaseAuthClient }] = await Promise.all([
-    import('../../../../../core/auth/supabase-config'),
-    import('../../../../../core/adapters/supabase/supabase-auth.client')
+    import('@orvel/dashboard-core/auth/supabase-config'),
+    import('@orvel/dashboard-core/adapters/supabase/supabase-auth.client')
   ]);
 
   const authClient = createSupabaseAuthClient({

@@ -1,11 +1,11 @@
 import { Routes } from '@angular/router';
-import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
-import { DashboardService } from './core/dashboard/dashboard.service';
+import { dashboardAuthChildGuard, dashboardAuthGuard } from '@orvel/dashboard-core/auth/dashboard-auth.guard';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
 import {
   DASHBOARD_BUSINESS_SOURCE,
   DASHBOARD_CLIENTE_SOURCE,
   DASHBOARD_SERVICIO_SOURCE
-} from './core/dashboard/dashboard-data.ports';
+} from '@orvel/dashboard-core/dashboard/dashboard-data.ports';
 import { ClienteService } from './features/clientes/data-access/cliente.service';
 import { ServicioService } from './features/servicios/data-access/servicio.service';
 import { BusinessService } from './features/settings/data-access/business.service';
@@ -17,7 +17,7 @@ import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
   DASHBOARD_TOUR_HELP_COMPONENT
-} from './core/shell/dashboard-chrome.ports';
+} from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
 
 export const dashboardShellChildren: Routes = [
   {

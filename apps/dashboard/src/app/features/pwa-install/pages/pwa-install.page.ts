@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, signal } from '@angular/core';
-import { browserPlatform } from '../../../core/platform/platform.adapter';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import {
   iosNonSafariSurfaceName,
   isIosDevice,

@@ -30,7 +30,7 @@ const PACKAGE_PACKAGE_JSON = join(PACKAGE_ROOT, 'package.json');
 const PAYMENT_PROVIDER_SOURCE = join(PACKAGE_ROOT, 'src', 'payment-provider.ts');
 const MANUAL_PAYMENT_SERVICE_SOURCE = join(PACKAGE_ROOT, 'src', 'manual-payment.service.ts');
 const WEBHOOK_IDEMPOTENCY_SOURCE = join(PACKAGE_ROOT, 'src', 'payment-webhook-idempotency.ts');
-const DASHBOARD_MANUAL_DIR = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'payments', 'manual');
+const DASHBOARD_MANUAL_DIR = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'payments', 'manual');
 const DASHBOARD_PAYMENT_PROVIDER_SHIM = join(DASHBOARD_MANUAL_DIR, 'payment-provider.ts');
 const DASHBOARD_MANUAL_PAYMENT_SERVICE_SHIM = join(DASHBOARD_MANUAL_DIR, 'manual-payment.service.ts');
 const DASHBOARD_MANUAL_INDEX_SHIM = join(DASHBOARD_MANUAL_DIR, 'index.ts');
@@ -49,33 +49,21 @@ const DASHBOARD_WEBHOOK_IDEMPOTENCY_SHIM = join(
 );
 const DELETED_ENTITLEMENTS_RE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'subscriptions',
   'entitlements.api.ts'
 );
 const DELETED_SSM_RE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'subscriptions',
   'subscription-state-machine.api.ts'
 );
 const KEPT_LANDING_PLANS_SOURCE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'landing-plans-source.api.ts'
 );

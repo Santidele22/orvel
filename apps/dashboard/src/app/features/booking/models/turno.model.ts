@@ -34,8 +34,8 @@ export type FiltrarTurnoDTO = {
   clienteId?: string;
 };
 
-import { Cliente } from '../../../models/cliente.model';
-import { Servicio } from '../../../models/servicio.model';
+import { Cliente } from '@orvel/dashboard-core/models/cliente.model';
+import { Servicio } from '@orvel/dashboard-core/models/servicio.model';
 
 export interface TurnoWithRelations extends Turno {
   clienteNombre: string;

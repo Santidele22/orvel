@@ -5,16 +5,16 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BranchContextService } from '../../core/branches/branch-context.service';
-import { ACTIVE_BUSINESS_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
+import { BranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
+import { ACTIVE_BUSINESS_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
 import { BookingCrudService } from '@orvel/booking/application';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
 import { createMockTurnoService } from '../helpers/turno-service-testbed';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
-import { ThemeService } from '../../core/theming/theme.service';
-import { AuthService } from '../../core/auth/auth.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 
 const BRANCH_ID = 'branch-r4-001';
 const BUSINESS_ID = 'business-r4-001';
@@ -268,7 +268,7 @@ describe.skip('R4 resilience: dashboard branch and booking loading', () => {
   });
 
   it('uses the shared dashboard Supabase auth client for dashboard branch RPCs', () => {
-    const branchContextSource = readFileSync(resolve(process.cwd(), 'src/app/core/branches/branch-context.service.ts'), 'utf8');
+    const branchContextSource = readFileSync(resolve(process.cwd(), '../../packages/dashboard-core/src/branches/branch-context.service.ts'), 'utf8');
     const turnoServiceSource = readFileSync(resolve(process.cwd(), '../../packages/booking/src/application/booking-crud.service.ts'), 'utf8');
 
     expect(branchContextSource).toMatch(/createDashboardSupabaseClient\(\{ env \}\)/);

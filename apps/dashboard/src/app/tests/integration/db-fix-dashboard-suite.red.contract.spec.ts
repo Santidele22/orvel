@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { firstValueFrom } from 'rxjs';
 
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
-import { DashboardService } from '../../core/dashboard/dashboard.service';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
 
 function readSource(relativePath: string): string {
   const absolutePath = resolve(process.cwd(), relativePath);
@@ -159,7 +159,7 @@ describe('DB-FIX-006 RED - Mejorar plan CTA navigates to plans landing section',
 describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned', () => {
   it('home consumes dynamic metric IDs with DASHBOARD_SYSTEM core set', () => {
     // DB-FIX-007: Check source code for dynamic metrics using signals from services
-    const serviceSource = readSource('src/app/core/dashboard/dashboard.service.ts');
+    const serviceSource = readSource('../../packages/dashboard-core/src/dashboard/dashboard.service.ts');
     const homeSource = readSource('src/app/features/dashboard-home/pages/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 
@@ -181,7 +181,7 @@ describe('DB-FIX-007 RED - Home metrics are dynamic and DASHBOARD_SYSTEM aligned
   });
 
   it('keeps one actionable main KPI and avoids mixed business contexts', () => {
-    const serviceSource = readSource('src/app/core/dashboard/dashboard.service.ts');
+    const serviceSource = readSource('../../packages/dashboard-core/src/dashboard/dashboard.service.ts');
     const homeSource = readSource('src/app/features/dashboard-home/pages/dashboard-home.page.ts');
     const merged = `${serviceSource}\n${homeSource}`;
 

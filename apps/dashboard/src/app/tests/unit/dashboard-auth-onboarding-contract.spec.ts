@@ -7,7 +7,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   signOut: vi.fn()
 }));
 
-vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
@@ -55,7 +55,7 @@ describe('dashboard auth onboarding contract', () => {
       error: null
     });
 
-    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const { checkSupabaseSession } = await import('@orvel/dashboard-core/auth/route-protection');
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);
@@ -85,7 +85,7 @@ describe('dashboard auth onboarding contract', () => {
       error: null
     });
 
-    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const { checkSupabaseSession } = await import('@orvel/dashboard-core/auth/route-protection');
     await expect(checkSupabaseSession('/dashboard/inicio')).resolves.toEqual({ allowed: true });
   });
 
@@ -107,7 +107,7 @@ describe('dashboard auth onboarding contract', () => {
       error: null
     });
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/dashboard/turnos' } as never);
 
     expect(result).toBe(false);
@@ -139,7 +139,7 @@ describe('dashboard auth onboarding contract', () => {
       error: null
     });
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/dashboard/inicio' } as never);
 
     expect(result).toBe(false);
@@ -173,7 +173,7 @@ describe('dashboard auth onboarding contract', () => {
       error: null
     });
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/dashboard/inicio' } as never);
 
     expect(result).toBe(false);
@@ -191,7 +191,7 @@ describe('dashboard auth onboarding contract', () => {
   it('dashboardAuthGuard sends missing sessions to in-app dashboard sign-in', async () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/dashboard/inicio' } as never);
 
     expect(result).toBe(false);
@@ -204,7 +204,7 @@ describe('dashboard auth onboarding contract', () => {
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
     window.location.pathname = '/dashboard/inicio';
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/inicio' } as never);
 
     expect(result).toBe(false);
@@ -258,7 +258,7 @@ describe('dashboard auth onboarding contract', () => {
       supabaseAuthClientMock.getSession.mockResolvedValue(allowedSession());
       supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue(allowedAuthState());
 
-      const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+      const { canAccessDashboardAsync } = await import('@orvel/dashboard-core/auth/route-protection');
 
       await expect(canAccessDashboardAsync(Date.now(), '/dashboard/inicio')).resolves.toEqual({ allowed: true });
       await expect(canAccessDashboardAsync(Date.now(), '/dashboard/turnos')).resolves.toEqual({ allowed: true });
@@ -271,7 +271,7 @@ describe('dashboard auth onboarding contract', () => {
       supabaseAuthClientMock.getDashboardAuthState.mockResolvedValue(allowedAuthState());
       supabaseAuthClientMock.signOut.mockResolvedValue({ error: null });
 
-      const { canAccessDashboardAsync, logoutAndRedirect } = await import('../../core/auth/route-protection');
+      const { canAccessDashboardAsync, logoutAndRedirect } = await import('@orvel/dashboard-core/auth/route-protection');
 
       await expect(canAccessDashboardAsync()).resolves.toEqual({ allowed: true });
       await logoutAndRedirect();
@@ -289,7 +289,7 @@ describe('dashboard auth onboarding contract', () => {
         })
         .mockResolvedValueOnce(allowedAuthState());
 
-      const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+      const { canAccessDashboardAsync } = await import('@orvel/dashboard-core/auth/route-protection');
 
       const denied = await canAccessDashboardAsync(Date.now(), '/dashboard/inicio');
       expect(denied.allowed).toBe(false);

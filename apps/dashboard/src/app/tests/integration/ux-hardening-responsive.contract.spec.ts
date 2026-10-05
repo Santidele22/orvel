@@ -9,7 +9,7 @@ const TOPBAR_TS = 'src/app/shared/dashboard-topbar/dashboard-topbar.component.ts
 const SIDEBAR_HTML = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.html';
 const SIDEBAR_TS = 'src/app/shared/dashboard-sidebar/dashboard-sidebar.component.ts';
 const ZEN_SIDEBAR_TS = 'src/app/shared/dashboard-sidebar/templates/zen-sidebar.component.ts';
-const STRUCTURAL_TOKENS = 'src/app/core/theming/dashboard-structural.tokens.ts';
+const STRUCTURAL_TOKENS = '../../packages/dashboard-core/src/theming/dashboard-structural.tokens.ts';
 const DASHBOARD_HOME_HTML = 'src/app/features/dashboard-home/pages/dashboard-home.page.html';
 const CONFIGURACION_ZEN_HTML = 'src/app/features/settings/pages/themes/configuracion-zen-theme.component.html';
 

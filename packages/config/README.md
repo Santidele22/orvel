@@ -1,6 +1,6 @@
 # @orvel/config
 
-Import-free dashboard runtime-env helpers extracted from `apps/dashboard/src/app/core/runtime/dashboard-env.ts`, plus the non-secret auth storage key.
+Import-free dashboard runtime-env helpers extracted from `packages/dashboard-core/src/runtime/dashboard-env.ts`, plus the non-secret auth storage key.
 
 This is the SIXTH of 7 planned extractions (`auth` ✅, `booking` ✅, `domain` ✅, `billing` ✅, `types` ✅, **`config` ← this change**, `shared`). It stages a future hexagonal architecture.
 
@@ -14,8 +14,8 @@ This is the SIXTH of 7 planned extractions (`auth` ✅, `booking` ✅, `domain` 
 
 - `apps/dashboard/src/environments/environment.ts` and `environment.prod.ts` stay in the dashboard forever.
 - Runtime env values, URLs, anon keys, tokens, and baked fallbacks stay in the dashboard.
-- `defaultEnvSource()` and the optional-source wrapper stay in `apps/dashboard/src/app/core/runtime/dashboard-env.ts`; since Fase 3 of #1098 the fallback is *injected* there instead of importing `environment.ts`.
-- `SUPABASE_CONFIG` and the throw that reads runtime env stay in `apps/dashboard/src/app/core/auth/supabase-config.ts`.
+- `defaultEnvSource()` and the optional-source wrapper stay in `packages/dashboard-core/src/runtime/dashboard-env.ts`; since Fase 3 of #1098 the fallback is *injected* there instead of importing `environment.ts`.
+- `SUPABASE_CONFIG` and the throw that reads runtime env stay in `packages/dashboard-core/src/auth/supabase-config.ts`.
 - Landing's duplicate storage-key constant is not migrated here.
 - `app.config.ts`, PostCSS, sidebar-links, settings pages, and Vercel project config are out.
 

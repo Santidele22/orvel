@@ -29,11 +29,7 @@ const ONBOARDING_TEMPLATES_SOURCE = join(PACKAGE_ROOT, 'src', 'onboarding-templa
 const REQUIRED_RUBRO_SOURCE = join(PACKAGE_ROOT, 'src', 'required-rubro.ts');
 const DASHBOARD_REFERENCE_CATALOG_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'catalog',
   'reference-catalog.ts'
 );
@@ -61,11 +57,7 @@ const DASHBOARD_ONBOARDING_RUBROS_SHIM = join(
 );
 const CORE_REQUIRED_RUBROS = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'catalog',
   'required-rubros.ts'
 );
@@ -163,7 +155,7 @@ describe('@orvel/domain package shape contract (chore-extract-domain-package)', 
     expect(onboardingTemplatesShim).toContain("from '@orvel/domain'");
     // Fase 3 of #1098: the rubro runtime moved into the core (the core used to import this feature
     // shim back). The old path stays as a pure re-export and owns no logic.
-    expect(onboardingRubrosShim).toContain("from '../../../core/catalog/required-rubros'");
+    expect(onboardingRubrosShim).toContain("from '@orvel/dashboard-core/catalog/required-rubros'");
     expect(onboardingRubrosShim).not.toMatch(/export\s+function\s/);
     expect(coreRequiredRubros).toContain('export function sanitizeSelectedRubros');
     expect(coreRequiredRubros).toContain('export function normalizeRubro');

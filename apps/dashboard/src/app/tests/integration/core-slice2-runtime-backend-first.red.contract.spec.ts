@@ -6,9 +6,9 @@ const dashboardRoot = process.cwd();
 const monorepoRoot = path.resolve(dashboardRoot, '..', '..');
 
 const productiveConsumerGlobs = [
-  'src/app/core/plans/plan-entitlements.ts',
-  'src/app/core/accounts/account-plan-policy.ts',
-  'src/app/core/entitlements/server-entitlements.api.ts',
+  '../../packages/dashboard-core/src/plans/plan-entitlements.ts',
+  '../../packages/dashboard-core/src/accounts/account-plan-policy.ts',
+  '../../packages/dashboard-core/src/entitlements/server-entitlements.api.ts',
   'src/app/features/billing',
   'src/app/features/onboarding'
 ];
@@ -59,9 +59,9 @@ describe('RED contract: Core Slice 2 runtime catalog is backend-first', () => {
   });
 
   it('provides an injectable runtime catalog cache/repository instead of only a raw fixture helper', () => {
-    const gatewaySource = readFile('src/app/core/catalog/reference-catalog.gateway.ts');
-    const planSource = readFile('src/app/core/plans/plan-entitlements.ts');
-    const accountPolicySource = readFile('src/app/core/accounts/account-plan-policy.ts');
+    const gatewaySource = readFile('../../packages/dashboard-core/src/catalog/reference-catalog.gateway.ts');
+    const planSource = readFile('../../packages/dashboard-core/src/plans/plan-entitlements.ts');
+    const accountPolicySource = readFile('../../packages/dashboard-core/src/accounts/account-plan-policy.ts');
 
     expect(gatewaySource, 'Runtime catalog layer must fetch the backend source-of-truth RPC.').toMatch(
       /\.rpc\(\s*['"]get_dashboard_reference_catalog['"]/
@@ -78,7 +78,7 @@ describe('RED contract: Core Slice 2 runtime catalog is backend-first', () => {
 
 describe('RED contract: Core Slice 2 entitlements have a productive default backend path', () => {
   it('uses get_business_entitlements_snapshot by default when no ad-hoc repository or invoker is injected', () => {
-    const source = readFile('src/app/core/entitlements/server-entitlements.api.ts');
+    const source = readFile('../../packages/dashboard-core/src/entitlements/server-entitlements.api.ts');
 
     expect(source, 'Entitlements must know how to build the Supabase-backed default repository.').toMatch(
       /createDefaultServerEntitlementsRepository/

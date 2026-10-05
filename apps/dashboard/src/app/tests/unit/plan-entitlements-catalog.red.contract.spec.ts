@@ -27,20 +27,20 @@ type ReferenceCatalogModule = {
 
 async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
   try {
-    return (await import('../../core/plans/plan-entitlements')) as PlanEntitlementsModule;
+    return (await import('@orvel/dashboard-core/plans/plan-entitlements')) as PlanEntitlementsModule;
   } catch {
     throw new Error(
-      'TODO(BB-8): keep src/app/core/plans/plan-entitlements.ts public API and back it with src/app/core/catalog/reference-catalog.ts.'
+      'TODO(BB-8): keep ../../packages/dashboard-core/src/plans/plan-entitlements.ts public API and back it with ../../packages/dashboard-core/src/catalog/reference-catalog.ts.'
     );
   }
 }
 
 async function loadReferenceCatalogModule(): Promise<ReferenceCatalogModule> {
-  return (await import('../../core/catalog/reference-catalog')) as ReferenceCatalogModule;
+  return (await import('@orvel/dashboard-core/catalog/reference-catalog')) as ReferenceCatalogModule;
 }
 
 function readPlanEntitlementsSource(): string {
-  const sourcePath = path.join(process.cwd(), 'src', 'app', 'core', 'plans', 'plan-entitlements.ts');
+  const sourcePath = path.join(process.cwd(), '../../packages/dashboard-core/src', 'plans', 'plan-entitlements.ts');
   expect(fs.existsSync(sourcePath), 'Missing plan entitlements source file').toBe(true);
   return fs.readFileSync(sourcePath, 'utf8');
 }

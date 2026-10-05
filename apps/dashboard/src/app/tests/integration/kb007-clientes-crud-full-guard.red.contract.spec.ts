@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
-import type { CreateClienteDTO } from '../../models/cliente.model';
+import type { CreateClienteDTO } from '@orvel/dashboard-core/models/cliente.model';
 
 function readClienteServiceSource(): string {
   const tsPath = resolve(process.cwd(), 'src/app/features/clientes/data-access/cliente.service.ts');

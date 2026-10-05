@@ -1,5 +1,5 @@
 import { InjectionToken, type Signal } from '@angular/core';
-import type { BusinessPublicView, BusinessSettings, WeekdayKey, WorkingDayHours } from '../../models/business.model';
+import type { BusinessPublicView, BusinessSettings, WeekdayKey, WorkingDayHours } from '../models/business.model';
 
 /**
  * Read-model contracts for the business directory.

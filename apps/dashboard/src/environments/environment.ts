@@ -6,7 +6,7 @@
  * files, and `angular.json` swaps this module for that generated file in every
  * build and serve configuration.
  *
- * Runtime resolution order lives in `src/app/core/runtime/dashboard-env.ts`:
+ * Runtime resolution order lives in `../../packages/dashboard-core/src/runtime/dashboard-env.ts`:
  * process env, then `window.__ORVEL_DASHBOARD_ENV__`, then this module.
  */
 export const environment = {

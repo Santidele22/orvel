@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_NOTIFICATIONS_LIMIT,
   type ListAdminNotificationsInput,
-} from '../../core/notifications/internal-dashboard-notifications.api';
+} from '@orvel/dashboard-core/notifications/internal-dashboard-notifications.api';
 
 describe('Dashboard notifications pagination constants', () => {
   it('exports DEFAULT_NOTIFICATIONS_LIMIT = 50', () => {
@@ -44,7 +44,7 @@ describe('listAdminNotifications applies default limit without explicit input', 
     const fs = await import('node:fs');
     const path = await import('node:path');
     const source = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/app/core/notifications/internal-dashboard-notifications.api.ts'),
+      path.resolve(process.cwd(), '../../packages/dashboard-core/src/notifications/internal-dashboard-notifications.api.ts'),
       'utf8',
     );
 
@@ -61,7 +61,7 @@ describe('Service layer supports cursor-based loadMore', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const source = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/app/core/notifications/dashboard-notifications.service.ts'),
+      path.resolve(process.cwd(), '../../packages/dashboard-core/src/notifications/dashboard-notifications.service.ts'),
       'utf8',
     );
 
@@ -73,7 +73,7 @@ describe('Service layer supports cursor-based loadMore', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const source = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/app/core/notifications/dashboard-notifications.service.ts'),
+      path.resolve(process.cwd(), '../../packages/dashboard-core/src/notifications/dashboard-notifications.service.ts'),
       'utf8',
     );
 

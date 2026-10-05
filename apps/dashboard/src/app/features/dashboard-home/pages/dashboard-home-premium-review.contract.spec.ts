@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { countCurrentMonthBookings } from '../../../core/billing/premium-alias-receipt';
+import { countCurrentMonthBookings } from '@orvel/dashboard-core/billing/premium-alias-receipt';
 
 const COMPONENT_PATH = new URL('./dashboard-home.page.ts', import.meta.url);
 const TEMPLATE_PATH = new URL('./dashboard-home.page.html', import.meta.url);

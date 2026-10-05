@@ -1,7 +1,7 @@
-import type { PaymentProvider } from '../../../../core/payments/manual/payment-provider';
-import { resolvePlanCodeFromCatalog } from '../../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../../core/catalog/reference-catalog.gateway';
-import type { CanonicalPlanCode } from '../../../../core/plans/plan-entitlements';
+import type { PaymentProvider } from '@orvel/dashboard-core/payments/manual/payment-provider';
+import { resolvePlanCodeFromCatalog } from '@orvel/dashboard-core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
+import type { CanonicalPlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 
 export type SubscriptionStatus =
   | 'trialing'

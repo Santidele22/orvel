@@ -29,7 +29,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   value: localStorageMock
 });
 
-vi.mock('../../core/auth/supabase-config', () => ({
+vi.mock('@orvel/dashboard-core/auth/supabase-config', () => ({
   SUPABASE_CONFIG: {
     url: 'https://test.supabase.co',
     anonKey: 'test-anon-key'
@@ -37,7 +37,7 @@ vi.mock('../../core/auth/supabase-config', () => ({
   ORVEL_SUPABASE_AUTH_STORAGE_KEY: 'orvel.supabase.auth'
 }));
 
-vi.mock('../../core/runtime/dashboard-env', () => ({
+vi.mock('@orvel/dashboard-core/runtime/dashboard-env', () => ({
   loadDashboardRuntimeEnv: () => ({
     NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key'
@@ -67,7 +67,7 @@ function createBusinessSettingsFacade(): BusinessSettingsFacade {
 }
 
 beforeAll(async () => {
-  const authMod = await import('../../core/auth/auth.service');
+  const authMod = await import('@orvel/dashboard-core/auth/auth.service');
   AuthServiceToken = authMod.AuthService;
   const mod = await import('../../features/settings/data-access/business-settings.facade');
   BusinessSettingsFacadeCtor = mod.BusinessSettingsFacade;

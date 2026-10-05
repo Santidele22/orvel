@@ -1,10 +1,10 @@
-import { normalizePlanCode, type CanonicalPlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, type CanonicalPlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 import {
   type CatalogBusinessType,
   resolveBusinessTypeCodeFromCatalog
-} from '../../../core/catalog/reference-catalog';
-import { isCatalogBusinessType } from '../../../core/catalog/business-type-validation';
-import { REFERENCE_CATALOG } from '../../../core/catalog/reference-catalog-snapshot';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { isCatalogBusinessType } from '@orvel/dashboard-core/catalog/business-type-validation';
+import { REFERENCE_CATALOG } from '@orvel/dashboard-core/catalog/reference-catalog-snapshot';
 import type { BusinessTypeCode } from './onboarding-business-types-storage';
 
 export type OnboardingBusinessType = BusinessTypeCode;

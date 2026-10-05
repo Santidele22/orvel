@@ -6,7 +6,7 @@ import {
   DASHBOARD_CLIENTE_SOURCE,
   DASHBOARD_SERVICIO_SOURCE
 } from './dashboard-data.ports';
-import { WeekdayKey } from '../../models/business.model';
+import { WeekdayKey } from '../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import { ArgentinaClockService } from '../time/argentina-clock.service';

@@ -4,12 +4,12 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, of, from, delay, tap, throwError, switchMap, catchError } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { Cliente, CreateClienteDTO, UpdateClienteDTO } from '../../../models/cliente.model';
-import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/adapters/supabase/supabase-client.factory';
-import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { AuthService } from '../../../core/auth/auth.service';
-import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
+import { Cliente, CreateClienteDTO, UpdateClienteDTO } from '@orvel/dashboard-core/models/cliente.model';
+import { loadDashboardRuntimeEnv } from '@orvel/dashboard-core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client.factory';
+import { CLIENTES_FALLBACK_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '@orvel/dashboard-core/branches/branch-context.service';
 
 const CUSTOMER_BASE_SELECT = `
         id,

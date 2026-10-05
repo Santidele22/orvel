@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const COMPONENT_TS = 'src/app/core/shell/mobile-bottom-nav/mobile-bottom-nav.component.ts';
+const COMPONENT_TS = 'src/shell/mobile-bottom-nav/mobile-bottom-nav.component.ts';
 
 function fromRoot(relativePath: string): string {
   return join(process.cwd(), relativePath);

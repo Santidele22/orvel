@@ -76,7 +76,7 @@ describe('createDashboardSupabaseClient contract', () => {
 
   it('wires the dashboard SUPABASE_CLIENT factory to the authenticated session, not the anonymous booking client', () => {
     const clientFactory = readFileSync(
-      resolve(process.cwd(), 'src/app/core/adapters/supabase/supabase-client.ts'),
+      resolve(process.cwd(), 'src/adapters/supabase/supabase-client.ts'),
       'utf8'
     );
 

@@ -7,7 +7,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   getSession: vi.fn()
 }));
 
-vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
@@ -57,7 +57,7 @@ describe('RED Contract: auth-only-on-landing dashboard boundary', () => {
   });
 
   it('redirects unauthenticated protected dashboard access to in-app /dashboard/login', async () => {
-    const { canAccessDashboardAsync } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync } = await import('@orvel/dashboard-core/auth/route-protection');
 
     const access = await canAccessDashboardAsync(Date.now(), '/dashboard/inicio');
     const redirect = new URL(access.redirectTo ?? '', 'https://dashboard.orvel.pro');

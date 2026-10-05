@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidArgentinaPhone } from '../../../core/validation/argentina-phone';
+import { isValidArgentinaPhone } from '@orvel/dashboard-core/validation/argentina-phone';
 
 const instagramRegex = /^@[a-zA-Z0-9._]{1,30}$/;
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;

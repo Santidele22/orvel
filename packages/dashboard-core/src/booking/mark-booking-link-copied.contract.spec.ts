@@ -3,11 +3,11 @@ import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { markBookingLinkCopied } from './mark-booking-link-copied';
 
-const helperPath = resolve(process.cwd(), 'src/app/core/booking/mark-booking-link-copied.ts');
-const publicUrlPath = resolve(process.cwd(), 'src/app/core/booking/public-booking-url.ts');
-const homePath = resolve(process.cwd(), 'src/app/features/dashboard-home/pages/dashboard-home.page.ts');
-const settingsPath = resolve(process.cwd(), 'src/app/features/settings/pages/configuracion.page.ts');
-const pwaPath = resolve(process.cwd(), 'src/app/features/pwa-install/pages/pwa-install.page.ts');
+const helperPath = resolve(process.cwd(), 'src/booking/mark-booking-link-copied.ts');
+const publicUrlPath = resolve(process.cwd(), 'src/booking/public-booking-url.ts');
+const homePath = resolve(process.cwd(), '../../apps/dashboard/src/app/features/dashboard-home/pages/dashboard-home.page.ts');
+const settingsPath = resolve(process.cwd(), '../../apps/dashboard/src/app/features/settings/pages/configuracion.page.ts');
+const pwaPath = resolve(process.cwd(), '../../apps/dashboard/src/app/features/pwa-install/pages/pwa-install.page.ts');
 
 const helper = readFileSync(helperPath, 'utf8');
 const home = readFileSync(homePath, 'utf8');
@@ -25,7 +25,7 @@ function methodBody(source: string, name: string): string {
 
 describe('markBookingLinkCopied contract', () => {
   it('lives next to public-booking-url and calls the set-if-null RPC', () => {
-    expect(helperPath.startsWith(resolve(process.cwd(), 'src/app/core/booking'))).toBe(true);
+    expect(helperPath.startsWith(resolve(process.cwd(), 'src/booking'))).toBe(true);
     expect(publicUrlPath.endsWith('public-booking-url.ts')).toBe(true);
     expect(helper).toMatch(/rpc\(\s*['"]mark_booking_link_copied['"]/);
     expect(helper).toMatch(/p_business_id/);
@@ -39,8 +39,9 @@ describe('markBookingLinkCopied contract', () => {
     expect(homeCopy.length).toBeGreaterThan(0);
     expect(settingsCopy.length).toBeGreaterThan(0);
 
-    expect(home).toMatch(/from ['"]\.\.\/\.\.\/\.\.\/core\/booking\/mark-booking-link-copied['"]/);
-    expect(settings).toMatch(/from ['"]\.\.\/\.\.\/\.\.\/core\/booking\/mark-booking-link-copied['"]/);
+    // Fase 3 of #1098: the app consumes the extracted core through the package.
+    expect(home).toMatch(/from ['"]@orvel\/dashboard-core\/booking\/mark-booking-link-copied['"]/);
+    expect(settings).toMatch(/from ['"]@orvel\/dashboard-core\/booking\/mark-booking-link-copied['"]/);
 
     const homeWrite = homeCopy.indexOf('clipboard.writeText');
     const homeMark = homeCopy.search(/markBookingLinkCopied\s*\(/);

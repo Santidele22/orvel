@@ -9,8 +9,8 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { provideRouter } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../core/auth/auth.service';
-import { DashboardNotificationsService } from '../../core/notifications/dashboard-notifications.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { DashboardNotificationsService } from '@orvel/dashboard-core/notifications/dashboard-notifications.service';
 import { ZenTopbarComponent } from '../../shared/dashboard-topbar/templates/zen-topbar.component';
 
 const dashboardTopbarTemplate = readFileSync(

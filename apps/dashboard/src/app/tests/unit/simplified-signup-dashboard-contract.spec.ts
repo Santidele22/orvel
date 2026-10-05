@@ -80,8 +80,8 @@ describe('Contract: simplified signup dashboard onboarding gate', () => {
 
   it('opens the welcome state without blocking when reduced motion disables confetti', async () => {
     const { SignupBusinessTypesStepPage } = await import('../../features/onboarding/pages/signup-business-types-step.page');
-    const catalogModule = await import('../../core/catalog/reference-catalog');
-    const gatewayModule = await import('../../core/catalog/reference-catalog.gateway');
+    const catalogModule = await import('@orvel/dashboard-core/catalog/reference-catalog');
+    const gatewayModule = await import('@orvel/dashboard-core/catalog/reference-catalog.gateway');
     const storage = new Map<string, string>([['turnea.onboarding.plan', 'FREE']]);
 
     Object.defineProperty(window, 'localStorage', {

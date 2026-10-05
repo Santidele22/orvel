@@ -36,10 +36,10 @@ async function loadBusinessRulesModule(): Promise<{
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/business/business-template-visibility-rules');
+    module = await import('@orvel/dashboard-core/business/business-template-visibility-rules');
   } catch {
     throw new Error(
-      'Missing module src/app/core/business/business-template-visibility-rules.ts with updateBusinessName() and getVisibleTemplates().'
+      'Missing module ../../packages/dashboard-core/src/business/business-template-visibility-rules.ts with updateBusinessName() and getVisibleTemplates().'
     );
   }
 
@@ -48,7 +48,7 @@ async function loadBusinessRulesModule(): Promise<{
 
   if (!updateBusinessName || !getVisibleTemplates) {
     throw new Error(
-      'Missing exports updateBusinessName(input) and getVisibleTemplates(input) in src/app/core/business/business-template-visibility-rules.ts'
+      'Missing exports updateBusinessName(input) and getVisibleTemplates(input) in ../../packages/dashboard-core/src/business/business-template-visibility-rules.ts'
     );
   }
 
