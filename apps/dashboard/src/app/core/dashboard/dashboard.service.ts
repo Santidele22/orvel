@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
 import { appointmentStatusLabel, isDepositUnpaid, type BookingQueries, type BookingRecord } from '@orvel/booking/application';
-import { BOOKING_QUERIES, confirmBookingDepositReceived, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
+import { BOOKING_QUERIES, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
 import {
   DASHBOARD_BUSINESS_SOURCE,
   DASHBOARD_CLIENTE_SOURCE,
@@ -8,6 +8,7 @@ import {
 } from './dashboard-data.ports';
 import { WeekdayKey } from '../../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import { ArgentinaClockService } from '../time/argentina-clock.service';
 import {
   civilDateKey,
@@ -309,8 +310,11 @@ export class DashboardService {
   }
 
   async confirmDepositReceived(bookingId: string, performedBy: string): Promise<boolean> {
-    const result = await confirmBookingDepositReceived({ bookingId, performedBy });
-    if (result.status !== 200 || result.error) {
+    const result = await createSupabaseClient().rpc('confirm_booking_deposit_received', {
+      booking_id: bookingId,
+      performed_by: performedBy
+    });
+    if (result.error) {
       return false;
     }
     this.invalidate();
