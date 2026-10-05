@@ -8,7 +8,7 @@ import {
   archiveAllNotifications,
   type DashboardNotification,
 } from './internal-dashboard-notifications.api';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeSubscription } from './dashboard-notifications.ports';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
 import { browserEnvironment } from '../platform/browser-environment.adapter';
@@ -28,7 +28,7 @@ export class DashboardNotificationsService implements OnDestroy {
   private readonly unreadNotificationCountState = signal(0);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
-  private subscription: RealtimeChannel | null = null;
+  private subscription: RealtimeSubscription | null = null;
   private subscribedBusinessId: string | null = null;
   private loadedBusinessId: string | null = null;
   private inFlightRefresh: Promise<void> | null = null;
