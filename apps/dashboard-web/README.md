@@ -33,7 +33,15 @@ While the split is a strangler, the console features still live in `apps/dashboa
 
 Assets are duplicated on purpose, not by accident: `public/` and `src/icons/` hold copies of the brand files because `@angular/build` refuses asset paths outside the project root. Styles are **not** duplicated — `angular.json` points at `../dashboard/src/styles*` and `tailwind.config.js` extends the dashboard's config, so there is one design system.
 
+## The e2e that closes Fase 3
+
+`pnpm run test:e2e:seam` (`playwright.seam.config.ts`, `tests/e2e-seam/`) covers the two things the build and unit gates cannot:
+
+- **the install surface**, against a **production build** served by `scripts/serve-dashboard-dist.mjs` — a dev server would assert nothing, because the service worker is disabled in dev mode and `ngsw-worker.js` is only emitted by `ng build`. It checks the manifest, the precache configuration, the install page, and that the worker registers, activates at `/dashboard/` and takes control.
+- **a runtime smoke of both dev servers**, which is the only gate that sees an app which builds fine and never boots. It fails on console/page errors and on any registered service worker.
+
+It runs in CI as its own step (Playwright browsers are heavy), not inside `pnpm run check`.
+
 ## What Fase 3 still owes
 
-- The PWA install/update e2e that proves the installable product did not change.
 - Fase 4: its own origin, its own session storage key, and a deploy that is not the landing's.
