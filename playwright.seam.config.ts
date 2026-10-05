@@ -36,20 +36,21 @@ export default defineConfig({
       // Built artifact: required for the service worker.
       command: 'pnpm run serve:dashboard:dist',
       url: 'http://127.0.0.1:4400/dashboard/',
-      reuseExistingServer: !process.env['CI'],
+      // The two e2e configs share these ports; whichever starts a server first, the other reuses it.
+      reuseExistingServer: true,
       timeout: 120_000
     },
     {
       // Dev server: the runtime smoke needs the development module graph.
       command: 'pnpm run dev:dashboard:proxy',
       url: 'http://127.0.0.1:4200/dashboard/',
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: true,
       timeout: 240_000
     },
     {
       command: 'pnpm run dev:dashboard-web:proxy',
       url: 'http://127.0.0.1:4300/',
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: true,
       timeout: 240_000
     }
   ],
