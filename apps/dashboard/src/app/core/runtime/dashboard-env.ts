@@ -1,4 +1,5 @@
 import { environment } from '../../../environments/environment';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 import {
   REQUIRED_DASHBOARD_ENV_KEYS,
   hasRequiredDashboardEnv,
@@ -9,13 +10,9 @@ import {
 
 export { REQUIRED_DASHBOARD_ENV_KEYS, type DashboardRuntimeEnv };
 
-type DashboardWindow = {
-  __ORVEL_DASHBOARD_ENV__?: EnvSource;
-};
-
-function readWindowDashboardEnv(): EnvSource | undefined {
-  const maybeWindow = globalThis as { window?: DashboardWindow };
-  return maybeWindow.window?.__ORVEL_DASHBOARD_ENV__;
+/** The document injects this script; who validates it is `hasRequiredDashboardEnv`. */
+function readHostDashboardEnv(): EnvSource | undefined {
+  return browserEnvironment().runtimeEnv() as EnvSource | undefined;
 }
 
 function defaultEnvSource(): EnvSource {
@@ -30,7 +27,7 @@ function defaultEnvSource(): EnvSource {
     return processEnv;
   }
 
-  const windowEnv = readWindowDashboardEnv();
+  const windowEnv = readHostDashboardEnv();
   if (windowEnv && hasRequiredDashboardEnv(windowEnv)) {
     return windowEnv;
   }

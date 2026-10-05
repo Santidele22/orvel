@@ -18,13 +18,10 @@ import { createDashboardReferenceCatalogGateway } from '../catalog/reference-cat
  * adapter.
  *
  * Every exemption is a *named file with a reason*, never a catch-all, so adding
- * one is a deliberate edit a reviewer sees. Two lists are temporary debt:
- *
- *  - `PENDING_HOST_ACCESS`: cut 4b of the same phase moves both files behind the
- *    environment port;
- *  - `FASE_2_PLATFORM_DETECTOR`: the epic's Fase 2 replaces the platform
- *    detectors with `core/platform`, and this is the only one that lives in
- *    `core/` (the other two are features).
+ * one is a deliberate edit a reviewer sees. One exemption is temporary:
+ * `FASE_2_PLATFORM_DETECTOR`, because the epic's Fase 2 replaces the platform
+ * detectors with `core/platform` and this is the only one inside `core/` (the
+ * other two live in features).
  */
 const CORE_DIR = resolve(process.cwd(), 'src/app/core');
 
@@ -38,13 +35,7 @@ const SDK_ADAPTERS = [
   'adapters/supabase/supabase-client.ts'
 ] as const;
 
-const PENDING_HOST_ACCESS = [
-  // Reads window.location/history and the injected runtime env for the auth
-  // handoff; cut 4b routes it through the environment port.
-  'auth/route-protection.ts',
-  // Reads window.__ORVEL_DASHBOARD_ENV__ for the deployment environment.
-  'runtime/dashboard-env.ts'
-] as const;
+const HOST_ADAPTERS = [ENVIRONMENT_ADAPTER, STORAGE_ADAPTER] as const;
 
 const FASE_2_PLATFORM_DETECTOR = 'shell/is-mobile/is-mobile.ts';
 
@@ -113,24 +104,9 @@ describe('core boundary contract', () => {
   });
 
   it('reaches the host only through the declared adapters', () => {
-    const allowed = [
-      ENVIRONMENT_ADAPTER,
-      STORAGE_ADAPTER,
-      ...PENDING_HOST_ACCESS,
-      FASE_2_PLATFORM_DETECTOR
-    ];
+    const allowed = [...HOST_ADAPTERS, FASE_2_PLATFORM_DETECTOR];
 
     expect(offenders((source) => HOST_ACCESS.test(stripCommentsAndStrings(source)), allowed)).toEqual([]);
-  });
-
-  it('keeps the temporary host-access debt exactly as declared', () => {
-    const allowed = [ENVIRONMENT_ADAPTER, STORAGE_ADAPTER, FASE_2_PLATFORM_DETECTOR];
-    const stillPending = offenders(
-      (source) => HOST_ACCESS.test(stripCommentsAndStrings(source)),
-      allowed
-    );
-
-    expect(stillPending).toEqual([...PENDING_HOST_ACCESS].sort());
   });
 
   it('runs core logic with every DOM global absent', async () => {

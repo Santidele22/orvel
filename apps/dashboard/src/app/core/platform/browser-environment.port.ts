@@ -34,6 +34,19 @@ export type BrowserEnvironment = {
    */
   currentOrigin(): string;
 
+  /** Current document URL; `null` when there is no host or it cannot be parsed. */
+  currentUrl(): URL | null;
+
+  /** Replaces the current history entry with `url` (path + search + hash). */
+  replaceHistoryState(url: string): void;
+
+  /**
+   * Deployment environment injected into the document (the
+   * `__ORVEL_DASHBOARD_ENV__` script), if the host provides one. Untyped on
+   * purpose: who validates it is the runtime-env reader, not the adapter.
+   */
+  runtimeEnv(): Record<string, unknown> | undefined;
+
   /** Navigates the host to `url`; no-op when there is no host. */
   navigateTo(url: string): void;
 

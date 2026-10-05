@@ -70,6 +70,35 @@ export function browserEnvironment(): BrowserEnvironment {
       return window.location.origin;
     },
 
+    currentUrl(): URL | null {
+      if (typeof window === 'undefined' || !window.location?.href) {
+        return null;
+      }
+
+      try {
+        return new URL(window.location.href);
+      } catch {
+        return null;
+      }
+    },
+
+    replaceHistoryState(url: string): void {
+      if (typeof window === 'undefined' || typeof window.history?.replaceState !== 'function') {
+        return;
+      }
+
+      window.history.replaceState(null, '', url);
+    },
+
+    runtimeEnv(): Record<string, unknown> | undefined {
+      if (typeof window === 'undefined') {
+        return undefined;
+      }
+
+      return (window as unknown as { __ORVEL_DASHBOARD_ENV__?: Record<string, unknown> })
+        .__ORVEL_DASHBOARD_ENV__;
+    },
+
     navigateTo(url: string): void {
       if (typeof window === 'undefined' || typeof window.location?.assign !== 'function') {
         return;
