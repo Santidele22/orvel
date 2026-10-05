@@ -50,3 +50,13 @@ jobs:
           PUBLIC_SUPABASE_URL: https://e2e.invalid.supabase.co
           PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
         run: pnpm run build:dashboard && pnpm run test:e2e:seam
+
+      # The dashboard's public surfaces: the unauthenticated redirect and the public turnero's
+      # not-found state. Both stub the backend they depend on, so they assert the app's behaviour
+      # instead of a database's state. The authenticated diagnostics stay out on purpose: they
+      # perform real CRUD and need real credentials.
+      - name: Run dashboard public-surface e2e
+        env:
+          PUBLIC_SUPABASE_URL: https://e2e.invalid.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+        run: pnpm run test:e2e
