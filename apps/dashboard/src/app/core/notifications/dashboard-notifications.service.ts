@@ -1,6 +1,6 @@
 import { Injectable, computed, signal, inject, OnDestroy } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
-import { createSupabaseClient } from '../runtime/supabase-client';
+import { AuthService } from '../auth/auth.service';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import {
   archiveNotification,
   listAdminNotifications,
@@ -8,9 +8,10 @@ import {
   archiveAllNotifications,
   type DashboardNotification,
 } from './internal-dashboard-notifications.api';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeSubscription } from './dashboard-notifications.ports';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 
 const REALTIME_REFRESH_DEBOUNCE_MS = 400;
 
@@ -22,15 +23,17 @@ function unreadCountFromList(items: readonly DashboardNotification[]): number {
 export class DashboardNotificationsService implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly branchContext = getBranchContextService();
+  private readonly environment = browserEnvironment();
   private readonly notificationsState = signal<DashboardNotification[]>([]);
   private readonly unreadNotificationCountState = signal(0);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
-  private subscription: RealtimeChannel | null = null;
+  private subscription: RealtimeSubscription | null = null;
   private subscribedBusinessId: string | null = null;
   private loadedBusinessId: string | null = null;
   private inFlightRefresh: Promise<void> | null = null;
   private realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private unsubscribeVisibilityChange: (() => void) | null = null;
 
   readonly notifications = this.notificationsState.asReadonly();
   readonly unreadNotificationCount = this.unreadNotificationCountState.asReadonly();
@@ -40,18 +43,19 @@ export class DashboardNotificationsService implements OnDestroy {
 
   constructor() {
     registerSectionCacheInvalidator(() => this.clearCache());
-    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    this.unsubscribeVisibilityChange = this.environment.onVisibilityChange(this.onVisibilityChange);
     void this.init();
   }
 
   ngOnDestroy(): void {
-    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.unsubscribeVisibilityChange?.();
+    this.unsubscribeVisibilityChange = null;
     this.stopSubscription();
     this.clearRealtimeRefreshTimer();
   }
 
   private readonly onVisibilityChange = (): void => {
-    if (document.visibilityState === 'visible') {
+    if (this.environment.isVisible()) {
       void this.refreshForAdmin(undefined, { force: true });
     }
   };
@@ -95,7 +99,7 @@ export class DashboardNotificationsService implements OnDestroy {
     this.realtimeRefreshTimer = setTimeout(() => {
       this.realtimeRefreshTimer = null;
       void this.refreshForAdmin(undefined, { force: true });
-      window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
+      this.environment.dispatchWindowEvent('operator.agenda.sync');
     }, REALTIME_REFRESH_DEBOUNCE_MS);
   }
 

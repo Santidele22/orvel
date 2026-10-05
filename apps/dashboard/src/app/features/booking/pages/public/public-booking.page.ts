@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, computed, signal, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { BusinessService } from '../../../settings/data-access/business.service';
+import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '../../../../core/business/business-directory.ports';
 import { PublicBookingService } from '@orvel/booking/application';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
@@ -49,7 +49,7 @@ type ReschedulePreload = {
 })
 export class PublicBookingPage implements OnInit, OnDestroy {
   private readonly servicioService = inject(ServicioService);
-  private readonly businessService = inject(BusinessService);
+  private readonly businessDirectory = inject(PUBLIC_BUSINESS_DIRECTORY_SOURCE);
   private readonly publicBookingService = inject(PublicBookingService);
   private readonly route = inject(ActivatedRoute);
 
@@ -378,7 +378,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
     const slug = this.route.snapshot.paramMap.get('slug') ?? '';
     const professionalSlugParam = this.route.snapshot.paramMap.get('professionalSlug') ?? '';
     const professionalSlug = professionalSlugParam && professionalSlugParam !== slug ? professionalSlugParam : '';
-    const response = await this.businessService.resolveBusinessBySlug(slug);
+    const response = await this.businessDirectory.resolveBusinessBySlug(slug);
 
     if (response.data) {
       this.resolvedSlug.set(response.data.slug);
@@ -397,7 +397,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
         response.data.bookingPolicy?.allowClientProfessionalSelection === true
       );
       if (professionalSlug.trim()) {
-        const professional = await this.businessService.resolvePublicProfessional(slug, professionalSlug);
+        const professional = await this.businessDirectory.resolvePublicProfessional(slug, professionalSlug);
         if (!professional) {
           this.errorMessage.set('No encontramos a ese profesional.');
           this.resolvedBusinessId.set(null);
@@ -621,7 +621,7 @@ export class PublicBookingPage implements OnInit, OnDestroy {
       return;
     }
 
-    const professionals = await this.businessService.listPublicProfessionalsForService(slug, serviceId);
+    const professionals = await this.businessDirectory.listPublicProfessionalsForService(slug, serviceId);
     this.publicProfessionals.set(professionals);
     if (!this.lockedProfessionalSlug()) {
       this.selectedProfessionalId.set('');

@@ -10,7 +10,7 @@ import {
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
-  type TourMatchMediaEnvironment,
+  type TourSurfaceEnvironment,
 } from './operator-tour-steps';
 
 const dashboardRoot = resolve(process.cwd(), 'src/app');
@@ -59,19 +59,19 @@ describe('operator tour steps contract', () => {
     expect(TOUR_SURFACE_BREAKPOINTS.desktop).toBe('(min-width: 1024px)');
   });
 
-  it('resolves the surface from a matchMedia-like environment', () => {
-    const desktopEnv: TourMatchMediaEnvironment = {
-      matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.desktop }),
+  it('resolves the surface from the platform port primitive', () => {
+    const desktopEnv: TourSurfaceEnvironment = {
+      matchesMediaQuery: (query: string) => query === TOUR_SURFACE_BREAKPOINTS.desktop,
     };
-    const mobileEnv: TourMatchMediaEnvironment = {
-      matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.mobile }),
+    const mobileEnv: TourSurfaceEnvironment = {
+      matchesMediaQuery: (query: string) => query === TOUR_SURFACE_BREAKPOINTS.mobile,
     };
 
     expect(resolveTourSurface(desktopEnv)).toBe<TourSurface>('desktop');
     expect(resolveTourSurface(mobileEnv)).toBe<TourSurface>('mobile');
   });
 
-  it('falls back to desktop when matchMedia is unavailable (SSR / tests)', () => {
+  it('falls back to desktop when the host cannot answer (SSR / tests)', () => {
     expect(resolveTourSurface({})).toBe<TourSurface>('desktop');
   });
 

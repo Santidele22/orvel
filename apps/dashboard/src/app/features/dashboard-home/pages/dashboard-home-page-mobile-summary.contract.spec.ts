@@ -107,6 +107,7 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(componentSource).toMatch(/confirmDepositReceived\s*\(/);
     expect(componentSource).toMatch(/dashboardService\.confirmDepositReceived\s*\(/);
     expect(componentSource).not.toMatch(/claimBookingDeposit/);
+    expect(componentSource).toMatch(/No pudimos confirmar la seña/);
   });
 
   it('renders Próximo turno from featuredAppointments without mock names or times', () => {

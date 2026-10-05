@@ -8,10 +8,6 @@ import type { PlanCode } from '../../../core/plans/plan-entitlements';
 import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
 import { ONBOARDING_PLAN_STORAGE_KEY } from '../../onboarding/pages/signup-plan-step.page';
 import {
-  createSubscription,
-  type CreateSubscriptionResult
-} from '../data-access/payments/subscriptions/create-subscription.api';
-import {
   requestSubscriptionCancellation,
   RequestSubscriptionCancellationError,
   type RequestSubscriptionCancellationResult
@@ -61,7 +57,6 @@ type BillingStorage = Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'setItem'
 
 type BillingSubscriptionDeps = {
   storage?: BillingStorage | null;
-  createSubscription?: (input: { planCode: PlanCode }) => Promise<CreateSubscriptionResult>;
   requestCancellation?: (input: { businessId: string; reason: 'manual_request' }) => Promise<RequestSubscriptionCancellationResult>;
   resolveCancellationBusinessId?: () => Promise<string | null>;
   redirectTo?: (url: string) => void;
@@ -70,7 +65,6 @@ type BillingSubscriptionDeps = {
 
 export class BillingSubscriptionPage {
   private readonly storage: BillingStorage | null;
-  private readonly createSubscriptionFn: (input: { planCode: PlanCode }) => Promise<CreateSubscriptionResult>;
   private readonly requestCancellationFn: (input: {
     businessId: string;
     reason: 'manual_request';
@@ -85,7 +79,6 @@ export class BillingSubscriptionPage {
 
   constructor(deps: BillingSubscriptionDeps = {}) {
     this.storage = deps.storage === undefined ? this.getBrowserStorage() : deps.storage;
-    this.createSubscriptionFn = deps.createSubscription ?? createSubscription;
     this.requestCancellationFn = deps.requestCancellation ?? requestSubscriptionCancellation;
     this.resolveCancellationBusinessIdFn = deps.resolveCancellationBusinessId ?? this.resolveBusinessIdFromBrowserSession;
     this.redirectTo = deps.redirectTo ?? ((url) => window.location.assign(url));
@@ -200,7 +193,7 @@ export class BillingSubscriptionPage {
     try {
       const [{ SUPABASE_CONFIG }, { createSupabaseAuthClient }] = await Promise.all([
         import('../../../core/auth/supabase-config'),
-        import('../../../core/auth/supabase-auth.client')
+        import('../../../core/adapters/supabase/supabase-auth.client')
       ]);
       const authClient = createSupabaseAuthClient({
         supabaseUrl: SUPABASE_CONFIG.url,

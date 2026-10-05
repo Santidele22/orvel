@@ -45,7 +45,7 @@ export interface ListAdminNotificationsInput {
   cursorId?: string;
 }
 
-import { createSupabaseClient } from '../runtime/supabase-client';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 
 export async function listAdminNotifications(
   input: ListAdminNotificationsInput,

@@ -1,11 +1,14 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
 import { appointmentStatusLabel, isDepositUnpaid, type BookingQueries, type BookingRecord } from '@orvel/booking/application';
-import { BOOKING_QUERIES, confirmBookingDepositReceived, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
-import { ClienteService } from '../../features/clientes/data-access/cliente.service';
-import { ServicioService } from '../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
+import { BOOKING_QUERIES, claimBookingDeposit, rejectBookingDepositUnseen } from '@orvel/booking/infrastructure';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from './dashboard-data.ports';
 import { WeekdayKey } from '../../models/business.model';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../branches/branch-context.service';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import { ArgentinaClockService } from '../time/argentina-clock.service';
 import {
   civilDateKey,
@@ -14,15 +17,16 @@ import {
   readArgentinaClock,
   weekdayIndexFromDateKey,
 } from '../time/argentina-clock';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
   private readonly bookingQueries = inject<BookingQueries>(BOOKING_QUERIES);
-  private readonly clienteService = inject(ClienteService);
-  private readonly servicioService = inject(ServicioService);
-  private readonly businessService = inject(BusinessService);
+  private readonly clienteService = inject(DASHBOARD_CLIENTE_SOURCE);
+  private readonly servicioService = inject(DASHBOARD_SERVICIO_SOURCE);
+  private readonly businessService = inject(DASHBOARD_BUSINESS_SOURCE);
   private readonly destroyRef = inject(DestroyRef);
   readonly now = inject(ArgentinaClockService).now;
   private readonly bookings = signal<BookingRecord[]>([]);
@@ -225,28 +229,25 @@ export class DashboardService {
   readonly stats = computed(() => {
     const turnos = this.bookings();
     const clientes = this.clienteService.items();
-    
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const hoyMs = hoy.getTime();
-    
+
+    // Same clock convention as agendaStatus/featuredAppointments: the Argentina calendar day, read
+    // from the injectable clock. Using the device's local midnight here made "today" disagree between
+    // the stats tile and the agenda on any device that is not on Argentina time.
+    const clock = readArgentinaClock(this.now());
+    const mesActual = clock.dateKey.slice(0, 7);
+
     // Average ticket today (completed appointments only)
-    const turnosCompletadosHoy = turnos.filter(t => {
-      if (!t.fecha) return false;
-      const d = new Date(t.fecha);
-      const tMs = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      return tMs === hoyMs && t.estado === 'completado';
-    });
+    const turnosCompletadosHoy = turnos.filter(t =>
+      !!t.fecha && civilDateKey(t.fecha) === clock.dateKey && t.estado === 'completado'
+    );
     
     const totalVentas = turnosCompletadosHoy.reduce((acc, t) => acc + (t.precio || 0), 0);
     const ticketPromedio = turnosCompletadosHoy.length > 0 ? totalVentas / turnosCompletadosHoy.length : 0;
     
     // New clients this month
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime();
     const nuevosClientes = clientes.filter(c => {
       if (!c.createdAt) return false;
-      const d = new Date(c.createdAt);
-      return d.getTime() >= primerDiaMes;
+      return readArgentinaClock(new Date(c.createdAt)).dateKey >= `${mesActual}-01`;
     }).length;
     
     return {
@@ -256,6 +257,7 @@ export class DashboardService {
   });
 
   constructor() {
+    const environment = browserEnvironment();
     registerSectionCacheInvalidator(() => this.clearCache());
     this.refreshData();
 
@@ -264,19 +266,22 @@ export class DashboardService {
       this.refreshData();
     };
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (environment.isVisible()) {
         this.invalidate();
         this.refreshData();
       }
     };
-    window.addEventListener('booking.created', onAgendaSync);
-    window.addEventListener('operator.agenda.sync', onAgendaSync);
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    const unsubscribeAgendaEvents = [
+      environment.onWindowEvent('booking.created', onAgendaSync),
+      environment.onWindowEvent('operator.agenda.sync', onAgendaSync)
+    ];
+    const unsubscribeVisibilityChange = environment.onVisibilityChange(onVisibilityChange);
 
     this.destroyRef.onDestroy(() => {
-      window.removeEventListener('booking.created', onAgendaSync);
-      window.removeEventListener('operator.agenda.sync', onAgendaSync);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      for (const unsubscribe of unsubscribeAgendaEvents) {
+        unsubscribe();
+      }
+      unsubscribeVisibilityChange();
     });
   }
 
@@ -305,8 +310,11 @@ export class DashboardService {
   }
 
   async confirmDepositReceived(bookingId: string, performedBy: string): Promise<boolean> {
-    const result = await confirmBookingDepositReceived({ bookingId, performedBy });
-    if (result.status !== 200 || result.error) {
+    const result = await createSupabaseClient().rpc('confirm_booking_deposit_received', {
+      booking_id: bookingId,
+      performed_by: performedBy
+    });
+    if (result.error) {
       return false;
     }
     this.invalidate();

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { RpcClient } from '../api/rpc.port';
 import { normalizePlanCode, type CanonicalPlanCode } from '../plans/plan-entitlements';
 
 export type EntitlementSnapshot = {
@@ -34,7 +34,7 @@ export type EntitlementDecision =
 
 type EntitlementMetric = 'maxLocales' | 'maxRubros' | 'maxMonthlyBookings' | 'aiCreditsMonthly';
 
-type EntitlementsRpcClient = Pick<SupabaseClient, 'rpc'>;
+type EntitlementsRpcClient = RpcClient;
 
 type EntitlementsRpcRow = {
   business_id?: unknown;
@@ -177,7 +177,7 @@ export async function getBusinessEntitlementsSnapshot(input: {
 }
 
 export async function createDefaultServerEntitlementsRepository(): Promise<ServerEntitlementsRepository> {
-  const { createSupabaseClient } = await import('../runtime/supabase-client');
+  const { createSupabaseClient } = await import('../adapters/supabase/supabase-client');
   return createServerEntitlementsRepository(createSupabaseClient());
 }
 

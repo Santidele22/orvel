@@ -64,7 +64,7 @@ describe('RED: auth unification contract', () => {
   });
 
   it('fails closed for legacy dashboard local/mock auth paths', () => {
-    const authService = source('src/app/services/auth.service.ts');
+    const authService = source('src/app/core/auth/auth.service.ts');
     const sessionContract = source('src/app/core/auth/session-contract.ts');
     const sessionContractPackage = source('../../packages/auth/src/session-contract.ts');
 
@@ -90,7 +90,7 @@ describe('RED: auth unification contract', () => {
 
   it('uses the same explicit Supabase auth storage key as landing for same-origin local flow', () => {
     const supabaseConfig = source('src/app/core/auth/supabase-config.ts');
-    const supabaseClientFactory = source('src/app/core/runtime/supabase-client.factory.ts');
+    const supabaseClientFactory = source('src/app/core/adapters/supabase/supabase-client.factory.ts');
 
     expect(supabaseConfig).toMatch(/ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
     expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain('orvel.supabase.auth');

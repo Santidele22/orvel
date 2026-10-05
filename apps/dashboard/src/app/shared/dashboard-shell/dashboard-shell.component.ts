@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, computed, inject, signal } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
 import { Router, RouterOutlet } from '@angular/router';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
-import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 import { resolveDashboardConfig } from '../../core/theming/dashboard-business-rules';
 import {
   DashboardFromSessionConfig,
@@ -12,8 +12,11 @@ import { DashboardThemeName } from '../../core/theming/theme.tokens';
 import { DashboardSidebarComponent } from '../dashboard-sidebar/dashboard-sidebar.component';
 import { DashboardTopbarComponent } from '../dashboard-topbar/dashboard-topbar.component';
 import { MobileBottomNavComponent } from '../../core/shell/mobile-bottom-nav/mobile-bottom-nav.component';
-import { OperatorTourHelpButtonComponent } from '../../features/operator-tour/operator-tour-help-button.component';
-import { OperatorTourService } from '../../features/operator-tour/operator-tour.service';
+import {
+  DASHBOARD_ONBOARDING_PAYLOAD,
+  DASHBOARD_TOUR,
+  DASHBOARD_TOUR_HELP_COMPONENT
+} from '../../core/shell/dashboard-chrome.ports';
 import { ThemeService } from '../../core/theming/theme.service';
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { DASHBOARD_STRUCTURAL_TOKENS } from '../../core/theming/dashboard-structural.tokens';
@@ -38,7 +41,7 @@ const HOME_PATH_PATTERN = /\/dashboard\/inicio$/;
     DashboardSidebarComponent,
     DashboardTopbarComponent,
     MobileBottomNavComponent,
-    OperatorTourHelpButtonComponent,
+    NgComponentOutlet,
   ],
   templateUrl: './dashboard-shell.component.html',
   styleUrl: './dashboard-shell.component.scss'
@@ -48,7 +51,9 @@ export class DashboardShellComponent implements AfterViewInit, OnDestroy {
   protected readonly router = inject(Router);
   protected readonly themeService = inject(ThemeService);
   protected readonly dashboardService = inject(DashboardService);
-  protected readonly operatorTour = inject(OperatorTourService);
+  protected readonly tour = inject(DASHBOARD_TOUR);
+  protected readonly tourHelp = inject(DASHBOARD_TOUR_HELP_COMPONENT);
+  private readonly readOnboardingPayload = inject(DASHBOARD_ONBOARDING_PAYLOAD);
   protected readonly structure = DASHBOARD_STRUCTURAL_TOKENS;
 
   // Contract hook: read selectedBusinessTypes from turnea.session.v1
@@ -99,7 +104,7 @@ export class DashboardShellComponent implements AfterViewInit, OnDestroy {
 
   /** Opens the operator onboarding tour once per device on the first visit. */
   private scheduleAutoTour(): void {
-    if (!this.operatorTour.canAutoStart() || !this.isHomeRoute()) {
+    if (!this.tour?.canAutoStart() || !this.isHomeRoute()) {
       return;
     }
 
@@ -114,7 +119,7 @@ export class DashboardShellComponent implements AfterViewInit, OnDestroy {
         document.querySelector('[data-testid="dashboard-home-loading-skeleton"]') === null;
       const settled =
         ((anchorMounted && skeletonGone) || Date.now() >= deadline) &&
-        Boolean(this.operatorTour.canAutoStart());
+        Boolean(this.tour?.canAutoStart());
 
       if (!settled) {
         this.tourReadyPoll = setTimeout(waitForHome, TOUR_READY_POLL_MS);
@@ -122,7 +127,7 @@ export class DashboardShellComponent implements AfterViewInit, OnDestroy {
       }
 
       this.tourReadyPoll = undefined;
-      void this.operatorTour.run();
+      void this.tour?.run();
     };
 
     waitForHome();
@@ -195,7 +200,7 @@ export class DashboardShellComponent implements AfterViewInit, OnDestroy {
     selectedTemplateIds: string[];
     preloadedCatalog: { categories: unknown[]; services: unknown[] };
   } {
-    const fallback = readOnboardingState(localStorage);
+    const fallback = this.readOnboardingPayload(localStorage);
 
     try {
       const rawSession = localStorage.getItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);

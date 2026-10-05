@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readServiciosSources(): { pageTs: string; pageHtml: string; merged: string } {
-  const pageTsPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.ts');
-  const pageHtmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.html');
+  const pageTsPath = resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.ts');
+  const pageHtmlPath = resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.html');
 
   const pageTs = existsSync(pageTsPath) ? readFileSync(pageTsPath, 'utf-8') : '';
   const pageHtml = existsSync(pageHtmlPath) ? readFileSync(pageHtmlPath, 'utf-8') : '';

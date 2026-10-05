@@ -53,8 +53,13 @@ export interface OperatorTourFilterOptions {
   readonly hasElement?: (selector: string) => boolean;
 }
 
-export interface TourMatchMediaEnvironment {
-  readonly matchMedia?: (query: string) => { readonly matches: boolean };
+/**
+ * Fase 2 of #1098: the surface decision takes the platform port's primitive
+ * (`matchesMediaQuery`) instead of a `matchMedia` object, so the host access
+ * lives in `core/platform` and this stays a pure function.
+ */
+export interface TourSurfaceEnvironment {
+  readonly matchesMediaQuery?: (query: string) => boolean;
 }
 
 const anchor = (name: string): string => `[${TOUR_TARGET_ATTRIBUTE}="${name}"]`;
@@ -165,14 +170,12 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
 ];
 
 /** SSR, jsdom and very old browsers fall back to the desktop tour. */
-export function resolveTourSurface(environment: TourMatchMediaEnvironment): TourSurface {
+export function resolveTourSurface(environment: TourSurfaceEnvironment): TourSurface {
   try {
-    const mobile = environment.matchMedia?.(TOUR_SURFACE_BREAKPOINTS.mobile);
-    if (mobile?.matches) return 'mobile';
-    const desktop = environment.matchMedia?.(TOUR_SURFACE_BREAKPOINTS.desktop);
-    if (desktop?.matches) return 'desktop';
+    if (environment.matchesMediaQuery?.(TOUR_SURFACE_BREAKPOINTS.mobile)) return 'mobile';
+    if (environment.matchesMediaQuery?.(TOUR_SURFACE_BREAKPOINTS.desktop)) return 'desktop';
   } catch {
-    // A throwing matchMedia must not break the shell bootstrap.
+    // A throwing host query must not break the shell bootstrap.
   }
   return 'desktop';
 }

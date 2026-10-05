@@ -7,7 +7,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 const appRoot = resolve(process.cwd(), 'src/app');
 
@@ -38,7 +38,7 @@ vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => (
   archiveNotification: mocks.archiveNotification
 }));
 
-vi.mock('../../core/runtime/supabase-client', () => ({
+vi.mock('../../core/adapters/supabase/supabase-client', () => ({
   createSupabaseClient: () => ({
     channel: mocks.channel.mockReturnValue({
       on: vi.fn().mockReturnThis(),

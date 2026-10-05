@@ -1,3 +1,6 @@
+import { browserStorage } from '../storage/browser-storage.adapter';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
+
 export const PREMIUM_TRANSFER_ALIAS = 'orvel.pagos';
 export const PREMIUM_PRICE_COPY = '$25.000';
 export const PREMIUM_WHATSAPP_NUMBER = '5492944667161';
@@ -14,13 +17,12 @@ export function buildPremiumWhatsAppUrl(message = PREMIUM_WHATSAPP_MESSAGE): str
 }
 
 export async function copyPremiumAlias(clipboard?: Pick<Clipboard, 'writeText'>): Promise<boolean> {
-  const target = clipboard ?? (typeof navigator !== 'undefined' ? navigator.clipboard : undefined);
-  if (!target?.writeText) {
-    return false;
+  if (!clipboard?.writeText) {
+    return browserEnvironment().writeClipboardText(PREMIUM_TRANSFER_ALIAS);
   }
 
   try {
-    await target.writeText(PREMIUM_TRANSFER_ALIAS);
+    await clipboard.writeText(PREMIUM_TRANSFER_ALIAS);
     return true;
   } catch {
     return false;
@@ -84,9 +86,5 @@ export function countCurrentMonthBookings(
 }
 
 export function readBrowserReviewStorage(): ReviewStorage | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return window.localStorage ?? null;
+  return browserStorage();
 }
