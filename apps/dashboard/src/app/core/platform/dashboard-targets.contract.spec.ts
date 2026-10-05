@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest';
 import type { Routes } from '@angular/router';
 
 import { routes } from '../../app.routes';
-import { DASHBOARD_TARGETS, classifyRoutePath, describeSurface } from './dashboard-targets';
+import {
+  DASHBOARD_TARGETS,
+  classifyRoutePath,
+  describeSurface,
+  normalizeRoutePath
+} from './dashboard-targets';
 
 /**
  * Fase 0 of #1098: the web/pwa seam has to be machine-checkable, not a paragraph in an ADR.
@@ -45,6 +50,20 @@ describe('contract: dashboard target surfaces (#1098 Fase 0)', () => {
       unclassified,
       'Every route must be classified for the web/pwa split. Add a pattern to DASHBOARD_TARGETS ' +
         'in apps/dashboard/src/app/core/platform/dashboard-targets.ts with its reason.'
+    ).toEqual([]);
+  });
+
+  it('has no pattern that matches no route at all', async () => {
+    const paths = [...new Set(await collectRoutePaths(routes))].map(normalizeRoutePath);
+
+    const deadPatterns = DASHBOARD_TARGETS
+      .filter((surface) => !paths.some((path) => surface.pattern.test(path)))
+      .map((surface) => surface.id);
+
+    expect(
+      deadPatterns,
+      'A pattern in DASHBOARD_TARGETS that matches no real route is stale: the route moved, ' +
+        'or the pattern should be removed with its reason.'
     ).toEqual([]);
   });
 
