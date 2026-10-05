@@ -6,9 +6,9 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
+import { createDashboardSupabaseClient } from './supabase-client.factory';
 
-export { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-config';
+export { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '../../auth/supabase-config';
 
 export interface SupabaseAuthConfig {
   supabaseUrl: string;

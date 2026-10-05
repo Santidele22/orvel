@@ -1,4 +1,4 @@
-import { createDashboardSupabaseClient } from '../runtime/supabase-client.factory';
+import { createDashboardSupabaseClient } from '../adapters/supabase/supabase-client.factory';
 import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
 import { browserEnvironment } from '../platform/browser-environment.adapter';
 

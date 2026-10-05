@@ -39,7 +39,7 @@ vi.mock('./internal-dashboard-notifications.api', () => ({
   archiveNotification: mocks.archiveNotification
 }));
 
-vi.mock('../runtime/supabase-client', () => ({
+vi.mock('../adapters/supabase/supabase-client', () => ({
   createSupabaseClient: () => ({
     channel: (...args: unknown[]) => mocks.channel(...args)
   })

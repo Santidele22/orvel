@@ -13,18 +13,24 @@ import { createDashboardReferenceCatalogGateway } from '../catalog/reference-cat
  *
  * The core has to run without the SDK (Node tests today, the native target
  * later), so `core/*` depends on ports that speak the app's own vocabulary and
- * the SDK lives behind adapters. This spec walks the real tree and fails when a
- * core file imports `@supabase/supabase-js` directly.
+ * the SDK lives behind `core/adapters/supabase/**`. This spec walks the real
+ * tree and fails when a core file outside that directory imports
+ * `@supabase/supabase-js`.
  *
  * `PENDING_MIGRATION` is a ratchet, not a home: it lists the files that still
  * cross the boundary, with the cut that removes each one. It must end up empty
  * before Fase 1 is done, and equality is asserted so it cannot grow silently.
  */
+const ADAPTER_DIR = 'adapters/';
+
+/** The exemption is a directory, so pin its contents: nothing else may hide there. */
+const SDK_ADAPTERS = [
+  'adapters/supabase/supabase-auth.client.ts',
+  'adapters/supabase/supabase-client.factory.ts',
+  'adapters/supabase/supabase-client.ts'
+] as const;
+
 const PENDING_MIGRATION = [
-  // Cut 3b: move these three client modules into core/adapters/supabase/.
-  'auth/supabase-auth.client.ts',
-  'runtime/supabase-client.ts',
-  'runtime/supabase-client.factory.ts',
   // Cut 3c: branch-context queries behind a port, like entitlements and catalog.
   'branches/branch-context.service.ts'
 ] as const;
@@ -65,8 +71,12 @@ function sdkImporters(): string[] {
 }
 
 describe('core Supabase SDK boundary contract', () => {
-  it('imports the Supabase SDK only from the files still listed as pending migration', () => {
-    expect(sdkImporters()).toEqual([...PENDING_MIGRATION].sort());
+  it('confines the Supabase SDK to core/adapters/supabase plus the files pending migration', () => {
+    const importers = sdkImporters();
+    const outsideAdapters = importers.filter((id) => !id.startsWith(ADAPTER_DIR));
+
+    expect(outsideAdapters).toEqual([...PENDING_MIGRATION].sort());
+    expect(importers.filter((id) => id.startsWith(ADAPTER_DIR))).toEqual([...SDK_ADAPTERS].sort());
   });
 
   it('drives core code from a plain fake rpc client, with the SDK nowhere in sight', async () => {

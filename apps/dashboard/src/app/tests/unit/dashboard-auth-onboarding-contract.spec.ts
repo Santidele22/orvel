@@ -7,7 +7,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   signOut: vi.fn()
 }));
 
-vi.mock('../../core/auth/supabase-auth.client', () => ({
+vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 

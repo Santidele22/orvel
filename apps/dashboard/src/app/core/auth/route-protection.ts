@@ -3,7 +3,7 @@ import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../stora
 import { browserStorage } from '../storage/browser-storage.adapter';
 import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
-import { createSupabaseAuthClient } from './supabase-auth.client';
+import { createSupabaseAuthClient } from '../adapters/supabase/supabase-auth.client';
 import { isCatalogBusinessType } from '../catalog/business-type-validation';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 

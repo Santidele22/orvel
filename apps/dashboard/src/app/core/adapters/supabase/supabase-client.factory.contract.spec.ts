@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import { createSupabaseAuthClient, createSupabaseBrowserClient } from '../auth/supabase-auth.client';
-import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '../auth/supabase-config';
-import { loadDashboardRuntimeEnv, type DashboardRuntimeEnv } from './dashboard-env';
+import { createSupabaseAuthClient, createSupabaseBrowserClient } from './supabase-auth.client';
+import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '../../auth/supabase-config';
+import { loadDashboardRuntimeEnv, type DashboardRuntimeEnv } from '../../runtime/dashboard-env';
 import {
   createDashboardSupabaseClient,
   resetDashboardSupabaseClientCacheForTests
@@ -76,7 +76,7 @@ describe('createDashboardSupabaseClient contract', () => {
 
   it('wires the dashboard SUPABASE_CLIENT factory to the authenticated session, not the anonymous booking client', () => {
     const clientFactory = readFileSync(
-      resolve(process.cwd(), 'src/app/core/runtime/supabase-client.ts'),
+      resolve(process.cwd(), 'src/app/core/adapters/supabase/supabase-client.ts'),
       'utf8'
     );
 

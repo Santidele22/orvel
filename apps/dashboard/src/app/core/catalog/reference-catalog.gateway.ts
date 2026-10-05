@@ -1,5 +1,5 @@
 import type { RpcClient } from '../api/rpc.port';
-import { createSupabaseClient } from '../runtime/supabase-client';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import {
   DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE,
   type DashboardReferenceCatalog,

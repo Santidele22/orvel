@@ -6,7 +6,7 @@ import { Observable, of, from, delay, tap, throwError, switchMap, catchError } f
 import { type SupabaseClient } from '@supabase/supabase-js';
 import { Cliente, CreateClienteDTO, UpdateClienteDTO } from '../../../models/cliente.model';
 import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
+import { createDashboardSupabaseClient } from '../../../core/adapters/supabase/supabase-client.factory';
 import { CLIENTES_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
 import { AuthService } from '../../../core/auth/auth.service';
 import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
