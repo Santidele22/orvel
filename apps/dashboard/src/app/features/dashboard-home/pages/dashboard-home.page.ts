@@ -12,7 +12,7 @@ import { createSupabaseClient } from '../../../core/adapters/supabase/supabase-c
 import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
-import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import { createIsMobileSignal } from '../../../core/platform/is-mobile';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';

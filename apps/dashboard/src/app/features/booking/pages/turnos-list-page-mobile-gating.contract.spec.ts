@@ -26,9 +26,9 @@ describe('TurnosListPage mobile gating contract', () => {
     expect(componentSource).toMatch(/createIsMobileSignal/);
   });
 
-  it('imports createIsMobileSignal from ../../core/shell/is-mobile/is-mobile', () => {
+  it('imports createIsMobileSignal from ../../../core/platform/is-mobile', () => {
     expect(componentSource).toMatch(
-      /import\s*\{[^}]*\bcreateIsMobileSignal\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/\.\.\/core\/shell\/is-mobile\/is-mobile['"]/,
+      /import\s*\{[^}]*\bcreateIsMobileSignal\b[^}]*\}\s*from\s+['"]\.\.\/\.\.\/\.\.\/core\/platform\/is-mobile['"]/,
     );
   });
 

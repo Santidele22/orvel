@@ -18,15 +18,15 @@ import { createDashboardReferenceCatalogGateway } from '../catalog/reference-cat
  * adapter.
  *
  * Every exemption is a *named file with a reason*, never a catch-all, so adding
- * one is a deliberate edit a reviewer sees. One exemption is temporary:
- * `FASE_2_PLATFORM_DETECTOR`, because the epic's Fase 2 replaces the platform
- * detectors with `core/platform` and this is the only one inside `core/` (the
- * other two live in features).
+ * one is a deliberate edit a reviewer sees. Fase 2 removed the last one: the
+ * `matchMedia` detector that used to live in `core/shell/is-mobile/` now reads
+ * the host through `platform/platform.adapter.ts` like everything else.
  */
 const CORE_DIR = resolve(process.cwd(), 'src/app/core');
 
 const STORAGE_ADAPTER = 'storage/browser-storage.adapter.ts';
 const ENVIRONMENT_ADAPTER = 'platform/browser-environment.adapter.ts';
+const PLATFORM_ADAPTER = 'platform/platform.adapter.ts';
 
 const SDK_ADAPTERS = [
   'adapters/supabase/branch-context.adapter.ts',
@@ -35,9 +35,7 @@ const SDK_ADAPTERS = [
   'adapters/supabase/supabase-client.ts'
 ] as const;
 
-const HOST_ADAPTERS = [ENVIRONMENT_ADAPTER, STORAGE_ADAPTER] as const;
-
-const FASE_2_PLATFORM_DETECTOR = 'shell/is-mobile/is-mobile.ts';
+const HOST_ADAPTERS = [ENVIRONMENT_ADAPTER, STORAGE_ADAPTER, PLATFORM_ADAPTER] as const;
 
 const SDK_IMPORT = /(?:from|import)\s*\(?\s*['"]@supabase\/supabase-js['"]/;
 const HOST_ACCESS = /\b(?:window|document|navigator)\b|\b(?:local|session)Storage\b/;
@@ -104,7 +102,7 @@ describe('core boundary contract', () => {
   });
 
   it('reaches the host only through the declared adapters', () => {
-    const allowed = [...HOST_ADAPTERS, FASE_2_PLATFORM_DETECTOR];
+    const allowed = [...HOST_ADAPTERS];
 
     expect(offenders((source) => HOST_ACCESS.test(stripCommentsAndStrings(source)), allowed)).toEqual([]);
   });
