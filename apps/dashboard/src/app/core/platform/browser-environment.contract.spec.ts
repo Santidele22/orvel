@@ -1,69 +1,13 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { browserEnvironment } from './browser-environment.adapter';
 
 /**
- * Fase 1 of #1098 — the browser-environment boundary of the shared core.
+ * Fase 1 of #1098 — behaviour of the browser environment adapter.
  *
- * The core has to run without a DOM, so `core/*` does not touch `document` or
- * subscribe to `window` events directly: it goes through the port in
- * `platform/browser-environment.port.ts`, whose adapter degrades to a silent,
- * visible environment when there is no host.
- *
- * The boundary is enforced against the real tree, so a new direct access fails
- * here instead of only failing in Node by accident.
+ * The core-wide rule that keeps `window`/`document`/`navigator` out of every
+ * other core file lives in `core/boundaries/core-boundary.contract.spec.ts`;
+ * this spec covers what the adapter does with and without a host.
  */
-
-const CORE_DIR = resolve(process.cwd(), 'src/app/core');
-const ADAPTER_FILE = 'platform/browser-environment.adapter.ts';
-const DIRECT_DOM_ACCESS = /\bdocument\.|window\.(?:addEventListener|removeEventListener|dispatchEvent)\b/;
-
-function productionFiles(dir: string = CORE_DIR): string[] {
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const absolute = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...productionFiles(absolute));
-      continue;
-    }
-    if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) {
-      files.push(absolute);
-    }
-  }
-
-  return files;
-}
-
-/** Comments may name the DOM; only code counts. Line numbers must survive. */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
-}
-
-function directDomOffenders(): string[] {
-  const offenders: string[] = [];
-
-  for (const file of productionFiles()) {
-    const id = relative(CORE_DIR, file).split('\\').join('/');
-    if (id === ADAPTER_FILE) {
-      continue;
-    }
-
-    stripComments(readFileSync(file, 'utf8'))
-      .split('\n')
-      .forEach((line, index) => {
-        if (DIRECT_DOM_ACCESS.test(line)) {
-          offenders.push(`${id}:${index + 1}`);
-        }
-      });
-  }
-
-  return offenders;
-}
 
 type Listener = () => void;
 
@@ -93,38 +37,27 @@ function withoutHost(): () => void {
   return installGlobals({ window: undefined, document: undefined });
 }
 
-describe('core browser-environment boundary contract', () => {
-  it('reaches browser events and visibility only through the browser environment port', () => {
-    expect(directDomOffenders()).toEqual([]);
-  });
-
-  it('keeps the browser environment adapter as the only core file that touches the DOM directly', () => {
-    const readers = productionFiles()
-      .filter((file) => DIRECT_DOM_ACCESS.test(stripComments(readFileSync(file, 'utf8'))))
-      .map((file) => relative(CORE_DIR, file).split('\\').join('/'));
-
-    expect(readers).toEqual([ADAPTER_FILE]);
-  });
-
-  it('degrades to a visible, silent environment when there is no host', () => {
+describe('core browser-environment adapter', () => {
+  it('degrades to a visible, silent environment when there is no host', async () => {
     const restore = withoutHost();
 
     try {
       const environment = browserEnvironment();
 
       expect(environment.isVisible()).toBe(true);
+      expect(environment.currentOrigin()).toBe('');
+      await expect(environment.writeClipboardText('orvel.pagos')).resolves.toBe(false);
+      expect(() => {
+        environment.navigateTo('/dashboard/login');
+      }).not.toThrow();
       expect(() => {
         environment.dispatchWindowEvent('booking.created', { id: '1' });
       }).not.toThrow();
 
       const unsubscribe = environment.onWindowEvent('booking.created', () => undefined);
-      expect(typeof unsubscribe).toBe('function');
-      expect(() => {
-        unsubscribe();
-      }).not.toThrow();
-
       const unsubscribeVisibility = environment.onVisibilityChange(() => undefined);
       expect(() => {
+        unsubscribe();
         unsubscribeVisibility();
       }).not.toThrow();
     } finally {
@@ -212,6 +145,60 @@ describe('core browser-environment boundary contract', () => {
       expect(removed).toEqual([{ type: 'visibilitychange', listener }]);
     } finally {
       restore();
+    }
+  });
+
+  it('reads the origin from the host and navigates through it', () => {
+    const assigned: string[] = [];
+    const restore = installGlobals({
+      window: {
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => true,
+        location: {
+          origin: 'https://dashboard.orvel.pro',
+          assign: (url: string) => {
+            assigned.push(url);
+          }
+        }
+      }
+    });
+
+    try {
+      const environment = browserEnvironment();
+
+      expect(environment.currentOrigin()).toBe('https://dashboard.orvel.pro');
+      environment.navigateTo('/dashboard/login?handoff=1');
+      expect(assigned).toEqual(['/dashboard/login?handoff=1']);
+    } finally {
+      restore();
+    }
+  });
+
+  it('writes through the host clipboard and reports failure instead of throwing', async () => {
+    const written: string[] = [];
+
+    try {
+      // Node exposes `navigator` as a getter-only global, so stub it.
+      vi.stubGlobal('navigator', {
+        clipboard: {
+          writeText: (text: string) => {
+            written.push(text);
+            return Promise.resolve();
+          }
+        }
+      });
+      await expect(browserEnvironment().writeClipboardText('orvel.pagos')).resolves.toBe(true);
+      expect(written).toEqual(['orvel.pagos']);
+
+      vi.stubGlobal('navigator', {
+        clipboard: {
+          writeText: () => Promise.reject(new Error('denied'))
+        }
+      });
+      await expect(browserEnvironment().writeClipboardText('orvel.pagos')).resolves.toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

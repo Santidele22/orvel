@@ -9,6 +9,7 @@ import { Observable, from, tap, map } from 'rxjs';
 import { User, AuthUser, LoginDTO, RegisterDTO, NEGOCIO_TEMPLATES, TipoNegocio, UserPlan } from '../../models/user.model';
 
 import type { SupabaseAuthClient, SupabaseSession } from '../adapters/supabase/supabase-auth.client';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 import { getSupabaseAuthClient } from './route-protection';
 
 @Injectable({
@@ -129,7 +130,7 @@ export class AuthService {
   async requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await this.supabase.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/login`
+        redirectTo: `${browserEnvironment().currentOrigin()}/auth/login`
       });
 
       if (error) {

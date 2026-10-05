@@ -1,4 +1,5 @@
 import { CanActivateChildFn, CanActivateFn } from '@angular/router';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 import { buildDashboardSignInRedirect, canAccessDashboardAsync, sanitizeReturnTo } from './route-protection';
 
 async function resolveDashboardAccessRedirect(
@@ -13,9 +14,7 @@ async function resolveDashboardAccessRedirect(
   const fallbackRedirect = buildDashboardSignInRedirect(safeReturnTo);
   const landingRedirect = access.redirectTo || fallbackRedirect;
 
-  if (typeof window !== 'undefined') {
-    window.location.assign(landingRedirect);
-  }
+  browserEnvironment().navigateTo(landingRedirect);
 
   return false;
 }
