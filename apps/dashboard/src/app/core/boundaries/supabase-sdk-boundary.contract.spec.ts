@@ -17,22 +17,16 @@ import { createDashboardReferenceCatalogGateway } from '../catalog/reference-cat
  * tree and fails when a core file outside that directory imports
  * `@supabase/supabase-js`.
  *
- * `PENDING_MIGRATION` is a ratchet, not a home: it lists the files that still
- * cross the boundary, with the cut that removes each one. It must end up empty
- * before Fase 1 is done, and equality is asserted so it cannot grow silently.
+ * The exemption is a directory, so its contents are pinned too: a new file
+ * cannot hide there, and a core file cannot quietly gain an SDK import.
  */
 const ADAPTER_DIR = 'adapters/';
 
-/** The exemption is a directory, so pin its contents: nothing else may hide there. */
 const SDK_ADAPTERS = [
+  'adapters/supabase/branch-context.adapter.ts',
   'adapters/supabase/supabase-auth.client.ts',
   'adapters/supabase/supabase-client.factory.ts',
   'adapters/supabase/supabase-client.ts'
-] as const;
-
-const PENDING_MIGRATION = [
-  // Cut 3c: branch-context queries behind a port, like entitlements and catalog.
-  'branches/branch-context.service.ts'
 ] as const;
 
 const CORE_DIR = resolve(process.cwd(), 'src/app/core');
@@ -71,11 +65,10 @@ function sdkImporters(): string[] {
 }
 
 describe('core Supabase SDK boundary contract', () => {
-  it('confines the Supabase SDK to core/adapters/supabase plus the files pending migration', () => {
+  it('confines the Supabase SDK to core/adapters/supabase', () => {
     const importers = sdkImporters();
-    const outsideAdapters = importers.filter((id) => !id.startsWith(ADAPTER_DIR));
 
-    expect(outsideAdapters).toEqual([...PENDING_MIGRATION].sort());
+    expect(importers.filter((id) => !id.startsWith(ADAPTER_DIR))).toEqual([]);
     expect(importers.filter((id) => id.startsWith(ADAPTER_DIR))).toEqual([...SDK_ADAPTERS].sort());
   });
 

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BranchContextService } from './branch-context.service';
 import { ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
 
+/**
+ * Fase 1 of #1098: the double is the branch-context port, so these tests state
+ * the session/ownership rules without simulating a Supabase query builder.
+ */
 const USER_ID = 'user-1';
 const SESSION_BUSINESS_ID = 'business-session';
 const STORED_BUSINESS_ID = 'business-stored';
@@ -10,55 +14,40 @@ const SESSION_BRANCH_ID = 'branch-session';
 const STORED_BRANCH_ID = 'branch-stored';
 const OWNED_BRANCH_ID = 'branch-owned';
 
-function supabaseDouble(options: {
+type SourceDouble = {
+  readSession: ReturnType<typeof vi.fn>;
+  listDashboardBranches: ReturnType<typeof vi.fn>;
+  listOwnedBusinesses: ReturnType<typeof vi.fn>;
+};
+
+function sourceDouble(options: {
   sessionBusinessId?: string | null;
   ownedBusinessIds?: string[];
-} = {}) {
+} = {}): SourceDouble {
   const sessionBusinessId = options.sessionBusinessId ?? null;
   const ownedBusinessIds = options.ownedBusinessIds ?? (sessionBusinessId ? [sessionBusinessId] : []);
 
   return {
-    auth: {
-      getSession: () => Promise.resolve({
-        data: {
-          session: {
-            user: {
-              id: USER_ID,
-              user_metadata: sessionBusinessId ? { business_id: sessionBusinessId } : {}
-            }
-          }
-        },
-        error: null
-      })
-    },
-    from: vi.fn((table: string) => {
-      if (table !== 'businesses') {
-        throw new Error(`unexpected table ${table}`);
-      }
-
-      return {
-        select: () => ({
-          eq: () => ({
-            order: () => Promise.resolve({
-              data: ownedBusinessIds.map((id) => ({ id })),
-              error: null
-            })
-          })
-        })
-      };
-    }),
-    rpc: vi.fn((_fn: string, args?: Record<string, unknown>) => {
-      const requested = typeof args?.['p_business_id'] === 'string' ? args['p_business_id'] : null;
-      const branches = requested === SESSION_BUSINESS_ID
+    readSession: vi.fn(() => Promise.resolve({
+      userId: USER_ID,
+      userMetadata: sessionBusinessId ? { business_id: sessionBusinessId } : {}
+    })),
+    listDashboardBranches: vi.fn((businessId: string) => {
+      const branches = businessId === SESSION_BUSINESS_ID
         ? [{ id: SESSION_BRANCH_ID, name: 'Principal', business_id: SESSION_BUSINESS_ID, is_active: true }]
-        : requested === STORED_BUSINESS_ID
+        : businessId === STORED_BUSINESS_ID
           ? [{ id: STORED_BRANCH_ID, name: 'Vieja', business_id: STORED_BUSINESS_ID, is_active: true }]
-          : requested === OWNED_BUSINESS_ID
+          : businessId === OWNED_BUSINESS_ID
             ? [{ id: OWNED_BRANCH_ID, name: 'Principal', business_id: OWNED_BUSINESS_ID, is_active: true }]
-          : [];
-      return Promise.resolve({ data: branches, error: null });
-    })
+            : [];
+      return Promise.resolve(branches);
+    }),
+    listOwnedBusinesses: vi.fn(() => Promise.resolve(ownedBusinessIds.map((id) => ({ id }))))
   };
+}
+
+function attachSource(service: BranchContextService, source: SourceDouble): void {
+  (service as unknown as { source: SourceDouble }).source = source;
 }
 
 describe('BranchContext session business wins over stale storage', () => {
@@ -69,9 +58,7 @@ describe('BranchContext session business wins over stale storage', () => {
   it('uses the signed-in business_id even if localStorage still has another business', async () => {
     window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, STORED_BUSINESS_ID);
     const branchContext = new BranchContextService();
-    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = supabaseDouble({
-      sessionBusinessId: SESSION_BUSINESS_ID
-    });
+    attachSource(branchContext, sourceDouble({ sessionBusinessId: SESSION_BUSINESS_ID }));
 
     await branchContext.refresh();
 
@@ -82,10 +69,10 @@ describe('BranchContext session business wins over stale storage', () => {
   it('uses the owned business when metadata is missing and localStorage is from another account', async () => {
     window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, STORED_BUSINESS_ID);
     const branchContext = new BranchContextService();
-    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = supabaseDouble({
+    attachSource(branchContext, sourceDouble({
       sessionBusinessId: null,
       ownedBusinessIds: [OWNED_BUSINESS_ID]
-    });
+    }));
 
     await branchContext.refresh();
 
@@ -96,10 +83,10 @@ describe('BranchContext session business wins over stale storage', () => {
   it('ignores metadata that is the auth user id when the owned business is a different uuid', async () => {
     window.localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, USER_ID);
     const branchContext = new BranchContextService();
-    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = supabaseDouble({
+    attachSource(branchContext, sourceDouble({
       sessionBusinessId: USER_ID,
       ownedBusinessIds: [OWNED_BUSINESS_ID]
-    });
+    }));
 
     await branchContext.refresh();
 
@@ -109,18 +96,17 @@ describe('BranchContext session business wins over stale storage', () => {
 
   it('overlapping ensureLoaded callers wait until refresh sets the active branch', async () => {
     const branchContext = new BranchContextService();
-    let resolveRpc!: (value: unknown) => void;
-    const rpcGate = new Promise((resolve) => {
-      resolveRpc = resolve;
+    let releaseBranches!: (value: unknown) => void;
+    const branchGate = new Promise((resolve) => {
+      releaseBranches = resolve;
     });
-    const double = supabaseDouble({ sessionBusinessId: SESSION_BUSINESS_ID });
-    double.rpc = vi.fn(() =>
-      rpcGate.then(() => ({
-        data: [{ id: SESSION_BRANCH_ID, name: 'Principal', business_id: SESSION_BUSINESS_ID, is_active: true }],
-        error: null
-      }))
+    const source = sourceDouble({ sessionBusinessId: SESSION_BUSINESS_ID });
+    source.listDashboardBranches = vi.fn(() =>
+      branchGate.then(() => [
+        { id: SESSION_BRANCH_ID, name: 'Principal', business_id: SESSION_BUSINESS_ID, is_active: true }
+      ])
     );
-    (branchContext as unknown as { supabaseClient: unknown }).supabaseClient = double;
+    attachSource(branchContext, source);
 
     let secondSawBranch: string | null = null;
     const first = branchContext.ensureLoaded();
@@ -136,7 +122,7 @@ describe('BranchContext session business wins over stale storage', () => {
     await Promise.resolve();
     expect(branchContext.getActiveBranchId()).toBeNull();
 
-    resolveRpc(undefined);
+    releaseBranches(undefined);
     await Promise.all([first, second]);
 
     expect(secondSawBranch).toBe(SESSION_BRANCH_ID);

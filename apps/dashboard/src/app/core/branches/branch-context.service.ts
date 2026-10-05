@@ -1,11 +1,10 @@
 import { signal } from '@angular/core';
-import { type SupabaseClient } from '@supabase/supabase-js';
-import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../adapters/supabase/supabase-client.factory';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
 import { browserStorage } from '../storage/browser-storage.adapter';
 import type { KeyValueStorage } from '../storage/storage.port';
 import { emitPublicBookingFailureEvent } from '../observability/public-booking-operational-events';
+import { createSupabaseBranchContextSource } from '../adapters/supabase/branch-context.adapter';
+import type { BranchContextSource, OwnedBusinessRow } from './branch-context.port';
 
 export type DashboardBranch = {
   id: string;
@@ -20,15 +19,8 @@ export type SessionBusinessIdentity = {
   name?: string;
 };
 
-type OwnedBusinessRow = {
-  id: string;
-  owner_id?: string;
-  slug?: string;
-  name?: string;
-};
-
 export class BranchContextService {
-  private supabaseClient?: SupabaseClient;
+  private source: BranchContextSource = createSupabaseBranchContextSource();
   private initialized = false;
   private lastResolvedBusinessId: string | null = null;
   private sessionIdentity: SessionBusinessIdentity | null = null;
@@ -43,6 +35,13 @@ export class BranchContextService {
   readonly activeBranchId = this.activeBranchIdState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
+
+  /** The source is injectable: production uses the Supabase adapter, tests a plain double. */
+  constructor(source?: BranchContextSource) {
+    if (source) {
+      this.source = source;
+    }
+  }
 
   async ensureLoaded(): Promise<void> {
     if (this.inFlight) return this.inFlight;
@@ -61,7 +60,7 @@ export class BranchContextService {
     ) {
       return;
     }
-    const currentBusinessId = await this.resolveActiveBusinessId(this.getSupabaseClient());
+    const currentBusinessId = await this.resolveActiveBusinessId();
     if (this.initialized && currentBusinessId === this.lastResolvedBusinessId) return;
     this.initialized = true;
     this.lastResolvedBusinessId = currentBusinessId;
@@ -99,17 +98,14 @@ export class BranchContextService {
     this.errorState.set(null);
 
     try {
-      const supabase = this.getSupabaseClient();
-      const businessId = await this.resolveActiveBusinessId(supabase);
+      const businessId = await this.resolveActiveBusinessId();
       if (!businessId) {
         throw new Error('ACCOUNT_SETUP_REQUIRED: active business context is required');
       }
 
-      const { data, error } = await supabase.rpc('get_dashboard_branches', { p_business_id: businessId });
+      const data = await this.source.listDashboardBranches(businessId);
 
-      if (error) throw error;
-
-      const branches = ((data ?? []) as Array<Record<string, unknown>>)
+      const branches = (data ?? [])
         .filter((branch) => branch['id'] && branch['business_id'])
         .map((branch) => ({
           id: String(branch['id']),
@@ -155,7 +151,7 @@ export class BranchContextService {
   }
 
   async getActiveBusinessId(): Promise<string | null> {
-    return this.resolveActiveBusinessId(this.getSupabaseClient());
+    return this.resolveActiveBusinessId();
   }
 
   hasMultipleBranches(): boolean {
@@ -203,37 +199,27 @@ export class BranchContextService {
     this.storage()?.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   }
 
-  private getSupabaseClient(): SupabaseClient {
-    if (!this.supabaseClient) {
-      const env = loadDashboardRuntimeEnv();
-      this.supabaseClient = createDashboardSupabaseClient({ env });
-    }
-
-    return this.supabaseClient;
-  }
-
-  private async resolveActiveBusinessId(supabase: SupabaseClient): Promise<string | null> {
+  private async resolveActiveBusinessId(): Promise<string | null> {
     if (this.identityInFlight) return this.identityInFlight;
-    const pending = this.resolveActiveBusinessIdInternal(supabase).finally(() => {
+    const pending = this.resolveActiveBusinessIdInternal().finally(() => {
       if (this.identityInFlight === pending) this.identityInFlight = null;
     });
     this.identityInFlight = pending;
     return pending;
   }
 
-  private async resolveActiveBusinessIdInternal(supabase: SupabaseClient): Promise<string | null> {
+  private async resolveActiveBusinessIdInternal(): Promise<string | null> {
     try {
       const storedBusinessId = this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
-      const { data, error } = await supabase.auth.getSession();
-      if (error) return storedBusinessId;
+      const session = await this.source.readSession();
 
-      const userId = data.session?.user?.id?.trim() || null;
+      const userId = session?.userId ?? null;
       if (userId && this.sessionIdentity?.ownerId === userId) {
         this.storage()?.setItem(ACTIVE_BUSINESS_STORAGE_KEY, this.sessionIdentity.businessId);
         return this.sessionIdentity.businessId;
       }
 
-      const metadata = data.session?.user?.user_metadata as Record<string, unknown> | undefined;
+      const metadata = session?.userMetadata;
       const sessionBusinessId = metadata?.['businessId'] ?? metadata?.['business_id'];
       const resolvedSessionId = typeof sessionBusinessId === 'string' && sessionBusinessId.trim()
         ? sessionBusinessId.trim()
@@ -242,7 +228,7 @@ export class BranchContextService {
       let ownedBusinesses: OwnedBusinessRow[] | null = null;
       if (userId) {
         try {
-          ownedBusinesses = await this.listOwnedBusinesses(supabase, userId);
+          ownedBusinesses = await this.source.listOwnedBusinesses(userId);
         } catch {
           ownedBusinesses = null;
         }
@@ -281,27 +267,6 @@ export class BranchContextService {
     } catch {
       return this.storage()?.getItem(ACTIVE_BUSINESS_STORAGE_KEY)?.trim() || null;
     }
-  }
-
-  private async listOwnedBusinesses(supabase: SupabaseClient, ownerId: string): Promise<OwnedBusinessRow[]> {
-    const { data, error } = await supabase
-      .from('businesses')
-      .select('id, owner_id, slug, name')
-      .eq('owner_id', ownerId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      throw error;
-    }
-
-    return ((data ?? []) as Array<{ id?: unknown; owner_id?: unknown; slug?: unknown; name?: unknown }>)
-      .map((row) => ({
-        id: typeof row.id === 'string' ? row.id.trim() : '',
-        owner_id: typeof row.owner_id === 'string' ? row.owner_id : undefined,
-        slug: typeof row.slug === 'string' ? row.slug : undefined,
-        name: typeof row.name === 'string' ? row.name : undefined
-      }))
-      .filter((row) => row.id.length > 0);
   }
 
   private storage(): KeyValueStorage | null {
