@@ -1,12 +1,12 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseClient } from '../runtime/supabase-client';
+import type { RpcClient } from '../api/rpc.port';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 import {
   DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE,
   type DashboardReferenceCatalog,
   normalizeDashboardReferenceCatalog
 } from './reference-catalog';
 
-export type DashboardReferenceCatalogRpcClient = Pick<SupabaseClient, 'rpc'>;
+export type DashboardReferenceCatalogRpcClient = RpcClient;
 
 export type DashboardReferenceCatalogGateway = {
   getDashboardReferenceCatalog(): Promise<DashboardReferenceCatalog>;

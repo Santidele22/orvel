@@ -1,9 +1,11 @@
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from './session-contract';
 import { ACTIVE_BRANCH_STORAGE_KEY, ACTIVE_BUSINESS_STORAGE_KEY } from '../storage/browser-storage-keys';
+import { browserStorage } from '../storage/browser-storage.adapter';
+import { browserEnvironment } from '../platform/browser-environment.adapter';
 import { invalidateSectionCaches, resetBranchContextSession } from '../branches/branch-context.service';
 import { SUPABASE_CONFIG } from './supabase-config';
-import { createSupabaseAuthClient } from './supabase-auth.client';
-import { isAllowedOnboardingBusinessType } from '../../features/onboarding/data-access/business-type-defaults';
+import { createSupabaseAuthClient } from '../adapters/supabase/supabase-auth.client';
+import { isCatalogBusinessType } from '../catalog/business-type-validation';
 import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../plans/plan-entitlements';
 
 let cachedAuthClient: ReturnType<typeof createSupabaseAuthClient> | null = null;
@@ -108,21 +110,12 @@ type RedeemDashboardSessionHandoffInput = {
 };
 
 function currentBrowserUrl(): URL | null {
-  const location = (globalThis as { window?: { location?: Location } }).window?.location;
-  if (!location?.href) return null;
-
-  try {
-    return new URL(location.href);
-  } catch {
-    return null;
-  }
+  return browserEnvironment().currentUrl();
 }
 
 function stripHandoffParam(url: URL): void {
-  const win = (globalThis as { window?: { history?: { replaceState?: History['replaceState'] } } }).window;
   url.searchParams.delete(SESSION_HANDOFF_PARAM);
-  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-  win?.history?.replaceState?.(null, '', nextUrl);
+  browserEnvironment().replaceHistoryState(`${url.pathname}${url.search}${url.hash}`);
 }
 
 function resolveRedeemFunctionUrl(): string {
@@ -197,19 +190,16 @@ function originFromUrl(raw: string | undefined): string | null {
 function resolveLandingOrigin(): string {
   const env = globalThis as {
     process?: { env?: Record<string, string | undefined> };
-    window?: {
-      __ORVEL_DASHBOARD_ENV__?: { PUBLIC_LANDING_URL?: string };
-      location?: { hostname?: string; protocol?: string };
-    };
   };
 
   const fromProcess = originFromUrl(env.process?.env?.['PUBLIC_LANDING_URL']);
   if (fromProcess) return fromProcess;
 
-  const fromWindow = originFromUrl(env.window?.__ORVEL_DASHBOARD_ENV__?.PUBLIC_LANDING_URL);
+  const injected = browserEnvironment().runtimeEnv();
+  const fromWindow = originFromUrl(injected?.['PUBLIC_LANDING_URL'] as string | undefined);
   if (fromWindow) return fromWindow;
 
-  if (env.window?.location?.hostname === 'qa.orvel.pro') {
+  if (browserEnvironment().currentUrl()?.hostname === 'qa.orvel.pro') {
     return 'https://qa.orvel.pro';
   }
 
@@ -217,13 +207,13 @@ function resolveLandingOrigin(): string {
 }
 
 function resolveLocalLandingOrigin(): string | null {
-  const location = (globalThis as { window?: { location?: { protocol?: string; hostname?: string } } }).window?.location;
-  const hostname = location?.hostname;
+  const url = browserEnvironment().currentUrl();
+  const hostname = url?.hostname;
   if (!hostname || !isLocalHostname(hostname)) {
     return null;
   }
 
-  return `${location?.protocol === 'https:' ? 'https:' : 'http:'}//${hostname}:${LOCAL_LANDING_PORT}`;
+  return `${url?.protocol === 'https:' ? 'https:' : 'http:'}//${hostname}:${LOCAL_LANDING_PORT}`;
 }
 
 function isLocalHostname(hostname: string): boolean {
@@ -287,7 +277,7 @@ export function hasCompletedMandatoryOnboarding(metadata: Record<string, unknown
   const plan = metadata['plan'];
   const businessType = metadata['tipoNegocio'] ?? metadata['businessType'] ?? metadata['business_type'];
 
-  return onboardingCompleted && hasCanonicalOrLegacyPlan(plan) && isAllowedOnboardingBusinessType(businessType);
+  return onboardingCompleted && hasCanonicalOrLegacyPlan(plan) && isCatalogBusinessType(businessType);
 }
 
 /**
@@ -321,7 +311,7 @@ export async function checkSupabaseSession(returnTo = '/dashboard'): Promise<{
       if (
         serverState?.dashboard_ready === true &&
         hasSelectedPlanCode(serverState.selected_plan_code) &&
-        isAllowedOnboardingBusinessType(serverState.business_type)
+        isCatalogBusinessType(serverState.business_type)
       ) {
         allowedDashboardAuthUserId = userId;
         return { allowed: true };
@@ -406,9 +396,10 @@ export async function logoutAndRedirect(): Promise<string> {
   }
 
   resetDashboardAuthAccessCache();
-  localStorage.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
-  localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
-  localStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
+  const storage = browserStorage();
+  storage?.removeItem(LEGACY_DASHBOARD_SESSION_STORAGE_KEY);
+  storage?.removeItem(ACTIVE_BUSINESS_STORAGE_KEY);
+  storage?.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
   resetBranchContextSession();
   invalidateSectionCaches();
 

@@ -12,7 +12,9 @@
 
 import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../../../core/plans/plan-entitlements';
 
-export const ONBOARDING_PLAN_STORAGE_KEY = 'turnea.onboarding.plan';
+import { ONBOARDING_PLAN_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
+
+export { ONBOARDING_PLAN_STORAGE_KEY };
 
 /**
  * Persists the selected plan to storage.

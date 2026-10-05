@@ -127,7 +127,7 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     ];
     const bannedSubstrings = [
       'core/runtime/dashboard-env',
-      'services/auth.service',
+      '../../core/auth/auth.service',
       'features/onboarding/'
     ];
 

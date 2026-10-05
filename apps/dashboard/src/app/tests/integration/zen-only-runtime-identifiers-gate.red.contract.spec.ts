@@ -5,7 +5,7 @@ import { describe, it } from 'vitest';
 const ROOT = cwd();
 const FORBIDDEN_IDENTIFIER = /\b(?:industrial|chic|ink)\b/gi;
 const SOURCE_SCOPES = [
-  'src/app/pages/dashboard',
+  'src/app/features',
   'src/app/shared',
   'src/app/core',
   'src/main.ts'

@@ -1,4 +1,4 @@
-import { createSupabaseClient } from '../runtime/supabase-client';
+import { createSupabaseClient } from '../adapters/supabase/supabase-client';
 
 export interface SendNotificationInput {
   to: string;

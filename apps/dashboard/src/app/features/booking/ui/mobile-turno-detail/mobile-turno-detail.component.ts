@@ -3,9 +3,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { isDepositUnpaid, type BookingQueries } from '@orvel/booking/application';
 import { DashboardService } from '../../../../core/dashboard/dashboard.service';
-import { AuthService } from '../../../../services/auth.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
-import { createIsMobileSignal } from '../../../../core/shell/is-mobile/is-mobile';
+import { createIsMobileSignal } from '../../../../core/platform/is-mobile';
 import { getBranchContextService } from '../../../../core/branches/branch-context.service';
 import type { TurnoWithRelations } from '../../models/turno.model';
 

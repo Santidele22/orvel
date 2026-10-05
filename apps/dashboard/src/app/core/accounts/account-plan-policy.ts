@@ -1,7 +1,7 @@
 import {
   getPlanEntitlementsFromCatalog,
   type DashboardReferenceCatalog,
-  resolvePlanCodeFromCatalog
+  resolvePlanCodeFromCatalog,
 } from '../catalog/reference-catalog';
 import { getRuntimeReferenceCatalogSnapshot } from '../catalog/reference-catalog.gateway';
 
@@ -18,7 +18,11 @@ function resolveMaxSalons(plan: unknown, referenceCatalog: DashboardReferenceCat
   return getPlanEntitlementsFromCatalog(referenceCatalog, plan)?.maxLocales ?? 1;
 }
 
-export function resolveAccountPlanPolicy(input: { plan: unknown; premiumPaid: boolean; referenceCatalog?: DashboardReferenceCatalog }): AccountPlanPolicy {
+export function resolveAccountPlanPolicy(input: {
+  plan: unknown;
+  premiumPaid: boolean;
+  referenceCatalog?: DashboardReferenceCatalog;
+}): AccountPlanPolicy {
   const referenceCatalog = input.referenceCatalog ?? getRuntimeReferenceCatalogSnapshot();
   const planCode = resolvePlanCode(input.plan, referenceCatalog);
   const freeMaxSalons = resolveMaxSalons('FREE', referenceCatalog);
@@ -26,27 +30,31 @@ export function resolveAccountPlanPolicy(input: { plan: unknown; premiumPaid: bo
   if (planCode === 'FREE') {
     return {
       accountEnabled: true,
-      maxSalons: freeMaxSalons
+      maxSalons: freeMaxSalons,
     };
   }
 
   if (!input.premiumPaid) {
     return {
       accountEnabled: false,
-      maxSalons: freeMaxSalons
+      maxSalons: freeMaxSalons,
     };
   }
 
   return {
     accountEnabled: true,
-    maxSalons: resolveMaxSalons(planCode, referenceCatalog)
+    maxSalons: resolveMaxSalons(planCode, referenceCatalog),
   };
 }
 
-export function canCreateSalonUnderPlan(input: { plan: unknown; premiumPaid: boolean; currentSalons: number }): boolean {
+export function canCreateSalonUnderPlan(input: {
+  plan: unknown;
+  premiumPaid: boolean;
+  currentSalons: number;
+}): boolean {
   const policy = resolveAccountPlanPolicy({
     plan: input.plan,
-    premiumPaid: input.premiumPaid
+    premiumPaid: input.premiumPaid,
   });
 
   return input.currentSalons < policy.maxSalons;

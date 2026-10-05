@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   SECURITY_HEADERS,
+  buildSecurityHeaders,
   patchVercelOutputConfig,
 } from '../../../../../../scripts/vercel-output-config.mjs';
 
@@ -11,7 +12,17 @@ const EXPECTED_SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000',
 };
+
+function parseCsp(value: string | undefined): Map<string, string> {
+  const directives = new Map<string, string>();
+  for (const part of (value ?? '').split(';')) {
+    const [name, ...rest] = part.trim().split(/\s+/);
+    if (name) directives.set(name, rest.join(' '));
+  }
+  return directives;
+}
 
 // Build Output API v3 schema: https://vercel.com/docs/build-output-api/configuration
 const SUPPORTED_CONFIG_KEYS = [
@@ -77,7 +88,46 @@ describe('TDD contract: the combined deploy ships the project security headers',
   });
 
   it('exports the managed header map so the deploy has a single source of truth', () => {
-    expect(SECURITY_HEADERS).toEqual(EXPECTED_SECURITY_HEADERS);
+    for (const [key, value] of Object.entries(EXPECTED_SECURITY_HEADERS)) {
+      expect(SECURITY_HEADERS[key], `missing managed header ${key}`).toBe(value);
+    }
+  });
+
+  it('ships a CSP that locks down exfiltration, plugins, framing and base tags', () => {
+    const csp = parseCsp(SECURITY_HEADERS['Content-Security-Policy']);
+
+    expect(csp.get('default-src')).toBe("'self'");
+    expect(csp.get('object-src')).toBe("'none'");
+    expect(csp.get('base-uri')).toBe("'self'");
+    expect(csp.get('form-action')).toBe("'self'");
+    expect(csp.get('frame-ancestors')).toBe("'none'");
+    expect(csp.get('connect-src')).toContain("'self'");
+    expect(csp.get('connect-src')).toContain('https://*.supabase.co');
+    // Realtime notifications use a websocket; without wss:// in connect-src the
+    // dashboard would lose them in production.
+    expect(csp.get('connect-src')).toContain('wss://*.supabase.co');
+    expect(csp.get('style-src')).toContain('https://fonts.googleapis.com');
+    expect(csp.get('font-src')).toContain('https://fonts.gstatic.com');
+    expect(csp.get('img-src')).toContain('data:');
+  });
+
+  it('keeps the inline boot scripts working and lets a deploy add its own origins', () => {
+    const csp = parseCsp(SECURITY_HEADERS['Content-Security-Policy']);
+
+    // Documented debt: index.html boots the PWA with three inline scripts, so
+    // script-src must allow inline. Removing them is the follow-up that lets
+    // this directive drop 'unsafe-inline'.
+    expect(csp.get('script-src')).toContain("'self'");
+    expect(csp.get('script-src')).toContain("'unsafe-inline'");
+
+    const widened = buildSecurityHeaders({ supabaseOrigin: 'https://project.supabase.co' });
+    expect(parseCsp(widened['Content-Security-Policy']).get('connect-src')).toContain(
+      'https://project.supabase.co'
+    );
+    expect(parseCsp(widened['Content-Security-Policy']).get('connect-src')).toContain(
+      'wss://project.supabase.co'
+    );
+    expect(SECURITY_HEADERS['Content-Security-Policy']).not.toContain('https://project.supabase.co');
   });
 
   it('keeps the security headers out of per-app vercel.json files the combined project never reads', async () => {

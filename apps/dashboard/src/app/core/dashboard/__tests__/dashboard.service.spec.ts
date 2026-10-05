@@ -10,10 +10,13 @@ import { of } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
-import { ClienteService } from '../../../features/clientes/data-access/cliente.service';
-import { ServicioService } from '../../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../../features/settings/data-access/business.service';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from '../dashboard-data.ports';
 import { DashboardService } from '../dashboard.service';
+import { localDateFromDateKey, readArgentinaClock } from '../../time/argentina-clock';
 
 const homePageSource = readFileSync(
   resolve(process.cwd(), 'src/app/features/dashboard-home/pages/dashboard-home.page.ts'),
@@ -33,7 +36,9 @@ function todayRecord(overrides: Partial<BookingRecord> = {}): BookingRecord {
     branchId: 'br-1',
     clienteId: 'c-1',
     servicioId: 's-1',
-    fecha: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+    // "Today" is the Argentina calendar day, which is what DashboardService compares against
+    // (`readArgentinaClock`); using the runner's local date breaks the comparison on a UTC machine.
+    fecha: localDateFromDateKey(readArgentinaClock(now).dateKey),
     hora: '23:59',
     duracionMinutos: 30,
     estado: 'confirmado',
@@ -61,8 +66,9 @@ class QueuedBookingQueries implements BookingQueries {
 }
 
 function setAfternoonNow(service: DashboardService): void {
-  const afternoon = new Date();
-  afternoon.setHours(15, 0, 0, 0);
+  // 15:00 on the Argentina calendar day. Argentina has had no DST since 2009, so the fixed -03:00
+  // offset is exact and the service's clock reads 15:00 ART whatever timezone the runner uses.
+  const afternoon = new Date(`${readArgentinaClock(new Date()).dateKey}T15:00:00-03:00`);
   service.now.set(afternoon);
 }
 
@@ -73,6 +79,12 @@ const branchContextMock = vi.hoisted(() => {
   };
   return mock;
 });
+
+const supabaseRpcMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../adapters/supabase/supabase-client', () => ({
+  createSupabaseClient: () => ({ rpc: supabaseRpcMock })
+}));
 
 vi.mock('../../branches/branch-context.service', () => ({
   getBranchContextService: () => ({
@@ -96,9 +108,9 @@ function createService(queries: BookingQueries, clients = [{ id: 'c-1', nombre: 
       provideZonelessChangeDetection(),
       DashboardService,
       { provide: BOOKING_QUERIES, useValue: queries },
-      { provide: ClienteService, useValue: { items: signal(clients), getAll: () => of(clients) } },
-      { provide: ServicioService, useValue: { items: signal(services), getAll: () => of(services) } },
-      { provide: BusinessService, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } }
+      { provide: DASHBOARD_CLIENTE_SOURCE, useValue: { items: signal(clients), getAll: () => of(clients) } },
+      { provide: DASHBOARD_SERVICIO_SOURCE, useValue: { items: signal(services), getAll: () => of(services) } },
+      { provide: DASHBOARD_BUSINESS_SOURCE, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } }
     ]
   });
   return TestBed.inject(DashboardService);
@@ -114,6 +126,7 @@ describe('DashboardService BookingQueries consumer', () => {
     branchContextMock.activeBranchId = 'br-1';
     branchContextMock.ensureLoaded.mockReset();
     branchContextMock.ensureLoaded.mockImplementation(async () => undefined);
+    supabaseRpcMock.mockReset();
   });
 
   it('loads branch bookings through BookingQueries and keeps featured shape', async () => {
@@ -151,6 +164,34 @@ describe('DashboardService BookingQueries consumer', () => {
       badgeLabel: 'Seña avisada',
       depositPending: true
     });
+  });
+
+  it('confirms a pending seña through the dashboard authenticated supabase client', async () => {
+    supabaseRpcMock.mockResolvedValue({ data: { booking_id: 'b-1', deposit_status: 'paid' }, error: null });
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'pending' })]);
+    const service = createService(queries);
+    await flush();
+    queries.listBookingsByBranch.mockClear();
+
+    const ok = await service.confirmDepositReceived('b-1', 'admin-1');
+
+    expect(ok).toBe(true);
+    expect(supabaseRpcMock).toHaveBeenCalledWith('confirm_booking_deposit_received', {
+      booking_id: 'b-1',
+      performed_by: 'admin-1'
+    });
+    expect(queries.listBookingsByBranch).toHaveBeenCalled();
+  });
+
+  it('returns false when confirming a seña is rejected by the RPC', async () => {
+    supabaseRpcMock.mockResolvedValue({ data: null, error: { message: 'UNAUTHORIZED' } });
+    const queries = new InMemoryBookingQueries([todayRecord({ depositStatus: 'pending' })]);
+    const service = createService(queries);
+    await flush();
+    queries.listBookingsByBranch.mockClear();
+
+    await expect(service.confirmDepositReceived('b-1', 'admin-1')).resolves.toBe(false);
+    expect(queries.listBookingsByBranch).not.toHaveBeenCalled();
   });
 
   it('computes completed-today ticket average from BookingQueries rows', async () => {

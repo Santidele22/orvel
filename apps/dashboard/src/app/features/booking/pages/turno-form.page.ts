@@ -12,8 +12,11 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { BusinessService } from '../../settings/data-access/business.service';
-import { AuthService } from '../../../services/auth.service';
+import {
+  ACTIVE_BUSINESS_ID_SOURCE,
+  BUSINESS_PROFESSIONALS_SOURCE
+} from '../../../core/business/business-directory.ports';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
 import { Cliente } from '../../../models/cliente.model';
 import { Servicio } from '../../../models/servicio.model';
@@ -36,7 +39,8 @@ export class TurnoFormPage implements OnInit {
   private availability = inject(BookingAvailabilityService);
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
-  private businessService = inject(BusinessService);
+  private readonly activeBusinessId = inject(ACTIVE_BUSINESS_ID_SOURCE);
+  private readonly businessProfessionals = inject(BUSINESS_PROFESSIONALS_SOURCE);
   private authService = inject(AuthService);
   protected branchContext = getBranchContextService();
   private readonly argentinaClock = inject(ArgentinaClockService);
@@ -133,9 +137,9 @@ export class TurnoFormPage implements OnInit {
 
       this.clientes.set(this.clienteService.items());
       this.servicios.set(this.servicioService.items());
-      const businessId = await this.businessService.getActiveBusinessId(this.authService.user()?.id);
+      const businessId = await this.activeBusinessId.getActiveBusinessId(this.authService.user()?.id);
       if (businessId) {
-        const team = await this.businessService.listBusinessProfessionals(businessId);
+        const team = await this.businessProfessionals.listBusinessProfessionals(businessId);
         this.professionals.set(team.filter((member) => member.active).map((member) => ({ id: member.id, name: member.name })));
       }
 

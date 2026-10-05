@@ -1,10 +1,10 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { logoutAndRedirect } from '../../../core/auth/route-protection';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { navigateAfterLogout } from '../../../shared/dashboard-shell/logout-navigation';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
-import { BusinessService } from '../../settings/data-access/business.service';
+import { BUSINESS_SETTINGS_SOURCE } from '../../../core/business/business-directory.ports';
 
 @Component({
   selector: 'app-perfil',
@@ -153,7 +153,7 @@ import { BusinessService } from '../../settings/data-access/business.service';
 })
 export class PerfilPage {
   readonly auth = inject(AuthService);
-  private readonly business = inject(BusinessService);
+  private readonly businessSettings = inject(BUSINESS_SETTINGS_SOURCE);
   private readonly router = inject(Router);
   private readonly webPush = inject(OperatorWebPushService);
 
@@ -171,7 +171,7 @@ export class PerfilPage {
   });
 
   protected readonly planName = computed(() => {
-    const raw = String(this.business.settings()?.plan ?? this.auth.user()?.plan ?? 'free').trim();
+    const raw = String(this.businessSettings.settings()?.plan ?? this.auth.user()?.plan ?? 'free').trim();
     if (!raw || raw.toUpperCase() === 'FREE') {
       return 'Free';
     }
