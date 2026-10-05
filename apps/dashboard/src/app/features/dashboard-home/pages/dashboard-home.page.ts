@@ -13,6 +13,7 @@ import { WeekdayKey } from '../../../models/business.model';
 import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
 import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
 import { createIsMobileSignal } from '../../../core/platform/is-mobile';
+import { browserPlatform } from '../../../core/platform/platform.adapter';
 import { isIosDevice, isStandaloneDisplay } from '../../pwa-install/pwa-display';
 import { evaluateOperatorWebPush, readVapidPublicKey } from '../../operator-web-push/operator-web-push-eligibility';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
@@ -175,11 +176,9 @@ export class DashboardHomeComponent {
 
   protected showWebPushCoach(): boolean {
     const notificationSupported = typeof Notification !== 'undefined';
+    const platform = browserPlatform();
     return evaluateOperatorWebPush({
-      isIos: isIosDevice(
-        navigator.userAgent,
-        Boolean((navigator as Navigator & { standalone?: boolean }).standalone),
-      ),
+      isIos: isIosDevice(platform.rawUserAgent(), platform.isIosStandalone()),
       isStandalone: this.isPwaStandalone(),
       notificationSupported,
       permission: notificationSupported ? Notification.permission : 'unsupported',

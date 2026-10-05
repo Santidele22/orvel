@@ -23,6 +23,7 @@ import { createDashboardReferenceCatalogGateway } from '../catalog/reference-cat
  * the host through `platform/platform.adapter.ts` like everything else.
  */
 const CORE_DIR = resolve(process.cwd(), 'src/app/core');
+const APP_DIR = resolve(process.cwd(), 'src/app');
 
 const STORAGE_ADAPTER = 'storage/browser-storage.adapter.ts';
 const ENVIRONMENT_ADAPTER = 'platform/browser-environment.adapter.ts';
@@ -59,7 +60,12 @@ function productionFiles(dir: string = CORE_DIR): string[] {
 }
 
 function coreId(file: string): string {
-  return relative(CORE_DIR, file).split('\\').join('/');
+  return appId(file).replace(/^core\//, '');
+}
+
+/** Path relative to `src/app`, which is the scope of the platform rule below. */
+function appId(file: string): string {
+  return relative(APP_DIR, file).split('\\').join('/');
 }
 
 function read(file: string): string {
@@ -90,6 +96,29 @@ function offenders(matches: (source: string) => boolean, allowed: readonly strin
     .sort();
 }
 
+/**
+ * Fase 2 of #1098 — the platform rule is app-wide, not core-only: the whole
+ * point is that *no* file outside `core/platform/` asks the host how wide it is
+ * or what user agent it has.
+ *
+ * It targets the host APIs, not identifiers: `isIosSafari(userAgent: string)` is
+ * a pure parser over a string and is allowed to keep naming its argument.
+ */
+const PLATFORM_DIR = 'core/platform/';
+const HOST_PLATFORM_ACCESS = /\bmatchMedia\b|navigator\s*\.\s*userAgent/;
+
+function appProductionFiles(): string[] {
+  return productionFiles(APP_DIR);
+}
+
+function hostPlatformAccessOffenders(): string[] {
+  return appProductionFiles()
+    .filter((file) => !appId(file).startsWith(PLATFORM_DIR))
+    .filter((file) => HOST_PLATFORM_ACCESS.test(stripCommentsAndStrings(read(file))))
+    .map(appId)
+    .sort();
+}
+
 describe('core boundary contract', () => {
   it('confines the Supabase SDK to core/adapters/supabase', () => {
     const importers = productionFiles()
@@ -105,6 +134,10 @@ describe('core boundary contract', () => {
     const allowed = [...HOST_ADAPTERS];
 
     expect(offenders((source) => HOST_ACCESS.test(stripCommentsAndStrings(source)), allowed)).toEqual([]);
+  });
+
+  it('keeps media queries and user-agent reads inside core/platform', () => {
+    expect(hostPlatformAccessOffenders()).toEqual([]);
   });
 
   it('runs core logic with every DOM global absent', async () => {
