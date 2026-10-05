@@ -7,6 +7,7 @@ import {
   copyPremiumAlias
 } from '../../../core/billing/premium-alias-receipt';
 import { AuthService } from '../../../core/auth/auth.service';
+import { browserPlatform } from '../../../core/platform/platform.adapter';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
 
@@ -592,7 +593,7 @@ export class InAppSignupWizardPage {
       return;
     }
 
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const reducedMotion = browserPlatform().matchesMediaQuery('(prefers-reduced-motion: reduce)');
     if (reducedMotion) {
       return;
     }

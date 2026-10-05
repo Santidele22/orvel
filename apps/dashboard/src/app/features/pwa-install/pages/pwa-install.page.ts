@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, signal } from '@angular/core';
+import { browserPlatform } from '../../../core/platform/platform.adapter';
 import {
   iosNonSafariSurfaceName,
   isIosDevice,
@@ -394,8 +395,9 @@ export class PwaInstallPage implements OnInit {
 
   ngOnInit(): void {
     this.alreadyInstalled.set(isStandaloneDisplay());
-    const userAgent = navigator.userAgent;
-    const standalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const platform = browserPlatform();
+    const userAgent = platform.rawUserAgent();
+    const standalone = platform.isIosStandalone();
     this.isIos.set(isIosDevice(userAgent, standalone));
     this.isIosSafari.set(isIosSafari(userAgent, standalone));
     this.safariSurfaceName.set(iosNonSafariSurfaceName(userAgent));

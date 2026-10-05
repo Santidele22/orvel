@@ -5,6 +5,7 @@
  * This file can be imported by tests without Angular compilation.
  */
 import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../data-access/onboarding-plan-utils';
+import { browserPlatform } from '../../../core/platform/platform.adapter';
 import {
   type DashboardReferenceCatalog,
   resolveBusinessTypeCodeFromCatalog
@@ -486,7 +487,7 @@ export class SignupBusinessTypesStepPage {
       return;
     }
 
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const reducedMotion = browserPlatform().matchesMediaQuery('(prefers-reduced-motion: reduce)');
     if (reducedMotion) {
       return;
     }
