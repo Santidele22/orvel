@@ -5,24 +5,51 @@
  */
 
 import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '@orvel/config';
-import { loadDashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { loadDashboardRuntimeEnv, type DashboardRuntimeEnv } from '../runtime/dashboard-env';
 
 export { ORVEL_SUPABASE_AUTH_STORAGE_KEY };
 
-const runtimeEnv = loadDashboardRuntimeEnv();
+/**
+ * Fase 3 of #1098 — resolved on first use, not at import time.
+ *
+ * The runtime env is *injected* by the app (`configureDashboardEnvironmentFallback`). In a
+ * development build that injection lands in the entry module's body, which the browser evaluates
+ * **after** the same entry's imports — so reading it at module scope made this module throw the
+ * moment anything imported it, before the app had configured anything, and `ng serve` died with
+ * "Missing required env vars".
+ *
+ * Reading it lazily keeps the same failure and the same message for a genuinely misconfigured
+ * deploy, but at the moment a value is actually needed (bootstrap), by which time the app has
+ * configured the fallback.
+ */
+let resolvedRuntimeEnv: DashboardRuntimeEnv | null = null;
+
+function runtimeEnv(): DashboardRuntimeEnv {
+  if (resolvedRuntimeEnv) {
+    return resolvedRuntimeEnv;
+  }
+
+  const env = loadDashboardRuntimeEnv();
+
+  if (!env.PUBLIC_SUPABASE_URL || !env.PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error('[supabase-config] Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY in environment');
+  }
+
+  resolvedRuntimeEnv = env;
+  return env;
+}
 
 export const SUPABASE_CONFIG = {
   /** Supabase project URL */
-  url: runtimeEnv.PUBLIC_SUPABASE_URL || '',
+  get url(): string {
+    return runtimeEnv().PUBLIC_SUPABASE_URL || '';
+  },
   /** Supabase anonymous key (publishable key) */
-  anonKey: runtimeEnv.PUBLIC_SUPABASE_ANON_KEY || '',
+  get anonKey(): string {
+    return runtimeEnv().PUBLIC_SUPABASE_ANON_KEY || '';
+  },
   /** Shared browser storage key used by landing and dashboard for same-origin local auth */
   storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY
 } as const;
-
-
-if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
-  throw new Error('[supabase-config] Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY in environment');
-}
 
 export type SupabaseConfig = typeof SUPABASE_CONFIG;
