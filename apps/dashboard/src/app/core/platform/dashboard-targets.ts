@@ -89,9 +89,14 @@ export const DASHBOARD_TARGETS: readonly DashboardTargetSurface[] = [
   }
 ];
 
+/** Route paths are compared without leading/trailing slashes. */
+export function normalizeRoutePath(path: string): string {
+  return path.replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
 /** `null` means "not classified yet": the contract spec turns that into a failing test. */
 export function classifyRoutePath(path: string): DashboardTarget | null {
-  const normalized = path.replace(/^\/+/, '').replace(/\/+$/, '');
+  const normalized = normalizeRoutePath(path);
   const match = DASHBOARD_TARGETS.find((surface) => surface.pattern.test(normalized));
   return match?.target ?? null;
 }
