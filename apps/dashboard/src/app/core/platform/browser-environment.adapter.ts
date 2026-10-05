@@ -60,6 +60,36 @@ export function browserEnvironment(): BrowserEnvironment {
       }
 
       window.dispatchEvent(new CustomEvent(type, { detail }));
+    },
+
+    currentOrigin(): string {
+      if (typeof window === 'undefined' || !window.location) {
+        return '';
+      }
+
+      return window.location.origin;
+    },
+
+    navigateTo(url: string): void {
+      if (typeof window === 'undefined' || typeof window.location?.assign !== 'function') {
+        return;
+      }
+
+      window.location.assign(url);
+    },
+
+    async writeClipboardText(text: string): Promise<boolean> {
+      const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
+      if (!clipboard?.writeText) {
+        return false;
+      }
+
+      try {
+        await clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
     }
   };
 }

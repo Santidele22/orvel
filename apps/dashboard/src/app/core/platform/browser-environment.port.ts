@@ -27,4 +27,16 @@ export type BrowserEnvironment = {
 
   /** Dispatches a `CustomEvent` on the window; no-op when there is no host. */
   dispatchWindowEvent(type: string, detail?: unknown): void;
+
+  /**
+   * Origin of the current document, used to build absolute return URLs.
+   * `''` when there is no host, so callers can still build a path.
+   */
+  currentOrigin(): string;
+
+  /** Navigates the host to `url`; no-op when there is no host. */
+  navigateTo(url: string): void;
+
+  /** Writes text to the host clipboard; `false` when there is none or it fails. */
+  writeClipboardText(text: string): Promise<boolean>;
 };

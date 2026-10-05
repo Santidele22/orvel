@@ -116,7 +116,9 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
   it('dashboard guard hard-navigates to landing auth instead of returning an internal UrlTree that can blank the shell', async () => {
     const source = await loadDashboardAuthGuardSource();
 
-    expect(source).toContain('window.location.assign(landingRedirect)');
+    // Fase 1 of #1098: the hard navigation now goes through the browser
+    // environment port instead of naming window.location in core.
+    expect(source).toContain('browserEnvironment().navigateTo(landingRedirect)');
     expect(source).toContain('return false');
     expect(source).not.toContain('router.parseUrl(buildLandingLoginRedirect');
   });
