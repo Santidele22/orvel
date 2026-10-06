@@ -9,6 +9,7 @@ import {
 } from './supabase-auth-adapter';
 import { sanitizeLandingAuthReturnTo } from './auth-return-to';
 import { createDashboardSessionHandoff, type HandoffInvoke } from './dashboard-session-handoff';
+import { markAuthPresent } from './auth-presence';
 
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE =
   'No pudimos completar la autenticación en este momento. Intentá nuevamente en unos minutos o contactá al equipo de Orvel si el problema continúa.';
@@ -125,6 +126,7 @@ export async function loginWithProvider(input: LoginWithProviderInput): Promise<
   }
 
   if (result.ok) {
+    markAuthPresent();
     const redirectTo = sanitizeReturnTo(input.attempt.returnTo);
 
     if (input.dashboardHandoff && result.refreshToken) {
@@ -183,6 +185,7 @@ export async function signupWithProvider(input: SignupWithProviderInput): Promis
   }
 
   if (result.ok) {
+    markAuthPresent();
     return {
       ok: true,
       redirectTo: sanitizeReturnTo(input.attempt.returnTo)

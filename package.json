@@ -17,7 +17,7 @@
     "check:dashboard": "pnpm run test:dashboard:time-picker && pnpm run test:dashboard:contracts && pnpm --dir apps/dashboard run build",
     "check:dashboard-web": "pnpm run test:dashboard-web && pnpm --dir apps/dashboard-web run build && node scripts/check-dashboard-web-pwa-artifacts.mjs",
     "check:dashboard:bun": "bun run --cwd apps/dashboard build",
-    "check:landing": "pnpm run test:landing:tutorial && pnpm run test:landing:build-lock && pnpm run test:landing:no-durable-credentials && pnpm --dir apps/landing run build",
+    "check:landing": "pnpm run test:landing:tutorial && pnpm run test:landing:build-lock && pnpm run test:landing:no-durable-credentials && pnpm run test:landing:auth-presence && pnpm --dir apps/landing run build",
     "security:audit:prod": "pnpm audit --prod",
     "supabase:dry-run": "supabase db lint --local",
     "test:supabase:trial-reminder": "pnpm run test:supabase:trial-reminder:static && pnpm run test:supabase:trial-reminder:postgres",
@@ -65,7 +65,8 @@
     "test:dashboard:contracts": "pnpm --dir apps/dashboard exec vitest run src/app/tests/unit/dashboard-environment-source.contract.spec.ts src/app/tests/unit/generate-dashboard-env.script.spec.ts src/app/tests/unit/deploy-promotion-workflow.contract.spec.ts src/app/tests/unit/vercel-output-security-headers.contract.spec.ts",
     "test:landing:tutorial": "pnpm --dir apps/landing exec vitest run src/tests/hero-tutorial-dialog.contract.spec.ts",
     "test:landing:build-lock": "pnpm --dir apps/landing exec vitest run src/tests/landing-build-idempotency.contract.spec.ts",
-    "test:landing:no-durable-credentials": "pnpm --dir apps/landing exec vitest run src/tests/no-durable-credential-store.contract.spec.ts"
+    "test:landing:no-durable-credentials": "pnpm --dir apps/landing exec vitest run src/tests/no-durable-credential-store.contract.spec.ts",
+    "test:landing:auth-presence": "pnpm --dir apps/landing exec vitest run src/tests/auth-presence.contract.spec.ts"
   },
   "workspaces": [
     "apps/landing",
