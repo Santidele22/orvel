@@ -14,3 +14,10 @@ export const SIGNUP_STORAGE_KEYS = {
 export function subscriptionAttemptStorageKey(plan: string): string {
   return `orvel.subscription.attempt.${plan}`;
 }
+
+/**
+ * Non-secret hint that this browser signed in on the landing before. It exists so
+ * a plan click can route into onboarding instead of the credentials form; it is
+ * deliberately not a session and holds no credential (audit S2).
+ */
+export const AUTH_PRESENCE_KEY = 'orvel.auth.present';

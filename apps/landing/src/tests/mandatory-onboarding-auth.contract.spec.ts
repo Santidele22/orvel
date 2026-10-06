@@ -6,7 +6,6 @@ import {
   type LoginResult
 } from '../lib/auth-provider';
 import {
-  ORVEL_SUPABASE_AUTH_STORAGE_KEY,
   createSupabaseBrowserAuthOptions,
   createSupabaseSignupAdapter,
   type SignupAttempt
@@ -362,21 +361,22 @@ describe('Contract: mandatory onboarding before auth account activation', () => 
     expect(source).toMatch(/continueLink\.addEventListener\('click', clearFreeSignupHandoffStorage\)/);
   });
 
-  it('keeps explicit Supabase browser auth storage options for email/password sessions', async () => {
-    const storage = globalThis.localStorage;
-    const startOptions = createSupabaseBrowserAuthOptions(storage);
-    const callbackOptions = createSupabaseBrowserAuthOptions(storage);
+  it('never persists the email/password session on the landing origin', async () => {
+    const startOptions = createSupabaseBrowserAuthOptions();
+    const callbackOptions = createSupabaseBrowserAuthOptions();
 
     expect(startOptions).toEqual(callbackOptions);
     expect(startOptions?.auth).toEqual(
       expect.objectContaining({
         flowType: 'pkce',
-        persistSession: true,
-        detectSessionInUrl: false,
-        storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
-        storage
+        persistSession: false,
+        detectSessionInUrl: false
       })
     );
+    // The landing must not reach for the app's storage key, let alone a storage
+    // adapter: anything durable on this origin is readable by an XSS here (S2).
+    expect(startOptions?.auth).not.toHaveProperty('storageKey');
+    expect(startOptions?.auth).not.toHaveProperty('storage');
   });
 
 });
