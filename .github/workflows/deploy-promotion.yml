@@ -28,12 +28,16 @@ jobs:
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_QA }}" >> $GITHUB_OUTPUT
             echo "vercel_args=" >> $GITHUB_OUTPUT
             echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
+            echo "console_alias=dashboard.qa.orvel.pro" >> $GITHUB_OUTPUT
+            echo "function_environment=qa" >> $GITHUB_OUTPUT
             echo "landing_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "dashboard_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
+            echo "console_alias=dashboard.orvel.pro" >> $GITHUB_OUTPUT
+            echo "function_environment=production" >> $GITHUB_OUTPUT
             echo "landing_url=https://orvel.pro" >> $GITHUB_OUTPUT
             echo "dashboard_url=https://orvel.pro" >> $GITHUB_OUTPUT
           else
@@ -49,6 +53,16 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
         run: supabase link --project-ref ${{ steps.target.outputs.supabase_ref }}
+
+      # ADR 0012 — the handoff allowlist has to know which environment it is serving: production
+      # allows the three production origins, qa its own three, and only an unset value means the
+      # local stack. Nothing used to set this, so every deployed function also allowed the six
+      # localhost origins. The value lives here, in the repository, instead of only in the
+      # Supabase project settings where it cannot be reviewed.
+      - name: Declare the function runtime environment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+        run: supabase secrets set ENVIRONMENT=${{ steps.target.outputs.function_environment }}
 
       - name: Apply migrations
         env:
@@ -103,3 +117,24 @@ jobs:
           if [[ -n "${{ steps.target.outputs.vercel_alias }}" ]]; then
             npx vercel@59.11.7 alias "$URL" "${{ steps.target.outputs.vercel_alias }}" --token "$VERCEL_TOKEN"
           fi
+
+      # ADR 0012 / Fase 4 of #1098 — the operator console is its own origin and its own Vercel
+      # project, so it deploys from its own project id. The project's build command must be
+      # `pnpm run build:vercel:web`, which emits the standalone artifact at the repository root.
+      #
+      # Until `VERCEL_PROJECT_ID_WEB` exists this step reports the skip instead of failing, so a
+      # promotion is never blocked by infrastructure that has not been created yet.
+      - name: Deploy the operator console to Vercel
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CONSOLE_ALIAS: ${{ steps.target.outputs.console_alias }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_PROJECT_ID:-}" ]]; then
+            echo "Skipping the console deploy: VERCEL_PROJECT_ID_WEB is not configured (ADR 0012 step 1)."
+            exit 0
+          fi
+          URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes ${{ steps.target.outputs.vercel_args }} --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }})
+          npx vercel@59.11.7 alias "$URL" "$CONSOLE_ALIAS" --token "$VERCEL_TOKEN"

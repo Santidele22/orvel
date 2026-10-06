@@ -6,7 +6,12 @@
 
 import { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from '@orvel/config';
 import { loadDashboardRuntimeEnv, type DashboardRuntimeEnv } from '../runtime/dashboard-env';
+import { dashboardAuthStorageKey } from './dashboard-auth-target';
 
+/**
+ * @deprecated Kept as a re-export for the specs that pin the pwa literal. Consumers must resolve
+ * their own target's key through `dashboardAuthStorageKey()` (ADR 0012).
+ */
 export { ORVEL_SUPABASE_AUTH_STORAGE_KEY };
 
 /**
@@ -48,8 +53,13 @@ export const SUPABASE_CONFIG = {
   get anonKey(): string {
     return runtimeEnv().PUBLIC_SUPABASE_ANON_KEY || '';
   },
-  /** Shared browser storage key used by landing and dashboard for same-origin local auth */
-  storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY
+  /**
+   * Session key of the target this app declared (Fase 4 of #1098). Landing, pwa and web no longer
+   * share one key: sharing it was the mechanical half of audit finding S2.
+   */
+  get storageKey(): string {
+    return dashboardAuthStorageKey();
+  }
 } as const;
 
 export type SupabaseConfig = typeof SUPABASE_CONFIG;

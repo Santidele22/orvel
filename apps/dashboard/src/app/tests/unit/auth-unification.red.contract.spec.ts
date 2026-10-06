@@ -88,12 +88,16 @@ describe('RED: auth unification contract', () => {
     expect(dashboardEnv).not.toMatch(/SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE|service[_-]?role/i);
   });
 
-  it('uses the same explicit Supabase auth storage key as landing for same-origin local flow', () => {
-    const supabaseConfig = source('../../packages/dashboard-core/src/auth/supabase-config.ts');
+  it('resolves the storage key of the target this app declared instead of one shared with the landing', () => {
     const supabaseClientFactory = source('../../packages/dashboard-core/src/adapters/supabase/supabase-client.factory.ts');
+    const dashboardBootstrap = source('src/app/runtime/configure-dashboard-environment.ts');
 
-    expect(supabaseConfig).toMatch(/ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
-    expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain('orvel.supabase.auth');
-    expect(supabaseClientFactory).toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
+    // ADR 0012 reverses the old "same key as the landing" contract, which was the mechanical half
+    // of audit finding S2. The pwa keeps the historical literal so installed sessions survive; the
+    // console resolves its own key; the shared constant is deprecated, not the source of truth.
+    expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain("pwa: 'orvel.supabase.auth'");
+    expect(supabaseClientFactory).toMatch(/storageKey:\s*dashboardAuthStorageKey\(\)/);
+    expect(supabaseClientFactory).not.toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
+    expect(dashboardBootstrap).toMatch(/configureDashboardAuthTarget\(\s*'pwa'\s*\)/);
   });
 });
