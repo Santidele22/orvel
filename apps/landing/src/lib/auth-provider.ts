@@ -7,17 +7,9 @@ import {
   createSupabaseSignupAdapter,
   type SignupAttempt
 } from './supabase-auth-adapter';
-import { markSignupOnboardingCompleted } from './onboarding-signup-state';
-import {
-  initEncryption,
-  encryptToken,
-  decryptToken,
-  isEncryptionReady
-} from './encrypted-token-storage';
 import { sanitizeLandingAuthReturnTo } from './auth-return-to';
 import { createDashboardSessionHandoff, type HandoffInvoke } from './dashboard-session-handoff';
 
-export const ORVEL_SESSION_KEY = 'orvel.session.v1';
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE =
   'No pudimos completar la autenticación en este momento. Intentá nuevamente en unos minutos o contactá al equipo de Orvel si el problema continúa.';
 
@@ -46,18 +38,6 @@ type RawRuntimeModeInput =
       PUBLIC_AUTH_PROVIDER_MODE?: unknown;
     };
 
-type OrvelSession = {
-  version: 'v1' | 'v2';
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  };
-  issuedAt: number;
-  expiresAt: number;
-};
-
 function sanitizeReturnTo(returnTo: string | null | undefined): string {
   const currentOrigin = typeof window !== 'undefined' && window.location?.origin
     ? window.location.origin
@@ -79,33 +59,6 @@ function sanitizeSelectedRubros(raw: unknown): string[] {
     .map((value) => value.trim().toLowerCase())
     .filter((value) => value.length > 0)
     .filter((value, index, all) => all.indexOf(value) === index);
-}
-
-/**
- * Get decrypted token from stored session
- * Returns null if no session or encryption not initialized
- */
-export async function getDecryptedSessionToken(): Promise<string | null> {
-  const stored = localStorage.getItem(ORVEL_SESSION_KEY);
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    const session: OrvelSession = JSON.parse(stored);
-
-    // v2 = encrypted, v1 = plain text
-    if (session.version === 'v2' && isEncryptionReady()) {
-      return decryptToken(session.token);
-    } else if (session.version === 'v1') {
-      // Legacy format - return as-is (but upgrade on next login)
-      return session.token;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 function getRuntimeModeValue(rawModeOrRuntime: RawRuntimeModeInput): string | null {
@@ -159,36 +112,6 @@ function buildSignupExistingLoginRedirect(returnTo: string | null | undefined): 
   return `${loginUrl.pathname}${loginUrl.search}`;
 }
 
-async function persistSupabaseSession(
-  attempt: LoginAttempt | SignupAttempt,
-  result: Extract<SupabaseAdapterResult, { ok: true }>
-): Promise<void> {
-  // Initialize encryption
-  await initEncryption();
-
-  const now = Date.now();
-
-  // Encrypt token before storing
-  const encryptedToken = await encryptToken(result.token);
-
-  const session: OrvelSession = {
-    version: 'v2', // Version 2 indicates encrypted storage
-    token: encryptedToken,
-    user: {
-      id: result.user.id,
-      email: result.user.email,
-      name:
-        result.user.nombre && result.user.apellido
-          ? `${result.user.nombre} ${result.user.apellido}`
-          : 'Usuario Orvel'
-    },
-    issuedAt: now,
-    expiresAt: now + 1000 * 60 * 60 * 8
-  };
-
-  localStorage.setItem(ORVEL_SESSION_KEY, JSON.stringify(session));
-}
-
 export async function loginWithProvider(input: LoginWithProviderInput): Promise<LoginResult> {
   let result: SupabaseAdapterResult;
   try {
@@ -202,7 +125,6 @@ export async function loginWithProvider(input: LoginWithProviderInput): Promise<
   }
 
   if (result.ok) {
-    await persistSupabaseSession(input.attempt, result);
     const redirectTo = sanitizeReturnTo(input.attempt.returnTo);
 
     if (input.dashboardHandoff && result.refreshToken) {
@@ -261,7 +183,6 @@ export async function signupWithProvider(input: SignupWithProviderInput): Promis
   }
 
   if (result.ok) {
-    await persistSupabaseSession(input.attempt, result);
     return {
       ok: true,
       redirectTo: sanitizeReturnTo(input.attempt.returnTo)
