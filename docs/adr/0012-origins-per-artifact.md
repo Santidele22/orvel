@@ -47,9 +47,11 @@ Rules that come with the decision:
 
 1. **One session key per target, owned by the target.** `packages/config` stops exporting a single shared constant; each target resolves its own key and nothing imports another target's. The landing resolves none — a non-credential presence hint (PR #1124) is all it keeps.
 2. **Public booking links point at the app.** The canonical public URL becomes `app.orvel.pro/booking/<slug>` and `orvel.pro/booking/*` answers **301 permanent**, so links already shared keep working. The social preview rewrite (`/booking-share`) moves with the turnero, because a crawler must read the OG tags at the URL it actually lands on; a redirect to an origin that has none breaks the preview.
-3. **One artifact per deploy.** The landing's output stops containing `static/dashboard`, the app is built for its own root instead of `/dashboard/`, and `DASHBOARD_SPA_REWRITE`/`BOOKING_SPA_REWRITE` disappear.
+3. **One artifact per deploy, over the paths each app already owns.** The landing's output stops containing `static/dashboard`; the pwa moves **origin only** and keeps serving `/dashboard/*` and `/booking/*`; the console is a standalone SPA at the root of its own origin. `DASHBOARD_SPA_REWRITE` and `BOOKING_SPA_REWRITE` disappear because no artifact is served from inside another's path space, not because the pwa's paths change.
 4. **Promotion moves all three artifacts together** through `dev → qa → main`; no target skips a stage.
 5. **No target shares an origin with another target**, in any environment.
+
+> **Amendment (2026-10-06): the pwa keeps its path prefix.** This ADR originally said the app would be "built for its own root instead of `/dashboard/`", which was an assumption and not a requirement of the split. Measured cost of dropping the prefix: 19 production files reference `/dashboard/`, 26 `routerLink="/dashboard/…"` are absolute in templates, and `index.html`, `manifest.webmanifest`, `ngsw-config.json` and the service-worker registration (`apps/dashboard/src/app/app.config.ts:22`) all hardcode it. The manifest declares `start_url: /dashboard/turnos` and `scope: /dashboard/`, so keeping the prefix also keeps the install and the service-worker scope **identical** — installed clients differ only by origin, which is the migration that step 2 measures. Serving the pwa from its own root is therefore an independent, optional refactor with no requirement behind it; `app.orvel.pro/turnos` is prettier than `app.orvel.pro/dashboard/turnos`, and that is the whole of its value. Revisit only if the prefix starts costing something.
 
 ## Sequencing
 
@@ -81,7 +83,7 @@ Acceptance: a booking link shared *before* the move still reaches the booking (e
 - **S2 closes in two steps**: after step 1 no authenticated console shares an origin with the landing; after step 3 neither does the PWA. The audit's S2 row closes when both land.
 - The landing stops containing product code and stops being a deploy dependency of the app — today a booking fix cannot ship without a green landing build.
 - Three deploys, three hostnames, three CSP/header sets to keep in step, and a promotion that carries all three artifacts in the same cycle.
-- The app is served from its own root, which removes the `/dashboard/` prefix from its routes and asset URLs.
+- The pwa keeps its `/dashboard/*` and `/booking/*` paths, so the service-worker scope, the manifest and every internal link survive the move unchanged; the only thing installed clients lose is the origin (see the amendment above).
 - Cost accepted: the PWA move is a one-way door for installed clients, so it depends on the measurements of step 2 and the dual-serving of step 3.
 
 ## Risks
