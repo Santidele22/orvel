@@ -95,10 +95,22 @@ Acceptance: a booking link shared *before* the move still reaches the booking (e
 | Environments drift (dev/qa/main) | One promotion cycle carries all three artifacts; the migration drift guard stays in force |
 | The console moves before its key is parameterised and keeps sharing one by accident | Step 1 ships the per-target key with a contract test |
 
+## Hostnames per environment
+
+Santi confirmed the convention on 2026-10-06. It is symmetric across environments: a target keeps its name and only the suffix changes.
+
+| Environment | Landing | PWA | Console |
+|---|---|---|---|
+| production (`main`) | `orvel.pro` (+ `www`) | `app.orvel.pro` | `dashboard.orvel.pro` |
+| qa | `qa.orvel.pro` | `app.qa.orvel.pro` | `dashboard.qa.orvel.pro` |
+| local | `127.0.0.1:4321` (Astro) | `127.0.0.1:3000` (proxy) | `127.0.0.1:4300` |
+
+`dev` has no deployed hostnames to reserve: `deploy-promotion.yml` runs only on pushes to `qa` and `main`. The env hook for the handoff allowlist is `SESSION_HANDOFF_ALLOWED_ORIGINS` (`supabase/functions/_shared/session-handoff-cors.ts:25`); the built-in production defaults list `orvel.pro`, `www.orvel.pro` and `dashboard.orvel.pro`, so `app.orvel.pro` and both qa product origins must be added there or through that variable.
+
 ## Open questions (deliberately not decided here)
 
-- **qa and dev hostnames.** Production names are decided above, but the repository has no DNS inventory, so the non-production hostnames (`app.qa.orvel.pro` / `dashboard.qa.orvel.pro` versus another convention) need Santi's confirmation. The env hook is `SESSION_HANDOFF_ALLOWED_ORIGINS` (`supabase/functions/_shared/session-handoff-cors.ts:25`); the built-in production defaults list only `orvel.pro`, `www.orvel.pro` and `dashboard.orvel.pro`.
 - Whether `www.orvel.pro` keeps redirecting to `orvel.pro`. This ADR does not change it.
+- How the console gets its own Vercel project and secrets: `VERCEL_PROJECT_ID` is a single value today, and the deploy lets Vercel run the build (`vercel deploy` without `--prebuilt`), so the second project needs its own build command and its own project env.
 
 ## Follow-ups
 
