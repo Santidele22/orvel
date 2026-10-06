@@ -25,15 +25,15 @@ test('deploy-promotion job environment has a name so GitHub can parse the workfl
   );
 });
 
-test('deploy-promotion builds the dashboard with an Angular configuration that exists', async () => {
+test('deploy-promotion leaves the build to Vercel instead of prebuilding on the runner', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
-  assert.match(source, /echo "angular_config=production"/);
-  assert.doesNotMatch(
-    source,
-    /angular_config=qa/,
-    'apps/dashboard has no Angular configuration named qa (only production and development).',
-  );
+  // #1039/#1040 retired the standalone dashboard build from the workflow: Vercel runs
+  // `build:vercel` (and now `build:vercel:web`) during its own build, so the runner must not
+  // carry an Angular build step or upload a prebuilt output.
+  assert.doesNotMatch(source, /angular_config/);
+  assert.doesNotMatch(source, /Build dashboard/);
+  assert.doesNotMatch(source, /--prebuilt/);
 });
 
 test('deploy-promotion does not pass Vercel CLI --target preview on QA', async () => {
@@ -56,11 +56,40 @@ test('deploy-promotion uses Vercel CLI 47+ instead of vercel-action v25', async 
   assert.match(source, /npx vercel@59\.11\.7/);
 });
 
-test('deploy-promotion uploads the prebuilt dashboard browser output', async () => {
+test('deploy-promotion keeps the combined site alias per environment', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
-  assert.match(source, /dist\/salon-de-belleza\/browser/);
   assert.match(source, /vercel_alias=qa\.orvel\.pro/);
+  assert.match(source, /alias "\$URL" "\$\{\{ steps\.target\.outputs\.vercel_alias \}\}"/);
+  assert.doesNotMatch(
+    source,
+    /dist\/salon-de-belleza\/browser/,
+    'The prebuilt upload was retired in #1039; the combined build happens on Vercel.',
+  );
+});
+
+test('deploy-promotion deploys the operator console as its own project and origin', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+  const consoleStep = source.slice(source.indexOf('Deploy the operator console'));
+
+  assert.ok(consoleStep.length > 0, 'expected a console deploy step');
+  assert.match(source, /vercel_alias=qa\.orvel\.pro/);
+  assert.match(source, /console_alias=dashboard\.qa\.orvel\.pro/);
+  assert.match(source, /console_alias=dashboard\.orvel\.pro/);
+  assert.match(consoleStep, /VERCEL_PROJECT_ID: \$\{\{ secrets\.VERCEL_PROJECT_ID_WEB \}\}/);
+  assert.doesNotMatch(
+    consoleStep,
+    /secrets\.VERCEL_PROJECT_ID\s*\}\}/,
+    'The console must not deploy into the combined project.',
+  );
+  assert.match(consoleStep, /alias "\$URL" "\$CONSOLE_ALIAS"/);
+});
+
+test('the console deploy skips instead of failing while its project does not exist', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  assert.match(source, /if \[\[ -z "\$\{VERCEL_PROJECT_ID:-\}" \]\]/);
+  assert.match(source, /Skipping the console deploy/);
 });
 
 test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
