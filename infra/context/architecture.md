@@ -25,7 +25,7 @@ Product scope lives in `product.md`. This file is repository shape and boundarie
 │   ├── shared/               # reserved (only .gitkeep — do not extract yet)
 │   └── types/                # shared types
 ├── supabase/
-│   ├── functions/            # 14 Edge Functions (Deno); no mercadopago-webhook / sync-mp-plans
+│   ├── functions/            # 12 Edge Functions (Deno); no mercadopago-webhook / sync-mp-plans
 │   ├── migrations/           # SQL migrations (full-timestamp); no _legacy/ directory on current dev
 │   ├── checks/               # Postgres check constraints / linter config
 │   ├── contracts/            # RPC contracts / schema contracts
