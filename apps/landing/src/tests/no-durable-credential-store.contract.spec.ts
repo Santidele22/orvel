@@ -102,4 +102,23 @@ describe('landing durable credential storage', () => {
 
     expect(offenders, 'orvel.session.* was a write-only durable token store; do not reintroduce it.').toEqual([]);
   });
+
+  it('does not know the app session key at all', async () => {
+    const sources = await listProductionSources(landingSrc);
+    const offenders: string[] = [];
+
+    for (const file of sources) {
+      const source = await readFile(file, 'utf8');
+      // ADR 0012 rule 1: each execution target owns its key and nothing imports another's, and the
+      // landing owns none. The landing used to re-declare the app's literal and persist under it.
+      if (/orvel\.supabase\.auth/.test(source)) {
+        offenders.push(file.replace(landingSrc, 'src'));
+      }
+    }
+
+    expect(
+      offenders,
+      'The landing must not resolve the app session key; the pwa and web targets own their own (ADR 0012).',
+    ).toEqual([]);
+  });
 });
