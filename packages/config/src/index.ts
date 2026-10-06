@@ -10,4 +10,8 @@ export {
   type EnvSource,
 } from './dashboard-env';
 
-export { ORVEL_SUPABASE_AUTH_STORAGE_KEY } from './supabase-storage-key';
+export {
+  ORVEL_SUPABASE_AUTH_STORAGE_KEY,
+  resolveAuthStorageKey,
+  type OrvelAuthStorageTarget,
+} from './supabase-storage-key';

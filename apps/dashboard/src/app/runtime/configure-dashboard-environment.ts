@@ -7,11 +7,17 @@
  *
  * This module must be imported **before** `app/app.config`, because some core modules
  * (`core/auth/supabase-config.ts`) read the runtime env at module scope.
+ *
+ * Fase 4 of #1098 — it also declares which execution target this app is, so the core resolves the
+ * pwa's own session key instead of a key shared with the landing and the console (ADR 0012).
  */
 import { environment } from '../../environments/environment';
 import { configureDashboardEnvironmentFallback } from '@orvel/dashboard-core/runtime/dashboard-env';
+import { configureDashboardAuthTarget } from '@orvel/dashboard-core/auth/dashboard-auth-target';
 
 configureDashboardEnvironmentFallback({
   PUBLIC_SUPABASE_URL: environment.supabaseUrl,
   PUBLIC_SUPABASE_ANON_KEY: environment.supabaseAnonKey
 });
+
+configureDashboardAuthTarget('pwa');
