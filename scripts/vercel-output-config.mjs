@@ -86,9 +86,21 @@ export function buildSecurityHeaders(options = {}) {
 
 export const SECURITY_HEADERS = buildSecurityHeaders();
 
-const SECURITY_HEADERS_ROUTE_SRC = '/(.*)';
+export const SECURITY_HEADERS_ROUTE_SRC = '/(.*)';
 const FILESYSTEM_HANDLE = { handle: 'filesystem' };
-const HOSTING_ROUTES = [DASHBOARD_SPA_REWRITE, BOOKING_SHARE_REWRITE, BOOKING_SPA_REWRITE];
+
+/**
+ * The console (ADR 0012) is served from its own origin and its own Vercel project, so it owns the
+ * root path: one SPA fallback, and none of the landing's path rewrites. Shipping `/dashboard/*` or
+ * `/booking/*` there would make the console answer for paths that no longer belong to it.
+ */
+export const WEB_CONSOLE_SPA_REWRITE = { src: '/(.*)', dest: '/index.html' };
+
+/** Rewrites of the combined deployment (landing + pwa + turnero on one origin). */
+export const COMBINED_HOSTING_ROUTES = [DASHBOARD_SPA_REWRITE, BOOKING_SHARE_REWRITE, BOOKING_SPA_REWRITE];
+
+/** Rewrites of the standalone console artifact. */
+export const WEB_CONSOLE_HOSTING_ROUTES = [WEB_CONSOLE_SPA_REWRITE];
 
 function isSameRewrite(route, rewrite) {
   return route?.src === rewrite.src && route?.dest === rewrite.dest;
@@ -98,8 +110,8 @@ function isManagedHeadersRoute(route) {
   return route?.src === SECURITY_HEADERS_ROUTE_SRC && Boolean(route?.headers);
 }
 
-function hostingRouteCopies() {
-  return HOSTING_ROUTES.map((rewrite) => ({ ...rewrite }));
+function hostingRouteCopies(hostingRoutes) {
+  return hostingRoutes.map((rewrite) => ({ ...rewrite }));
 }
 
 function securityHeadersRoute(options) {
@@ -110,13 +122,20 @@ function withSecurityHeaders(routes, options) {
   return [securityHeadersRoute(options), ...routes.filter((route) => !isManagedHeadersRoute(route))];
 }
 
+/**
+ * Patch a Vercel Build Output `config.json`.
+ *
+ * `options.hostingRoutes` selects which artifact this is: the combined deployment (the default) or
+ * the standalone console. `options.supabaseOrigin` feeds the CSP, as before.
+ */
 export function patchVercelOutputConfig(config, options = {}) {
+  const managedHostingRoutes = options.hostingRoutes ?? COMBINED_HOSTING_ROUTES;
   const existingRoutes = Array.isArray(config?.routes) ? [...config.routes] : [];
   const withoutHostingRoutes = existingRoutes.filter(
-    (route) => !HOSTING_ROUTES.some((rewrite) => isSameRewrite(route, rewrite)),
+    (route) => !managedHostingRoutes.some((rewrite) => isSameRewrite(route, rewrite)),
   );
   const filesystemIndex = withoutHostingRoutes.findIndex((route) => route?.handle === 'filesystem');
-  const hostingRoutes = hostingRouteCopies();
+  const hostingRoutes = hostingRouteCopies(managedHostingRoutes);
 
   const routes =
     filesystemIndex >= 0
