@@ -92,6 +92,16 @@ test('the console deploy skips instead of failing while its project does not exi
   assert.match(source, /Skipping the console deploy/);
 });
 
+test('deploy-promotion declares the function runtime environment per branch', async () => {
+  const source = await readFile(workflowUrl, 'utf8');
+
+  // ADR 0012: the handoff allowlist resolves origins from ENVIRONMENT. Nothing used to set it, so
+  // every deployed function also allowed the six localhost origins, production included.
+  assert.match(source, /function_environment=qa/);
+  assert.match(source, /function_environment=production/);
+  assert.match(source, /supabase secrets set ENVIRONMENT=\$\{\{ steps\.target\.outputs\.function_environment \}\}/);
+});
+
 test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 

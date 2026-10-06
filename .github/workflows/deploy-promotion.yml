@@ -29,6 +29,7 @@ jobs:
             echo "vercel_args=" >> $GITHUB_OUTPUT
             echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "console_alias=dashboard.qa.orvel.pro" >> $GITHUB_OUTPUT
+            echo "function_environment=qa" >> $GITHUB_OUTPUT
             echo "landing_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
             echo "dashboard_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -36,6 +37,7 @@ jobs:
             echo "vercel_args=--prod" >> $GITHUB_OUTPUT
             echo "vercel_alias=" >> $GITHUB_OUTPUT
             echo "console_alias=dashboard.orvel.pro" >> $GITHUB_OUTPUT
+            echo "function_environment=production" >> $GITHUB_OUTPUT
             echo "landing_url=https://orvel.pro" >> $GITHUB_OUTPUT
             echo "dashboard_url=https://orvel.pro" >> $GITHUB_OUTPUT
           else
@@ -51,6 +53,16 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
         run: supabase link --project-ref ${{ steps.target.outputs.supabase_ref }}
+
+      # ADR 0012 — the handoff allowlist has to know which environment it is serving: production
+      # allows the three production origins, qa its own three, and only an unset value means the
+      # local stack. Nothing used to set this, so every deployed function also allowed the six
+      # localhost origins. The value lives here, in the repository, instead of only in the
+      # Supabase project settings where it cannot be reviewed.
+      - name: Declare the function runtime environment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+        run: supabase secrets set ENVIRONMENT=${{ steps.target.outputs.function_environment }}
 
       - name: Apply migrations
         env:
