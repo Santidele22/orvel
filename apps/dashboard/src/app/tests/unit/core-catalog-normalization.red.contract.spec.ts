@@ -76,10 +76,10 @@ const rawCatalogFromSupabase = {
 
 async function loadCatalogModule(): Promise<CatalogModule> {
   try {
-    return (await import('../../core/catalog/reference-catalog')) as CatalogModule;
+    return (await import('@orvel/dashboard-core/catalog/reference-catalog')) as CatalogModule;
   } catch {
     throw new Error(
-      'TODO(BB-8): add src/app/core/catalog/reference-catalog.ts with normalization and alias helpers backed by get_dashboard_reference_catalog(), not hardcoded plan/business-type matrices.'
+      'TODO(BB-8): add ../../packages/dashboard-core/src/catalog/reference-catalog.ts with normalization and alias helpers backed by get_dashboard_reference_catalog(), not hardcoded plan/business-type matrices.'
     );
   }
 }
@@ -137,11 +137,12 @@ describe('RED contract: core catalog normalization and consumers', () => {
 
   it('migrates onboarding consumers away from hardcoded plan/business-type matrices', () => {
     const dashboardRoot = process.cwd();
+    // The landing->dashboard wiring flow was retired in #1076 Fase 0.1 batch 4 (Santi's call); the
+    // signup-business-types step is still parked, so it stays in this list.
     const consumerFiles = [
       'src/app/features/onboarding/pages/signup-business-types-step.page.ts',
       'src/app/features/onboarding/data-access/business-type-defaults.ts',
-      'src/app/features/onboarding/data-access/onboarding-plan-rules.ts',
-      'src/app/features/onboarding/data-access/landing-dashboard-onboarding-wiring.flow.ts'
+      'src/app/features/onboarding/data-access/onboarding-plan-rules.ts'
     ];
 
     for (const relativePath of consumerFiles) {

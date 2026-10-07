@@ -1,25 +1,23 @@
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
+
+/**
+ * Fase 2 of #1098: the host reads (`matchMedia`, `navigator.standalone`) go
+ * through the platform port. The user-agent *parsing* below stays here: it is a
+ * pure function over a string, which is why `isIosDevice`/`isIosSafari` still
+ * take the user agent as an argument instead of reaching for the host.
+ */
 export function isStandaloneDisplay(
   displayModeStandalone?: boolean,
   iosStandalone?: boolean,
 ): boolean {
-  const fromMedia =
-    displayModeStandalone ??
-    (typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(display-mode: standalone)').matches);
-  const fromIos =
-    iosStandalone ??
-    (typeof navigator !== 'undefined' &&
-      Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+  const platform = browserPlatform();
+  const fromMedia = displayModeStandalone ?? platform.matchesMediaQuery('(display-mode: standalone)');
+  const fromIos = iosStandalone ?? platform.isIosStandalone();
   return Boolean(fromMedia || fromIos);
 }
 
 function matchesMedia(query: string): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia(query).matches
-  );
+  return browserPlatform().matchesMediaQuery(query);
 }
 
 export function shouldShowBootSplash(

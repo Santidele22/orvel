@@ -10,8 +10,7 @@ import {
 import { requestSubscriptionCancellation } from '../../features/billing/data-access/payments/subscriptions/request-subscription-cancellation.api';
 
 describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
-  it('marks premium review pending and does not call createSubscription or redirect to init_point', async () => {
-    const createSubscription = vi.fn();
+  it('marks premium review pending and never redirects to a payment init_point', async () => {
     const redirectTo = vi.fn();
     const storage = {
       getItem: vi.fn((key: string) => (key === 'orvel.signup.plan' ? 'PREMIUM' : null)),
@@ -20,13 +19,11 @@ describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
 
     const page = new BillingSubscriptionPage({
       storage,
-      createSubscription,
       redirectTo
     });
 
     await page.startSubscription();
 
-    expect(createSubscription).not.toHaveBeenCalled();
     expect(redirectTo).not.toHaveBeenCalled();
     expect(storage.setItem).toHaveBeenCalledWith('orvel.premium_review', 'pending');
     expect(page.state().status).toBe('alias_ready');
@@ -38,17 +35,14 @@ describe('BillingSubscriptionPage alias activation (no Mercado Pago)', () => {
     });
   });
 
-  it('does not auto-start Mercado Pago checkout on activation initialize', async () => {
-    const createSubscription = vi.fn();
+  it('does not auto-start any payment checkout on activation initialize', async () => {
     const page = new BillingSubscriptionPage({
       storage: { getItem: () => 'PREMIUM', setItem: vi.fn() },
-      createSubscription,
       redirectTo: vi.fn()
     });
 
     await page.initialize();
 
-    expect(createSubscription).not.toHaveBeenCalled();
     expect(page.state().status).toBe('alias_ready');
   });
 

@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-import { DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE } from '../../core/catalog/reference-catalog';
-import { initializeRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
+import { DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE } from '@orvel/dashboard-core/catalog/reference-catalog';
+import { initializeRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 import { InAppSignupWizard } from '../../features/auth/in-app-signup-wizard';
 
 const WIZARD_PAGE = new URL('../../features/auth/pages/in-app-signup-wizard.page.ts', import.meta.url);
@@ -99,7 +99,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(payload).not.toHaveProperty('telefono');
   });
 
-  it('creates Free then starts a Premium trial without a plan picker or transfer step', () => {
+  it('creates the Free account and lands on the success step without a plan picker or transfer step', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -117,18 +117,18 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(wizard.step).toBe(3);
     expect(wizard.premiumRequested).toBe(false);
 
-    wizard.startPremiumTrial();
-    expect(wizard.premiumRequested).toBe(true);
+    wizard.markSignupComplete();
     expect(wizard.step).toBe(5);
+    expect(wizard.premiumRequested).toBe(false);
     expect(wizard.premiumRequestMetadata()).toEqual(
       expect.objectContaining({
         plan: 'FREE',
-        premium_requested: true
+        premium_requested: false
       })
     );
   });
 
-  it('backs from steps 2-3 and hides step chrome on trial success', () => {
+  it('backs from steps 2-3 and hides step chrome on the signup success step', () => {
     const wizard = new InAppSignupWizard();
     wizard.ownerName = 'Santi';
     wizard.ownerLastName = 'Delebeq';
@@ -146,7 +146,7 @@ describe('Contract: in-app signup wizard (#562)', () => {
     wizard.markAccountCreated();
     expect(wizard.step).toBe(3);
     expect(wizard.canGoBack()).toBe(true);
-    wizard.startPremiumTrial();
+    wizard.markSignupComplete();
     expect(wizard.canGoBack()).toBe(false);
     expect(wizard.showsStepChrome()).toBe(false);
   });
@@ -175,7 +175,8 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).not.toContain('Empezar gratis');
     expect(page).not.toContain('Probar 14 días');
     expect(page).toContain('Ya estás adentro');
-    expect(page).toContain('Tenés 14 días de Premium activos.');
+    expect(page).toContain('Tu cuenta está lista y arranca en el plan Gratis. El Premium se activa a mano, cuando validamos la transferencia.');
+    expect(page).not.toMatch(/14 días|\btrial\b|prueba de Premium/i);
     expect(page).not.toContain('Tu negocio ya tiene agenda. Si pediste Premium, te avisamos cuando lo activemos.');
     expect(page).toContain('Crear cuenta');
     expect(page).toContain('Apellido');
@@ -205,11 +206,11 @@ describe('Contract: in-app signup wizard (#562)', () => {
     expect(page).toMatch(/import\('canvas-confetti'\)/);
     expect(page).not.toMatch(/chooseFree\(/);
     const createAccountHandler = page.match(/protected async createAccount\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
-    expect(createAccountHandler).toContain('startPremiumTrialForCurrentBusiness');
-    expect(createAccountHandler).toContain('wizard.startPremiumTrial');
+    expect(createAccountHandler).toContain('wizard.markSignupComplete');
+    expect(createAccountHandler).not.toContain('startPremiumTrial');
     expect(createAccountHandler).toContain('triggerSignupSuccessConfetti');
     expect(createAccountHandler).not.toContain('markPremiumReviewPending');
-    expect(page).not.toContain('(click)="startPremiumTrial()"');
+    expect(page).not.toMatch(/startPremiumTrial|start_premium_trial/);
     expect(page).not.toContain('(click)="requestPremium()"');
     expect(page).not.toContain('(click)="chooseFree()"');
     expect(page).toMatch(/prefers-reduced-motion:\s*reduce/);

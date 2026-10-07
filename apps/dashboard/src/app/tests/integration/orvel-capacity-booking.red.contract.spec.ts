@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readSql(path: string): string {
-  return readFileSync(resolve(process.cwd(), path), 'utf-8');
+  // The repo root is two levels up from apps/dashboard, where vitest runs.
+  return readFileSync(resolve(process.cwd(), '..', '..', path), 'utf-8');
 }
 
 describe('Orvel capacity booking RED contracts', () => {
@@ -87,7 +88,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it("frontend availability contract includes remaining capacity payload for 'Quedan X lugares'", () => {
-    const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
+    const gateway = readFileSync(resolve(process.cwd(), '../../packages/dashboard-core/src/api/supabase-booking.gateway.ts'), 'utf-8');
     const bookingPage = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.ts'), 'utf-8');
     const bookingHtml = readFileSync(resolve(process.cwd(), 'src/app/features/booking/pages/public/public-booking.page.html'), 'utf-8');
     const merged = `${gateway}\n${bookingPage}\n${bookingHtml}`;
@@ -97,7 +98,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('frontend preserves zero remaining capacity from the canonical availability API', () => {
-    const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
+    const gateway = readFileSync(resolve(process.cwd(), '../../packages/dashboard-core/src/api/supabase-booking.gateway.ts'), 'utf-8');
 
     expect(gateway).toMatch(/remainingCapacity\s*:\s*Number\(row\.remaining_capacity\s*\?\?\s*row\.remainingCapacity\s*\?\?\s*0\)/);
     expect(gateway).not.toMatch(/remainingCapacity\s*:\s*Math\.max\(\s*1\s*,\s*Number\(/);
@@ -111,7 +112,7 @@ describe('Orvel capacity booking RED contracts', () => {
   });
 
   it('adapter contract validates admin status updates against canonical lifecycle values', () => {
-    const gateway = readFileSync(resolve(process.cwd(), 'src/app/core/api/supabase-booking.gateway.ts'), 'utf-8');
+    const gateway = readFileSync(resolve(process.cwd(), '../../packages/dashboard-core/src/api/supabase-booking.gateway.ts'), 'utf-8');
 
     expect(gateway).toMatch(/const\s+ALLOWED_BOOKING_STATUSES\s*=\s*\[[^\]]*'booked'[^\]]*'confirmed'[^\]]*'completed'[^\]]*'cancelled'[^\]]*\]/);
     expect(gateway).toMatch(/if\s*\(\s*!ALLOWED_BOOKING_STATUSES\.includes\(payload\.status\)\s*\)/);

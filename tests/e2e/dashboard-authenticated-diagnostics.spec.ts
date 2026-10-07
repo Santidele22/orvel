@@ -24,6 +24,17 @@ const demoCredentials = {
 };
 
 test.describe('authenticated dashboard workflow diagnostics', () => {
+  // On-demand diagnostics, not CI tests. They need real Supabase credentials and they perform real
+  // CRUD — create/edit/deactivate clients and services, change settings, book an appointment —
+  // against whatever project the environment points at. Running them in the default suite would
+  // mutate a real project and fail for lack of credentials, which is exactly what they did.
+  //
+  // Run them deliberately: ORVEL_E2E_DIAGNOSTICS=1 ORVEL_E2E_EMAIL=… ORVEL_E2E_PASSWORD=… pnpm run test:e2e
+  test.skip(
+    !process.env['ORVEL_E2E_DIAGNOSTICS'],
+    'Set ORVEL_E2E_DIAGNOSTICS=1 (with ORVEL_E2E_EMAIL / ORVEL_E2E_PASSWORD) to run the authenticated diagnostics.'
+  );
+
   test.setTimeout(90_000);
 
   test('diagnoses CRUD clientes', async ({ page }, testInfo) => {

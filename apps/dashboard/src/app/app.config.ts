@@ -4,7 +4,15 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { SUPABASE_CLIENT } from '@orvel/booking/infrastructure';
 
 import { routes } from './app.routes';
-import { createSupabaseClient } from './core/runtime/supabase-client';
+import { createSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client';
+import {
+  ACTIVE_BUSINESS_ID_SOURCE,
+  BUSINESS_PROFESSIONALS_SOURCE,
+  BUSINESS_SETTINGS_SOURCE,
+  PUBLIC_BUSINESS_DIRECTORY_SOURCE,
+  WORKING_HOURS_DEFAULTS_SOURCE
+} from '@orvel/dashboard-core/business/business-directory.ports';
+import { BusinessService } from './features/settings/data-access/business.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,6 +24,13 @@ export const appConfig: ApplicationConfig = {
       scope: '/dashboard/',
       registrationStrategy: 'registerImmediately'
     }),
-    { provide: SUPABASE_CLIENT, useFactory: createSupabaseClient }
+    { provide: SUPABASE_CLIENT, useFactory: createSupabaseClient },
+    // Business directory read ports: the settings feature owns the
+    // implementation, everyone else consumes these contracts.
+    { provide: BUSINESS_SETTINGS_SOURCE, useExisting: BusinessService },
+    { provide: ACTIVE_BUSINESS_ID_SOURCE, useExisting: BusinessService },
+    { provide: BUSINESS_PROFESSIONALS_SOURCE, useExisting: BusinessService },
+    { provide: WORKING_HOURS_DEFAULTS_SOURCE, useExisting: BusinessService },
+    { provide: PUBLIC_BUSINESS_DIRECTORY_SOURCE, useExisting: BusinessService }
   ]
 };

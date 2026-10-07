@@ -10,9 +10,11 @@
  * - readPlanSelection(storage): Retrieves the stored plan or null
  */
 
-import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 
-export const ONBOARDING_PLAN_STORAGE_KEY = 'turnea.onboarding.plan';
+import { ONBOARDING_PLAN_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
+
+export { ONBOARDING_PLAN_STORAGE_KEY };
 
 /**
  * Persists the selected plan to storage.

@@ -3,6 +3,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = path.resolve(process.cwd(), 'src/app');
+// Fase 3 of #1098: the shared core lives in packages/dashboard-core.
+const CORE_ROOT = path.resolve(process.cwd(), '../../packages/dashboard-core/src');
 const REPO_ROOT = path.resolve(process.cwd(), '../..');
 const LANDING_ROOT = path.join(REPO_ROOT, 'apps/landing/src');
 
@@ -107,8 +109,8 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
       readApp('features/booking/pages/public/manage-booking.page.html'),
       readApp('features/booking/data-access/public-booking.service.ts'),
       readIfExists(path.join(REPO_ROOT, 'packages/booking/src/infrastructure/supabase/api-wrapper.ts')),
-      readIfExists(path.join(APP_ROOT, 'core/api/supabase-booking.gateway.ts')),
-      readIfExists(path.join(APP_ROOT, 'core/api/supabase-booking/real-gateway.ts'))
+      readIfExists(path.join(CORE_ROOT, 'api/supabase-booking.gateway.ts')),
+      readIfExists(path.join(CORE_ROOT, 'api/supabase-booking/real-gateway.ts'))
     ].join('\n');
 
     expect(publicManageSource).not.toMatch(/\.eq\(\s*['"]manage_token['"]\s*,/i);
@@ -118,10 +120,10 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
 
   it('mock sessions/providers are explicitly dev/test gated and cannot create productive auto-login identity', () => {
     const authAndOnboardingSource = [
-      readApp('services/auth.service.ts'),
-      readIfExists(path.join(APP_ROOT, 'core/auth/mock-login-business-types.ts')),
+      readIfExists(path.join(CORE_ROOT, 'auth/auth.service.ts')),
+      readIfExists(path.join(CORE_ROOT, 'auth/mock-login-business-types.ts')),
       readIfExists(path.join(APP_ROOT, 'features/onboarding/pages/onboarding-business-step.page.ts')),
-      readIfExists(path.join(APP_ROOT, 'core/auth/route-protection.ts'))
+      readIfExists(path.join(CORE_ROOT, 'auth/route-protection.ts'))
     ].join('\n');
 
     expect(authAndOnboardingSource).not.toMatch(/localStorage\.setItem\([^)]*(?:TURNERA_SESSION_KEY|salon_auth)[\s\S]{0,240}(?:navigateByUrl\(['"]\/dashboard|isAuthenticated\.set\(true\))/i);
@@ -131,13 +133,13 @@ describe('RED Contract M8: hardcoded/test hooks/fake history cleanup', () => {
 
   it('known TS build-blocker files stay under focused typecheck watch instead of being hidden by M8 cleanup', () => {
     const blockerFiles = [
-      'core/api/supabase-booking.gateway.ts',
-      'features/onboarding/pages/onboarding-business-step.page.ts',
-      'shared/dashboard-shell/dashboard-shell.component.ts'
+      path.join(CORE_ROOT, 'api/supabase-booking.gateway.ts'),
+      path.join(APP_ROOT, 'features/onboarding/pages/onboarding-business-step.page.ts'),
+      path.join(APP_ROOT, 'shared/dashboard-shell/dashboard-shell.component.ts')
     ];
 
     for (const blockerFile of blockerFiles) {
-      expect(existsSync(path.join(APP_ROOT, blockerFile)), `${blockerFile} must remain visible for targeted typecheck`).toBe(true);
+      expect(existsSync(blockerFile), `${blockerFile} must remain visible for targeted typecheck`).toBe(true);
     }
   });
 });

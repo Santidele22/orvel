@@ -12,16 +12,16 @@ type AccountPlanPolicyModule = {
 
 async function loadAccountPlanPolicyModule(): Promise<AccountPlanPolicyModule> {
   try {
-    return (await import('../../core/accounts/account-plan-policy')) as AccountPlanPolicyModule;
+    return (await import('@orvel/dashboard-core/accounts/account-plan-policy')) as AccountPlanPolicyModule;
   } catch {
     throw new Error(
-      'TODO(BB-8): keep src/app/core/accounts/account-plan-policy.ts public API and back it with src/app/core/catalog/reference-catalog.ts.'
+      'TODO(BB-8): keep ../../packages/dashboard-core/src/accounts/account-plan-policy.ts public API and back it with ../../packages/dashboard-core/src/catalog/reference-catalog.ts.'
     );
   }
 }
 
 function readAccountPlanPolicySource(): string {
-  const sourcePath = path.join(process.cwd(), 'src', 'app', 'core', 'accounts', 'account-plan-policy.ts');
+  const sourcePath = path.join(process.cwd(), '../../packages/dashboard-core/src', 'accounts', 'account-plan-policy.ts');
   expect(fs.existsSync(sourcePath), 'Missing account plan policy source file').toBe(true);
   return fs.readFileSync(sourcePath, 'utf8');
 }

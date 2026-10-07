@@ -61,17 +61,6 @@ describe('Dashboard section skeletons until data is ready', () => {
     expect(html).not.toContain('Cargando servicios');
   });
 
-  it('servicios-standard replaces Cargando copy with skeleton hooks', () => {
-    const source = readSource(
-      'src/app/features/servicios/pages/components/servicios-standard/servicios-standard.component.ts',
-    );
-
-    expect(hasTestId(source, 'servicios-loading-skeleton')).toBe(true);
-    expect(hasTestId(source, 'servicios-skeleton-card')).toBe(true);
-    expect(source).toMatch(/role=["']status["']/i);
-    expect(source).not.toContain('Cargando servicios');
-  });
-
   it('clientes live page gates list and empty behind loading and shows row skeletons', () => {
     const html = readSource('src/app/features/clientes/pages/clientes.page.html');
 
@@ -86,18 +75,6 @@ describe('Dashboard section skeletons until data is ready', () => {
       /@if\s*\(\s*loading\(\)\s*\)[\s\S]*@else[\s\S]*clientes-empty-state/,
     );
     expect(html).not.toContain('Cargando');
-  });
-
-  it('clientes-standard replaces spinner copy with skeleton hooks', () => {
-    const source = readSource(
-      'src/app/features/clientes/pages/components/clientes-standard/clientes-standard.component.ts',
-    );
-
-    expect(hasTestId(source, 'clientes-loading-skeleton')).toBe(true);
-    expect(hasTestId(source, 'clientes-skeleton-row')).toBe(true);
-    expect(source).toMatch(/role=["']status["']/i);
-    expect(source).not.toContain('Cargando base de datos');
-    expect(source).not.toMatch(/animate-spin/);
   });
 
   it('public booking loading is a skeleton without spinner copy', () => {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidArgentinaPhone } from '../../../../core/validation/argentina-phone';
+import { isValidArgentinaPhone } from '@orvel/dashboard-core/validation/argentina-phone';
 
 export type PublicBookingFormInput = {
   firstName: string;

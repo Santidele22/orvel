@@ -5,8 +5,8 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { ClienteService } from '../../services/cliente.service';
-import { CreateClienteDTO } from '../../models/cliente.model';
+import type { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import { CreateClienteDTO } from '@orvel/dashboard-core/models/cliente.model';
 import { createMockClienteService, createMockTurnoService, type MockTurnoService as TurnoService } from '../helpers/turno-service-testbed';
 
 /**

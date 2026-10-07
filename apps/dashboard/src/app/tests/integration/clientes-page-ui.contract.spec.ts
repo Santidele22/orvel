@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 function readClientesPageSource(): string {
   const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/clientes/clientes.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/clientes/clientes.page.html');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/clientes/pages/clientes.page.html');
 
   const tsSource = existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
   const htmlSource = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';

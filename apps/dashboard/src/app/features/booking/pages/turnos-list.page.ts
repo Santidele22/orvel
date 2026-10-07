@@ -17,28 +17,32 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { CalendarPickerComponent } from '../../../shared/components/calendar-picker/calendar-picker.component';
-import { ThemeService } from '../../../core/theming/theme.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { Turno, TurnoEstado, CreateTurnoDTO, TurnoWithRelations } from '../models/turno.model';
-import { Cliente } from '../../../models/cliente.model';
-import { Servicio } from '../../../models/servicio.model';
-import { BusinessService } from '../../settings/data-access/business.service';
-import { WeekdayKey } from '../../../models/business.model';
+import { Cliente } from '@orvel/dashboard-core/models/cliente.model';
+import { Servicio } from '@orvel/dashboard-core/models/servicio.model';
+import {
+  BUSINESS_PROFESSIONALS_SOURCE,
+  BUSINESS_SETTINGS_SOURCE,
+  WORKING_HOURS_DEFAULTS_SOURCE
+} from '@orvel/dashboard-core/business/business-directory.ports';
+import { WeekdayKey } from '@orvel/dashboard-core/models/business.model';
 import type { AdminBlockedTimePayload } from '@orvel/booking';
-import { DashboardService } from '../../../core/dashboard/dashboard.service';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
-import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
+import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 import { TurnoFormPage } from './turno-form.page';
 import { MobileAgendaDayViewComponent } from '../ui/mobile-agenda-day-view/mobile-agenda-day-view.component';
-import { createIsMobileSignal } from '../../../core/shell/is-mobile/is-mobile';
+import { createIsMobileSignal } from '@orvel/dashboard-core/platform/is-mobile';
 import {
   civilDateKey,
   filterLiveAvailableStarts,
   filterLiveTurnos,
   localDateFromDateKey,
   readArgentinaClock,
-} from '../../../core/time/argentina-clock';
+} from '@orvel/dashboard-core/time/argentina-clock';
 import {
   buildProfessionalFilterChips,
   turnoMatchesProfessionalFilter,
@@ -128,7 +132,9 @@ export class TurnosListPage implements OnInit, OnDestroy {
   private clienteService = inject(ClienteService);
   private servicioService = inject(ServicioService);
   protected themeService = inject(ThemeService);
-  private settingsFacade = inject(BusinessService);
+  private readonly settingsSource = inject(BUSINESS_SETTINGS_SOURCE);
+  private readonly workingHoursDefaults = inject(WORKING_HOURS_DEFAULTS_SOURCE);
+  private readonly businessProfessionals = inject(BUSINESS_PROFESSIONALS_SOURCE);
   private authService = inject(AuthService);
   private router = inject(Router);
   protected branchContext = getBranchContextService();
@@ -224,13 +230,13 @@ export class TurnosListPage implements OnInit, OnDestroy {
     const date = this.selectedDate();
     const days: WeekdayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayKey = days[date.getDay()];
-    const settings = this.settingsFacade.settings();
+    const settings = this.settingsSource.settings();
     
     if (settings) {
       return settings.workingHours[dayKey];
     }
     
-    return this.settingsFacade.getDefaultWorkingHours()[dayKey];
+    return this.workingHoursDefaults.getDefaultWorkingHours()[dayKey];
   });
 
   // Computed filtered turnos with lazy loading limit
@@ -383,7 +389,7 @@ export class TurnosListPage implements OnInit, OnDestroy {
     }
 
     try {
-      const team = await this.settingsFacade.listBusinessProfessionals(businessId);
+      const team = await this.businessProfessionals.listBusinessProfessionals(businessId);
       this.teamProfessionals.set(team);
     } catch {
       this.teamProfessionals.set([]);

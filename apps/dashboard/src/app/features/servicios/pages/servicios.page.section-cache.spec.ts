@@ -8,7 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ThemeService } from '../../../core/theming/theme.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { ServicioService } from '../data-access/servicio.service';
 import { ServiciosPage } from './servicios.page';
 

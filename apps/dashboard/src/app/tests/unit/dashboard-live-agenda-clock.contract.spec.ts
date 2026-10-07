@@ -10,12 +10,14 @@ import { of } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BookingQueries, BookingRecord } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
-import { ClienteService } from '../../features/clientes/data-access/cliente.service';
-import { ServicioService } from '../../features/servicios/data-access/servicio.service';
-import { BusinessService } from '../../features/settings/data-access/business.service';
-import { DashboardService } from '../../core/dashboard/dashboard.service';
+import {
+  DASHBOARD_BUSINESS_SOURCE,
+  DASHBOARD_CLIENTE_SOURCE,
+  DASHBOARD_SERVICIO_SOURCE
+} from '@orvel/dashboard-core/dashboard/dashboard-data.ports';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
 import { pickNextAppointment } from '../../features/dashboard-home/pages/pick-next-appointment';
-import { filterLiveAvailableStarts, filterLiveTurnos, readArgentinaClock } from '../../core/time/argentina-clock';
+import { filterLiveAvailableStarts, filterLiveTurnos, readArgentinaClock } from '@orvel/dashboard-core/time/argentina-clock';
 
 const ART_1500 = new Date('2026-08-28T18:00:00.000Z');
 const ART_1501 = new Date('2026-08-28T18:01:00.000Z');
@@ -43,7 +45,7 @@ class InMemoryBookingQueries implements BookingQueries {
   getBookingCounts = vi.fn(async () => ({ total: this.rows.length, hoy: this.rows.length, futuros: 0 }));
 }
 
-vi.mock('../../core/branches/branch-context.service', () => ({
+vi.mock('@orvel/dashboard-core/branches/branch-context.service', () => ({
   getBranchContextService: () => ({ getActiveBranchId: () => 'br-1', ensureLoaded: async () => undefined }),
   registerSectionCacheInvalidator: () => undefined,
   invalidateSectionCaches: () => undefined,
@@ -63,9 +65,9 @@ function createService(rows: BookingRecord[]) {
       provideZonelessChangeDetection(),
       DashboardService,
       { provide: BOOKING_QUERIES, useValue: queries },
-      { provide: ClienteService, useValue: { items: signal([{ id: 'c-1', nombre: 'Ada' }]), getAll: () => of([]) } },
-      { provide: ServicioService, useValue: { items: signal([{ id: 's-1', nombre: 'Corte' }]), getAll: () => of([]) } },
-      { provide: BusinessService, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } },
+      { provide: DASHBOARD_CLIENTE_SOURCE, useValue: { items: signal([{ id: 'c-1', nombre: 'Ada' }]), getAll: () => of([]) } },
+      { provide: DASHBOARD_SERVICIO_SOURCE, useValue: { items: signal([{ id: 's-1', nombre: 'Corte' }]), getAll: () => of([]) } },
+      { provide: DASHBOARD_BUSINESS_SOURCE, useValue: { settings: signal({ workingHours, slotIntervalMinutes: 30 }) } },
     ],
   });
   return { service: TestBed.inject(DashboardService), queries };

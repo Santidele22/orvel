@@ -4,7 +4,7 @@
 // domain, shared, types) staging a future hexagonal architecture.
 //
 // This file is types-only. The runtime body of `validateSessionSchema`
-// remains in apps/dashboard/src/app/core/auth/validate-session-schema.ts
+// remains in packages/dashboard-core/src/auth/validate-session-schema.ts
 // because it depends on ALLOWED_SELECTED_BUSINESS_TYPES (which itself
 // derives from app-internal onboarding reference catalog).
 // See sdd-design D1 for the split rationale.
@@ -55,7 +55,7 @@ export interface TurneaSession {
 }
 
 // D1: type signature only. Runtime body lives in
-// apps/dashboard/src/app/core/auth/validate-session-schema.ts.
+// packages/dashboard-core/src/auth/validate-session-schema.ts.
 export type ValidateSessionSchema = (
   input: unknown,
   now?: number,

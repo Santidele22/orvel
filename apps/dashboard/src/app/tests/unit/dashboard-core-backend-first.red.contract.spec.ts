@@ -43,10 +43,10 @@ describe('RED contract: dashboard core catalog is backend-first', () => {
   it('has a productive catalog gateway/service that fetches get_dashboard_reference_catalog RPC', () => {
     const catalogSource = readDomainSource('reference-catalog.ts');
     const catalogGatewayCandidates = [
-      'src/app/core/catalog/reference-catalog.gateway.ts',
-      'src/app/core/catalog/reference-catalog.service.ts',
-      'src/app/core/catalog/dashboard-reference-catalog.gateway.ts',
-      'src/app/core/catalog/dashboard-reference-catalog.service.ts'
+      '../../packages/dashboard-core/src/catalog/reference-catalog.gateway.ts',
+      '../../packages/dashboard-core/src/catalog/reference-catalog.service.ts',
+      '../../packages/dashboard-core/src/catalog/dashboard-reference-catalog.gateway.ts',
+      '../../packages/dashboard-core/src/catalog/dashboard-reference-catalog.service.ts'
     ];
     const gatewaySource = catalogGatewayCandidates
       .map((relativePath) => {
@@ -82,7 +82,7 @@ describe('RED contract: dashboard core catalog is backend-first', () => {
 
 describe('RED contract: dashboard core entitlements are backend snapshot-first', () => {
   it('server-entitlements API uses get_business_entitlements_snapshot RPC and no fake business maps', () => {
-    const source = readDashboardSource('src/app/core/entitlements/server-entitlements.api.ts');
+    const source = readDashboardSource('../../packages/dashboard-core/src/entitlements/server-entitlements.api.ts');
 
     expect(source, 'Core entitlements must call the backend entitlement snapshot RPC').toMatch(
       /\.rpc\(\s*['"]get_business_entitlements_snapshot['"]/
@@ -109,7 +109,7 @@ describe('RED contract: dashboard core entitlements are backend snapshot-first',
   });
 
   it('exposes all entitlement limits in the core snapshot shape', async () => {
-    const { getBusinessEntitlementsSnapshot } = await import('../../core/entitlements/server-entitlements.api');
+    const { getBusinessEntitlementsSnapshot } = await import('@orvel/dashboard-core/entitlements/server-entitlements.api');
 
     const snapshot = await getBusinessEntitlementsSnapshot({ businessId: 'contract-shape-check' });
 
@@ -124,7 +124,7 @@ describe('RED contract: dashboard core entitlements are backend snapshot-first',
   });
 
   it('fails closed when entitlement truth is unavailable instead of silently enabling privileges', async () => {
-    const { assertBusinessEntitlement } = await import('../../core/entitlements/server-entitlements.api');
+    const { assertBusinessEntitlement } = await import('@orvel/dashboard-core/entitlements/server-entitlements.api');
 
     await expect(
       assertBusinessEntitlement({

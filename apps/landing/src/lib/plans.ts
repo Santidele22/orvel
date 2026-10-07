@@ -296,52 +296,6 @@ function getStaticPlans(): Plan[] {
 }
 
 /**
- * Create a subscription using the Edge Function
- * Requires authenticated user
- */
-export async function createSubscription(planCode: string): Promise<{
-  success: boolean;
-  init_point?: string;
-  subscription?: unknown;
-  message?: string;
-  error?: string;
-}> {
-  // Get the session token from localStorage
-  const sessionData = localStorage.getItem('orvel.session.v1');
-  if (!sessionData) {
-    return { success: false, error: 'No hay sesión activa' };
-  }
-
-  try {
-    const session = JSON.parse(sessionData);
-    const token = session.token;
-
-    const response = await fetch(
-      `${import.meta.env.PUBLIC_SUPABASE_URL}/functions/v1/create-subscription`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ plan_code: planCode })
-      }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      return { success: false, error: result.message || 'Error al crear suscripción' };
-    }
-
-    return result;
-  } catch (err) {
-    console.error('Subscription error:', err);
-    return { success: false, error: 'Error de conexión' };
-  }
-}
-
-/**
  * Map plan code to display name for buttons
  */
 export function getPlanButtonLabel(code: string): string {

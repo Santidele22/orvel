@@ -1,0 +1,35 @@
+{
+  "name": "@orvel/dashboard-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@angular/core": "^21.2.24",
+    "@angular/router": "^21.2.24",
+    "@orvel/auth": "workspace:*",
+    "@orvel/billing": "workspace:*",
+    "@orvel/booking": "workspace:*",
+    "@orvel/config": "workspace:*",
+    "@orvel/domain": "workspace:*",
+    "@orvel/types": "workspace:*",
+    "@supabase/supabase-js": "^2.108.2",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/compiler": "^21.2.24",
+    "@angular/platform-browser": "^21.2.24",
+    "jsdom": "^29.0.2",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.4"
+  }
+}

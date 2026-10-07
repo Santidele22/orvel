@@ -26,9 +26,9 @@ const PACKAGE_INDEX = join(PACKAGE_ROOT, 'src', 'index.ts');
 const PACKAGE_TYPES = join(PACKAGE_ROOT, 'src', 'types.ts');
 const PACKAGE_GATEWAY = join(PACKAGE_ROOT, 'src', 'gateway-interface.ts');
 const PACKAGE_SLUG = join(PACKAGE_ROOT, 'src', 'public-booking-slug.ts');
-const DASHBOARD_TYPES_SHIM = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'api', 'supabase-booking', 'types.ts');
-const DASHBOARD_GATEWAY_SHIM = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'api', 'supabase-booking', 'gateway-interface.ts');
-const DASHBOARD_SLUG_SHIM = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'api', 'supabase-booking', 'public-booking-slug.ts');
+const DASHBOARD_TYPES_SHIM = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'api', 'supabase-booking', 'types.ts');
+const DASHBOARD_GATEWAY_SHIM = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'api', 'supabase-booking', 'gateway-interface.ts');
+const DASHBOARD_SLUG_SHIM = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'api', 'supabase-booking', 'public-booking-slug.ts');
 const DASHBOARD_PACKAGE_JSON = join(REPO_ROOT, 'apps', 'dashboard', 'package.json');
 
 function readSource(filePath: string): string {
@@ -127,7 +127,7 @@ describe('@orvel/booking package shape contract (chore-extract-booking-package)'
     ];
     const bannedSubstrings = [
       'core/runtime/dashboard-env',
-      'services/auth.service',
+      '../../core/auth/auth.service',
       'features/onboarding/'
     ];
 

@@ -13,15 +13,16 @@ import {
   BookingNotificationsService,
   BookingSchedulingService
 } from '@orvel/booking/application';
-import { getBranchContextService } from '../../core/branches/branch-context.service';
+import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
 import type { Turno, TurnoWithRelations } from '../../features/booking/models/turno.model';
 import { TurnosListPage } from '../../features/booking/pages/turnos-list.page';
-import { AuthService } from '../../services/auth.service';
-import { MockNotificationService } from '../../services/notification.service';
-import { ACTIVE_BRANCH_STORAGE_KEY } from '../../core/storage/browser-storage-keys';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { MockNotificationService } from '../helpers/mock-notification.service';
+import { ACTIVE_BRANCH_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
-import { ThemeService } from '../../core/theming/theme.service';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { Router } from '@angular/router';
 
@@ -267,6 +268,14 @@ describe('Admin turno cancel action contract', () => {
         { provide: ClienteService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ServicioService, useValue: { getAll: vi.fn(), items: signal([]) } },
         { provide: ThemeService, useValue: { activeTheme: signal('zen') } },
+        {
+          provide: DashboardService,
+          useValue: {
+            now: signal(new Date('2026-10-01T12:00:00.000Z')),
+            isAdminBookingsWarm: vi.fn(() => false),
+            invalidate: vi.fn()
+          }
+        },
         {
           provide: BusinessService,
           useValue: {

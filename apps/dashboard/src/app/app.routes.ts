@@ -1,5 +1,5 @@
 import { CanMatchFn, Routes } from '@angular/router';
-import { dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
+import { dashboardAuthGuard } from '@orvel/dashboard-core/auth/dashboard-auth.guard';
 
 const isDashboardShellPath: CanMatchFn = (_route, segments) => {
   const head = segments[0]?.path;

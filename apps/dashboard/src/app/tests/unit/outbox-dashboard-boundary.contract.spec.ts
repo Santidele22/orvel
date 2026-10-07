@@ -5,6 +5,8 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const DASHBOARD_SRC = path.join(ROOT, 'src', 'app');
 const DASHBOARD_PACKAGE = path.join(ROOT, 'package.json');
+// Fase 3 of #1098: the notification helpers live in the extracted core.
+const CORE_SRC = path.resolve(ROOT, '..', '..', 'packages', 'dashboard-core', 'src');
 
 function walkTsFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -14,7 +16,7 @@ function walkTsFiles(dir: string): string[] {
   });
 }
 
-vi.mock('../../core/notifications/notification-sender', () => ({
+vi.mock('@orvel/dashboard-core/notifications/notification-sender', () => ({
   sendNotification: vi.fn(async () => ({ success: true })),
 }));
 
@@ -30,7 +32,7 @@ describe('Dashboard notification outbox boundary', () => {
   });
 
   it('does not keep provider environment loaders in dashboard/browser notification helpers', () => {
-    const notificationFiles = walkTsFiles(path.join(DASHBOARD_SRC, 'core', 'notifications'));
+    const notificationFiles = walkTsFiles(path.join(CORE_SRC, 'notifications'));
     const notificationCorpus = notificationFiles
       .map((filePath) => fs.readFileSync(filePath, 'utf8'))
       .join('\n');
@@ -41,8 +43,8 @@ describe('Dashboard notification outbox boundary', () => {
   });
 
   it('queueHtmlEmail queues through the outbox adapter and never calls provider-direct dashboard code', async () => {
-    const { sendNotification } = await import('../../core/notifications/notification-sender');
-    const { queueHtmlEmail } = await import('../../core/notifications/outbox-email-sender');
+    const { sendNotification } = await import('@orvel/dashboard-core/notifications/notification-sender');
+    const { queueHtmlEmail } = await import('@orvel/dashboard-core/notifications/outbox-email-sender');
 
     await expect(queueHtmlEmail({
       to: 'customer@example.test',

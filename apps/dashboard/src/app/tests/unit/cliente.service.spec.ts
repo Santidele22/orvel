@@ -5,8 +5,8 @@
 // Spanish comments for clarity
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ClienteService } from '../../services/cliente.service';
-import { Cliente, CreateClienteDTO } from '../../models/cliente.model';
+import { ClienteService } from '../../features/clientes/data-access/cliente.service';
+import { Cliente, CreateClienteDTO } from '@orvel/dashboard-core/models/cliente.model';
 
 describe('ClienteService - Unit Tests', () => {
   let service: ClienteService;
