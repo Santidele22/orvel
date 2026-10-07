@@ -1,11 +1,12 @@
+import { EnvironmentProviders, Provider } from '@angular/core';
 import { Routes } from '@angular/router';
-import { dashboardAuthChildGuard, dashboardAuthGuard } from './core/auth/dashboard-auth.guard';
-import { DashboardService } from './core/dashboard/dashboard.service';
+import { dashboardAuthChildGuard, dashboardAuthGuard } from '@orvel/dashboard-core/auth/dashboard-auth.guard';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
 import {
   DASHBOARD_BUSINESS_SOURCE,
   DASHBOARD_CLIENTE_SOURCE,
   DASHBOARD_SERVICIO_SOURCE
-} from './core/dashboard/dashboard-data.ports';
+} from '@orvel/dashboard-core/dashboard/dashboard-data.ports';
 import { ClienteService } from './features/clientes/data-access/cliente.service';
 import { ServicioService } from './features/servicios/data-access/servicio.service';
 import { BusinessService } from './features/settings/data-access/business.service';
@@ -17,7 +18,7 @@ import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
   DASHBOARD_TOUR_HELP_COMPONENT
-} from './core/shell/dashboard-chrome.ports';
+} from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
 
 export const dashboardShellChildren: Routes = [
   {
@@ -55,6 +56,25 @@ export const dashboardShellChildren: Routes = [
   }
 ];
 
+/**
+ * The shell's provider bindings, shared by both execution targets (#1098 Fase 3).
+ *
+ * `apps/dashboard-web` mounts the same shell over the same features while the web/pwa split is a
+ * strangler, so it imports this array instead of copying it and drifting.
+ */
+export const dashboardShellProviders: (Provider | EnvironmentProviders)[] = [
+  provideBookingQueries(),
+  DashboardService,
+  // Bind core dashboard read ports to the feature implementations.
+  { provide: DASHBOARD_CLIENTE_SOURCE, useExisting: ClienteService },
+  { provide: DASHBOARD_SERVICIO_SOURCE, useExisting: ServicioService },
+  { provide: DASHBOARD_BUSINESS_SOURCE, useExisting: BusinessService },
+  // Bind core shell chrome ports to the feature implementations.
+  { provide: DASHBOARD_TOUR, useExisting: OperatorTourService },
+  { provide: DASHBOARD_TOUR_HELP_COMPONENT, useValue: OperatorTourHelpButtonComponent },
+  { provide: DASHBOARD_ONBOARDING_PAYLOAD, useValue: readOnboardingState }
+];
+
 export const dashboardShellRoutes: Routes = [
   {
     path: '',
@@ -62,18 +82,7 @@ export const dashboardShellRoutes: Routes = [
       import('./shared/dashboard-shell/dashboard-shell.component').then(m => m.DashboardShellComponent),
     canActivate: [dashboardAuthGuard],
     canActivateChild: [dashboardAuthChildGuard],
-    providers: [
-      provideBookingQueries(),
-      DashboardService,
-      // Bind core dashboard read ports to the feature implementations.
-      { provide: DASHBOARD_CLIENTE_SOURCE, useExisting: ClienteService },
-      { provide: DASHBOARD_SERVICIO_SOURCE, useExisting: ServicioService },
-      { provide: DASHBOARD_BUSINESS_SOURCE, useExisting: BusinessService },
-      // Bind core shell chrome ports to the feature implementations.
-      { provide: DASHBOARD_TOUR, useExisting: OperatorTourService },
-      { provide: DASHBOARD_TOUR_HELP_COMPONENT, useValue: OperatorTourHelpButtonComponent },
-      { provide: DASHBOARD_ONBOARDING_PAYLOAD, useValue: readOnboardingState }
-    ],
+    providers: dashboardShellProviders,
     children: dashboardShellChildren
   }
 ];

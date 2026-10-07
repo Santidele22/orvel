@@ -1,4 +1,4 @@
-import { parseHoraMinutes, readArgentinaClock } from '../../../core/time/argentina-clock';
+import { parseHoraMinutes, readArgentinaClock } from '@orvel/dashboard-core/time/argentina-clock';
 
 export type FeaturedAppointmentLike = {
   hora?: string;

@@ -18,14 +18,14 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_PROFESSIONALS_SOURCE
-} from '../../../core/business/business-directory.ports';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
-import type { Cliente } from '../../../models/cliente.model';
-import type { Servicio } from '../../../models/servicio.model';
+} from '@orvel/dashboard-core/business/business-directory.ports';
+import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
+import type { Cliente } from '@orvel/dashboard-core/models/cliente.model';
+import type { Servicio } from '@orvel/dashboard-core/models/servicio.model';
 
 const mockClients: Cliente[] = [
   {

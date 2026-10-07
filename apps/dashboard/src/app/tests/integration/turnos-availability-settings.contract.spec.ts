@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { createMockTurnoService } from '../helpers/turno-service-testbed';
 

@@ -24,10 +24,10 @@ describe('TDD gate: zen-only MVP cleanup', () => {
   });
 
   it('blocks non-zen references in key runtime mapping modules', async () => {
-    const templateFactory = await readSource('src/app/core/templates/dashboard-template.factory.ts');
-    const templatesMap = await readSource('src/app/core/templates/dashboard-templates.ts');
-    const themeTokens = await readSource('src/app/core/theming/theme.tokens.ts');
-    const loginBusinessTypes = await readSource('src/app/core/auth/mock-login-business-types.ts');
+    const templateFactory = await readSource('../../packages/dashboard-core/src/templates/dashboard-template.factory.ts');
+    const templatesMap = await readSource('../../packages/dashboard-core/src/templates/dashboard-templates.ts');
+    const themeTokens = await readSource('../../packages/dashboard-core/src/theming/theme.tokens.ts');
+    const loginBusinessTypes = await readSource('../../packages/dashboard-core/src/auth/mock-login-business-types.ts');
 
     expect(templateFactory).toMatch(/zen\s*:\s*ZenTemplate/);
     expect(templateFactory).not.toMatch(/(industrial|chic|ink)\s*:/);
@@ -57,8 +57,8 @@ describe('TDD gate: zen-only MVP cleanup', () => {
     const onboardingBusinessStep = await readSource('src/app/features/onboarding/pages/onboarding-business-step.page.ts');
     expect(onboardingBusinessStep).not.toMatch(/'industrial'|'chic'|'ink'/);
 
-    const { createMockSessionFromLogin } = await import('../../core/auth/mock-login-business-types');
-    const { validateSessionSchema } = await import('../../core/auth/validate-session-schema');
+    const { createMockSessionFromLogin } = await import('@orvel/dashboard-core/auth/mock-login-business-types');
+    const { validateSessionSchema } = await import('@orvel/dashboard-core/auth/validate-session-schema');
 
     const session = createMockSessionFromLogin({
       email: 'demo@turnea.app',
@@ -72,13 +72,13 @@ describe('TDD gate: zen-only MVP cleanup', () => {
   });
 
   it('enforces zen-only theme contracts at runtime boundaries', async () => {
-    const themePalettesSource = await readSource('src/app/core/theming/dashboard-theme-palettes.tokens.ts');
+    const themePalettesSource = await readSource('../../packages/dashboard-core/src/theming/dashboard-theme-palettes.tokens.ts');
     expect(themePalettesSource).not.toMatch(/^(\s*)(industrial|chic|ink):/m);
 
     const { DASHBOARD_THEME_PALETTES, DASHBOARD_THEME_ALIASES } = await import(
-      '../../core/theming/dashboard-theme-palettes.tokens'
+      '@orvel/dashboard-core/theming/dashboard-theme-palettes.tokens'
     );
-    const { applyDashboardTheme } = await import('../../core/theming/theme-runtime');
+    const { applyDashboardTheme } = await import('@orvel/dashboard-core/theming/theme-runtime');
 
     expect(Object.keys(DASHBOARD_THEME_PALETTES)).toEqual(['zen']);
     expect(new Set(Object.values(DASHBOARD_THEME_ALIASES))).toEqual(new Set(['zen']));
@@ -100,8 +100,8 @@ describe('TDD gate: zen-only MVP cleanup', () => {
   });
 
   it('keeps the zen critical flow operative after cleanup', async () => {
-    const { resolveDashboardConfigFromSession } = await import('../../core/theming/dashboard-session-business-types');
-    const { sanitizeSelectedBusinessTypes } = await import('../../core/auth/mock-login-business-types');
+    const { resolveDashboardConfigFromSession } = await import('@orvel/dashboard-core/theming/dashboard-session-business-types');
+    const { sanitizeSelectedBusinessTypes } = await import('@orvel/dashboard-core/auth/mock-login-business-types');
 
     expect(resolveDashboardConfigFromSession({}).dashboards).toEqual([
       { businessType: 'zen', theme: 'zen' }

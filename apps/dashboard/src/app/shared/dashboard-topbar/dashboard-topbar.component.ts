@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DashboardThemeName } from '../../core/theming/theme.tokens';
+import { DashboardThemeName } from '@orvel/dashboard-core/theming/theme.tokens';
 import { ZenTopbarComponent } from './templates/zen-topbar.component';
 
 @Component({

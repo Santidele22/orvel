@@ -9,9 +9,8 @@ const { plansWithBilling } = Astro.props;
 ---
 
 <script define:vars={{ plansData: plansWithBilling }}>
-import { createClient } from '@supabase/supabase-js';
-import { createSupabaseBrowserAuthOptions } from '../../lib/supabase-auth-adapter';
 import { SIGNUP_STORAGE_KEYS } from '../../lib/browser-storage-keys';
+import { isAuthPresent } from '../../lib/auth-presence';
 
 // Store plans data for client-side use
 const PLANS_DATA = plansData;
@@ -21,7 +20,6 @@ const AUTHENTICATED_PAID_SUBSCRIPTION_URLS = {
 };
 const CREATE_ACCOUNT_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=missing_plan&intent=create_account';
 const INVALID_PLAN_REDIRECT_NOTICE_URL = '/auth/signup/plan?reason=invalid_plan&intent=create_account';
-let authenticatedSessionPromise = null;
 
 function hasPendingCredentialsFirst() {
   return Boolean(readProtectedPendingSignupIntent());
@@ -64,24 +62,6 @@ function isCreateAccountRedirectNoticeIntent() {
   return Boolean(getCreateAccountRedirectNoticeReason());
 }
 
-async function hasAuthenticatedSession() {
-  if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) {
-    return false;
-  }
-
-  authenticatedSessionPromise ??= createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    createSupabaseBrowserAuthOptions(localStorage)
-  )
-    .auth
-    .getSession()
-    .then(({ data }) => Boolean(data.session?.access_token))
-    .catch(() => false);
-
-  return authenticatedSessionPromise;
-}
-
 async function resolveSignupPlanHref(planCode, period, options = { commitPendingCredentialsFirst: false }) {
   if (hasPendingCredentialsFirst()) {
     if (options.commitPendingCredentialsFirst) {
@@ -98,7 +78,7 @@ async function resolveSignupPlanHref(planCode, period, options = { commitPending
     return `/auth/signup/credentials?plan=${planCode}&billing=${period}`;
   }
 
-  if (await hasAuthenticatedSession()) {
+  if (isAuthPresent()) {
     if (planCode === 'FREE') {
       return `${AUTHENTICATED_FREE_ONBOARDING_URL}&billing=${encodeURIComponent(period)}`;
     }

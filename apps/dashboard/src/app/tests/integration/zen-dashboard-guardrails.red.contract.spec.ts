@@ -157,7 +157,7 @@ describe('RED guardrails: Zen dashboard design-system compliance', () => {
 
     expect(zenPalette).toEqual(['#F2F4F3', '#8BA888', '#D9C5B2']);
 
-    const { DASHBOARD_THEME_PALETTES } = await import('../../core/theming/dashboard-theme-palettes.tokens');
+    const { DASHBOARD_THEME_PALETTES } = await import('@orvel/dashboard-core/theming/dashboard-theme-palettes.tokens');
     const zenTokens = DASHBOARD_THEME_PALETTES['zen'];
     const allowedZenColors = new Set(zenPalette);
 

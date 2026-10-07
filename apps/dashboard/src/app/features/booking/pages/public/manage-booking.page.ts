@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
+import { emitPublicBookingFailureEvent } from '@orvel/dashboard-core/observability/public-booking-operational-events';
 import { PublicBookingService, type ManageBookingDetails } from '@orvel/booking/application';
 
 type ManageErrorCode =

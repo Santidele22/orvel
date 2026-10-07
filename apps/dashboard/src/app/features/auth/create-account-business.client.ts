@@ -1,4 +1,4 @@
-import { buildCreateAccountBusinessUrl } from '../../core/auth/route-protection';
+import { buildCreateAccountBusinessUrl } from '@orvel/dashboard-core/auth/route-protection';
 import type { CreateAccountBusinessPayload } from './in-app-signup-wizard';
 
 export type CreateAccountBusinessResult = {

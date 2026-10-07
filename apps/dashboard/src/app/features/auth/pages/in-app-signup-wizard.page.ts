@@ -5,9 +5,9 @@ import { firstValueFrom } from 'rxjs';
 import {
   buildPremiumWhatsAppUrl,
   copyPremiumAlias
-} from '../../../core/billing/premium-alias-receipt';
-import { AuthService } from '../../../core/auth/auth.service';
-import { browserPlatform } from '../../../core/platform/platform.adapter';
+} from '@orvel/dashboard-core/billing/premium-alias-receipt';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import { createFreeAccountBusiness } from '../create-account-business.client';
 import { InAppSignupWizard } from '../in-app-signup-wizard';
 

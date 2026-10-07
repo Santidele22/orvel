@@ -2,8 +2,8 @@ import { Component, EventEmitter, inject, input, Output, signal } from '@angular
 import { CommonModule } from '@angular/common';
 import { isDepositUnpaid } from '@orvel/booking/application';
 import type { TurnoWithRelations } from '../../models/turno.model';
-import { DashboardService } from '../../../../core/dashboard/dashboard.service';
-import { AuthService } from '../../../../core/auth/auth.service';
+import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 
 @Component({
   selector: 'app-mobile-appointment-card',

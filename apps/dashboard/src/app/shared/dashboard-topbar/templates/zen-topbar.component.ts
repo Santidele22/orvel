@@ -1,7 +1,7 @@
 import { Component, signal, inject, Input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../../core/auth/auth.service';
-import { DashboardNotificationsService } from '../../../core/notifications/dashboard-notifications.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { DashboardNotificationsService } from '@orvel/dashboard-core/notifications/dashboard-notifications.service';
 
 @Component({
   selector: 'app-zen-topbar',

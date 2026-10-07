@@ -4,10 +4,10 @@ import {
   buildLandingLoginRedirect,
   buildLandingPlanSelectionRedirect,
   sanitizeReturnTo
-} from '../../core/auth/route-protection';
-import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/auth/route-protection';
+import { CANONICAL_PLAN_CODES, PLAN_CODE_ALIASES } from '@orvel/dashboard-core/plans/plan-entitlements';
 
-const DASHBOARD_AUTH_GUARD_PATH = new URL('../../core/auth/dashboard-auth.guard.ts', import.meta.url);
+const DASHBOARD_AUTH_GUARD_PATH = new URL('../../../../../../packages/dashboard-core/src/auth/dashboard-auth.guard.ts', import.meta.url);
 
 async function loadDashboardAuthGuardSource(): Promise<string> {
   return readFile(DASHBOARD_AUTH_GUARD_PATH, 'utf8');

@@ -4,17 +4,17 @@
 import { Injectable, signal } from '@angular/core';
 import { Observable, of, from, delay, tap, switchMap, throwError, catchError } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, SERVICIOS_POR_CATEGORIA } from '../../../models/servicio.model';
-import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/adapters/supabase/supabase-client.factory';
-import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { AuthService } from '../../../core/auth/auth.service';
+import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, SERVICIOS_POR_CATEGORIA } from '@orvel/dashboard-core/models/servicio.model';
+import { loadDashboardRuntimeEnv } from '@orvel/dashboard-core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client.factory';
+import { SERVICIOS_FALLBACK_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { inject } from '@angular/core';
-import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '@orvel/dashboard-core/branches/branch-context.service';
 import {
   BUSINESS_SETTINGS_SOURCE,
   type BusinessSettingsSource
-} from '../../../core/business/business-directory.ports';
+} from '@orvel/dashboard-core/business/business-directory.ports';
 
 type ServicioMutationScope = {
   tenantContext: { accountId: string };

@@ -1,5 +1,5 @@
 import type { ApiError, ApiResponse } from '@orvel/booking';
-import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 
 const GENERIC_BOOKING_ERROR_MESSAGE = 'No pudimos confirmar la reserva. Revisá los datos e intentá nuevamente.';
 

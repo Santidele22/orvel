@@ -25,11 +25,11 @@ function fromRoot(relativePath: string): string {
 }
 
 async function loadThemeTokens(): Promise<Record<string, Record<string, unknown>>> {
-  const module = await import('../../core/theming/theme.tokens');
+  const module = await import('@orvel/dashboard-core/theming/theme.tokens');
   const tokens = module.DASHBOARD_THEME_TOKENS as Record<string, Record<string, unknown>> | undefined;
 
   if (!tokens) {
-    throw new Error('Missing DASHBOARD_THEME_TOKENS export in src/app/core/theming/theme.tokens.ts');
+    throw new Error('Missing DASHBOARD_THEME_TOKENS export in ../../packages/dashboard-core/src/theming/theme.tokens.ts');
   }
 
   return tokens;

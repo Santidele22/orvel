@@ -48,7 +48,7 @@ describe('Contract: public PWA in-app sign-in', () => {
     expect(existsSync(resolve(process.cwd(), 'src/app/features/auth/pages/in-app-login.page.ts'))).toBe(true);
 
     const loginPage = source('src/app/features/auth/pages/in-app-login.page.ts');
-    const authService = source('src/app/core/auth/auth.service.ts');
+    const authService = source('../../packages/dashboard-core/src/auth/auth.service.ts');
 
     expect(loginPage).toContain('AuthService');
     expect(loginPage).toMatch(/\.login\(/);

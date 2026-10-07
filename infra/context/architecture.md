@@ -11,7 +11,8 @@ Product scope lives in `product.md`. This file is repository shape and boundarie
 ├── AGENTS.md
 ├── README.md
 ├── apps/
-│   ├── dashboard/            # Angular 21 PWA + @angular/pwa
+│   ├── dashboard/            # Angular 21 PWA + @angular/pwa (public turnero + mobile operator)
+│   ├── dashboard-web/        # Angular 21 operator console target; no PWA machinery (#1098 Fase 3)
 │   ├── landing/              # Astro 6 + Svelte 5
 │   └── shared/               # cross-app assets (email templates)
 ├── packages/
@@ -19,11 +20,12 @@ Product scope lives in `product.md`. This file is repository shape and boundarie
 │   ├── billing/              # shared billing contracts / types
 │   ├── booking/              # shared booking contracts / types
 │   ├── config/               # shared config
+│   ├── dashboard-core/       # shared dashboard core (extracted from apps/dashboard in #1098 Fase 3)
 │   ├── domain/               # shared domain models
 │   ├── shared/               # reserved (only .gitkeep — do not extract yet)
 │   └── types/                # shared types
 ├── supabase/
-│   ├── functions/            # 14 Edge Functions (Deno); no mercadopago-webhook / sync-mp-plans
+│   ├── functions/            # 12 Edge Functions (Deno); no mercadopago-webhook / sync-mp-plans
 │   ├── migrations/           # SQL migrations (full-timestamp); no _legacy/ directory on current dev
 │   ├── checks/               # Postgres check constraints / linter config
 │   ├── contracts/            # RPC contracts / schema contracts
@@ -59,7 +61,9 @@ Product scope lives in `product.md`. This file is repository shape and boundarie
 Notes that drift (re-check on `origin/dev`):
 
 - Edge Functions still include `process-email-outbox` and `send-trial-user-activation-reminder-once`, plus subscription, session-handoff, web-push, and signup-email functions.
-- `docs/adr/` currently has `0001-orvel-monorepo-architecture-dev.md`, `0009-remove-mercadopago.md`, and `0010-hexagonal-architecture.md`. Release-2.0 schema ADRs (`schema-principles`, `table-design`, `rls-policies`, `indexes`) are not on `dev`.
+- `docs/adr/` currently has `0001-orvel-monorepo-architecture-dev.md`, `0009-remove-mercadopago.md`, `0010-hexagonal-architecture.md`, and `0011-dashboard-web-pwa-split.md`. Release-2.0 schema ADRs (`schema-principles`, `table-design`, `rls-policies`, `indexes`) are not on `dev`.
+- `packages/dashboard-core/` (`@orvel/dashboard-core`) holds the dashboard core that used to be `apps/dashboard/src/app/{core,models}`; `apps/dashboard` consumes it through `tsconfig.app.json`, and its boundary gate runs in the package (`pnpm run test:core`).
+- `apps/dashboard-web/` is the second execution target of #1098 (Fase 3): it consumes `@orvel/dashboard-core` and, while the split is a strangler, the console features of `apps/dashboard/src/app/**` through a documented relative alias. Its build must not contain `ngsw-worker.js` or `manifest.webmanifest` (`pnpm run check:dashboard-web`).
 - `packages/shared/` remains `.gitkeep` only.
 
 ## Boundary Rules

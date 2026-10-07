@@ -2,8 +2,8 @@
 
 The post-Mercado-Pago-removal billing seam (ADR 0009) extracted from `apps/dashboard`:
 
-- `apps/dashboard/src/app/core/payments/manual/payment-provider.ts` — the manual-payment contract types (`PaymentProvider` literal type + `BillingEvent`/`PaymentRecord`/`ManualPaymentInput` interfaces).
-- `apps/dashboard/src/app/core/payments/manual/manual-payment.service.ts` — the `ManualPaymentService` stub class.
+- `packages/dashboard-core/src/payments/manual/payment-provider.ts` — the manual-payment contract types (`PaymentProvider` literal type + `BillingEvent`/`PaymentRecord`/`ManualPaymentInput` interfaces).
+- `packages/dashboard-core/src/payments/manual/manual-payment.service.ts` — the `ManualPaymentService` stub class.
 - `apps/dashboard/src/app/features/billing/data-access/payments/webhooks/payment-webhook-idempotency.ts` — the provider-agnostic webhook idempotency helpers (`buildProviderAgnosticIdempotencyKey`, `decideWebhookProcessing` + `WebhookProcessingDecision`).
 
 This is the FOURTH of 7 planned extractions (`auth` ✅, `booking` ✅, `domain` ✅, **`billing` ← this change**, `types`, `config`, `shared`) and the second where types **and** runtime functions move together (the idempotency helpers are the only runtime in the cluster, and they are dep-free — the domain precedent applies). It stages a future hexagonal architecture.

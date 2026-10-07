@@ -2,8 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   getPlanEntitlementsFromCatalog,
   resolvePlanCodeFromCatalog
-} from '../../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 import type { SubscriptionStatus } from './subscription-state-machine.api';
 
 type EntitlementMetric = 'maxLocales' | 'maxRubros' | 'maxMonthlyBookings' | 'aiCreditsMonthly';

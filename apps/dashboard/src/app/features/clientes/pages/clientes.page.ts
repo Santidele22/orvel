@@ -4,10 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ClientesUiFacade } from '../data-access/clientes-ui.facade';
 import { ClienteService } from '../data-access/cliente.service';
-import { ThemeService } from '../../../core/theming/theme.service';
-import { DASHBOARD_STRUCTURAL_TOKENS } from '../../../core/theming/dashboard-structural.tokens';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
+import { DASHBOARD_STRUCTURAL_TOKENS } from '@orvel/dashboard-core/theming/dashboard-structural.tokens';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
-import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 
 type ClienteListItem = {
   id: string;

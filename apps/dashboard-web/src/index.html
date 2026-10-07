@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <title>Orvel</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F172A">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Consolidated Fonts (non-blocking: print + onload swap) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap"
+      rel="stylesheet">
+  </noscript>
+  <!--
+    The web target deliberately ships none of the PWA shell: no manifest link, no service worker
+    registration, no install guidance and no boot splash. See #1098 Fase 3 and ADR 0011.
+  -->
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .glass-panel {
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+    }
+
+    /* Legacy Zen typography mappings */
+    .zen-font-micro {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .zen-font-body {
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .zen-font-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    /* Global tightening */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      line-height: 1.1;
+    }
+
+    html,
+    body {
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body class="antialiased bg-bg-primary text-text-primary">
+  <app-root></app-root>
+</body>
+
+</html>

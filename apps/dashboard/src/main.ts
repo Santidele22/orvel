@@ -1,4 +1,6 @@
 import 'zone.js';
+// Must precede `./app/app.config`: core modules read the env fallback at module scope.
+import './app/runtime/configure-dashboard-environment';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { inject } from '@vercel/analytics';
 import { appConfig } from './app/app.config';

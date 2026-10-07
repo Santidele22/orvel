@@ -138,11 +138,11 @@ async function loadSupabaseBookingApi(): Promise<SupabaseBookingApiModule> {
 
 async function loadSupabaseGatewayFactory(): Promise<SupabaseGatewayFactoryModule> {
   try {
-    const mod = await import('../../core/api/supabase-booking.gateway');
+    const mod = await import('@orvel/dashboard-core/api/supabase-booking.gateway');
     return mod as SupabaseGatewayFactoryModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/api/supabase-booking.gateway.ts exporting createSupabaseBookingGateway({ client }) for deterministic app-side RPC contract tests'
+      'TODO(Magnus): add ../../packages/dashboard-core/src/api/supabase-booking.gateway.ts exporting createSupabaseBookingGateway({ client }) for deterministic app-side RPC contract tests'
     );
   }
 }

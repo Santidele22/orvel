@@ -1,6 +1,6 @@
 # @orvel/booking
 
-Contracts/types extracted from `apps/dashboard/src/app/core/api/supabase-booking/{types,gateway-interface,public-booking-slug}.ts`.
+Contracts/types extracted from `packages/dashboard-core/src/api/supabase-booking/{types,gateway-interface,public-booking-slug}.ts`.
 
 This is the SECOND of 7 planned extractions (`auth`, `billing`, `booking`, `config`, `domain`, `shared`, `types`) staging a future hexagonal architecture.
 
