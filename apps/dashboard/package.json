@@ -26,6 +26,7 @@
     "@orvel/billing": "workspace:*",
     "@orvel/booking": "workspace:*",
     "@orvel/config": "workspace:*",
+    "@orvel/dashboard-core": "workspace:*",
     "@orvel/domain": "workspace:*",
     "@orvel/shared": "workspace:*",
     "@orvel/types": "workspace:*",

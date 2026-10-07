@@ -6,7 +6,7 @@ import {
   type OperatorTourStep,
   type TourSurface,
 } from './operator-tour-steps';
-import { browserPlatform } from '../../core/platform/platform.adapter';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import { createOperatorTourStorage } from './operator-tour-storage';
 
 /** Minimal slice of the driver.js API this service uses. */

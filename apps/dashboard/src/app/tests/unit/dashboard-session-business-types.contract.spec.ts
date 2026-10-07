@@ -16,10 +16,10 @@ async function loadResolver(): Promise<ResolveDashboardConfigFromSessionFn> {
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/theming/dashboard-session-business-types');
+    module = await import('@orvel/dashboard-core/theming/dashboard-session-business-types');
   } catch {
     throw new Error(
-      'Missing module src/app/core/theming/dashboard-session-business-types.ts with resolveDashboardConfigFromSession(session).'
+      'Missing module ../../packages/dashboard-core/src/theming/dashboard-session-business-types.ts with resolveDashboardConfigFromSession(session).'
     );
   }
 
@@ -29,7 +29,7 @@ async function loadResolver(): Promise<ResolveDashboardConfigFromSessionFn> {
 
   if (!resolver) {
     throw new Error(
-      'Missing resolveDashboardConfigFromSession(session) export in src/app/core/theming/dashboard-session-business-types.ts'
+      'Missing resolveDashboardConfigFromSession(session) export in ../../packages/dashboard-core/src/theming/dashboard-session-business-types.ts'
     );
   }
 
@@ -40,10 +40,10 @@ async function loadBusinessTypeSanitizer(): Promise<SanitizeSelectedBusinessType
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/auth/mock-login-business-types');
+    module = await import('@orvel/dashboard-core/auth/mock-login-business-types');
   } catch {
     throw new Error(
-      'Missing module src/app/core/auth/mock-login-business-types.ts with sanitizeSelectedBusinessTypes(input).'
+      'Missing module ../../packages/dashboard-core/src/auth/mock-login-business-types.ts with sanitizeSelectedBusinessTypes(input).'
     );
   }
 
@@ -53,7 +53,7 @@ async function loadBusinessTypeSanitizer(): Promise<SanitizeSelectedBusinessType
 
   if (!sanitizer) {
     throw new Error(
-      'Missing sanitizeSelectedBusinessTypes(input) export in src/app/core/auth/mock-login-business-types.ts'
+      'Missing sanitizeSelectedBusinessTypes(input) export in ../../packages/dashboard-core/src/auth/mock-login-business-types.ts'
     );
   }
 

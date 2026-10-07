@@ -4,12 +4,12 @@ import {
   PLAN_ENTITLEMENTS,
   type CanonicalPlanCode,
   type PlanCode
-} from '../../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/plans/plan-entitlements';
 import type { DashboardReferenceCatalog } from '@orvel/domain';
 import {
   createDashboardReferenceCatalogRepository,
   type DashboardReferenceCatalogRepository
-} from '../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 
 export const MULTI_BRANCH_ADD_ON_CODE = 'MULTI_BRANCH' as const;
 

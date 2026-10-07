@@ -1,6 +1,7 @@
 packages:
   - apps/landing
   - apps/dashboard
+  - apps/dashboard-web
   - apps/shared/*
   - packages/*
 

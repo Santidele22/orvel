@@ -2,4 +2,4 @@ export {
   normalizePlanCode,
   resolveValidPlanCode,
   type PlanCode
-} from '../../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/plans/plan-entitlements';

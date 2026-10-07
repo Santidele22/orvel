@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, SpyInstance } from 'vitest';
-import type { PlanCode } from '../../core/plans/plan-entitlements';
+import type { PlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 
 // =============================================================================
 // Mock Types

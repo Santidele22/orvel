@@ -3,15 +3,15 @@ import { Component, OnDestroy, OnInit, computed, signal, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '../../../../core/business/business-directory.ports';
+import { PUBLIC_BUSINESS_DIRECTORY_SOURCE } from '@orvel/dashboard-core/business/business-directory.ports';
 import { PublicBookingService } from '@orvel/booking/application';
 import { ServicioService } from '../../../servicios/data-access/servicio.service';
 import { validatePublicBookingForm } from './public-booking.validation';
 import type { PublicSlot } from '@orvel/booking';
-import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
+import type { WeekdayKey, WorkingDayHours } from '@orvel/dashboard-core/models/business.model';
 import { DEFAULT_BUSINESS_TIMEZONE, buildPublicBookingDays, filterBookablePublicDays, getWeekdayKeyFromLocalCivilDate, toLocalCivilDate, type DayAvailability } from './public-booking-days';
-import { emitPublicBookingFailureEvent } from '../../../../core/observability/public-booking-operational-events';
-import { logMutationFailure } from '../../../../core/observability/mutation-error-log';
+import { emitPublicBookingFailureEvent } from '@orvel/dashboard-core/observability/public-booking-operational-events';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 import { getPublicBookingSubmitErrorMessage, logPublicBookingSubmitFailure } from './public-booking-error-messages';
 import { claimBookingDeposit } from '@orvel/booking/infrastructure';
 import {

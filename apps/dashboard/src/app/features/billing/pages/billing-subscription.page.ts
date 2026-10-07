@@ -3,9 +3,9 @@ import {
   buildPremiumWhatsAppUrl,
   copyPremiumAlias,
   markPremiumReviewPending
-} from '../../../core/billing/premium-alias-receipt';
-import type { PlanCode } from '../../../core/plans/plan-entitlements';
-import { normalizePlanCode } from '../../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/billing/premium-alias-receipt';
+import type { PlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
+import { normalizePlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 import { ONBOARDING_PLAN_STORAGE_KEY } from '../../onboarding/pages/signup-plan-step.page';
 import {
   requestSubscriptionCancellation,
@@ -192,8 +192,8 @@ export class BillingSubscriptionPage {
 
     try {
       const [{ SUPABASE_CONFIG }, { createSupabaseAuthClient }] = await Promise.all([
-        import('../../../core/auth/supabase-config'),
-        import('../../../core/adapters/supabase/supabase-auth.client')
+        import('@orvel/dashboard-core/auth/supabase-config'),
+        import('@orvel/dashboard-core/adapters/supabase/supabase-auth.client')
       ]);
       const authClient = createSupabaseAuthClient({
         supabaseUrl: SUPABASE_CONFIG.url,

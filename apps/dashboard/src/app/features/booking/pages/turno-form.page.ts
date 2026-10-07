@@ -15,15 +15,15 @@ import { ServicioService } from '../../servicios/data-access/servicio.service';
 import {
   ACTIVE_BUSINESS_ID_SOURCE,
   BUSINESS_PROFESSIONALS_SOURCE
-} from '../../../core/business/business-directory.ports';
-import { AuthService } from '../../../core/auth/auth.service';
+} from '@orvel/dashboard-core/business/business-directory.ports';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { Turno, TurnoEstado, CreateTurnoDTO } from '../models/turno.model';
-import { Cliente } from '../../../models/cliente.model';
-import { Servicio } from '../../../models/servicio.model';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
-import { ArgentinaClockService } from '../../../core/time/argentina-clock.service';
-import { filterLiveAvailableStarts, readArgentinaClock } from '../../../core/time/argentina-clock';
-import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { Cliente } from '@orvel/dashboard-core/models/cliente.model';
+import { Servicio } from '@orvel/dashboard-core/models/servicio.model';
+import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
+import { ArgentinaClockService } from '@orvel/dashboard-core/time/argentina-clock.service';
+import { filterLiveAvailableStarts, readArgentinaClock } from '@orvel/dashboard-core/time/argentina-clock';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 import { buildPublicBookingDays } from './public/public-booking-days';
 
 @Component({

@@ -1,10 +1,10 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { logoutAndRedirect } from '../../../core/auth/route-protection';
-import { AuthService } from '../../../core/auth/auth.service';
+import { logoutAndRedirect } from '@orvel/dashboard-core/auth/route-protection';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { navigateAfterLogout } from '../../../shared/dashboard-shell/logout-navigation';
 import { OperatorWebPushService } from '../../operator-web-push/operator-web-push.service';
-import { BUSINESS_SETTINGS_SOURCE } from '../../../core/business/business-directory.ports';
+import { BUSINESS_SETTINGS_SOURCE } from '@orvel/dashboard-core/business/business-directory.ports';
 
 @Component({
   selector: 'app-perfil',

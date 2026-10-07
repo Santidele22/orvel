@@ -13,6 +13,7 @@ const WORKSPACE_PACKAGES = [
   '@orvel/billing',
   '@orvel/booking',
   '@orvel/config',
+  '@orvel/dashboard-core',
   '@orvel/domain',
   '@orvel/shared',
   '@orvel/types',
@@ -22,6 +23,7 @@ const PACKAGE_SRC_GLOBS = [
   '../../packages/billing/src/**/*.ts',
   '../../packages/booking/src/**/*.ts',
   '../../packages/config/src/**/*.ts',
+  '../../packages/dashboard-core/src/**/*.ts',
   '../../packages/domain/src/**/*.ts',
   '../../packages/types/src/**/*.ts',
 ] as const;

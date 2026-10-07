@@ -1,4 +1,4 @@
-import { SERVICIOS_POR_CATEGORIA, type Servicio } from '../../../models/servicio.model';
+import { SERVICIOS_POR_CATEGORIA, type Servicio } from '@orvel/dashboard-core/models/servicio.model';
 import { sanitizeSelectedRubros, type RequiredRubro } from '../../onboarding/data-access/onboarding-rubros';
 
 export type SuggestedService = Omit<Servicio, 'createdAt' | 'updatedAt'> & {

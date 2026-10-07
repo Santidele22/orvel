@@ -1,4 +1,4 @@
-import { getRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 
 export type SignupWizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 

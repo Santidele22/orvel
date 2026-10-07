@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-import { DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE } from '../../core/catalog/reference-catalog';
-import { initializeRuntimeReferenceCatalogSnapshot } from '../../core/catalog/reference-catalog.gateway';
+import { DEV_DASHBOARD_REFERENCE_CATALOG_FIXTURE } from '@orvel/dashboard-core/catalog/reference-catalog';
+import { initializeRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 import { InAppSignupWizard } from '../../features/auth/in-app-signup-wizard';
 
 const WIZARD_PAGE = new URL('../../features/auth/pages/in-app-signup-wizard.page.ts', import.meta.url);

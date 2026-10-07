@@ -9,10 +9,10 @@ import { Subject } from 'rxjs';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 
-import { AuthService } from '../../core/auth/auth.service';
-import { ThemeService } from '../../core/theming/theme.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { BusinessService } from '../../features/settings/data-access/business.service';
-import { ACTIVE_BUSINESS_ID_SOURCE } from '../../core/business/business-directory.ports';
+import { ACTIVE_BUSINESS_ID_SOURCE } from '@orvel/dashboard-core/business/business-directory.ports';
 import { ConfiguracionPage } from '../../features/settings/pages/configuracion.page';
 
 describe('ConfiguracionPage tab query param behavior', () => {

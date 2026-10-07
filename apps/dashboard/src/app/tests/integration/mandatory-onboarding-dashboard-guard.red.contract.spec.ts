@@ -12,7 +12,7 @@ import {
   PLAN_CODE_ALIASES,
   getPlanEntitlements,
   normalizePlanCode
-} from '../../core/plans/plan-entitlements';
+} from '@orvel/dashboard-core/plans/plan-entitlements';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
 
 const supabaseAuthClientMock = {
@@ -21,11 +21,11 @@ const supabaseAuthClientMock = {
   signOut: vi.fn()
 };
 
-vi.mock('../../core/adapters/supabase/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
-vi.mock('../../core/auth/supabase-config', () => ({
+vi.mock('@orvel/dashboard-core/auth/supabase-config', () => ({
   SUPABASE_CONFIG: {
     url: 'https://test.supabase.co',
     anonKey: 'test-anon-key'
@@ -99,7 +99,7 @@ async function loadBusinessTypeDefaultsModule(): Promise<BusinessTypeDefaultsMod
 function readDashboardOnboardingSources(): { facade: string; authGuard: string; routes: string; merged: string } {
   const paths = {
     facade: resolve(process.cwd(), 'src/app/features/settings/data-access/business-settings.facade.ts'),
-    authGuard: resolve(process.cwd(), 'src/app/core/auth/dashboard-auth.guard.ts'),
+    authGuard: resolve(process.cwd(), '../../packages/dashboard-core/src/auth/dashboard-auth.guard.ts'),
     routes: resolve(process.cwd(), 'src/app/app.routes.ts')
   };
 
@@ -212,7 +212,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
     );
     supabaseAuthClientMock.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('@orvel/dashboard-core/auth/route-protection');
     resetDashboardAuthAccessCache();
     const result = await canAccessDashboardAsync(now);
 
@@ -222,7 +222,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   });
 
   it('Supabase session reaches dashboard only after persisted complete onboarding metadata', async () => {
-    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('@orvel/dashboard-core/auth/route-protection');
     resetDashboardAuthAccessCache();
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({
@@ -278,7 +278,7 @@ describe('Mandatory onboarding dashboard guard contracts', () => {
   });
 
   it('keeps account-first paid users blocked from dashboard while payment is still pending', async () => {
-    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('../../core/auth/route-protection');
+    const { canAccessDashboardAsync, resetDashboardAuthAccessCache } = await import('@orvel/dashboard-core/auth/route-protection');
     resetDashboardAuthAccessCache();
 
     supabaseAuthClientMock.getSession.mockResolvedValueOnce({

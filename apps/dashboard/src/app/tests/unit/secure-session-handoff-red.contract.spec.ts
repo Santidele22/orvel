@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import * as routeProtection from '../../core/auth/route-protection';
+import * as routeProtection from '@orvel/dashboard-core/auth/route-protection';
 
 describe('RED Contract: dashboard redeems opaque landing session handoff', () => {
   it('redeems the opaque handoff with POST, calls Supabase setSession, strips the URL param, then allows guard flow to continue', async () => {

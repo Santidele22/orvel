@@ -5,20 +5,20 @@ import { firstValueFrom } from 'rxjs';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BusinessService } from '../data-access/business.service';
-import { BusinessSettings, WeekdayKey, WorkingDayHours } from '../../../models/business.model';
+import { BusinessSettings, WeekdayKey, WorkingDayHours } from '@orvel/dashboard-core/models/business.model';
 import {
   getVisibleTemplates,
   updateBusinessName,
   type UserBusiness,
   type TemplateOption
-} from '../../../core/business/business-template-visibility-rules';
-import { ThemeService } from '../../../core/theming/theme.service';
+} from '@orvel/dashboard-core/business/business-template-visibility-rules';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { ConfiguracionZenThemeComponent } from './themes/configuracion-zen-theme.component';
 import { ConfiguracionTimePickerModalComponent } from './components/configuracion-time-picker-modal.component';
 import { ORVEL_SECTION_PRIMITIVES } from '../../../shared/dashboard-section-primitives/zen-section-primitives';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { logMutationFailure } from '../../../core/observability/mutation-error-log';
+import { logMutationFailure } from '@orvel/dashboard-core/observability/mutation-error-log';
 import { validateConfiguracionForm } from './configuracion.validation';
 import {
   persistWorkingHoursRecord,
@@ -26,8 +26,8 @@ import {
   workingDayHoursToFormValue,
   workingHoursToFormValue
 } from '../data-access/resolve-working-day-intervals';
-import { buildPublicBookingUrl } from '../../../core/booking/public-booking-url';
-import { markBookingLinkCopied } from '../../../core/booking/mark-booking-link-copied';
+import { buildPublicBookingUrl } from '@orvel/dashboard-core/booking/public-booking-url';
+import { markBookingLinkCopied } from '@orvel/dashboard-core/booking/mark-booking-link-copied';
 import {
   requestSubscriptionCancellation,
   RequestSubscriptionCancellationError

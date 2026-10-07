@@ -8,7 +8,7 @@ import {
   PUBLIC_BOOKING_FAILURE_EVENT,
   setPublicBookingFailureTelemetryClientFactoryForTests,
   type PublicBookingFailureEvent
-} from '../../core/observability/public-booking-operational-events';
+} from '@orvel/dashboard-core/observability/public-booking-operational-events';
 
 function findRepoRoot(startDir: string): string {
   let current = startDir;

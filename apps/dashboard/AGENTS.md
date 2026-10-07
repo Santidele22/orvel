@@ -8,7 +8,7 @@ Inherit root rules for orchestration, OpenSpec/TDD, `.funemon/` privacy, and the
 
 - Language: TypeScript
 - App: Angular 21 + `@angular/pwa` (mobile-first; the desktop dashboard is an explicit carve-out)
-- Data: Supabase via the thin anonymous client in `apps/dashboard/src/app/core/api/supabase-booking/real-gateway.ts`
+- Data: Supabase via the thin anonymous client in `packages/dashboard-core/src/api/supabase-booking/real-gateway.ts`
 
 ## Project specifics
 

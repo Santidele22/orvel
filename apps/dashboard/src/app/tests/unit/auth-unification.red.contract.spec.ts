@@ -43,8 +43,8 @@ describe('RED: auth unification contract', () => {
   });
 
   it('keeps landing origin helpers for waitlist/web while dashboard guards sign in in-app', () => {
-    const routeProtection = source('src/app/core/auth/route-protection.ts');
-    const guard = source('src/app/core/auth/dashboard-auth.guard.ts');
+    const routeProtection = source('../../packages/dashboard-core/src/auth/route-protection.ts');
+    const guard = source('../../packages/dashboard-core/src/auth/dashboard-auth.guard.ts');
 
     expect(routeProtection).toMatch(/buildDashboardSignInRedirect/);
     expect(routeProtection).toMatch(/CANONICAL_LANDING_ORIGIN\s*=\s*['"]https:\/\/orvel\.pro['"]/);
@@ -53,7 +53,7 @@ describe('RED: auth unification contract', () => {
   });
 
   it('redirects unauthenticated protected dashboard access to in-app /dashboard/login with sanitized returnTo', () => {
-    const routeProtection = source('src/app/core/auth/route-protection.ts');
+    const routeProtection = source('../../packages/dashboard-core/src/auth/route-protection.ts');
 
     expect(routeProtection).toMatch(/LOGIN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
     expect(routeProtection).toMatch(/DASHBOARD_SIGN_IN_ROUTE\s*=\s*['"]\/dashboard\/login['"]/);
@@ -64,23 +64,23 @@ describe('RED: auth unification contract', () => {
   });
 
   it('fails closed for legacy dashboard local/mock auth paths', () => {
-    const authService = source('src/app/core/auth/auth.service.ts');
-    const sessionContract = source('src/app/core/auth/session-contract.ts');
+    const authService = source('../../packages/dashboard-core/src/auth/auth.service.ts');
+    const sessionContract = source('../../packages/dashboard-core/src/auth/session-contract.ts');
     const sessionContractPackage = source('../../packages/auth/src/session-contract.ts');
 
     expect(authService).not.toMatch(/provider:\s*'mock'|setProvider\(|createMockUser|getMockUser|generateToken|saveSession|loadStoredSession/);
     expect(authService).not.toMatch(/localStorage\.setItem\([^)]*(salon_auth|turnea\.session|token)/i);
     expect(sessionContract).not.toContain('TURNERA_SESSION_KEY');
     // post-chore-extract-auth-package: the canonical source of truth lives at packages/auth/.
-    // The dashboard-local shim at apps/dashboard/src/app/core/auth/session-contract.ts
+    // The dashboard-local shim at apps/dashboard/../../packages/dashboard-core/src/auth/session-contract.ts
     // is for the migration window and must re-export from @orvel/auth.
     expect(sessionContractPackage).toContain("LEGACY_DASHBOARD_SESSION_STORAGE_KEY");
     expect(sessionContract).toMatch(/from\s+['"]@orvel\/auth['"]/);
   });
 
   it('does not expose secrets in frontend config; only public Supabase anon-key env names are allowed', () => {
-    const supabaseConfig = source('src/app/core/auth/supabase-config.ts');
-    const dashboardEnv = source('src/app/core/runtime/dashboard-env.ts');
+    const supabaseConfig = source('../../packages/dashboard-core/src/auth/supabase-config.ts');
+    const dashboardEnv = source('../../packages/dashboard-core/src/runtime/dashboard-env.ts');
 
     expect(supabaseConfig).toMatch(/PUBLIC_SUPABASE_URL/);
     expect(supabaseConfig).toMatch(/PUBLIC_SUPABASE_ANON_KEY/);
@@ -88,12 +88,16 @@ describe('RED: auth unification contract', () => {
     expect(dashboardEnv).not.toMatch(/SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE|service[_-]?role/i);
   });
 
-  it('uses the same explicit Supabase auth storage key as landing for same-origin local flow', () => {
-    const supabaseConfig = source('src/app/core/auth/supabase-config.ts');
-    const supabaseClientFactory = source('src/app/core/adapters/supabase/supabase-client.factory.ts');
+  it('resolves the storage key of the target this app declared instead of one shared with the landing', () => {
+    const supabaseClientFactory = source('../../packages/dashboard-core/src/adapters/supabase/supabase-client.factory.ts');
+    const dashboardBootstrap = source('src/app/runtime/configure-dashboard-environment.ts');
 
-    expect(supabaseConfig).toMatch(/ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
-    expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain('orvel.supabase.auth');
-    expect(supabaseClientFactory).toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
+    // ADR 0012 reverses the old "same key as the landing" contract, which was the mechanical half
+    // of audit finding S2. The pwa keeps the historical literal so installed sessions survive; the
+    // console resolves its own key; the shared constant is deprecated, not the source of truth.
+    expect(source('../../packages/config/src/supabase-storage-key.ts')).toContain("pwa: 'orvel.supabase.auth'");
+    expect(supabaseClientFactory).toMatch(/storageKey:\s*dashboardAuthStorageKey\(\)/);
+    expect(supabaseClientFactory).not.toMatch(/storageKey:\s*ORVEL_SUPABASE_AUTH_STORAGE_KEY/);
+    expect(dashboardBootstrap).toMatch(/configureDashboardAuthTarget\(\s*'pwa'\s*\)/);
   });
 });

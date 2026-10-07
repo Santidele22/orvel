@@ -22,6 +22,19 @@
 - `qa` — pre-release smoke. Receives `dev → qa` PRs.
 - `main` — production. Receives `qa → main` PRs only.
 
+## Deployed artifacts
+
+`deploy-promotion.yml` runs on pushes to `qa` and `main` only, and lets Vercel run each build (`vercel deploy` without `--prebuilt`), so a project's build command lives in its Vercel settings, not in the workflow.
+
+| Artifact | Vercel project id | Build command (in the project's settings) | Hostnames (ADR 0012) |
+|---|---|---|---|
+| Combined: landing + `/dashboard/*` (pwa) + `/booking/*` | `VERCEL_PROJECT_ID` | `pnpm run build:vercel` | `orvel.pro` / `qa.orvel.pro` |
+| Console (`apps/dashboard-web`), standalone SPA | `VERCEL_PROJECT_ID_WEB` | `pnpm run build:vercel:web` | `dashboard.orvel.pro` / `dashboard.qa.orvel.pro` |
+
+The console step skips with a log line while `VERCEL_PROJECT_ID_WEB` does not exist, so a promotion is never blocked by infrastructure that has not been created yet.
+
+**Every project owns its build command, and the shared `vercel.json` must not pin one.** Every project deploys the same repository root, and a `buildCommand` in that file **wins over the project setting**: while it pinned `pnpm run build:vercel`, the console project silently built and shipped the combined site. The file keeps only the genuinely shared fields (`installCommand`, `framework`, the git-deploy switches). `scripts/vercel-output-config.test.mjs` fails if the field comes back.
+
 ## Deployment Boundaries
 
 - Do not deploy dashboard, landing, functions, or database changes unless Santi explicitly asks.

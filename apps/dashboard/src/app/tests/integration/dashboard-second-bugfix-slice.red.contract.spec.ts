@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CATEGORIAS_SERVICIOS } from '../../models/servicio.model';
+import { CATEGORIAS_SERVICIOS } from '@orvel/dashboard-core/models/servicio.model';
 
 const EXACT_BUSINESS_SERVICE_CATALOG: Record<string, string[]> = {
   'Barbería': [
@@ -143,7 +143,7 @@ describe('Dashboard second bugfix slice RED contracts', () => {
 
   it('exposes every user-approved service label in the dashboard service catalog contract', () => {
     const serviceSources = [
-      readDashboardSource('src/app/models/servicio.model.ts'),
+      readDashboardSource('../../packages/dashboard-core/src/models/servicio.model.ts'),
       readDashboardSource('src/app/features/servicios/data-access/servicio.service.ts'),
       readDomainSource('reference-catalog.ts')
     ].join('\n');

@@ -9,7 +9,7 @@ import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ThemeService } from '../../../core/theming/theme.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import { ClienteService } from '../data-access/cliente.service';
 import { ClientesPage } from './clientes.page';
 

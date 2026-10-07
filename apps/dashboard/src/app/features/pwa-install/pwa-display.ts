@@ -1,4 +1,4 @@
-import { browserPlatform } from '../../core/platform/platform.adapter';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 
 /**
  * Fase 2 of #1098: the host reads (`matchMedia`, `navigator.standalone`) go

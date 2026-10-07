@@ -1,0 +1,27 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/app",
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "../dashboard/src/app/features/**/*.ts",
+    "../dashboard/src/app/shared/**/*.ts",
+    "../dashboard/src/environments/**/*.ts",
+    "../../packages/auth/src/**/*.ts",
+    "../../packages/billing/src/**/*.ts",
+    "../../packages/booking/src/**/*.ts",
+    "../../packages/config/src/**/*.ts",
+    "../../packages/dashboard-core/src/**/*.ts",
+    "../../packages/domain/src/**/*.ts",
+    "../../packages/types/src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "../dashboard/src/**/*.spec.ts",
+    "../../packages/**/*.spec.ts"
+  ]
+}

@@ -1,6 +1,6 @@
 # @orvel/auth
 
-Contracts/types extracted from `apps/dashboard/src/app/core/auth/session-contract.ts`.
+Contracts/types extracted from `packages/dashboard-core/src/auth/session-contract.ts`.
 
 This is the FIRST of 7 planned extractions (`auth`, `billing`, `booking`, `config`, `domain`, `shared`, `types`) staging a future hexagonal architecture.
 
@@ -9,7 +9,7 @@ This is the FIRST of 7 planned extractions (`auth`, `billing`, `booking`, `confi
 - `src/session-contract.ts` — types only (`TurneaSession`, `TurneaSessionUser`, `SelectedBusinessType`, `RequiredRubro`, `TemplateCatalog`, `ValidateSessionSchema` type signature, `LEGACY_DASHBOARD_SESSION_STORAGE_KEY` constant).
 - `src/index.ts` — public surface barrel.
 
-The runtime body of `validateSessionSchema` stays in the dashboard at `apps/dashboard/src/app/core/auth/validate-session-schema.ts` because it depends on `ALLOWED_SELECTED_BUSINESS_TYPES` (which itself is derived from the app-internal onboarding reference catalog).
+The runtime body of `validateSessionSchema` is not in this package: it lives in the shared core at `packages/dashboard-core/src/auth/validate-session-schema.ts` (it moved there, out of `apps/dashboard`, in Fase 3 of #1098) because it depends on `ALLOWED_SELECTED_BUSINESS_TYPES` (which itself is derived from the app-internal onboarding reference catalog).
 
 ## 7-step recipe for the next 6 extractions
 

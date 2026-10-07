@@ -8,7 +8,7 @@
  * - Exports the type-only public surface (TurneaSessionUser, TurneaSession,
  *   LEGACY_DASHBOARD_SESSION_STORAGE_KEY, ValidateSessionSchema type signature).
  * - Does NOT re-export the validateSessionSchema runtime body (it lives in
- *   apps/dashboard/src/app/core/auth/validate-session-schema.ts because it
+ *   apps/dashboard/../../packages/dashboard-core/src/auth/validate-session-schema.ts because it
  *   depends on app-internal ALLOWED_SELECTED_BUSINESS_TYPES).
  * - The dashboard tsconfig can resolve @orvel/auth to packages/auth/.
  */
@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..');
 const PACKAGE_INDEX = join(REPO_ROOT, 'packages', 'auth', 'src', 'index.ts');
 const PACKAGE_PACKAGE_JSON = join(REPO_ROOT, 'packages', 'auth', 'package.json');
-const DASHBOARD_SHIM = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'auth', 'session-contract.ts');
+const DASHBOARD_SHIM = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'auth', 'session-contract.ts');
 
 function readSource(filePath: string): string {
   return readFileSync(filePath, 'utf8');
