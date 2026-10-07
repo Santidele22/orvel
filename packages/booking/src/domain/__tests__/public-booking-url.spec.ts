@@ -25,15 +25,20 @@ describe('public booking URL helpers', () => {
     expect(getPublicBookingOrigin('http://0.0.0.0:4200')).toBe('http://0.0.0.0:3000');
   });
 
-  it('keeps QA hosted booking links on the current QA origin', () => {
+  it('canonicalises any hosted origin to the production one', () => {
+    // #1133 retired qa, so a hosted origin that is not the canonical one — a retired pre-release
+    // host, a preview URL, anything else — resolves the production origin.
     expect(buildPublicBookingUrl('mi-salon', 'https://qa.orvel.pro')).toBe(
-      'https://qa.orvel.pro/booking/mi-salon'
+      'https://orvel.pro/booking/mi-salon'
+    );
+    expect(buildPublicBookingUrl('mi-salon', 'https://orvel-console.vercel.app')).toBe(
+      'https://orvel.pro/booking/mi-salon'
     );
   });
 
   it('appends a professional slug for a dedicated public turnero', () => {
-    expect(buildPublicBookingUrl('mi-salon', 'https://qa.orvel.pro', 'laura')).toBe(
-      'https://qa.orvel.pro/booking/mi-salon/laura'
+    expect(buildPublicBookingUrl('mi-salon', 'https://orvel.pro', 'laura')).toBe(
+      'https://orvel.pro/booking/mi-salon/laura'
     );
   });
 

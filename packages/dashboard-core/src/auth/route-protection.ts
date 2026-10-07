@@ -199,10 +199,8 @@ function resolveLandingOrigin(): string {
   const fromWindow = originFromUrl(injected?.['PUBLIC_LANDING_URL'] as string | undefined);
   if (fromWindow) return fromWindow;
 
-  if (browserEnvironment().currentUrl()?.hostname === 'qa.orvel.pro') {
-    return 'https://qa.orvel.pro';
-  }
-
+  // #1133: production is the only deployed environment, so there is no pre-release origin to
+  // special-case here any more.
   return resolveLocalLandingOrigin() ?? CANONICAL_LANDING_ORIGIN;
 }
 

@@ -55,7 +55,9 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
     expect(fromDashboard.pathname).not.toBe('/auth/signup');
   });
 
-  it('keeps qa.orvel.pro signup on the combined QA host even if PUBLIC_DASHBOARD_URL is production', () => {
+  it('does not treat the retired qa host as a landing origin any more', () => {
+    // #1133 deleted the pre-release environment. A qa host is now just a non-landing host, so the
+    // redirect goes to the configured dashboard origin like any other external one.
     const redirect = new URL(
       buildInAppAuthRedirect(
         new URL('https://qa.orvel.pro/auth/signup/plan'),
@@ -64,9 +66,8 @@ describe('Contract: landing in-app auth redirect lands on Angular /dashboard pat
       )
     );
 
-    expect(redirect.origin).toBe('https://qa.orvel.pro');
+    expect(redirect.origin).toBe('https://dashboard.orvel.pro');
     expect(redirect.pathname).toBe('/dashboard/signup');
-    expect(redirect.origin).not.toBe('https://dashboard.orvel.pro');
   });
 
   it('keeps combined Vercel preview signup on the preview host', () => {

@@ -15,14 +15,6 @@ function isLocalOrigin(origin: string): boolean {
   }
 }
 
-function isQaOrigin(origin: string): boolean {
-  try {
-    return new URL(origin).hostname === 'qa.orvel.pro';
-  } catch {
-    return false;
-  }
-}
-
 function toLocalPublicOrigin(origin: string): string {
   const url = new URL(origin);
   if (LOCAL_APP_PORTS.has(url.port)) {
@@ -31,15 +23,16 @@ function toLocalPublicOrigin(origin: string): string {
   return normalizeOrigin(url.origin);
 }
 
+/**
+ * The public booking origin. `main` is the only deployed environment (#1133), so outside local
+ * development every booking link points at the canonical production origin; there is no pre-release
+ * origin to special-case any more.
+ */
 export function getPublicBookingOrigin(currentOrigin = globalThis.location?.origin ?? ''): string {
   const normalizedCurrentOrigin = normalizeOrigin(currentOrigin.trim());
 
   if (normalizedCurrentOrigin && isLocalOrigin(normalizedCurrentOrigin)) {
     return toLocalPublicOrigin(normalizedCurrentOrigin);
-  }
-
-  if (normalizedCurrentOrigin && isQaOrigin(normalizedCurrentOrigin)) {
-    return normalizedCurrentOrigin;
   }
 
   return CANONICAL_PUBLIC_BOOKING_ORIGIN;
