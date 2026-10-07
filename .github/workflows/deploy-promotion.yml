@@ -1,9 +1,11 @@
 name: Deploy promotion
 
+# Production only. `main` is the single deployed environment (#1133): `dev` integrates and runs
+# the gates, and the pre-merge smoke is the pull request's Vercel preview.
+
 on:
   push:
     branches:
-      - qa
       - main
 
 concurrency:
@@ -15,35 +17,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'orvel-prod' || 'orvel-qa' }}
+      name: orvel-prod
       url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Determine target environment
+      - name: Determine the target environment
         id: target
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/qa" ]]; then
-            echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_QA }}" >> $GITHUB_OUTPUT
-            echo "vercel_args=" >> $GITHUB_OUTPUT
-            echo "vercel_alias=qa.orvel.pro" >> $GITHUB_OUTPUT
-            echo "console_alias=dashboard.qa.orvel.pro" >> $GITHUB_OUTPUT
-            echo "function_environment=qa" >> $GITHUB_OUTPUT
-            echo "landing_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
-            echo "dashboard_url=https://qa.orvel.pro" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
-            echo "vercel_args=--prod" >> $GITHUB_OUTPUT
-            echo "vercel_alias=" >> $GITHUB_OUTPUT
-            echo "console_alias=dashboard.orvel.pro" >> $GITHUB_OUTPUT
-            echo "function_environment=production" >> $GITHUB_OUTPUT
-            echo "landing_url=https://orvel.pro" >> $GITHUB_OUTPUT
-            echo "dashboard_url=https://orvel.pro" >> $GITHUB_OUTPUT
-          else
-            echo "Unknown branch: ${{ github.ref }}" >&2
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "This workflow deploys production and only runs on main (#1133). Got: ${GITHUB_REF}" >&2
             exit 1
           fi
+          echo "supabase_ref=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> "$GITHUB_OUTPUT"
+          echo "console_alias=dashboard.orvel.pro" >> "$GITHUB_OUTPUT"
+          echo "landing_url=https://orvel.pro" >> "$GITHUB_OUTPUT"
+          echo "dashboard_url=https://orvel.pro" >> "$GITHUB_OUTPUT"
 
       - uses: supabase/setup-cli@v1
         with:
@@ -51,42 +42,41 @@ jobs:
 
       - name: Link Supabase project
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase link --project-ref ${{ steps.target.outputs.supabase_ref }}
 
-      # ADR 0012 — the handoff allowlist has to know which environment it is serving: production
-      # allows the three production origins, qa its own three, and only an unset value means the
-      # local stack. Nothing used to set this, so every deployed function also allowed the six
-      # localhost origins. The value lives here, in the repository, instead of only in the
-      # Supabase project settings where it cannot be reviewed.
+      # ADR 0012 — the handoff allowlist has to know it is serving production. An unset value means
+      # the local stack, and this is the only deployed environment (#1133). Nothing used to set it,
+      # so every deployed function also allowed the six localhost origins. The value lives here, in
+      # the repository, instead of only in the Supabase project settings where it cannot be reviewed.
       - name: Declare the function runtime environment
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
-        run: supabase secrets set ENVIRONMENT=${{ steps.target.outputs.function_environment }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
+        run: supabase secrets set ENVIRONMENT=production
 
       - name: Apply migrations
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase db push
 
       - name: Deploy process-email-outbox
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy process-email-outbox --project-ref ${{ steps.target.outputs.supabase_ref }}
 
       - name: Deploy release-expired-booking-holds
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy release-expired-booking-holds --project-ref ${{ steps.target.outputs.supabase_ref }}
 
       - name: Deploy operator-lifecycle-pushes
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy operator-lifecycle-pushes --project-ref ${{ steps.target.outputs.supabase_ref }}
 
       - name: Deploy account-closure
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SUPABASE_ACCESS_TOKEN_PROD || secrets.SUPABASE_ACCESS_TOKEN_QA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy account-closure --project-ref ${{ steps.target.outputs.supabase_ref }}
 
       - uses: pnpm/action-setup@v4
@@ -112,11 +102,8 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes ${{ steps.target.outputs.vercel_args }} --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }} --build-env PUBLIC_DASHBOARD_URL=${{ steps.target.outputs.dashboard_url }})
+          URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --prod --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }} --build-env PUBLIC_DASHBOARD_URL=${{ steps.target.outputs.dashboard_url }})
           echo "deployment-url=$URL" >> "$GITHUB_OUTPUT"
-          if [[ -n "${{ steps.target.outputs.vercel_alias }}" ]]; then
-            npx vercel@59.11.7 alias "$URL" "${{ steps.target.outputs.vercel_alias }}" --token "$VERCEL_TOKEN"
-          fi
 
       # ADR 0012 / Fase 4 of #1098 — the operator console is its own origin and its own Vercel
       # project, so it deploys from its own project id. The project's build command must be
@@ -136,5 +123,5 @@ jobs:
             echo "Skipping the console deploy: VERCEL_PROJECT_ID_WEB is not configured (ADR 0012 step 1)."
             exit 0
           fi
-          URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes ${{ steps.target.outputs.vercel_args }} --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }})
+          URL=$(npx vercel@59.11.7 deploy --token "$VERCEL_TOKEN" --yes --prod --build-env PUBLIC_LANDING_URL=${{ steps.target.outputs.landing_url }})
           npx vercel@59.11.7 alias "$URL" "$CONSOLE_ALIAS" --token "$VERCEL_TOKEN"

@@ -36,16 +36,17 @@ test('deploy-promotion leaves the build to Vercel instead of prebuilding on the 
   assert.doesNotMatch(source, /--prebuilt/);
 });
 
-test('deploy-promotion does not pass Vercel CLI --target preview on QA', async () => {
+test('deploy-promotion is production-only and never passes --target preview', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
-  assert.doesNotMatch(source, /vercel_target=preview/);
+  // #1133 retired the qa environment: main is the only deployed branch.
+  assert.match(source, /branches:\n\s+- main/);
+  assert.doesNotMatch(source, /qa/, 'no branch of the promotion flow is called qa any more');
   assert.doesNotMatch(source, /--target preview/);
-  assert.doesNotMatch(source, /vercel-args: '--target /);
   assert.match(
     source,
-    /vercel_args=--prod/,
-    'Production deploys must keep --prod. QA must omit --target; Vercel CLI 25 rejects --target preview.',
+    /--yes --prod/,
+    'A production deploy must keep --prod.',
   );
 });
 
@@ -56,11 +57,12 @@ test('deploy-promotion uses Vercel CLI 47+ instead of vercel-action v25', async 
   assert.match(source, /npx vercel@59\.11\.7/);
 });
 
-test('deploy-promotion keeps the combined site alias per environment', async () => {
+test('deploy-promotion relies on the combined project production domain instead of aliasing', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
-  assert.match(source, /vercel_alias=qa\.orvel\.pro/);
-  assert.match(source, /alias "\$URL" "\$\{\{ steps\.target\.outputs\.vercel_alias \}\}"/);
+  // The combined project has orvel.pro as its production domain, so the workflow does not assign
+  // an alias for it; the console, which has none, does get one.
+  assert.doesNotMatch(source, /vercel_alias/);
   assert.doesNotMatch(
     source,
     /dist\/salon-de-belleza\/browser/,
@@ -73,8 +75,6 @@ test('deploy-promotion deploys the operator console as its own project and origi
   const consoleStep = source.slice(source.indexOf('Deploy the operator console'));
 
   assert.ok(consoleStep.length > 0, 'expected a console deploy step');
-  assert.match(source, /vercel_alias=qa\.orvel\.pro/);
-  assert.match(source, /console_alias=dashboard\.qa\.orvel\.pro/);
   assert.match(source, /console_alias=dashboard\.orvel\.pro/);
   assert.match(consoleStep, /VERCEL_PROJECT_ID: \$\{\{ secrets\.VERCEL_PROJECT_ID_WEB \}\}/);
   assert.doesNotMatch(
@@ -92,25 +92,28 @@ test('the console deploy skips instead of failing while its project does not exi
   assert.match(source, /Skipping the console deploy/);
 });
 
-test('deploy-promotion declares the function runtime environment per branch', async () => {
+test('deploy-promotion declares the function runtime environment', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
   // ADR 0012: the handoff allowlist resolves origins from ENVIRONMENT. Nothing used to set it, so
   // every deployed function also allowed the six localhost origins, production included.
-  assert.match(source, /function_environment=qa/);
-  assert.match(source, /function_environment=production/);
-  assert.match(source, /supabase secrets set ENVIRONMENT=\$\{\{ steps\.target\.outputs\.function_environment \}\}/);
+  assert.match(source, /supabase secrets set ENVIRONMENT=production/);
+  assert.doesNotMatch(source, /ENVIRONMENT=qa/);
 });
 
-test('deploy-promotion uses separate QA and prod Supabase access tokens', async () => {
+test('deploy-promotion uses the production Supabase access token only', async () => {
   const source = await readFile(workflowUrl, 'utf8');
 
-  assert.match(source, /secrets\.SUPABASE_ACCESS_TOKEN_QA/);
   assert.match(source, /secrets\.SUPABASE_ACCESS_TOKEN_PROD/);
   assert.doesNotMatch(
     source,
-    /secrets\.SUPABASE_ACCESS_TOKEN[^\w]/,
-    'Shared SUPABASE_ACCESS_TOKEN would let a prod rotate clobber QA (or the reverse).',
+    /secrets\.SUPABASE_ACCESS_TOKEN_QA/,
+    '#1133 retired the qa environment, so its token must not linger in the workflow.',
+  );
+  assert.doesNotMatch(
+    source,
+    /secrets\.SUPABASE_ACCESS_TOKEN[^\w_]/,
+    'A shared token would be a different secret than the one production is meant to rotate.',
   );
 });
 
