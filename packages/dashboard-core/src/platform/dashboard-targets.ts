@@ -36,7 +36,7 @@ export const DASHBOARD_TARGETS: readonly DashboardTargetSurface[] = [
     target: 'pwa',
     pattern: /^booking(\/|$)/,
     reason:
-      'Public booking and manage-booking are the customer-facing mobile product: they are the reason the app is installable, and they are not used from the desktop console.',
+      'Public booking and manage-booking are the customer-facing public product, and the desktop console never mounts them. They ride in the pwa *artifact* only because that build already carries them: the installable app is the operator agenda (`start_url: /dashboard/turnos`, service-worker scope `/dashboard/`), so a client opening a booking link gets no worker and no install prompt. ADR 0012 Amendment 2 gives them their own artifact and origin (`reserva.orvel.pro`); until that lands this stays classified `pwa` for packaging reasons, not because the product belongs here.',
   },
   {
     id: 'pwa-install',
