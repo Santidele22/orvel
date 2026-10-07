@@ -273,7 +273,8 @@ describe('legacy create-account-business boundary', () => {
     expect(source).toMatch(/export const OPTIONS/);
     expect(source).toContain('https://dashboard.orvel.pro');
     expect(source).toContain('https://orvel.pro');
-    expect(source).toContain('https://qa.orvel.pro');
+    // #1133 retired the pre-release environment: qa must not linger as an allowed signup origin.
+    expect(source).not.toContain('https://qa.orvel.pro');
     expect(source).toContain('Access-Control-Allow-Origin');
     expect(source).toMatch(/localhost:4200|localhost:3000/);
   });
