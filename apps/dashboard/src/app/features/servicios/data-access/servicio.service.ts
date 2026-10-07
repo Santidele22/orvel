@@ -4,14 +4,17 @@
 import { Injectable, signal } from '@angular/core';
 import { Observable, of, from, delay, tap, switchMap, throwError, catchError } from 'rxjs';
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, SERVICIOS_POR_CATEGORIA } from '../../../models/servicio.model';
-import { loadDashboardRuntimeEnv } from '../../../core/runtime/dashboard-env';
-import { createDashboardSupabaseClient } from '../../../core/runtime/supabase-client.factory';
-import { SERVICIOS_FALLBACK_STORAGE_KEY } from '../../../core/storage/browser-storage-keys';
-import { AuthService } from '../../../services/auth.service';
+import { Servicio, CreateServicioDTO, UpdateServicioDTO, CATEGORIAS_SERVICIOS, SERVICIOS_POR_CATEGORIA } from '@orvel/dashboard-core/models/servicio.model';
+import { loadDashboardRuntimeEnv } from '@orvel/dashboard-core/runtime/dashboard-env';
+import { createDashboardSupabaseClient } from '@orvel/dashboard-core/adapters/supabase/supabase-client.factory';
+import { SERVICIOS_FALLBACK_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 import { inject } from '@angular/core';
-import { getBranchContextService, registerSectionCacheInvalidator } from '../../../core/branches/branch-context.service';
-import { BusinessService } from '../../settings/data-access/business.service';
+import { getBranchContextService, registerSectionCacheInvalidator } from '@orvel/dashboard-core/branches/branch-context.service';
+import {
+  BUSINESS_SETTINGS_SOURCE,
+  type BusinessSettingsSource
+} from '@orvel/dashboard-core/business/business-directory.ports';
 
 type ServicioMutationScope = {
   tenantContext: { accountId: string };
@@ -592,16 +595,13 @@ export class ServicioService {
       return [];
     }
 
-    let query = supabaseClient
-      .from('services')
-      .select('*')
-      .eq('business_id', businessId);
-
-    if (options.activeOnly) {
-      query = query.eq('is_active', true);
-    }
-
-    const { data: rows, error } = await query.order('name', { ascending: true });
+    // Read through the SECURITY DEFINER RPC: the tenant filter and the
+    // active-only rule for non-managers are enforced by the database, so an
+    // anonymous caller can no longer enumerate another business's catalogue.
+    const { data: rows, error } = await supabaseClient.rpc('list_public_services', {
+      p_business_id: businessId,
+      p_active_only: options.activeOnly === true
+    });
 
     if (error) {
       if (this.isSupabaseSchemaUnavailableError(error.message)) {
@@ -610,7 +610,7 @@ export class ServicioService {
       throw new Error(error.message || 'SERVICIOS_LOAD_ERROR');
     }
 
-    return (rows ?? []).map(row => this.mapSupabaseRowToServicio(row as Record<string, unknown>));
+    return (rows ?? []).map((row: Record<string, unknown>) => this.mapSupabaseRowToServicio(row));
   }
 
   private async createServicioInSupabase(supabaseClient: SupabaseClient, dto: CreateServicioDTO): Promise<Servicio> {
@@ -1023,9 +1023,9 @@ export class ServicioService {
     }
   }
 
-  private resolveBusinessSettings(): BusinessService | null {
+  private resolveBusinessSettings(): BusinessSettingsSource | null {
     try {
-      return inject(BusinessService);
+      return inject(BUSINESS_SETTINGS_SOURCE);
     } catch {
       return null;
     }

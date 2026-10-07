@@ -36,3 +36,27 @@ jobs:
 
       - name: Run dashboard account-cancellation tests
         run: pnpm run test:dashboard:account-cancellation
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The web/pwa seam e2e (#1098 Fase 3). It rebuilds the dashboard first so the artifact under
+      # test is the one these synthetic values produced, and it boots both dev servers, which the
+      # build-and-unit gates cannot see.
+      - name: Run web/pwa seam e2e
+        env:
+          # Synthetic, non-routable project: the specs assert boot, routing and the PWA artifacts,
+          # never a live Supabase call.
+          PUBLIC_SUPABASE_URL: https://e2e.invalid.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+        run: pnpm run build:dashboard && pnpm run test:e2e:seam
+
+      # The dashboard's public surfaces: the unauthenticated redirect and the public turnero's
+      # not-found state. Both stub the backend they depend on, so they assert the app's behaviour
+      # instead of a database's state. The authenticated diagnostics stay out on purpose: they
+      # perform real CRUD and need real credentials.
+      - name: Run dashboard public-surface e2e
+        env:
+          PUBLIC_SUPABASE_URL: https://e2e.invalid.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+        run: pnpm run test:e2e

@@ -44,6 +44,43 @@ export function id(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export const DEFAULT_PUBLIC_TIMEZONE = 'America/Argentina/Buenos_Aires';
+
+export const DEFAULT_PUBLIC_WORKING_HOURS = {
+  monday: { enabled: true, start: '09:00', end: '18:00' },
+  tuesday: { enabled: true, start: '09:00', end: '18:00' },
+  wednesday: { enabled: true, start: '09:00', end: '18:00' },
+  thursday: { enabled: true, start: '09:00', end: '18:00' },
+  friday: { enabled: true, start: '09:00', end: '18:00' },
+  saturday: { enabled: true, start: '10:00', end: '14:00' },
+  sunday: { enabled: false, start: '00:00', end: '00:00' }
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asText(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function asOptionalText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
 // Convert DB business record and settings to BusinessPublicView.
 // Business identity/public routing comes from businesses; settings only carries
 // operational booking configuration.
@@ -60,15 +97,7 @@ export function mapBusinessToPublicView(
       bufferMinutes: settings?.buffer_minutes ?? 10,
       minNoticeMinutes: settings?.min_notice_minutes ?? 120,
       slotIntervalMinutes: settings?.slot_interval_minutes ?? 30,
-      workingHours: settings?.working_hours ?? {
-        monday: { enabled: true, start: '09:00', end: '18:00' },
-        tuesday: { enabled: true, start: '09:00', end: '18:00' },
-        wednesday: { enabled: true, start: '09:00', end: '18:00' },
-        thursday: { enabled: true, start: '09:00', end: '18:00' },
-        friday: { enabled: true, start: '09:00', end: '18:00' },
-        saturday: { enabled: true, start: '10:00', end: '14:00' },
-        sunday: { enabled: false, start: '00:00', end: '00:00' }
-      }
+      workingHours: settings?.working_hours ?? DEFAULT_PUBLIC_WORKING_HOURS
     },
     bookingPolicy: {
       autoConfirm: settings?.auto_confirm ?? true,
@@ -77,6 +106,58 @@ export function mapBusinessToPublicView(
     }
   };
 }
+
+// Canonical mapping for the anonymous turnero.
+//
+// `public.resolve_business_by_slug(text)` is SECURITY DEFINER and already
+// returns the business identity, the booking policy and the operational
+// settings (including the deposit receipt data), so the public flow must never
+// read `business_settings` with the anonymous client. Revoking the anonymous
+// grants on that table depends on this mapping (audit 2026-09-28, C-2/M-15).
+export function mapResolvedBusinessToPublicView(payload: unknown): BusinessPublicView {
+  const record = asRecord(payload);
+  const settings = asRecord(record['settings']);
+  const bookingPolicy = asRecord(record['booking_policy'] ?? record['bookingPolicy']);
+
+  return {
+    id: asText(record['id']),
+    slug: asText(record['slug']),
+    displayName: asText(record['name']),
+    timezone: asText(record['timezone']) || DEFAULT_PUBLIC_TIMEZONE,
+    settings: {
+      bufferMinutes: asNumber(settings['bufferMinutes'] ?? settings['buffer_minutes'], 10),
+      minNoticeMinutes: asNumber(settings['minNoticeMinutes'] ?? settings['min_notice_minutes'], 120),
+      slotIntervalMinutes: asNumber(
+        settings['slotIntervalMinutes'] ?? settings['slot_interval_minutes'],
+        30
+      ),
+      workingHours: settings['workingHours'] ?? settings['working_hours'] ?? DEFAULT_PUBLIC_WORKING_HOURS,
+      maxAdvanceDays: asNumber(settings['maxAdvanceDays'] ?? settings['max_advance_days'], 30),
+      depositEnabled: (settings['depositEnabled'] ?? settings['deposit_enabled']) === true,
+      depositPercent: asNumber(settings['depositPercent'] ?? settings['deposit_percent'], 0),
+      depositAlias: asOptionalText(settings['depositAlias'] ?? settings['deposit_alias']),
+      depositCbu: asOptionalText(settings['depositCbu'] ?? settings['deposit_cbu']),
+      supportPhone: asOptionalText(settings['supportPhone'] ?? settings['support_phone'])
+    },
+    bookingPolicy: {
+      autoConfirm: (bookingPolicy['autoConfirm'] ?? bookingPolicy['auto_confirm']) !== false,
+      cancellationWindowMinutes: asNumber(
+        bookingPolicy['cancellationWindowMinutes'] ?? bookingPolicy['cancellation_window_minutes'],
+        60
+      ),
+      allowClientProfessionalSelection:
+        (bookingPolicy['allowClientProfessionalSelection'] ??
+          bookingPolicy['allow_client_professional_selection']) === true,
+      allowClientReschedule:
+        (bookingPolicy['allowClientReschedule'] ?? bookingPolicy['allow_client_reschedule']) !== false,
+      allowClientCancel:
+        (bookingPolicy['allowClientCancel'] ?? bookingPolicy['allow_client_cancel']) !== false
+    }
+  };
+}
+
+/** Reader-facing copy for the anonymous turnero being switched off. */
+export const PUBLIC_TURNERO_DISABLED_MESSAGE = 'Public booking is temporarily unavailable.';
 
 // Map Supabase RPC error to ApiError while preserving safe diagnostics for operational logs.
 export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
@@ -104,6 +185,13 @@ export function mapRpcErrorToApiError(error: RpcErrorLike): ApiError {
     if (code === domainCode || message.includes(domainCode)) {
       return apiError(domainCode, message, error);
     }
+  }
+  // `_assert_business_accepts_public_bookings` rejects the anonymous turnero
+  // while the business has not confirmed its email. It is a product state, not
+  // a validation failure: the client must be able to show an "unavailable"
+  // message instead of a generic validation error.
+  if (code === 'PUBLIC_TURNERO_DISABLED' || message.includes('PUBLIC_TURNERO_DISABLED')) {
+    return apiError('PUBLIC_TURNERO_DISABLED', PUBLIC_TURNERO_DISABLED_MESSAGE, error);
   }
   if (code === 'TOKEN_REVOKED' || message.includes('TOKEN_REVOKED')) {
     return apiError('TOKEN_REVOKED', message, error);

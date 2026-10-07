@@ -2,13 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { Servicio } from '../../../models/servicio.model';
+import { Servicio } from '@orvel/dashboard-core/models/servicio.model';
 import { ServicioService } from '../data-access/servicio.service';
 import {
   getSuggestedServicesForRubros,
   type SuggestedService
 } from '../data-access/service-catalog-suggestions';
-import { ThemeService } from '../../../core/theming/theme.service';
+import { ThemeService } from '@orvel/dashboard-core/theming/theme.service';
 import {
   ORVEL_SECTION_PRIMITIVES,
   ORVEL_BADGE_TONE_CLASS,

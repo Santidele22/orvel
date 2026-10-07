@@ -9,8 +9,8 @@ function readServiciosPageSource(): string {
       resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.html')
     ],
     [
-      resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.ts'),
-      resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.html')
+      resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.ts'),
+      resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.html')
     ]
   ] as const;
 

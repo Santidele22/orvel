@@ -5,16 +5,17 @@
  * This file can be imported by tests without Angular compilation.
  */
 import { normalizePlanCode, resolveValidPlanCode, type PlanCode } from '../data-access/onboarding-plan-utils';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import {
   type DashboardReferenceCatalog,
   resolveBusinessTypeCodeFromCatalog
-} from '../../../core/catalog/reference-catalog';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
 import {
   getRuntimeReferenceCatalogSnapshot,
   refreshRuntimeReferenceCatalog
-} from '../../../core/catalog/reference-catalog.gateway';
-import { SUPABASE_CONFIG } from '../../../core/auth/supabase-config';
-import { createSupabaseBrowserClient } from '../../../core/auth/supabase-auth.client';
+} from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
+import { SUPABASE_CONFIG } from '@orvel/dashboard-core/auth/supabase-config';
+import { createSupabaseBrowserClient } from '@orvel/dashboard-core/adapters/supabase/supabase-auth.client';
 import {
   type BusinessTypeCode,
   ONBOARDING_BUSINESS_TYPES_STORAGE_KEY,
@@ -486,7 +487,7 @@ export class SignupBusinessTypesStepPage {
       return;
     }
 
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const reducedMotion = browserPlatform().matchesMediaQuery('(prefers-reduced-motion: reduce)');
     if (reducedMotion) {
       return;
     }

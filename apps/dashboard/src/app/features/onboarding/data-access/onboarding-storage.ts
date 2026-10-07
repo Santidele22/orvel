@@ -7,7 +7,9 @@ import {
   TemplateCatalog
 } from './onboarding-templates';
 
-export const ONBOARDING_STORAGE_KEY = 'turnea.onboarding.v1';
+import { ONBOARDING_STORAGE_KEY } from '@orvel/dashboard-core/storage/browser-storage-keys';
+
+export { ONBOARDING_STORAGE_KEY };
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 

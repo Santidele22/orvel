@@ -11,8 +11,8 @@
  * - src/reference-catalog.ts and src/onboarding-templates.ts are import-free pure
  *   (no dashboard-internal deps, REQ-DOMAIN-1).
  * - src/required-rubro.ts is types-only.
- * - The 3 dashboard old paths are re-export shims pointing at @orvel/domain
- *   (REQ-DOMAIN-3 migration window).
+ * - The 3 dashboard old paths are re-export shims (REQ-DOMAIN-3 migration window); the rubro
+ *   runtime shim points at `core/catalog/required-rubros` since Fase 3 of #1098 moved it there.
  * - pnpm-workspace.yaml still wires packages/* (REQ-DOMAIN-2 + REQ-DOMAIN-4).
  */
 
@@ -29,11 +29,7 @@ const ONBOARDING_TEMPLATES_SOURCE = join(PACKAGE_ROOT, 'src', 'onboarding-templa
 const REQUIRED_RUBRO_SOURCE = join(PACKAGE_ROOT, 'src', 'required-rubro.ts');
 const DASHBOARD_REFERENCE_CATALOG_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'catalog',
   'reference-catalog.ts'
 );
@@ -58,6 +54,12 @@ const DASHBOARD_ONBOARDING_RUBROS_SHIM = join(
   'onboarding',
   'data-access',
   'onboarding-rubros.ts'
+);
+const CORE_REQUIRED_RUBROS = join(
+  REPO_ROOT,
+  'packages', 'dashboard-core', 'src',
+  'catalog',
+  'required-rubros.ts'
 );
 
 function readSource(filePath: string): string {
@@ -143,17 +145,20 @@ describe('@orvel/domain package shape contract (chore-extract-domain-package)', 
     expect(source, 'required-rubro must not import anything').not.toMatch(/^\s*import\b/m);
   });
 
-  it('3 dashboard shims at the old paths re-export from @orvel/domain (migration window)', () => {
+  it('3 dashboard shims at the old paths re-export their new source (migration window)', () => {
     const referenceCatalogShim = readSource(DASHBOARD_REFERENCE_CATALOG_SHIM);
     const onboardingTemplatesShim = readSource(DASHBOARD_ONBOARDING_TEMPLATES_SHIM);
     const onboardingRubrosShim = readSource(DASHBOARD_ONBOARDING_RUBROS_SHIM);
+    const coreRequiredRubros = readSource(CORE_REQUIRED_RUBROS);
 
     expect(referenceCatalogShim).toContain("from '@orvel/domain'");
     expect(onboardingTemplatesShim).toContain("from '@orvel/domain'");
-    expect(onboardingRubrosShim).toContain("from '@orvel/domain'");
-    // onboarding-rubros keeps the runtime (D3 split): it must still export the runtime functions
-    expect(onboardingRubrosShim).toContain('export function sanitizeSelectedRubros');
-    expect(onboardingRubrosShim).toContain('export function normalizeRubro');
+    // Fase 3 of #1098: the rubro runtime moved into the core (the core used to import this feature
+    // shim back). The old path stays as a pure re-export and owns no logic.
+    expect(onboardingRubrosShim).toContain("from '@orvel/dashboard-core/catalog/required-rubros'");
+    expect(onboardingRubrosShim).not.toMatch(/export\s+function\s/);
+    expect(coreRequiredRubros).toContain('export function sanitizeSelectedRubros');
+    expect(coreRequiredRubros).toContain('export function normalizeRubro');
   });
 
   it('pnpm-workspace.yaml still wires packages/* (REQ-DOMAIN-2 + REQ-DOMAIN-4)', () => {

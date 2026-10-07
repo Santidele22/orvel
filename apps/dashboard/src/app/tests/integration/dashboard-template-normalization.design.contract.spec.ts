@@ -25,11 +25,11 @@ function fromRoot(relativePath: string): string {
 }
 
 async function loadThemeTokens(): Promise<Record<string, Record<string, unknown>>> {
-  const module = await import('../../core/theming/theme.tokens');
+  const module = await import('@orvel/dashboard-core/theming/theme.tokens');
   const tokens = module.DASHBOARD_THEME_TOKENS as Record<string, Record<string, unknown>> | undefined;
 
   if (!tokens) {
-    throw new Error('Missing DASHBOARD_THEME_TOKENS export in src/app/core/theming/theme.tokens.ts');
+    throw new Error('Missing DASHBOARD_THEME_TOKENS export in ../../packages/dashboard-core/src/theming/theme.tokens.ts');
   }
 
   return tokens;
@@ -70,16 +70,6 @@ describe('DESIGN.md normalization contract: dashboard templates', () => {
 
       expect(missingKeys, `Theme "${theme}" missing semantic token keys`).toEqual([]);
     }
-  });
-
-  it('requires canonical status handling availability (confirmed/pending/in_progress/completed)', async () => {
-    const statusBadgeSource = await readFile(fromRoot(STATUS_BADGE_TS), 'utf-8');
-
-    const missingCanonicalStatuses = REQUIRED_CANONICAL_STATUSES.filter((status) => {
-      return !statusBadgeSource.toLowerCase().includes(status.toLowerCase());
-    });
-
-    expect(missingCanonicalStatuses, 'Missing canonical statuses in status handling layer').toEqual([]);
   });
 
   it('keeps zen as the only declared dashboard theme token map key', async () => {

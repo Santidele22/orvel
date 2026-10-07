@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const MOCK_LOGIN_TS = 'src/app/core/auth/mock-login-business-types.ts';
+const MOCK_LOGIN_TS = '../../packages/dashboard-core/src/auth/mock-login-business-types.ts';
 const DASHBOARD_SHELL_TS = 'src/app/shared/dashboard-shell/dashboard-shell.component.ts';
 
 function fromRoot(relativePath: string): string {

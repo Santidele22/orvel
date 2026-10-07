@@ -10,13 +10,18 @@ import {
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
-  type TourMatchMediaEnvironment,
+  type TourSurfaceEnvironment,
 } from './operator-tour-steps';
 
 const dashboardRoot = resolve(process.cwd(), 'src/app');
+// Fase 3 of #1098: the shared core lives in packages/dashboard-core.
+const coreRoot = resolve(process.cwd(), '../../packages/dashboard-core/src');
 
 const read = (relativePath: string): string =>
   readFileSync(resolve(dashboardRoot, relativePath), 'utf8');
+
+const readCore = (relativePath: string): string =>
+  readFileSync(resolve(coreRoot, relativePath), 'utf8');
 
 /**
  * The dashboard ships the desktop and mobile variants of the same screen in one
@@ -25,14 +30,12 @@ const read = (relativePath: string): string =>
  * against the real templates, not against a runtime viewport.
  */
 const templateMarkup = [
-  'shared/dashboard-shell/dashboard-shell.component.html',
-  'features/dashboard-home/pages/dashboard-home.page.html',
-  'shared/dashboard-sidebar/templates/zen-sidebar.component.ts',
-  'core/shell/mobile-bottom-nav/mobile-bottom-nav.component.ts',
-  'features/operator-tour/operator-tour-help-button.component.ts',
-]
-  .map(read)
-  .join('\n');
+  read('shared/dashboard-shell/dashboard-shell.component.html'),
+  read('features/dashboard-home/pages/dashboard-home.page.html'),
+  read('shared/dashboard-sidebar/templates/zen-sidebar.component.ts'),
+  readCore('shell/mobile-bottom-nav/mobile-bottom-nav.component.ts'),
+  read('features/operator-tour/operator-tour-help-button.component.ts'),
+].join('\n');
 
 const templateDocument = new JSDOM(`<body>${templateMarkup}</body>`).window.document;
 
@@ -59,19 +62,19 @@ describe('operator tour steps contract', () => {
     expect(TOUR_SURFACE_BREAKPOINTS.desktop).toBe('(min-width: 1024px)');
   });
 
-  it('resolves the surface from a matchMedia-like environment', () => {
-    const desktopEnv: TourMatchMediaEnvironment = {
-      matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.desktop }),
+  it('resolves the surface from the platform port primitive', () => {
+    const desktopEnv: TourSurfaceEnvironment = {
+      matchesMediaQuery: (query: string) => query === TOUR_SURFACE_BREAKPOINTS.desktop,
     };
-    const mobileEnv: TourMatchMediaEnvironment = {
-      matchMedia: (query: string) => ({ matches: query === TOUR_SURFACE_BREAKPOINTS.mobile }),
+    const mobileEnv: TourSurfaceEnvironment = {
+      matchesMediaQuery: (query: string) => query === TOUR_SURFACE_BREAKPOINTS.mobile,
     };
 
     expect(resolveTourSurface(desktopEnv)).toBe<TourSurface>('desktop');
     expect(resolveTourSurface(mobileEnv)).toBe<TourSurface>('mobile');
   });
 
-  it('falls back to desktop when matchMedia is unavailable (SSR / tests)', () => {
+  it('falls back to desktop when the host cannot answer (SSR / tests)', () => {
     expect(resolveTourSurface({})).toBe<TourSurface>('desktop');
   });
 

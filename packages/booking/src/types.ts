@@ -42,12 +42,20 @@ export type BusinessPublicView = {
     autoConfirm: boolean;
     cancellationWindowMinutes: number;
     allowClientProfessionalSelection: boolean;
+    allowClientReschedule?: boolean;
+    allowClientCancel?: boolean;
   };
   settings: {
     bufferMinutes: number;
     minNoticeMinutes: number;
     slotIntervalMinutes: number;
     workingHours: any;
+    maxAdvanceDays?: number;
+    depositEnabled?: boolean;
+    depositPercent?: number;
+    depositAlias?: string | null;
+    depositCbu?: string | null;
+    supportPhone?: string | null;
   };
 };
 

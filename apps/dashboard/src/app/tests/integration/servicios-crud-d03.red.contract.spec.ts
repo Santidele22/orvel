@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readServiciosSource(): string {
-  const tsPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.ts');
-  const htmlPath = resolve(process.cwd(), 'src/app/pages/dashboard/servicios/servicios.page.html');
+  const tsPath = resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.ts');
+  const htmlPath = resolve(process.cwd(), 'src/app/features/servicios/pages/servicios.page.html');
 
   const tsSource = existsSync(tsPath) ? readFileSync(tsPath, 'utf-8') : '';
   const htmlSource = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';

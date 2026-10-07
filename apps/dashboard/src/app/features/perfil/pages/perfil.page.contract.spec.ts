@@ -5,7 +5,7 @@ const source = readFileSync(new URL('./perfil.page.ts', import.meta.url), 'utf8'
 
 describe('PerfilPage contract', () => {
   it('shows signed-in nombre and email from AuthService', () => {
-    expect(source).toMatch(/from\s+['"][^'"]*services\/auth\.service['"]/);
+    expect(source).toMatch(/from\s+['"][^'"]*core\/auth\/auth\.service['"]/);
     expect(source).toMatch(/user\(\s*\)\?\.nombre/);
     expect(source).toMatch(/user\(\s*\)\?\.email/);
   });
@@ -68,7 +68,7 @@ describe('PerfilPage contract', () => {
 
   it('uses Inicio mobile tokens and a real plan badge without mock copy', () => {
     expect(source.includes('#0A0E1B') || source.includes('#7C5CFF')).toBe(true);
-    expect(source).toMatch(/from\s+['"][^'"]*settings\/data-access\/business\.service['"]/);
+    expect(source).toMatch(/from\s+['"][^'"]*core\/business\/business-directory\.ports['"]/);
     expect(source).toMatch(/settings\(\s*\)\?\.plan/);
     expect(source).toMatch(/Plan /);
     expect(source).not.toContain('Santiago');

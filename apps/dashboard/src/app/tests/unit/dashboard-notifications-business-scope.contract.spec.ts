@@ -7,9 +7,10 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
 
-const appRoot = resolve(process.cwd(), 'src/app');
+// Fase 3 of #1098: the shared core lives in packages/dashboard-core.
+const coreRoot = resolve(process.cwd(), '../../packages/dashboard-core/src');
 
 const mocks = vi.hoisted(() => ({
   branchContext: {
@@ -24,13 +25,13 @@ const mocks = vi.hoisted(() => ({
   channel: vi.fn()
 }));
 
-vi.mock('../../core/branches/branch-context.service', () => ({
+vi.mock('@orvel/dashboard-core/branches/branch-context.service', () => ({
   getBranchContextService: () => mocks.branchContext,
   registerSectionCacheInvalidator: () => undefined,
   invalidateSectionCaches: () => undefined
 }));
 
-vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => ({
+vi.mock('@orvel/dashboard-core/notifications/internal-dashboard-notifications.api', () => ({
   listAdminNotifications: mocks.listAdminNotifications,
   getUnreadNotificationCount: mocks.getUnreadNotificationCount,
   archiveAllNotifications: mocks.archiveAllNotifications,
@@ -38,7 +39,7 @@ vi.mock('../../core/notifications/internal-dashboard-notifications.api', () => (
   archiveNotification: mocks.archiveNotification
 }));
 
-vi.mock('../../core/runtime/supabase-client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-client', () => ({
   createSupabaseClient: () => ({
     channel: mocks.channel.mockReturnValue({
       on: vi.fn().mockReturnThis(),
@@ -48,7 +49,7 @@ vi.mock('../../core/runtime/supabase-client', () => ({
   })
 }));
 
-vi.mock('../../core/observability/public-booking-operational-events', () => ({
+vi.mock('@orvel/dashboard-core/observability/public-booking-operational-events', () => ({
   emitPublicBookingFailureEvent: mocks.emitPublicBookingFailureEvent
 }));
 
@@ -73,7 +74,7 @@ describe('Dashboard notification business scope contract', () => {
   });
 
   it('uses the resolved dashboard business id for notification reads instead of the auth user id', async () => {
-    const { DashboardNotificationsService } = await import('../../core/notifications/dashboard-notifications.service');
+    const { DashboardNotificationsService } = await import('@orvel/dashboard-core/notifications/dashboard-notifications.service');
     mocks.branchContext.getActiveBusinessId.mockResolvedValue('business-real-1');
 
     TestBed.configureTestingModule({
@@ -93,7 +94,7 @@ describe('Dashboard notification business scope contract', () => {
   });
 
   it('emits sanitized operational telemetry when business context is missing', async () => {
-    const { DashboardNotificationsService } = await import('../../core/notifications/dashboard-notifications.service');
+    const { DashboardNotificationsService } = await import('@orvel/dashboard-core/notifications/dashboard-notifications.service');
     mocks.branchContext.getActiveBusinessId.mockResolvedValue(null);
 
     TestBed.configureTestingModule({
@@ -119,8 +120,8 @@ describe('Dashboard notification business scope contract', () => {
   });
 
   it('resolves the bell scope from dashboard business context, not the auth user id', () => {
-    const source = readFileSync(resolve(appRoot, 'core/notifications/dashboard-notifications.service.ts'), 'utf8');
-    const branchContext = readFileSync(resolve(appRoot, 'core/branches/branch-context.service.ts'), 'utf8');
+    const source = readFileSync(resolve(coreRoot, 'notifications/dashboard-notifications.service.ts'), 'utf8');
+    const branchContext = readFileSync(resolve(coreRoot, 'branches/branch-context.service.ts'), 'utf8');
 
     expect(source).toMatch(/getBranchContextService/);
     expect(source).toMatch(/getActiveBusinessId\(\)/);
@@ -134,7 +135,7 @@ describe('Dashboard notification business scope contract', () => {
   });
 
   it('fails degraded-empty when no active business can be resolved', () => {
-    const source = readFileSync(resolve(appRoot, 'core/notifications/dashboard-notifications.service.ts'), 'utf8');
+    const source = readFileSync(resolve(coreRoot, 'notifications/dashboard-notifications.service.ts'), 'utf8');
 
     expect(source).toMatch(/applyMissingBusinessContext/);
     expect(source).toMatch(/notificationsState\.set\(\[\]\)/);

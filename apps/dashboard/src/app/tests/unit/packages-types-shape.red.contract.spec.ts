@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..');
 const PACKAGE_ROOT = join(REPO_ROOT, 'packages', 'types');
-const DASHBOARD_MODELS = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'models');
+const DASHBOARD_MODELS = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'models');
 const MODEL_FILES = ['branch.model.ts', 'business.model.ts', 'cliente.model.ts', 'user.model.ts'] as const;
 
 function readSource(filePath: string): string {

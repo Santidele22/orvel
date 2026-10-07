@@ -5,8 +5,8 @@ import {
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
-  type TourMatchMediaEnvironment,
 } from './operator-tour-steps';
+import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import { createOperatorTourStorage } from './operator-tour-storage';
 
 /** Minimal slice of the driver.js API this service uses. */
@@ -34,6 +34,7 @@ const OPTIONAL_ANCHOR_WAIT_MS = 1200;
 export class OperatorTourService {
   private readonly platformId = inject(PLATFORM_ID, { optional: true });
   private readonly destroyRef = inject(DestroyRef, { optional: true });
+  private readonly platform = browserPlatform();
 
   private readonly storage = createOperatorTourStorage();
   /**
@@ -123,21 +124,9 @@ export class OperatorTourService {
   }
 
   private currentSurface(): TourSurface {
-    const environment = this.matchMediaEnvironment();
-    return resolveTourSurface(environment ?? {});
-  }
-
-  private matchMediaEnvironment(): TourMatchMediaEnvironment | undefined {
-    try {
-      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-        return undefined;
-      }
-      return {
-        matchMedia: (query: string) => window.matchMedia(query),
-      };
-    } catch {
-      return undefined;
-    }
+    return resolveTourSurface({
+      matchesMediaQuery: (query: string) => this.platform.matchesMediaQuery(query)
+    });
   }
 
   private toDriveStep(step: OperatorTourStep): unknown {

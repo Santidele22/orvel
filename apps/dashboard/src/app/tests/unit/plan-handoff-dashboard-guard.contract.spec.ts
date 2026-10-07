@@ -5,7 +5,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   signOut: vi.fn()
 }));
 
-vi.mock('../../core/auth/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
@@ -34,7 +34,7 @@ describe('Feature B contract: dashboard guard plan classification', () => {
       error: null
     });
 
-    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const { checkSupabaseSession } = await import('@orvel/dashboard-core/auth/route-protection');
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);
@@ -68,7 +68,7 @@ describe('Feature B contract: dashboard guard plan classification', () => {
       error: null
     });
 
-    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const { checkSupabaseSession } = await import('@orvel/dashboard-core/auth/route-protection');
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);
@@ -100,7 +100,7 @@ describe('Feature B contract: dashboard guard plan classification', () => {
       error: null
     });
 
-    const { checkSupabaseSession } = await import('../../core/auth/route-protection');
+    const { checkSupabaseSession } = await import('@orvel/dashboard-core/auth/route-protection');
     const access = await checkSupabaseSession('/dashboard/inicio');
 
     expect(access.allowed).toBe(false);

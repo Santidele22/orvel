@@ -10,8 +10,8 @@ import { firstValueFrom } from 'rxjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { ServicioService } from '../../services/servicio.service';
-import type { CreateServicioDTO } from '../../models/servicio.model';
+import { ServicioService } from '../../features/servicios/data-access/servicio.service';
+import type { CreateServicioDTO } from '@orvel/dashboard-core/models/servicio.model';
 
 function readServicioServiceSource(): string {
   const tsPath = resolve(process.cwd(), 'src/app/features/servicios/data-access/servicio.service.ts');

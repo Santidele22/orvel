@@ -94,11 +94,11 @@ function readSqlCorpus(): string {
 
 async function loadServerEntitlementsModule(): Promise<ServerEntitlementsModule> {
   try {
-    const mod = await import('../../core/entitlements/server-entitlements.api');
+    const mod = await import('@orvel/dashboard-core/entitlements/server-entitlements.api');
     return mod as ServerEntitlementsModule;
   } catch {
     throw new Error(
-      'TODO(Magnus): add src/app/core/entitlements/server-entitlements.api.ts exporting getBusinessEntitlementsSnapshot({ businessId }) and assertBusinessEntitlement({ businessId, metric, requestedUnits }).'
+      'TODO(Magnus): add ../../packages/dashboard-core/src/entitlements/server-entitlements.api.ts exporting getBusinessEntitlementsSnapshot({ businessId }) and assertBusinessEntitlement({ businessId, metric, requestedUnits }).'
     );
   }
 }

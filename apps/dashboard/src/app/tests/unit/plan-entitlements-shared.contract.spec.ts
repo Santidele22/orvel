@@ -24,10 +24,10 @@ async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
   let module: Record<string, unknown>;
 
   try {
-    module = await import('../../core/plans/plan-entitlements');
+    module = await import('@orvel/dashboard-core/plans/plan-entitlements');
   } catch {
     throw new Error(
-      'Missing shared module src/app/core/plans/plan-entitlements.ts with PLAN_ENTITLEMENTS and getPlanEntitlements(plan).'
+      'Missing shared module ../../packages/dashboard-core/src/plans/plan-entitlements.ts with PLAN_ENTITLEMENTS and getPlanEntitlements(plan).'
     );
   }
 
@@ -36,7 +36,7 @@ async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
 
   if (!PLAN_ENTITLEMENTS || !getPlanEntitlements) {
     throw new Error(
-      'Missing exports PLAN_ENTITLEMENTS and getPlanEntitlements(plan) in src/app/core/plans/plan-entitlements.ts'
+      'Missing exports PLAN_ENTITLEMENTS and getPlanEntitlements(plan) in ../../packages/dashboard-core/src/plans/plan-entitlements.ts'
     );
   }
 
@@ -44,7 +44,7 @@ async function loadPlanEntitlementsModule(): Promise<PlanEntitlementsModule> {
 }
 
 async function loadReferenceCatalogModule(): Promise<ReferenceCatalogModule> {
-  return (await import('../../core/catalog/reference-catalog')) as ReferenceCatalogModule;
+  return (await import('@orvel/dashboard-core/catalog/reference-catalog')) as ReferenceCatalogModule;
 }
 
 function catalogEntitlementsByCode(catalog: ReturnType<ReferenceCatalogModule['getDefaultDashboardReferenceCatalog']>) {

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './supabase-client.token';
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from '../../public-booking-slug';
 import type { SupabaseBookingGateway } from '../../gateway-interface';
-import { mapBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, mapPublicBookingCreateStatus } from './mappers';
+import { mapResolvedBusinessToPublicView, mapRpcErrorToApiError, isIsoDate, isEmail, mapPublicBookingCreateStatus } from './mappers';
 import { logMutationFailure } from '../../observability/mutation-error-log';
 import type {
   ApiResponse,
@@ -105,6 +105,15 @@ async function runPostBookingSideEffect(operation: string, effect: () => Promise
 // Resolves SupabaseClient through the SUPABASE_CLIENT DI token; the adapter is
 // provided at the application root via useFactory (see app.config.ts) and never
 // creates its own client at module scope.
+/**
+ * Public booking RPCs reject with product-state codes that are not request
+ * validation failures. They surface as 422 so the client can render an
+ * "unavailable" message instead of a generic bad request.
+ */
+function publicBookingErrorStatus(mapped: { code: string }): number {
+  return mapped.code === 'PUBLIC_TURNERO_DISABLED' ? 422 : 400;
+}
+
 export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
   private readonly supabaseClient: SupabaseClient;
 
@@ -142,18 +151,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
         };
       }
 
-      const businessRecord = data as { id: string; slug: string; name: string; timezone: string };
-
-      // Also fetch settings
-      const { data: settingsData } = await supabase
-        .from('business_settings')
-        .select('*')
-        .eq('business_id', businessRecord.id)
-        .maybeSingle();
-
+      // resolve_business_by_slug() is SECURITY DEFINER and returns the business
+      // identity, the booking policy and the operational settings, so the
+      // anonymous turnero must not read public.business_settings directly.
+      // Keeping this path table-free is what allows revoking anon's grants on
+      // that table (audit 2026-09-28, C-2/M-15).
       return {
         status: 200,
-        data: mapBusinessToPublicView(businessRecord, settingsData)
+        data: mapResolvedBusinessToPublicView(data)
       };
     } catch (err) {
       const error = err as { message?: string };
@@ -191,13 +196,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
 
       if (error) {
         const mapped = mapRpcErrorToApiError(error as { message?: string });
+        const statusCode = publicBookingErrorStatus(mapped);
         logMutationFailure({
           operation: 'query_public_slot_availability',
           error,
-          response: { status: 400, error: mapped }
+          response: { status: statusCode, error: mapped }
         });
         return {
-          status: 400,
+          status: statusCode,
           error: mapped
         };
       }
@@ -214,13 +220,14 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       };
     } catch (err) {
       const mapped = mapRpcErrorToApiError(err as { message?: string });
+      const statusCode = publicBookingErrorStatus(mapped);
       logMutationFailure({
         operation: 'query_public_slot_availability',
         error: err,
-        response: { status: 400, error: mapped }
+        response: { status: statusCode, error: mapped }
       });
       return {
-        status: 400,
+        status: statusCode,
         error: mapped
       };
     }
@@ -277,7 +284,7 @@ export class RealSupabaseBookingGateway implements SupabaseBookingGateway {
       if (error) {
         const apiError = mapRpcErrorToApiError(error as { message?: string });
         const statusCode = apiError.code === 'SLOT_CONFLICT' || apiError.code === 'BLOCKED_TIME_COLLISION' ? 409 :
-          apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' || apiError.code === 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN' ? 422 : 400;
+          apiError.code === 'PUBLIC_TURNERO_DISABLED' || apiError.code === 'BOOKING_TOO_SOON' || apiError.code === 'BOOKING_TOO_FAR_ADVANCE' || apiError.code === 'CLIENT_PROFESSIONAL_SELECTION_FORBIDDEN' ? 422 : 400;
         logMutationFailure({
           operation: 'create_public_booking',
           error,

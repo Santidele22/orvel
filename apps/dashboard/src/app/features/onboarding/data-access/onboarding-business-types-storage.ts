@@ -12,8 +12,8 @@
 
 import {
   resolveBusinessTypeCodeFromCatalog
-} from '../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 
 export type BusinessTypeCode =
   | 'peluqueria'
@@ -25,7 +25,11 @@ export type BusinessTypeCode =
   | 'masajes'
   | 'otro';
 
-export const ONBOARDING_BUSINESS_TYPES_STORAGE_KEY = 'turnea.onboarding.rubros.v1';
+import {
+  ONBOARDING_BUSINESS_TYPES_STORAGE_KEY
+} from '@orvel/dashboard-core/storage/browser-storage-keys';
+
+export { ONBOARDING_BUSINESS_TYPES_STORAGE_KEY };
 
 const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 

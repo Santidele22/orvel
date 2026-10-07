@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ALLOWED_SELECTED_BUSINESS_TYPES } from '../../core/auth/mock-login-business-types';
+import { ALLOWED_SELECTED_BUSINESS_TYPES } from '@orvel/dashboard-core/auth/mock-login-business-types';
 import { LEGACY_DASHBOARD_SESSION_STORAGE_KEY } from '@orvel/auth';
-import { validateSessionSchema } from '../../core/auth/validate-session-schema';
+import { validateSessionSchema } from '@orvel/dashboard-core/auth/validate-session-schema';
 import {
   buildLandingLoginRedirect,
   canAccessDashboard,
@@ -9,7 +9,7 @@ import {
   logoutAndRedirect,
   resetDashboardAuthAccessCache,
   sanitizeReturnTo
-} from '../../core/auth/route-protection';
+} from '@orvel/dashboard-core/auth/route-protection';
 
 describe('Legacy mock auth contract - dashboard access fails closed', () => {
   beforeEach(() => {

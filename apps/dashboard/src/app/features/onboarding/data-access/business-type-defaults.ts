@@ -1,9 +1,10 @@
-import { normalizePlanCode, type CanonicalPlanCode } from '../../../core/plans/plan-entitlements';
+import { normalizePlanCode, type CanonicalPlanCode } from '@orvel/dashboard-core/plans/plan-entitlements';
 import {
   type CatalogBusinessType,
   resolveBusinessTypeCodeFromCatalog
-} from '../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { isCatalogBusinessType } from '@orvel/dashboard-core/catalog/business-type-validation';
+import { REFERENCE_CATALOG } from '@orvel/dashboard-core/catalog/reference-catalog-snapshot';
 import type { BusinessTypeCode } from './onboarding-business-types-storage';
 
 export type OnboardingBusinessType = BusinessTypeCode;
@@ -33,8 +34,6 @@ const DEFAULT_WORKING_HOURS: OnboardingWorkingHours = {
   saturday: { enabled: true, start: '10:00', end: '14:00' },
   sunday: { enabled: false, start: '00:00', end: '00:00' }
 };
-
-const REFERENCE_CATALOG = getRuntimeReferenceCatalogSnapshot();
 
 const onboardingBusinessTypeDisplayOrder: Record<string, number> = {
   unas: 10,
@@ -69,12 +68,7 @@ function slugify(input: string): string {
 }
 
 export function isAllowedOnboardingBusinessType(value: unknown): value is OnboardingBusinessType {
-  const resolved = resolveBusinessTypeCodeFromCatalog(REFERENCE_CATALOG, value);
-
-  return (
-    resolved !== null &&
-    REFERENCE_CATALOG.businessTypes.some((businessType: CatalogBusinessType) => businessType.code === resolved)
-  );
+  return isCatalogBusinessType(value);
 }
 
 function normalizeOnboardingBusinessType(value: unknown): OnboardingBusinessType {

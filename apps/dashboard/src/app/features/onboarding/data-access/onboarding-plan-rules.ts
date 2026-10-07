@@ -1,7 +1,7 @@
 import {
   getPlanEntitlementsFromCatalog
-} from '../../../core/catalog/reference-catalog';
-import { getRuntimeReferenceCatalogSnapshot } from '../../../core/catalog/reference-catalog.gateway';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
+import { getRuntimeReferenceCatalogSnapshot } from '@orvel/dashboard-core/catalog/reference-catalog.gateway';
 
 const LEGACY_POST_ONBOARDING_MAX_RUBROS: Record<string, number> = {
   BASIC: 1,

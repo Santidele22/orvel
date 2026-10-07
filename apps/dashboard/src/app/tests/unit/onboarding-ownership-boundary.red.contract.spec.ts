@@ -6,7 +6,7 @@ const supabaseAuthClientMock = vi.hoisted(() => ({
   signOut: vi.fn()
 }));
 
-vi.mock('../../core/auth/supabase-auth.client', () => ({
+vi.mock('@orvel/dashboard-core/adapters/supabase/supabase-auth.client', () => ({
   createSupabaseAuthClient: () => supabaseAuthClientMock
 }));
 
@@ -58,7 +58,7 @@ describe('RED contract: dashboard is authenticated app only, not canonical onboa
       error: null
     });
 
-    const { dashboardAuthGuard } = await import('../../core/auth/dashboard-auth.guard');
+    const { dashboardAuthGuard } = await import('@orvel/dashboard-core/auth/dashboard-auth.guard');
     const result = await dashboardAuthGuard({} as never, { url: '/auth/onboarding?plan=FREE' } as never);
 
     expect(result).toBe(false);

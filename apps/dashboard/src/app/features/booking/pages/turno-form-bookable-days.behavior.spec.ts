@@ -18,11 +18,11 @@ import {
 } from '@orvel/booking/application';
 import { ClienteService } from '../../clientes/data-access/cliente.service';
 import { ServicioService } from '../../servicios/data-access/servicio.service';
-import { AuthService } from '../../../services/auth.service';
-import { getBranchContextService } from '../../../core/branches/branch-context.service';
-import { ArgentinaClockService } from '../../../core/time/argentina-clock.service';
-import type { Cliente } from '../../../models/cliente.model';
-import type { Servicio } from '../../../models/servicio.model';
+import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
+import { ArgentinaClockService } from '@orvel/dashboard-core/time/argentina-clock.service';
+import type { Cliente } from '@orvel/dashboard-core/models/cliente.model';
+import type { Servicio } from '@orvel/dashboard-core/models/servicio.model';
 
 const mockClients: Cliente[] = [
   {

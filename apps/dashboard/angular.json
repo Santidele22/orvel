@@ -133,6 +133,7 @@
                 "@orvel/billing",
                 "@orvel/booking",
                 "@orvel/config",
+                "@orvel/dashboard-core",
                 "@orvel/domain",
                 "@orvel/shared",
                 "@orvel/types"

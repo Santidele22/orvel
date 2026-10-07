@@ -1,4 +1,4 @@
-import type { WeekdayKey, WorkingDayHours } from '../../../../models/business.model';
+import type { WeekdayKey, WorkingDayHours } from '@orvel/dashboard-core/models/business.model';
 
 export interface DayAvailability {
   date: string;

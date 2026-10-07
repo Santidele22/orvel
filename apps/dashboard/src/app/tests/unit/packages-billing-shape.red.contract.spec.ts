@@ -15,8 +15,7 @@
  * - The 3 dashboard old paths in core/payments/manual/ are explicit per-name
  *   re-export shims pointing at @orvel/billing (REQ-BILLING-3; no `export *`).
  * - The dashboard webhook idempotency path is a re-export shim (D3).
- * - 2 of the 3 dead re-shims in core/billing/ are absent (REQ-BILLING-DEL-1);
- *   landing-plans-source.api.ts is KEPT (dynamic-import consumer surfaced at apply).
+ * - The 3 dead re-shims in core/billing/ are absent (REQ-BILLING-DEL-1);
  * - pnpm-workspace.yaml still wires packages/* (REQ-BILLING-2).
  */
 
@@ -31,7 +30,7 @@ const PACKAGE_PACKAGE_JSON = join(PACKAGE_ROOT, 'package.json');
 const PAYMENT_PROVIDER_SOURCE = join(PACKAGE_ROOT, 'src', 'payment-provider.ts');
 const MANUAL_PAYMENT_SERVICE_SOURCE = join(PACKAGE_ROOT, 'src', 'manual-payment.service.ts');
 const WEBHOOK_IDEMPOTENCY_SOURCE = join(PACKAGE_ROOT, 'src', 'payment-webhook-idempotency.ts');
-const DASHBOARD_MANUAL_DIR = join(REPO_ROOT, 'apps', 'dashboard', 'src', 'app', 'core', 'payments', 'manual');
+const DASHBOARD_MANUAL_DIR = join(REPO_ROOT, 'packages', 'dashboard-core', 'src', 'payments', 'manual');
 const DASHBOARD_PAYMENT_PROVIDER_SHIM = join(DASHBOARD_MANUAL_DIR, 'payment-provider.ts');
 const DASHBOARD_MANUAL_PAYMENT_SERVICE_SHIM = join(DASHBOARD_MANUAL_DIR, 'manual-payment.service.ts');
 const DASHBOARD_MANUAL_INDEX_SHIM = join(DASHBOARD_MANUAL_DIR, 'index.ts');
@@ -50,33 +49,21 @@ const DASHBOARD_WEBHOOK_IDEMPOTENCY_SHIM = join(
 );
 const DELETED_ENTITLEMENTS_RE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'subscriptions',
   'entitlements.api.ts'
 );
 const DELETED_SSM_RE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'subscriptions',
   'subscription-state-machine.api.ts'
 );
 const KEPT_LANDING_PLANS_SOURCE_SHIM = join(
   REPO_ROOT,
-  'apps',
-  'dashboard',
-  'src',
-  'app',
-  'core',
+  'packages', 'dashboard-core', 'src',
   'billing',
   'landing-plans-source.api.ts'
 );
@@ -167,13 +154,16 @@ describe('@orvel/billing package shape contract (chore-extract-billing-package)'
     expect(shim).toContain('decideWebhookProcessing');
   });
 
-  it('2 of the 3 dead re-shims in core/billing/ are absent; landing-plans-source.api.ts is kept', () => {
-    // REQ-BILLING-DEL-1: zero-importer re-shims removed
+  it('all 3 dead re-shims in core/billing/ are absent', () => {
+    // REQ-BILLING-DEL-1: zero-importer re-shims removed.
+    // landing-plans-source.api.ts was kept at apply time because
+    // tests/integration/landing-orvel-pricing.red.contract.spec.ts imported it
+    // dynamically (deletion deferred). That consumer now imports
+    // features/billing/data-access/landing-plans-source.api directly, so the
+    // deferral is over and the shim is gone.
     expect(existsSync(DELETED_ENTITLEMENTS_RE_SHIM)).toBe(false);
     expect(existsSync(DELETED_SSM_RE_SHIM)).toBe(false);
-    // KEPT at apply: dynamic-import consumer surfaced in
-    // tests/integration/landing-orvel-pricing.red.contract.spec.ts (deletion deferred)
-    expect(existsSync(KEPT_LANDING_PLANS_SOURCE_SHIM)).toBe(true);
+    expect(existsSync(KEPT_LANDING_PLANS_SOURCE_SHIM)).toBe(false);
   });
 
   it('pnpm-workspace.yaml still wires packages/* (REQ-BILLING-2)', () => {

@@ -168,7 +168,7 @@ function readBusinessTypesStepSources(): { component: string; html: string; scss
     process.cwd(),
     'src/app/features/onboarding/pages/signup-business-types-step.page.scss'
   );
-  const gatewayPath = resolve(process.cwd(), 'src/app/core/catalog/reference-catalog.gateway.ts');
+  const gatewayPath = resolve(process.cwd(), '../../packages/dashboard-core/src/catalog/reference-catalog.gateway.ts');
 
   const component = existsSync(componentPath) ? readFileSync(componentPath, 'utf-8') : '';
   const html = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8') : '';
@@ -309,8 +309,8 @@ describe('KBN-007.CATALOG - onboarding business types use the reference catalog'
 
   it('CAT-OBT-006 @RED - onboarding refreshes the RPC catalog after module load instead of freezing stale fallback', async () => {
     const { SignupBusinessTypesStepPage } = await loadSignupBusinessTypesComponent();
-    const catalogModule = await import('../../core/catalog/reference-catalog');
-    const gatewayModule = await import('../../core/catalog/reference-catalog.gateway');
+    const catalogModule = await import('@orvel/dashboard-core/catalog/reference-catalog');
+    const gatewayModule = await import('@orvel/dashboard-core/catalog/reference-catalog.gateway');
     const storage = createMemoryStorage({ 'turnea.onboarding.plan': 'PREMIUM' });
     installWindowLocalStorage(storage);
 

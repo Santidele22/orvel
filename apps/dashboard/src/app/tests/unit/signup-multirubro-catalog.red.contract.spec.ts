@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import type { Servicio } from '../../models/servicio.model';
+import type { Servicio } from '@orvel/dashboard-core/models/servicio.model';
 
 type RubroCode = 'peluqueria' | 'unas' | 'barberia' | 'spa' | 'pestanas' | 'cejas' | 'masajes' | 'otro';
 

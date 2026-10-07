@@ -6,7 +6,7 @@ import {
   getCatalogAddOn,
   getDefaultDashboardReferenceCatalog,
   getPlanEntitlementsFromCatalog
-} from '../../core/catalog/reference-catalog';
+} from '@orvel/dashboard-core/catalog/reference-catalog';
 import { createSupabaseEntitlementsRepository, assertEntitlement, configureEntitlementsRepository } from '../../features/billing/data-access/subscriptions/entitlements.api';
 
 type SupabaseRpcRow = {

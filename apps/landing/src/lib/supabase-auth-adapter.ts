@@ -49,30 +49,25 @@ export type SupabaseAuthDependencies = {
   createClient: (url: string, anonKey: string, options?: Parameters<typeof createClient>[2]) => SupabaseClient;
 };
 
-export const ORVEL_SUPABASE_AUTH_STORAGE_KEY = 'orvel.supabase.auth';
 const MISSING_SUPABASE_CONFIG_ERROR =
   'Autenticación no configurada: faltan PUBLIC_SUPABASE_URL o PUBLIC_SUPABASE_ANON_KEY.';
 
-function hasBrowserStorageApi(value: unknown): value is Storage {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as Storage).getItem === 'function' &&
-    typeof (value as Storage).setItem === 'function' &&
-    typeof (value as Storage).removeItem === 'function'
-  );
-}
-
-export function createSupabaseBrowserAuthOptions(storage?: Storage): Parameters<typeof createClient>[2] {
-  const resolvedStorage = storage ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
-
+/**
+ * The landing runs on the public marketing origin. It must never keep a durable
+ * session there: any XSS on this origin can read whatever Web Storage holds, which
+ * is exactly what audit finding S2 measures. The session lives in memory for the
+ * length of the redirect and travels to the app inside the encrypted handoff, so
+ * the client is built without persistence and without a storage key of its own.
+ *
+ * The landing has no OAuth, magic-link or OTP flow, so nothing needs a persisted
+ * PKCE verifier either (`flowType: 'pkce'` remains for the password grant).
+ */
+export function createSupabaseBrowserAuthOptions(): Parameters<typeof createClient>[2] {
   return {
     auth: {
       flowType: 'pkce',
-      persistSession: true,
-      detectSessionInUrl: false,
-      storageKey: ORVEL_SUPABASE_AUTH_STORAGE_KEY,
-      ...(hasBrowserStorageApi(resolvedStorage) ? { storage: resolvedStorage } : {})
+      persistSession: false,
+      detectSessionInUrl: false
     }
   };
 }
