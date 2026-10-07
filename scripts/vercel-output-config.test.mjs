@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import {
   BOOKING_SHARE_REWRITE,
@@ -92,4 +93,19 @@ test('patching replaces previously managed routes instead of stacking duplicates
   assert.equal(twice.routes.length, once.routes.length);
   assert.equal(headersRoutes(twice).length, 1);
   assert.equal(twice.routes.filter((route) => route.dest === '/index.html').length, 1);
+});
+
+test('the shared vercel.json does not pin a build command', async () => {
+  const source = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
+  const config = JSON.parse(source);
+
+  // Every Vercel project deploys this same repository root, and `buildCommand` in this file WINS
+  // over the project setting: while it pinned `pnpm run build:vercel`, the console project built
+  // and shipped the combined site instead of the console. Each project owns its own build command
+  // (see infra/context/deployment.md); the file keeps only the genuinely shared fields.
+  assert.equal(
+    config.buildCommand,
+    undefined,
+    'vercel.json must not pin a build command: it overrides every project sharing this root.',
+  );
 });
