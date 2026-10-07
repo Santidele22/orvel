@@ -48,7 +48,7 @@ Rules that come with the decision:
 1. **One session key per target, owned by the target.** `packages/config` stops exporting a single shared constant; each target resolves its own key and nothing imports another target's. The landing resolves none — a non-credential presence hint (PR #1124) is all it keeps.
 2. **Public booking links point at the app.** *(Amended by Amendment 2: they point at the turnero's own origin, `reserva.orvel.pro`.)* The canonical public URL becomes `app.orvel.pro/booking/<slug>` and `orvel.pro/booking/*` answers **301 permanent**, so links already shared keep working. The social preview rewrite (`/booking-share`) moves with the turnero, because a crawler must read the OG tags at the URL it actually lands on; a redirect to an origin that has none breaks the preview.
 3. **One artifact per deploy, over the paths each app already owns.** *(Amended by Amendment 2: the pwa stops serving `/booking/*`.)* The landing's output stops containing `static/dashboard`; the pwa moves **origin only** and keeps serving `/dashboard/*` and `/booking/*`; the console is a standalone SPA at the root of its own origin. `DASHBOARD_SPA_REWRITE` and `BOOKING_SPA_REWRITE` disappear because no artifact is served from inside another's path space, not because the pwa's paths change.
-4. **Promotion moves all three artifacts together** through `dev → qa → main`; no target skips a stage.
+4. **Promotion moves every artifact together** through `dev → main`; no target skips a stage. (#1133 retired the `qa` hop.)
 5. **No target shares an origin with another target**, in any environment.
 
 > **Amendment (2026-10-06): the pwa keeps its path prefix.** This ADR originally said the app would be "built for its own root instead of `/dashboard/`", which was an assumption and not a requirement of the split. Measured cost of dropping the prefix: 19 production files reference `/dashboard/`, 26 `routerLink="/dashboard/…"` are absolute in templates, and `index.html`, `manifest.webmanifest`, `ngsw-config.json` and the service-worker registration (`apps/dashboard/src/app/app.config.ts:22`) all hardcode it. The manifest declares `start_url: /dashboard/turnos` and `scope: /dashboard/`, so keeping the prefix also keeps the install and the service-worker scope **identical** — installed clients differ only by origin, which is the migration that step 2 measures. Serving the pwa from its own root is therefore an independent, optional refactor with no requirement behind it; `app.orvel.pro/turnos` is prettier than `app.orvel.pro/dashboard/turnos`, and that is the whole of its value. Revisit only if the prefix starts costing something.
@@ -78,7 +78,7 @@ So the turnero rode inside the pwa artifact because that build already carried i
 
 Rules 2 and 3 are amended to:
 
-- **Rule 2′ — the canonical public link becomes `reserva.orvel.pro/booking/<slug>`** (qa: `reserva.qa.orvel.pro`), and `orvel.pro/booking/*` answers **301 permanent** so links already shared keep working. The social preview rewrite (`/booking-share`) moves **into the turnero artifact**: a crawler reads the OG tags at the URL it lands on.
+- **Rule 2′ — the canonical public link becomes `reserva.orvel.pro/booking/<slug>`**, and `orvel.pro/booking/*` answers **301 permanent** so links already shared keep working. The social preview rewrite (`/booking-share`) moves **into the turnero artifact**: a crawler reads the OG tags at the URL it lands on.
 - **Rule 3′ — the turnero leaves the pwa artifact.** `apps/dashboard` stops mounting `/booking/*` and `BOOKING_SPA_REWRITE`/`BOOKING_SHARE_REWRITE` disappear from the landing's output config.
 
 The turnero artifact **keeps the `/booking/<slug>` path shape**, for the same reason the pwa keeps `/dashboard/`: the shared link changes host only, so the 301 is a pure host move and no asset path or internal link changes.
@@ -92,7 +92,7 @@ Each step is its own PR-sized change with its own acceptance criteria.
 **Step 0 — the landing keeps no credential.** Done in PR #1124: the write-only token store is gone and the Supabase session is replaced by a non-credential hint.
 
 **Step 1 — the console gets its own origin and key** (Fase 4 of #1098). The cheap slice, with no installed base at risk.
-Acceptance: the console serves from its own host; its storage key differs from the pwa target's and a contract proves it; the landing → console handoff still completes in qa and production; CSP, HSTS and the rest of the headers apply to the new origin; the landing no longer resolves any target's key.
+Acceptance: the console serves from its own host; its storage key differs from the pwa target's and a contract proves it; the landing → console handoff still completes in production; CSP, HSTS and the rest of the headers apply to the new origin; the landing no longer resolves any target's key.
 
 **Step 2 — measure the PWA park before touching it** (Parte 1 of #1121). Live installs, active push subscriptions and booking links in circulation.
 Acceptance: the numbers are recorded on the issue. Without them the migration below is designed blind and its two main risks cannot be sized.
@@ -132,25 +132,24 @@ Acceptance: `app.orvel.pro` serves `/dashboard/*`; clients installed from the ol
 | Social preview breaks because a redirect lands on an origin without OG tags | Move `/booking-share` with the turnero and e2e the preview |
 | The turnero artifact duplicates the booking feature while the extraction is pending | It consumes the feature through the transitional alias, so there is one source of truth; extraction stays #1076's job |
 | The turnero and the pwa drift apart on the shared booking design and copy | Both consume `@orvel/booking` and the same design tokens; the alias keeps one implementation until the move into the package |
-| Environments drift (dev/qa/main) | One promotion cycle carries every artifact; the migration drift guard stays in force |
+| Environments drift (dev/main) | One promotion cycle carries every artifact; the migration drift guard stays in force |
 | The console moves before its key is parameterised and keeps sharing one by accident | Step 1 ships the per-target key with a contract test |
 
 ## Hostnames per environment
 
-Santi confirmed the convention on 2026-10-06. It is symmetric across environments: a target keeps its name and only the suffix changes.
+Santi confirmed the convention on 2026-10-06. It is symmetric across environments: a target keeps its name and only the suffix changes. **`qa` was retired the next day ([#1133](https://github.com/Santidele22/orvel/issues/1133)): production and local are the only two rows that exist.**
 
 | Environment | Landing | PWA | Console | Turnero |
 |---|---|---|---|---|
 | production (`main`) | `orvel.pro` (+ `www`) | `app.orvel.pro` | `dashboard.orvel.pro` | `reserva.orvel.pro` |
-| qa | `qa.orvel.pro` | `app.qa.orvel.pro` | `dashboard.qa.orvel.pro` | `reserva.qa.orvel.pro` |
 | local | `127.0.0.1:4321` (Astro) | `127.0.0.1:3000` (proxy) | `127.0.0.1:4300` | `127.0.0.1:3000/booking/*` (proxy) |
 
-`dev` has no deployed hostnames to reserve: `deploy-promotion.yml` runs only on pushes to `qa` and `main`. The env hook for the handoff allowlist is `SESSION_HANDOFF_ALLOWED_ORIGINS` (`supabase/functions/_shared/session-handoff-cors.ts:25`); the built-in defaults now carry the production trio plus the turnero, and `ENVIRONMENT=qa` resolves the qa quartet (PR #1127). The turnero is public and unauthenticated, so it never appears in the handoff allowlist.
+**`dev` has no deployed hostnames, by decision** (#1133): `deploy-promotion.yml` runs only on pushes to `main`, and `dev` is the integration branch. The env hook for the handoff allowlist is `SESSION_HANDOFF_ALLOWED_ORIGINS` (`supabase/functions/_shared/session-handoff-cors.ts:25`); the built-in defaults carry the production quartet, and an unset `ENVIRONMENT` means the local stack. The turnero is public and unauthenticated, so it never appears in the handoff allowlist.
 
 ## Open questions (deliberately not decided here)
 
 - Whether `www.orvel.pro` keeps redirecting to `orvel.pro`. This ADR does not change it.
-- ~~How the console gets its own Vercel project and secrets~~ — answered in step 1: the project is `orvel-console` (`VERCEL_PROJECT_ID_WEB`), created through the API with `buildCommand: pnpm run build:vercel:web`, its Supabase env per Vercel environment, and deployment protection off so the qa alias can be public.
+- ~~How the console gets its own Vercel project and secrets~~ — answered in step 1: the project is `orvel-console` (`VERCEL_PROJECT_ID_WEB`), created through the API with `buildCommand: pnpm run build:vercel:web`, its Supabase env per Vercel environment, and deployment protection off so the alias can be public.
 - Which Vercel project the turnero gets, and whether the OG edge rewrite ships inside that project exactly as the landing emits it today. Step 3a decides it; nothing about the scheme changes.
 
 ## Follow-ups

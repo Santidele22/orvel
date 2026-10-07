@@ -1,35 +1,35 @@
 # Deployment Context
 
-## Branch Promotion (3-env)
+## Branch Promotion (2-env)
 
-- Sequence: `feature → dev → qa → main`. Skip no step.
-- Per-branch rules live in repository rulesets: `pr-reviews` on `dev`/`qa`/`main` (1 approving review, squash merges only, no deletions, no force pushes), `ci-gate` on `dev`/`main` (required check `Dashboard booking regressions`, branch must be up to date) and `promotion-drift-guard` on `qa` (required check `Migration drift guard`).
+- Sequence: `feature → dev → main`. Skip no step.
+- **`main` is the only deployed environment** ([#1133](https://github.com/Santidele22/orvel/issues/1133)). `dev` integrates and runs the gates but is never deployed, and that is deliberate: the pre-merge smoke is the Vercel preview of the pull request.
+- Per-branch rules live in repository rulesets: `pr-reviews` on `dev`/`main` (1 approving review, squash merges only, no deletions, no force pushes), `ci-gate` on `dev`/`main` (required check `Dashboard booking regressions`, branch must be up to date) and `promotion-drift-guard` on `main` (required check `Migration drift guard`).
 - Required CI gate: check `Dashboard booking regressions` (job `dashboard-booking-regressions` in `.github/workflows/booking-regression.yml`).
 - Merging to a protected branch requires explicit Santi approval per PR. No protection is relaxed: `gh pr merge <n> --squash --admin` uses the owner's per-PR bypass on `pr-reviews`, while `ci-gate` and `promotion-drift-guard` still cannot be bypassed. Never direct-push to `main`, never `--force`, never bypass a required check.
-- After each promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
+- After each promotion, back-sync the destination into `dev` (`dev ← main`).
 
 ## Migration Drift Guard
 
-- `Migration drift guard` (`.github/workflows/promotion-drift-guard.yml`) runs on pull requests to `qa` and `main` and fails when the promotion's merge result would leave two active migrations with the same description (the same migration under an old and a new timestamp, incident #943/#945/#1030) or an active migration the promotion branch does not carry.
+- `Migration drift guard` (`.github/workflows/promotion-drift-guard.yml`) runs on pull requests to `main` and fails when the promotion's merge result would leave two active migrations with the same description (the same migration under an old and a new timestamp, incident #943/#945/#1030) or an active migration the promotion branch does not carry.
 - It runs only when the promotion branch carries both the workflow and `scripts/check-migration-drift.mjs`, which a promotion that copies the full file delta does.
-- Enforcement lives in the `promotion-drift-guard` ruleset, which requires the check on `qa`. Add `main` to that ruleset only after the guard exists on `qa` and `main` through a normal promotion; a required check that never runs blocks every promotion. Never add `Migration drift guard` to `ci-gate`: it also covers `dev`, where the workflow never runs.
+- Enforcement lives in the `promotion-drift-guard` ruleset, which requires the check on `main` only. Never add `Migration drift guard` to `ci-gate`: `ci-gate` also covers `dev`, where the workflow never runs, and a required check that never runs blocks every promotion.
 - Recovery if the check itself misbehaves: disable or delete the `promotion-drift-guard` ruleset in repository settings, fix, and re-enable.
-- Local equivalent: `pnpm run test:promotion-drift`, and `node scripts/check-migration-drift.mjs --base origin/qa --head <branch>`.
+- Local equivalent: `pnpm run test:promotion-drift`, and `node scripts/check-migration-drift.mjs --base origin/main --head <branch>`.
 
 ## Environments
 
-- `dev` — integration. Receives feature PRs.
-- `qa` — pre-release smoke. Receives `dev → qa` PRs.
-- `main` — production. Receives `qa → main` PRs only.
+- `dev` — integration. Receives feature PRs. Not deployed.
+- `main` — production. Receives `dev → main` PRs only. The only deployed environment.
 
 ## Deployed artifacts
 
-`deploy-promotion.yml` runs on pushes to `qa` and `main` only, and lets Vercel run each build (`vercel deploy` without `--prebuilt`), so a project's build command lives in its Vercel settings, not in the workflow.
+`deploy-promotion.yml` runs on pushes to `main` only, and lets Vercel run each build (`vercel deploy` without `--prebuilt`), so a project's build command lives in its Vercel settings, not in the workflow.
 
 | Artifact | Vercel project id | Build command (in the project's settings) | Hostnames (ADR 0012) |
 |---|---|---|---|
-| Combined: landing + `/dashboard/*` (pwa) + `/booking/*` | `VERCEL_PROJECT_ID` | `pnpm run build:vercel` | `orvel.pro` / `qa.orvel.pro` |
-| Console (`apps/dashboard-web`), standalone SPA | `VERCEL_PROJECT_ID_WEB` | `pnpm run build:vercel:web` | `dashboard.orvel.pro` / `dashboard.qa.orvel.pro` |
+| Combined: landing + `/dashboard/*` (pwa) + `/booking/*` | `VERCEL_PROJECT_ID` | `pnpm run build:vercel` | `orvel.pro` |
+| Console (`apps/dashboard-web`), standalone SPA | `VERCEL_PROJECT_ID_WEB` | `pnpm run build:vercel:web` | `dashboard.orvel.pro` |
 
 The console step skips with a log line while `VERCEL_PROJECT_ID_WEB` does not exist, so a promotion is never blocked by infrastructure that has not been created yet.
 
