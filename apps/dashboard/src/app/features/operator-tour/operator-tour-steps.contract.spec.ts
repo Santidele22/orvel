@@ -153,9 +153,33 @@ describe('operator tour steps contract', () => {
     ).map((step) => anchorName(step.target ?? ''));
 
     expect(desktopAnchors).toContain('sidebar-nav');
-    expect(desktopAnchors).toContain('sidebar-logo');
     expect(mobileAnchors).toContain('mobile-nav');
     expect(mobileAnchors).toContain('mobile-header');
+  });
+
+  it('does not promise a business switcher the product does not have', () => {
+    // The data model allows several businesses (`business_members`), but the app
+    // resolves one active business and the only "selector" is a hidden stub
+    // (`dashboard-sidebar.component.html`), so no menu can change businesses.
+    const ids = OPERATOR_TOUR_STEPS.map((step) => step.id);
+    const copy = OPERATOR_TOUR_STEPS.map((step) => `${step.title} ${step.description}`).join(' ');
+
+    expect(ids).not.toContain('marca-negocio');
+    expect(copy).not.toMatch(/m[áa]s de un negocio|cambi[áa]s de agenda/i);
+  });
+
+  it('leaves no orphan anchor behind in the shipped templates', () => {
+    const declared = new Set(
+      OPERATOR_TOUR_STEPS.map((step) => anchorName(step.target ?? '')).filter(Boolean),
+    );
+    const present = [...templateDocument.querySelectorAll(`[${TOUR_TARGET_ATTRIBUTE}]`)]
+      .map((element) => element.getAttribute(TOUR_TARGET_ATTRIBUTE) ?? '')
+      .filter(Boolean);
+
+    expect(present.length).toBeGreaterThan(0);
+    for (const name of new Set(present)) {
+      expect(declared.has(name), `anchor ${name} is not used by any step`).toBe(true);
+    }
   });
 
   it('keeps the shared home metrics step available on both surfaces', () => {
