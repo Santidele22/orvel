@@ -10,7 +10,7 @@ Supabase assets live under:
 
 - Supabase functions are deployed.
 - Production operations use the authenticated linked project; identity is checked against the non-revealing digest in `supabase/production-project-ref.sha256`.
-- The active project ref is `orvel-qa-dev` (pre-release validation environment, seeded with `supabase/seed.sql`).
+- The named pre-release project (`orvel-qa-dev`) is **gone** since #1133: production is the only remote environment, so do not link, push or seed against a pre-release ref. Local work uses the Supabase CLI's local stack.
 - `migration list` is aligned.
 - Migration history was repaired on the `dev` branch; no further repair is pending.
 

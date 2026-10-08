@@ -15,7 +15,7 @@ This file does not record product completeness. Treat `main` as production. Veri
 Before planning or changing files, read in this order:
 
 1. This file.
-2. The relevant subtree `AGENTS.md` (`apps/dashboard/AGENTS.md`, `apps/landing/AGENTS.md`).
+2. The relevant subtree `AGENTS.md` (`apps/dashboard/AGENTS.md`, `apps/dashboard-web/AGENTS.md`, `apps/landing/AGENTS.md`, `apps/ops/AGENTS.md`).
 3. `infra/context/` — at least `product.md`, `architecture.md`, and `operational-rules.md`; add `supabase.md`, `environments.md`, and `deployment.md` when the task touches those areas.
 4. The active OpenSpec change under `openspec/changes/` and matching `openspec/specs/` when the work is an SDD change.
 5. ADRs and runbooks under `docs/`.
@@ -38,6 +38,7 @@ Do not treat missing skill folders, ignored client dirs (`.opencode/`, `.funemon
 - Prefer the contract-test layout already in the repo (`.contract.spec.ts`, `.contract.test.mjs`, Deno tests).
 - Inspect git status before editing. Preserve unrelated user changes. Keep the diff scoped to the requested files.
 - The parent session orchestrates. Do not silently expand into unrelated apps or packages.
+- The dashboard suite has a **known-failing baseline** pinned in `scripts/fixtures/dashboard-failure-baseline.json`. Do not try to make it green. The authoritative gate for dashboard changes is `node scripts/check-dashboard-failure-parity.mjs`, which fails on a new failure, on a collection error, and on a baseline entry that stopped failing. Compare before and after; never wave a failure through with "the suite is red anyway".
 
 ## Git Workflow
 
@@ -45,12 +46,18 @@ Do not treat missing skill folders, ignored client dirs (`.opencode/`, `.funemon
 
 `feature → dev → main`. Never skip a step.
 
-| Branch | Purpose | Receives from | Deployed? |
-|--------|---------|---------------|-----------|
-| `dev` | Integration | feature branches (via PR) | **No** — no hostname, no deploy |
-| `main` | Production | `dev` (via PR) | Yes |
+| Branch | Purpose | Receives from | Merge method | Deployed? |
+|--------|---------|---------------|--------------|-----------|
+| `dev` | Integration | feature branches (via PR) | squash | **No** — no hostname, no deploy |
+| `main` | Production | `dev` (via PR) | **merge commit** | Yes |
 
 **`main` is the only deployed environment** ([#1133](https://github.com/Santidele22/orvel/issues/1133)). `dev` integrates and runs the gates; nothing is served from it, and that is deliberate. The pre-merge smoke is the Vercel preview that every pull request already produces.
+
+The merge method is part of the contract, not a preference:
+
+- **Into `dev`: squash.** One commit per PR, linear integration history.
+- **Into `main`: merge commit.** A promotion squashed into `main` lands as a commit unrelated to `dev`'s history, so the next promotion has a stale merge base and reports `CONFLICTING` while the content delta is a handful of files. That is how `dev` and `main` drifted from 2026-07-27 until #1138/#1139 restored the ancestry. The merge commit keeps `dev` an ancestor of `main`, and every later promotion stays clean.
+- A `dev ← main` back-sync is therefore **not routine**, only the exception for a `main`-only commit — which the rules below forbid in the first place.
 
 Hard rules:
 
@@ -58,10 +65,21 @@ Hard rules:
 - Never commit directly to `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev`, which is exactly how `dev` and `qa` diverged on migration filenames before `qa` was retired (#943, #945, #1030).
 - Keep `dev`'s `supabase/migrations/` filenames identical to `main`'s. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
 - `main` receives PRs only from `dev`.
-- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`main`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy that check, because a required check that never runs never reports.
-- Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset: `gh pr merge <n> --squash --admin`, only with explicit Santi approval per PR. No ruleset is ever relaxed.
-- Back-sync PRs into `dev` (`dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
-- After every promotion, back-sync the destination into `dev` (`dev ← main`).
+- Branch rules live in repository rulesets, not classic branch protection. As of 2026-10-08: `pr-reviews` (`dev`, `main`, plus the retired `qa` name) requires 1 approving review, allows `squash` and `merge` commits — `merge` exists for promotions — and blocks deletions and non-fast-forward pushes; `ci-gate` (`dev`/`main`) requires `Dashboard booking regressions` **and** `Full repo checks` on an up-to-date branch; `promotion-drift-guard` (`main`) requires `Migration drift guard`. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy that check, because a required check that never runs never reports.
+- Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass: `gh pr merge <n> --squash --admin` into `dev`, `gh pr merge <n> --merge --admin` into `main`, only with explicit Santi approval per PR. The bypass never covers a required check: `ci-gate` and `promotion-drift-guard` still block until CI runs.
+- Never relax a ruleset on your own. When Santi approves a specific ruleset change, make the smallest edit, then record the exact call and its rollback in the PR. Precedent: `pr-reviews.allowed_merge_methods` went from `["squash"]` to `["squash","merge"]` on 2026-10-08 so promotions could be merge commits; rollback is the same `PUT /repos/{owner}/{repo}/rulesets/22483614` with `["squash"]`.
+
+### Measuring and promoting
+
+- Trust the diff, not the log. With a squash history, `git log origin/main..origin/dev` counts every commit `dev` ever produced (354 at the time of #1138) while the real delta was 23 files. Use `git diff --stat origin/main..origin/dev`.
+- Before promoting, confirm `main` carries nothing `dev` lacks: `git log origin/dev..origin/main` must list only promotion commits, and every path in the diff must have a newer commit on `dev`. Keep the migration check clean (`node scripts/check-migration-drift.mjs --base origin/main --head origin/dev`).
+- A promotion that reports `CONFLICTING` means the ancestry is broken, not that the content disagrees. Fix it on `dev` by merging `main` first (`git merge -s ours origin/main` on a branch from `dev`, then merge that PR with a merge commit; the tree stays identical to `dev`'s). Use `-s ours`, never `-X ours`: resolving hunk by hunk re-introduces the stale side.
+- Details and the full checklist: `infra/context/deployment.md`.
+
+### Verifying a promotion
+
+- A green promotion proves the merge, not the deploy. Production deploys from the push to `main` (`.github/workflows/deploy-promotion.yml`): check that run concluded `success`, then that both origins answer (`https://orvel.pro`, `https://dashboard.orvel.pro`).
+- To prove the change is actually served, inspect the deployed bundles rather than trusting the merge. The served HTML lists only eager assets, so feature code lives in a lazy chunk: take the entry bundle, list its `import("./chunk-*.js")` targets, and grep those chunks for a distinctive string from the change. Chunk filenames rotate on every build; never record them as stable.
 
 ### Operational rules
 
@@ -106,5 +124,7 @@ At the end of a task, report:
 
 - Files changed.
 - Summary of changes.
-- Validation run and results.
+- Validation run and results: quote the command and its outcome.
 - Blockers or follow-ups.
+
+Report what you could **not** run — missing credentials, a read-only environment, a tool that is not installed — instead of leaving it implied that the gate passed. A claim about production, remote state, or a deploy is only valid when it was checked against the deployed artifact or the provider's API; a successful merge is not evidence that the change is live.
