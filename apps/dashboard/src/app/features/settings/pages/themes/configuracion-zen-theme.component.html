@@ -8,7 +8,7 @@
         <p [class]="ui.bodyPrimary">Perfil del negocio · Reglas de reserva · Horarios de atención</p>
       </header>
 
-      <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-2">
+      <div class="rounded-2xl border border-white/10 bg-bg-secondary/80 p-2" data-tour="config-tabs">
         <div class="grid grid-cols-3 gap-2">
           @for (tab of tabs; track tab.key) {
           <button type="button"
@@ -293,7 +293,7 @@
 
         @if (isActiveTab('negocio')) {
         <!-- Políticas de Reserva y Logística -->
-        <article [class]="ui.cardGlass + ' space-y-zen-lg'">
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'" data-tour="config-negocio">
           <div class="flex items-center justify-between pb-zen-md">
             <h2 [class]="ui.titleSection">Políticas y Logística</h2>
             <i class="ri-settings-3-line text-tertiary"></i>
@@ -536,7 +536,7 @@
         }
 
         @if (isActiveTab('equipo')) {
-        <article class="space-y-4" data-testid="settings-equipo-section">
+        <article class="space-y-4" data-testid="settings-equipo-section" data-tour="config-equipo">
         <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-bg-secondary/80 px-4 py-3">
             <div class="space-y-1 pr-3">
               <p class="text-sm font-semibold text-white">Cliente elige profesional</p>

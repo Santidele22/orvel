@@ -1,18 +1,27 @@
 import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { Router } from '@angular/router';
 import {
+  TOUR_ROUTES,
   filterOperatorTourSteps,
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
 } from './operator-tour-steps';
+import {
+  planOperatorTourAdvance,
+  planOperatorTourWaits,
+  requiredNavigation,
+  type OperatorTourDirection,
+} from './operator-tour-journey';
 import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
 import { createOperatorTourStorage } from './operator-tour-storage';
 
 /** Minimal slice of the driver.js API this service uses. */
 interface DriverInstance {
-  drive: () => void;
+  drive: (stepIndex?: number) => void;
   destroy: () => void;
+  moveTo: (index: number) => void;
 }
 
 interface DriverModule {
@@ -21,11 +30,32 @@ interface DriverModule {
 
 type DriverLoader = () => Promise<DriverModule>;
 
-/** How long an optional anchor may take to mount before its step is skipped. */
+interface DriverHighlightOptions {
+  readonly index?: number;
+}
+
+/** A planned step plus how long its anchor may take to mount. */
+interface PlannedStep {
+  readonly step: OperatorTourStep;
+  readonly waitForElement: number;
+}
+
+/** How long an anchor on the active route may take to mount before it is skipped. */
 const OPTIONAL_ANCHOR_WAIT_MS = 1200;
 
 /**
- * Runs the operator onboarding tour with driver.js.
+ * A step that crosses routes waits for a lazy `loadComponent` chunk plus its
+ * first render, which is slower than an anchor that is already on screen.
+ */
+const ROUTE_ANCHOR_WAIT_MS = 4000;
+
+/**
+ * Runs the operator first-run tour with driver.js.
+ *
+ * The journey walks the app (#1136): it walks Inicio, detours through Servicios
+ * and Configuración, and closes back on the booking link. driver.js hooks are
+ * synchronous, so hops are planned by `operator-tour-journey` and executed here:
+ * navigate first, then `moveTo`.
  *
  * driver.js is loaded with a dynamic `import()` inside `run()`, so the library
  * stays out of the initial bundle and off the critical path of the PWA shell.
@@ -34,6 +64,7 @@ const OPTIONAL_ANCHOR_WAIT_MS = 1200;
 export class OperatorTourService {
   private readonly platformId = inject(PLATFORM_ID, { optional: true });
   private readonly destroyRef = inject(DestroyRef, { optional: true });
+  private readonly router = inject(Router, { optional: true });
   private readonly platform = browserPlatform();
 
   private readonly storage = createOperatorTourStorage();
@@ -48,6 +79,15 @@ export class OperatorTourService {
   private driver: DriverInstance | undefined;
   /** False during a programmatic teardown, so it does not count as completion. */
   private mounted = false;
+  /** Steps of the current run, in tour order. */
+  private steps: readonly OperatorTourStep[] = [];
+  private plan: readonly PlannedStep[] = [];
+  /** Index driver.js last highlighted. */
+  private activeIndex = 0;
+  /** Index the current hop asked for; a different landing means driver.js skipped. */
+  private pendingIndex = 0;
+  /** True while a hop is in flight, so double clicks cannot skip a step twice. */
+  private transitioning = false;
 
   private readonly activeSignal = signal(false);
   private readonly completedSignal = signal(this.storage.hasCompleted());
@@ -77,19 +117,32 @@ export class OperatorTourService {
       return;
     }
 
+    const activeRoute = this.currentRoute();
     // driver.js stages with `offsetParent`, so hidden anchors are never offered.
-    const steps = filterOperatorTourSteps(this.currentSurface()).map((step) =>
-      this.toDriveStep(step),
-    );
+    // Anchors on other routes are kept: they are mounted after the hop.
+    const steps = filterOperatorTourSteps(this.currentSurface(), { activeRoute });
     if (steps.length === 0) {
       return;
     }
+
+    this.steps = steps;
+    const waits = planOperatorTourWaits(steps, activeRoute, {
+      localAnchorMs: OPTIONAL_ANCHOR_WAIT_MS,
+      routeAnchorMs: ROUTE_ANCHOR_WAIT_MS,
+    });
+    this.plan = steps.map((step, index) => ({
+      step,
+      waitForElement: waits[index] ?? OPTIONAL_ANCHOR_WAIT_MS,
+    }));
 
     try {
       const module = await this.loadDriver();
       this.activeSignal.set(true);
       this.mounted = true;
-      this.driver = module.driver(this.buildConfig(steps));
+      this.activeIndex = 0;
+      this.pendingIndex = 0;
+      this.transitioning = false;
+      this.driver = module.driver(this.buildConfig());
       this.driver.drive();
     } catch {
       // A failed tour must never break the shell: leave the help button usable.
@@ -115,6 +168,9 @@ export class OperatorTourService {
       // Ignore: driver.js may already be destroyed.
     }
     this.driver = undefined;
+    this.steps = [];
+    this.plan = [];
+    this.transitioning = false;
     this.activeSignal.set(false);
   }
 
@@ -129,11 +185,18 @@ export class OperatorTourService {
     });
   }
 
-  private toDriveStep(step: OperatorTourStep): unknown {
+  private currentRoute(): string {
+    return this.router?.url ?? TOUR_ROUTES.inicio;
+  }
+
+  private toDriveStep(entry: PlannedStep): unknown {
+    const { step, waitForElement } = entry;
+
     return {
       element: step.target,
       skipMissingElement: true,
-      waitForElement: step.optional ? OPTIONAL_ANCHOR_WAIT_MS : 0,
+      waitForElement,
+      advanceOnClick: step.advanceOnClick === true,
       popover: {
         title: step.title,
         description: step.description,
@@ -143,9 +206,9 @@ export class OperatorTourService {
     };
   }
 
-  private buildConfig(steps: unknown[]): unknown {
+  private buildConfig(): unknown {
     return {
-      steps,
+      steps: this.plan.map((entry) => this.toDriveStep(entry)),
       animate: true,
       smoothScroll: true,
       allowClose: true,
@@ -160,14 +223,93 @@ export class OperatorTourService {
       prevBtnText: 'Atrás',
       doneBtnText: 'Listo',
       skipMissingElement: true,
+      // A global hook replaces driver.js' default advance on every step, which is
+      // what lets a hop navigate to another route before moving on.
+      onNextClick: () => this.advance(1),
+      onPrevClick: () => this.advance(-1),
+      onHighlightStarted: (_element: unknown, _step: unknown, opts?: DriverHighlightOptions) =>
+        this.handleHighlightStarted(opts?.index),
       onDestroyed: () => this.handleDestroyed(),
     };
+  }
+
+  private advance(direction: OperatorTourDirection): void {
+    const plan = planOperatorTourAdvance(
+      this.steps,
+      { activeIndex: this.activeIndex, transitioning: this.transitioning },
+      direction,
+      this.currentRoute(),
+    );
+
+    if (plan.kind === 'ignore') {
+      return;
+    }
+    if (plan.kind === 'finish') {
+      this.driver?.destroy();
+      return;
+    }
+
+    this.transitioning = true;
+    this.pendingIndex = plan.index;
+
+    if (plan.navigateTo) {
+      void this.navigateThenMove(plan.navigateTo, plan.index);
+      return;
+    }
+    this.driver?.moveTo(plan.index);
+  }
+
+  private async navigateThenMove(url: string, index: number): Promise<void> {
+    const driver = this.driver;
+    if (!driver) {
+      return;
+    }
+
+    try {
+      await this.router?.navigateByUrl(url);
+    } catch {
+      // A blocked navigation must not kill the tour: the anchor wait and the
+      // skip-missing-element rule degrade that single step instead.
+    }
+
+    if (this.driver !== driver) {
+      // The operator closed the tour while the route was loading.
+      return;
+    }
+    driver.moveTo(index);
+  }
+
+  private handleHighlightStarted(index: number | undefined): void {
+    const landed = typeof index === 'number' ? index : this.pendingIndex;
+    const skippedByDriver = landed !== this.pendingIndex;
+
+    this.activeIndex = landed;
+    this.pendingIndex = landed;
+    this.transitioning = false;
+
+    if (!skippedByDriver) {
+      return;
+    }
+
+    // driver.js drops a step whose anchor never mounted and jumps forward on its
+    // own. That landing step may live on another route, so the tour has to move
+    // there instead of highlighting an anchor that is not on screen.
+    const navigateTo = requiredNavigation(this.steps[landed], this.currentRoute());
+    if (!navigateTo) {
+      return;
+    }
+
+    this.transitioning = true;
+    void this.navigateThenMove(navigateTo, landed);
   }
 
   private handleDestroyed(): void {
     const countsAsCompletion = this.mounted;
     this.mounted = false;
     this.driver = undefined;
+    this.steps = [];
+    this.plan = [];
+    this.transitioning = false;
     this.activeSignal.set(false);
     if (countsAsCompletion) {
       this.markCompleted();
