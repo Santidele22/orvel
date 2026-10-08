@@ -2,17 +2,22 @@
 /**
  * Promotion drift guard.
  *
- * Promotion across `feature -> dev -> qa -> main` is a squash-copied tree, so
- * `qa` and `dev` end up with unrelated histories. `git merge-tree` then finds an
- * old merge base and happily reports a clean merge that still contains BOTH
- * name variants of a retimestamped migration (incident: #943, #945, #1030).
- * `supabase db push` rejects the stale timestamp afterwards and the promotion
- * needs manual repair.
+ * A promotion used to be a squash-copied tree across `feature -> dev -> qa ->
+ * main`, which left the branches with unrelated histories. `git merge-tree` then
+ * found an old merge base and happily reported a clean merge that still
+ * contained BOTH name variants of a retimestamped migration (incident: #943,
+ * #945, #1030); `supabase db push` rejected the stale timestamp afterwards and
+ * the promotion needed manual repair.
+ *
+ * `qa` is retired and promotions are merge commits now (#1138/#1139), so the
+ * branches share ancestry again. The guard stays: `main` and `dev` must still
+ * agree on migration filenames, and a stale merge base is exactly the failure
+ * mode that survives a flow change unnoticed.
  *
  * This module exposes the pure detection core plus a CLI that inspects a real
  * merge result:
  *
- *   node scripts/check-migration-drift.mjs --base origin/qa --head <branch>
+ *   node scripts/check-migration-drift.mjs --base origin/main --head <branch>
  *
  * Exit 0 = no drift, exit 1 = drift (or the merge result could not be read).
  */

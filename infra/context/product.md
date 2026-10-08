@@ -59,7 +59,7 @@ Plans and business types must come from Supabase/reference catalog sources of tr
 ## Known Current State
 
 - This repository is live Orvel, not a migration target.
-- Treat `main` as production; `dev` / `qa` / `main` is the 3-env path.
+- Treat `main` as production; `dev → main` is the 2-env path since `qa` was retired (#1133). Rules live in `AGENTS.md`.
 - Supabase operational notes (linked project, migrations, safety) live in `infra/context/supabase.md`.
 - Architecture snapshots and C4 diagrams can lag; do not copy their “current vs target” footnotes into product claims.
 

@@ -4,8 +4,8 @@
 
 - Work inside this monorepo. It is the Orvel source of truth.
 - Do not assume sibling source repos still exist as the live product.
-- After a coherent task block, the orchestrator may commit, push the feature branch, and open a PR against `dev` without per-commit Santi approval. PR target is always `dev`; never `qa` or `main` directly.
-- Merge to protected branches still requires explicit Santi approval per PR. Merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset (`gh pr merge <n> --squash --admin`, or the Git administration bypass), gated on that explicit approval. No ruleset is ever relaxed. Never direct-push to `main`, force-push, run `reset --hard`, commit secrets or `.funemon/`, or bypass checks.
+- After a coherent task block, the orchestrator may commit, push the feature branch, and open a PR against `dev` without per-commit Santi approval. PR target is always `dev`; never `main` directly.
+- Merge to protected branches still requires explicit Santi approval per PR. Merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset (`gh pr merge <n> --squash --admin` into `dev`, `gh pr merge <n> --merge --admin` into `main`, or the Git administration bypass), gated on that explicit approval. Never direct-push to `main`, force-push, run `reset --hard`, commit secrets or `.funemon/`, or bypass a required check. A ruleset changes only with explicit approval, recorded with its exact call and rollback.
 
 ## Accuracy
 
@@ -26,30 +26,14 @@
 - Link ADRs and runbooks when a decision or procedure becomes stable.
 - Public copy (README, landing) must match `product.md`. Do not reintroduce Mercado Pago checkout.
 
-## 3-Environment Promotion
+## Promotion
 
-`feature → dev → qa → main`. Never skip a step.
-
-| Branch | Purpose | Receives from |
-|--------|---------|---------------|
-| `dev` | Integration. All feature branches land here first. | feature branches (via PR) |
-| `qa` | Smoke test environment. Pre-release validation. | `dev` (via PR) |
-| `main` | Production. Releases only. | `qa` (via PR) |
-
-Hard rules:
-
-- Feature branches MUST merge to `dev` first. Never directly to `qa` or `main`.
-- Never commit directly to `qa` or `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev` and is exactly how `dev` and `qa` diverged on migration filenames (#943, #945, #1030).
-- Keep `dev`'s `supabase/migrations/` filenames identical to `qa`/`main`. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
-- `main` receives PRs ONLY from `qa`. Never from `dev` or from a feature branch.
-- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `qa`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`qa`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy the `qa` check, because a required check that never runs never reports.
-- Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset: `gh pr merge <n> --squash --admin`, only with explicit Santi approval per PR. No ruleset is ever relaxed.
-- Back-sync PRs into `dev` (`dev ← qa`, `dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
-- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
-- **Do not merge `origin/dev` into `qa` (or `qa` into `main`).** Promotion is squash-copied trees. Git commit counts across hops lie; compare `git diff` of the two tips. Copy the file delta onto a branch from the destination. Never rename an already-applied migration on a single branch: a retimestamp must land on `dev` first and then promote, or the next merge leaves both variants and the drift guard rejects the promotion.
+- The flow is `feature → dev → main`: two environments, where `dev` integrates and never deploys and `main` is production. The `qa` environment was retired in #1133/#1134 — a leftover `refs/heads/qa` condition inside a ruleset is not a live environment, and nothing is promoted to it.
+- Canonical flow, merge methods, ruleset state and bypass policy: root `AGENTS.md`, section *Git Workflow*. Deploy mechanics and how to verify a promotion reached production: `infra/context/deployment.md`.
+- Do not restate the policy here. Three copies of it had drifted out of date by 2026-10 and had to be rewritten at once. When the flow changes, change it in `AGENTS.md` and link to it.
 
 ## CI Gate
 
-- Required CI check on protected branches: check `Dashboard booking regressions` (job `dashboard-booking-regressions` in `.github/workflows/booking-regression.yml`). That workflow currently runs on PRs to `dev` and `main`, not `qa`.
-- Root `pnpm run check` is the default local gate.
+- Required checks on protected branches: `Dashboard booking regressions` and `Full repo checks`, enforced by the `ci-gate` ruleset on `dev` and `main`; `Migration drift guard` is required on `main` by the `promotion-drift-guard` ruleset.
+- Root `pnpm run check` is the default local gate. For dashboard changes the authoritative gate is `node scripts/check-dashboard-failure-parity.mjs`: the suite has a known-failing baseline, and parity is what fails on a new failure.
 - No direct push to `main`, no `--force`, no `reset --hard`, no secrets or `.funemon/` in commits.

@@ -4,10 +4,10 @@
 
 - Sequence: `feature → dev → main`. Skip no step.
 - **`main` is the only deployed environment** ([#1133](https://github.com/Santidele22/orvel/issues/1133)). `dev` integrates and runs the gates but is never deployed, and that is deliberate: the pre-merge smoke is the Vercel preview of the pull request.
-- Per-branch rules live in repository rulesets: `pr-reviews` on `dev`/`main` (1 approving review, squash merges only, no deletions, no force pushes), `ci-gate` on `dev`/`main` (required check `Dashboard booking regressions`, branch must be up to date) and `promotion-drift-guard` on `main` (required check `Migration drift guard`).
+- Merge method by destination: **squash into `dev`** (one commit per PR), **merge commit into `main`** (a promotion). A squashed promotion lands on `main` as a commit unrelated to `dev`'s history, so the next promotion has a stale merge base and reports `CONFLICTING` even when the content delta is a handful of files; that is how `dev`/`main` drifted from 2026-07-27 until #1138/#1139 restored the ancestry. With merge-commit promotions `dev` stays an ancestor of `main`, so a `dev ← main` back-sync is the exception (a `main`-only commit), not a routine step.
+- Per-branch rules live in repository rulesets: `pr-reviews` on `dev`/`main` (1 approving review, `squash` and `merge` commits, no deletions, no force pushes), `ci-gate` on `dev`/`main` (required checks `Dashboard booking regressions` and `Full repo checks`, branch must be up to date) and `promotion-drift-guard` on `main` (required check `Migration drift guard`).
 - Required CI gate: check `Dashboard booking regressions` (job `dashboard-booking-regressions` in `.github/workflows/booking-regression.yml`).
-- Merging to a protected branch requires explicit Santi approval per PR. No protection is relaxed: `gh pr merge <n> --squash --admin` uses the owner's per-PR bypass on `pr-reviews`, while `ci-gate` and `promotion-drift-guard` still cannot be bypassed. Never direct-push to `main`, never `--force`, never bypass a required check.
-- After each promotion, back-sync the destination into `dev` (`dev ← main`).
+- Merging to a protected branch requires explicit Santi approval per PR. Required checks are never bypassed: `gh pr merge <n> --squash --admin` into `dev` and `gh pr merge <n> --merge --admin` into `main` use the owner's per-PR bypass on `pr-reviews`, while `ci-gate` and `promotion-drift-guard` still block until CI runs. Never direct-push to `main`, never `--force`, never bypass a required check.
 
 ## Migration Drift Guard
 
@@ -35,6 +35,23 @@ The console step skips with a log line while `VERCEL_PROJECT_ID_WEB` does not ex
 
 **Every project owns its build command, and the shared `vercel.json` must not pin one.** Every project deploys the same repository root, and a `buildCommand` in that file **wins over the project setting**: while it pinned `pnpm run build:vercel`, the console project silently built and shipped the combined site. The file keeps only the genuinely shared fields (`installCommand`, `framework`, the git-deploy switches). `scripts/vercel-output-config.test.mjs` fails if the field comes back.
 
+## Verifying a Promotion
+
+A green PR proves the merge; it never proves the deploy. Check both separately.
+
+1. **The promotion is clean.** `git diff --stat origin/main..origin/dev` is the real delta. `git log origin/main..origin/dev` counts every commit `dev` ever squashed into `main` — 354 commits against a 23-file diff at the time of #1138 — so it overstates a promotion by an order of magnitude. Confirm `main` carries nothing `dev` lacks with `git log origin/dev..origin/main`: it must list only promotion commits.
+2. **The deploy ran.** `.github/workflows/deploy-promotion.yml` triggers on the push to `main`, not on the merge itself. `gh run list --workflow=deploy-promotion.yml --limit 1` must end `success`. It links Supabase, sets `ENVIRONMENT=production`, pushes migrations, deploys the four edge functions and both Vercel projects (the console step skips with a log line while `VERCEL_PROJECT_ID_WEB` is unset).
+3. **The origins answer.** `https://orvel.pro/` and `https://dashboard.orvel.pro/` return `200`.
+4. **The change is actually served.** The HTML lists only eager assets, so feature code ships inside a lazy chunk. Take the entry bundle from the served HTML, list its dynamic imports, and grep those chunks for a distinctive string from the change:
+
+```bash
+curl -s https://dashboard.orvel.pro/ | grep -oE 'main-[A-Z0-9]+\.js'                      # entry bundle
+curl -s https://dashboard.orvel.pro/main-XXXX.js | grep -oE 'import\("\./chunk-[A-Z0-9]+\.js"\)'  # lazy chunks
+curl -s https://dashboard.orvel.pro/chunk-YYYY.js | grep -c '<distinctive string>'          # who carries it
+```
+
+Chunk hashes rotate on every build: they are evidence for one deploy, never a stable reference. An installed PWA can keep serving the previous shell until the update banner is accepted or the cache is refreshed, so a missing string on one client is not by itself a failed deploy.
+
 ## Deployment Boundaries
 
 - Do not deploy dashboard, landing, functions, or database changes unless Santi explicitly asks.
@@ -43,5 +60,5 @@ The console step skips with a log line while `VERCEL_PROJECT_ID_WEB` does not ex
 
 ## Source-of-truth
 
-- Promotion flow + admin-workaround policy: root `AGENTS.md` §3.
+- Promotion flow + admin-workaround policy: root `AGENTS.md`, section *Git Workflow*.
 - Operational rules: `infra/context/operational-rules.md`.
