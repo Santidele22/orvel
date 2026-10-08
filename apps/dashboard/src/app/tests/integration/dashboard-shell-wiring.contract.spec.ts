@@ -3,6 +3,7 @@
 import '@angular/compiler';
 // `?raw` keeps this spec free of node typings (tsconfig.spec.json does not include them).
 import shellSource from '../../shared/dashboard-shell/dashboard-shell.component.ts?raw';
+import shellTemplate from '../../shared/dashboard-shell/dashboard-shell.component.html?raw';
 import { describe, expect, it } from 'vitest';
 
 import { dashboardShellRoutes } from '../../dashboard-shell.routes';
@@ -14,12 +15,14 @@ import {
 import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
-  DASHBOARD_TOUR_HELP_COMPONENT
+  DASHBOARD_TOUR_HELP_COMPONENT,
+  DASHBOARD_TOUR_INVITE_COMPONENT
 } from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
 import { BusinessService } from '../../features/settings/data-access/business.service';
 import { ClienteService } from '../../features/clientes/data-access/cliente.service';
 import { ServicioService } from '../../features/servicios/data-access/servicio.service';
 import { OperatorTourHelpButtonComponent } from '../../features/operator-tour/operator-tour-help-button.component';
+import { OperatorTourInviteComponent } from '../../features/operator-tour/operator-tour-invite.component';
 import { OperatorTourService } from '../../features/operator-tour/operator-tour.service';
 import { readOnboardingState } from '../../features/onboarding/data-access/onboarding-storage';
 
@@ -50,6 +53,21 @@ describe('dashboard shell wiring contract', () => {
     expect(bindingFor(DASHBOARD_TOUR_HELP_COMPONENT)).toMatchObject({
       useValue: OperatorTourHelpButtonComponent
     });
+  });
+
+  it('binds the tour invite port to the feature component', () => {
+    expect(bindingFor(DASHBOARD_TOUR_INVITE_COMPONENT)).toMatchObject({
+      useValue: OperatorTourInviteComponent
+    });
+  });
+
+  it('never opens the tour by itself: the invite asks first', () => {
+    // The old auto-start polled `home-metrics` and ran the tour on the home
+    // route only, so a new operator landing on the agenda never saw it (#1136).
+    expect(shellSource).not.toContain('scheduleAutoTour');
+    expect(shellSource).not.toContain('home-metrics');
+    expect(shellSource).not.toMatch(/this\.tour\?\.run\(\)/);
+    expect(shellTemplate).toContain('tourInviteComponent');
   });
 
   it('binds the onboarding payload port to the onboarding reader', () => {

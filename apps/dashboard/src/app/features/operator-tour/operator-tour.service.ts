@@ -1,9 +1,10 @@
-import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, InjectionToken, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import {
   TOUR_ROUTES,
   filterOperatorTourSteps,
+  isSameTourRoute,
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
@@ -50,6 +51,21 @@ const OPTIONAL_ANCHOR_WAIT_MS = 1200;
 const ROUTE_ANCHOR_WAIT_MS = 4000;
 
 /**
+ * How long the journey start may take to settle after the invite navigates
+ * there. The plan probes anchors when it is built, so running against a still
+ * loading page would silently drop the home content steps.
+ */
+export interface OperatorTourReadyBudget {
+  readonly pollMs: number;
+  readonly timeoutMs: number;
+}
+
+export const OPERATOR_TOUR_READY_BUDGET = new InjectionToken<OperatorTourReadyBudget>(
+  'OPERATOR_TOUR_READY_BUDGET',
+  { factory: () => ({ pollMs: 250, timeoutMs: 3000 }) },
+);
+
+/**
  * Runs the operator first-run tour with driver.js.
  *
  * The journey walks the app (#1136): it walks Inicio, detours through Servicios
@@ -65,6 +81,10 @@ export class OperatorTourService {
   private readonly platformId = inject(PLATFORM_ID, { optional: true });
   private readonly destroyRef = inject(DestroyRef, { optional: true });
   private readonly router = inject(Router, { optional: true });
+  private readonly readyBudget = inject(OPERATOR_TOUR_READY_BUDGET, { optional: true }) ?? {
+    pollMs: 250,
+    timeoutMs: 3000,
+  };
   private readonly platform = browserPlatform();
 
   private readonly storage = createOperatorTourStorage();
@@ -106,9 +126,12 @@ export class OperatorTourService {
     return this.platformId === null || isPlatformBrowser(this.platformId);
   }
 
-  /** Auto-start gate for the shell: first visit on this device only. */
+  /**
+   * Auto-start gate for the first-run invite: a browser session where the tour
+   * was neither completed nor declined, and no tour is on screen already.
+   */
   canAutoStart(): boolean {
-    return this.isBrowser && !this.storage.hasCompleted();
+    return this.isBrowser && !this.storage.hasCompleted() && !this.activeSignal();
   }
 
   /** Opens the tour. Safe to call repeatedly: a running tour is left alone. */
@@ -152,11 +175,72 @@ export class OperatorTourService {
     }
   }
 
+  /**
+   * Invite accepted: the journey begins on its own first stop, so an operator
+   * who landed on the agenda gets the dashboard walkthrough instead of a tour
+   * with its content steps silently dropped.
+   */
+  async acceptInvite(): Promise<void> {
+    await this.startJourney();
+  }
+
+  /** Invite declined: the operator is not asked again on this device. */
+  declineInvite(): void {
+    this.markCompleted();
+  }
+
   /** Help-button entry point: restarts the tutorial from the very first step. */
   async replay(): Promise<void> {
     this.storage.reset();
     this.completedSignal.set(false);
+    await this.startJourney();
+  }
+
+  private async startJourney(): Promise<void> {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    if (!isSameTourRoute(TOUR_ROUTES.inicio, this.currentRoute())) {
+      try {
+        await this.router?.navigateByUrl(TOUR_ROUTES.inicio);
+      } catch {
+        // A blocked navigation must not swallow the tour: it opens where it can.
+      }
+    }
+
+    await this.waitForJourneyStart();
     await this.run();
+  }
+
+  /**
+   * Waits for the home data to settle, because the plan probes anchors when it
+   * is built: running against the loading skeleton would drop them.
+   */
+  private async waitForJourneyStart(): Promise<void> {
+    const deadline = Date.now() + this.readyBudget.timeoutMs;
+
+    while (Date.now() < deadline) {
+      if (this.isJourneyStartReady()) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.readyBudget.pollMs));
+    }
+  }
+
+  private isJourneyStartReady(): boolean {
+    try {
+      if (typeof document === 'undefined') {
+        return true;
+      }
+
+      return (
+        document.querySelector('[data-tour="home-metrics"]') !== null &&
+        document.querySelector('[data-testid="dashboard-home-loading-skeleton"]') === null
+      );
+    } catch {
+      return true;
+    }
   }
 
   /** Interrupts the tour without marking it as completed. */

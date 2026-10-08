@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import { environment } from '../../apps/dashboard/src/environments/environment';
+// Pure module (no Angular imports), so the spec seeds the same key the app reads.
+import { OPERATOR_TOUR_STORAGE_KEY, OPERATOR_TOUR_VERSION } from '../../apps/dashboard/src/app/features/operator-tour/operator-tour-storage';
 
 type DiagnosticStatus = 'PASS' | 'FAIL' | 'BLOCKED';
 
@@ -87,9 +89,16 @@ async function loginWithDocumentedDemoCredentials(page: Page): Promise<LoginResu
   evidence.push(backendAuth.evidence);
 
   if (backendAuth.ok) {
-    await page.addInitScript((session) => {
-      localStorage.setItem('orvel.supabase.auth', JSON.stringify(session));
-    }, backendAuth.session);
+    await page.addInitScript(
+      ({ session, tourKey, tourVersion }) => {
+        localStorage.setItem('orvel.supabase.auth', JSON.stringify(session));
+        // The first-run tour invite is a modal that covers the shell. These
+        // diagnostics drive the real UI, so they seed "already offered" instead
+        // of fighting a dialog meant for humans.
+        localStorage.setItem(tourKey, String(tourVersion));
+      },
+      { session: backendAuth.session, tourKey: OPERATOR_TOUR_STORAGE_KEY, tourVersion: OPERATOR_TOUR_VERSION },
+    );
     evidence.push('Registered Supabase browser session init script for localStorage key orvel.supabase.auth.');
     await page.goto('/dashboard/inicio');
     try {
