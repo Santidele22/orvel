@@ -25,5 +25,10 @@
     @if (tourHelpComponent) {
       <ng-container [ngComponentOutlet]="tourHelpComponent" />
     }
+
+    @let tourInviteComponent = tourInvite;
+    @if (tourInviteComponent) {
+      <ng-container [ngComponentOutlet]="tourInviteComponent" />
+    }
   </div>
 </div>

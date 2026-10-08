@@ -9,8 +9,17 @@ import { InjectionToken, type Type } from '@angular/core';
  * simply renders without the operator tour.
  */
 export interface DashboardTourPort {
+  /**
+   * True when the operator has not been offered nor completed the tour on this
+   * device. It gates the first-run invite, which is the only automatic entry
+   * point: the shell never opens the tour by itself.
+   */
   canAutoStart(): boolean;
   run(): Promise<void>;
+  /** Invite accepted: walk to the journey start and open the tour. */
+  acceptInvite(): Promise<void>;
+  /** Invite declined: never ask again on this device. */
+  declineInvite(): void;
 }
 
 /** Onboarding payload the shell needs to resolve the dashboard config. */
@@ -36,6 +45,11 @@ export const DASHBOARD_TOUR = new InjectionToken<DashboardTourPort | null>('DASH
 
 export const DASHBOARD_TOUR_HELP_COMPONENT = new InjectionToken<Type<unknown> | null>(
   'DASHBOARD_TOUR_HELP_COMPONENT',
+  { factory: () => null }
+);
+
+export const DASHBOARD_TOUR_INVITE_COMPONENT = new InjectionToken<Type<unknown> | null>(
+  'DASHBOARD_TOUR_INVITE_COMPONENT',
   { factory: () => null }
 );
 
