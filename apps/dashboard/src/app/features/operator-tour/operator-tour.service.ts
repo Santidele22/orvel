@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, InjectionToken, PLATFORM_ID, inject, signal } f
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 import {
+  OPERATOR_TOUR_POPOVER_CLASS,
   TOUR_ROUTES,
   filterOperatorTourSteps,
   isSameTourRoute,
@@ -306,6 +307,9 @@ export class OperatorTourService {
       nextBtnText: 'Siguiente',
       prevBtnText: 'Atrás',
       doneBtnText: 'Listo',
+      // driver.js ships a light default theme; the class lets the dashboard
+      // stylesheet paint the popover with its own surface tokens.
+      popoverClass: OPERATOR_TOUR_POPOVER_CLASS,
       skipMissingElement: true,
       // A global hook replaces driver.js' default advance on every step, which is
       // what lets a hop navigate to another route before moving on.

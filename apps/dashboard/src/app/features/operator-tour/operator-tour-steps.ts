@@ -21,6 +21,12 @@
 export const TOUR_TARGET_ATTRIBUTE = 'data-tour';
 
 /**
+ * Class driver.js puts on the popover wrapper. The dashboard stylesheet themes
+ * the popover through it, because driver.js ships a light default theme.
+ */
+export const OPERATOR_TOUR_POPOVER_CLASS = 'orvel-operator-tour';
+
+/**
  * Shell routes the journey walks. The shell is mounted at `/dashboard/*` and at
  * the root, so both spellings resolve to the same route identity here.
  */
@@ -99,17 +105,6 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     title: 'Bienvenida a Orvel',
     description:
       'Orvel es tu agenda de turnos online: tus clientes reservan solos desde tu link y todo cae en este panel. Te muestro qué ofrecemos y los primeros pasos. Podés salir cuando quieras.',
-  },
-  {
-    id: 'marca-negocio',
-    target: anchor('sidebar-logo'),
-    route: TOUR_ROUTES.inicio,
-    surfaces: ['desktop'],
-    title: 'El negocio activo',
-    description:
-      'Acá ves el negocio con el que estás operando. Si manejás más de uno, desde el menú cambiás de agenda sin cerrar sesión.',
-    side: 'right',
-    align: 'start',
   },
   {
     id: 'navegacion-lateral',
