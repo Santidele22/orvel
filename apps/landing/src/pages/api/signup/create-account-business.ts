@@ -13,7 +13,6 @@ const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estet
 const ALLOWED_DASHBOARD_ORIGINS = new Set([
   "https://orvel.pro",
   "https://www.orvel.pro",
-  "https://qa.orvel.pro",
   "https://dashboard.orvel.pro",
   "http://localhost:4200",
   "http://127.0.0.1:4200",

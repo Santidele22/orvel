@@ -1,12 +1,12 @@
 {
-  "revision": "11f4863",
-  "recordedAt": "2026-10-02",
+  "revision": "019745a",
+  "recordedAt": "2026-10-07",
   "issue": 1076,
   "notes": "Known-failing dashboard tests at `revision`. Exact parity is enforced by scripts/check-dashboard-failure-parity.mjs: no new failure is allowed, and every entry here must still be failing. Regenerate with `pnpm run test:dashboard:parity:update` whenever a fix lands or a batch of dead specs is deleted.",
   "totals": {
-    "tests": 1810,
-    "passed": 1645,
-    "failed": 152,
+    "tests": 1659,
+    "passed": 1496,
+    "failed": 150,
     "skipped": 13,
     "collectionErrors": 0
   },
@@ -144,8 +144,6 @@
     "src/app/tests/unit/dashboard-atomic-layering-settings.contract.spec.ts :: Sprint 2 RED - Atomic layering contract for settings page uses at least one reusable shared presentational component",
     "src/app/tests/unit/dashboard-bugfix-product-decisions.contract.spec.ts :: Dashboard bugfix product decisions contract settings hydrates idempotently when auth arrives late and does not gate saved settings on slug validity",
     "src/app/tests/unit/dashboard-session-business-types.contract.spec.ts :: TDD contract: dashboard business rules consume selectedBusinessTypes from session filters non-zen values and preserves zen when mixed input comes from session",
-    "src/app/tests/unit/deploy-promotion-qa-combined.contract.spec.ts :: deploy-promotion combined site builds combined production so installed PWA can POST /api/signup on orvel.pro",
-    "src/app/tests/unit/deploy-promotion-qa-combined.contract.spec.ts :: deploy-promotion combined site builds the landing+dashboard site for qa so /api/signup exists",
     "src/app/tests/unit/lighthouse-main-chunk-booking.contract.spec.ts :: Contract: lighthouse main chunk does not eager-load booking uses loadChildren for path empty and path dashboard",
     "src/app/tests/unit/m8-hardcoded-test-hooks-cleanup.red.contract.spec.ts :: RED Contract M8: hardcoded/test hooks/fake history cleanup admin action payloads do not use stale hardcoded identities, reasons, or current-time fake history defaults",
     "src/app/tests/unit/m8-hardcoded-test-hooks-cleanup.red.contract.spec.ts :: RED Contract M8: hardcoded/test hooks/fake history cleanup admin turnos primary actions are visible UX controls, not sr-only compatibility hooks",

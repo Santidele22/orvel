@@ -67,16 +67,18 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
     }
   });
 
-  it('keeps QA dashboard redirects on qa.orvel.pro when PUBLIC_LANDING_URL is unset', () => {
+  it('falls back to the production landing origin when PUBLIC_LANDING_URL is unset', () => {
+    // #1133 retired qa, so a hosted environment with no configured landing URL uses the canonical
+    // production origin instead of preserving whatever host it happens to be served from.
     delete process.env.PUBLIC_LANDING_URL;
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
         location: {
-          origin: 'https://qa.orvel.pro',
-          hostname: 'qa.orvel.pro',
+          origin: 'https://orvel.pro',
+          hostname: 'orvel.pro',
           protocol: 'https:',
-          href: 'https://qa.orvel.pro/dashboard/inicio'
+          href: 'https://orvel.pro/dashboard/inicio'
         }
       }
     });
@@ -85,9 +87,9 @@ describe('Contract: Model C dashboard unauthenticated redirect', () => {
       const login = new URL(buildLandingLoginRedirect('/dashboard/inicio'));
       const plan = new URL(buildLandingPlanSelectionRedirect('/dashboard/inicio'));
 
-      expect(login.origin).toBe('https://qa.orvel.pro');
+      expect(login.origin).toBe('https://orvel.pro');
       expect(login.pathname).toBe('/dashboard/login');
-      expect(plan.origin).toBe('https://qa.orvel.pro');
+      expect(plan.origin).toBe('https://orvel.pro');
       expect(plan.pathname).toBe('/auth/signup/plan');
     } finally {
       restoreRuntime();

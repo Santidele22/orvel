@@ -41,31 +41,32 @@ Do not treat missing skill folders, ignored client dirs (`.opencode/`, `.funemon
 
 ## Git Workflow
 
-### 3-environment promotion
+### Two-branch promotion
 
-`feature → dev → qa → main`. Never skip a step.
+`feature → dev → main`. Never skip a step.
 
-| Branch | Purpose | Receives from |
-|--------|---------|---------------|
-| `dev` | Integration | feature branches (via PR) |
-| `qa` | Smoke / pre-release | `dev` (via PR) |
-| `main` | Production | `qa` (via PR) |
+| Branch | Purpose | Receives from | Deployed? |
+|--------|---------|---------------|-----------|
+| `dev` | Integration | feature branches (via PR) | **No** — no hostname, no deploy |
+| `main` | Production | `dev` (via PR) | Yes |
+
+**`main` is the only deployed environment** ([#1133](https://github.com/Santidele22/orvel/issues/1133)). `dev` integrates and runs the gates; nothing is served from it, and that is deliberate. The pre-merge smoke is the Vercel preview that every pull request already produces.
 
 Hard rules:
 
-- Feature branches merge to `dev` first. Never directly to `qa` or `main`.
-- Never commit directly to `qa` or `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev` and is exactly how `dev` and `qa` diverged on migration filenames (#943, #945, #1030).
-- Keep `dev`'s `supabase/migrations/` filenames identical to `qa`/`main`. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
-- `main` receives PRs only from `qa`.
-- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `qa`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`qa`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy the `qa` check, because a required check that never runs never reports.
+- Feature branches merge to `dev` first. Never directly to `main`.
+- Never commit directly to `main`. Every change — features, CI fixes, migration retimestamps — lands on `dev` first and promotes from there; a destination-only commit never flows back to `dev`, which is exactly how `dev` and `qa` diverged on migration filenames before `qa` was retired (#943, #945, #1030).
+- Keep `dev`'s `supabase/migrations/` filenames identical to `main`'s. A retimestamp or rename must land on `dev` in the same cycle that promotes it; otherwise the next merge leaves both variants side by side and the migration drift guard rejects the promotion.
+- `main` receives PRs only from `dev`.
+- Branch rules live in repository rulesets, not classic branch protection. `pr-reviews` (`dev`, `main`) requires 1 approving review, allows squash merges only, and blocks deletions and force pushes; `ci-gate` (`dev`/`main`) requires the `Dashboard booking regressions` check on an up-to-date branch; `promotion-drift-guard` (`main`) requires the `Migration drift guard` check. A promotion branch that omits `.github/workflows/promotion-drift-guard.yml` or `scripts/check-migration-drift.mjs` cannot satisfy that check, because a required check that never runs never reports.
 - Santi is the sole owner; self-approval is blocked, so merging as the sole reviewer uses the owner's per-PR bypass on the `pr-reviews` ruleset: `gh pr merge <n> --squash --admin`, only with explicit Santi approval per PR. No ruleset is ever relaxed.
-- Back-sync PRs into `dev` (`dev ← qa`, `dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
-- After every promotion, back-sync the destination into `dev` (`dev ← qa`, `dev ← main`).
+- Back-sync PRs into `dev` (`dev ← main`) are merged with the owner's per-PR bypass like any other PR; no review enforcement is relaxed, and the required status check still blocks until CI runs.
+- After every promotion, back-sync the destination into `dev` (`dev ← main`).
 
 ### Operational rules
 
 - Every new task starts from an up-to-date `dev`: `git fetch origin --prune`, then `git switch -c <type>/<slug> origin/dev`. Never branch from a stale local `dev` or from another feature branch.
-- Work on a feature branch. Do not push directly to `dev`, `qa`, or `main`.
+- Work on a feature branch. Do not push directly to `dev` or `main`.
 - After a coherent task block, the orchestrator may commit, push the feature branch, and open a PR against `dev` without per-commit approval. PR target is always `dev`.
 - Merge to protected branches still requires explicit Santi approval per PR.
 - Do not ask Santi to merge until CI is green. If a PR review bot comments a rejection, treat it as a stop until it is fixed or Santi overrides.
@@ -97,7 +98,7 @@ Root `pnpm run check` is the default local verification gate (dashboard + landin
 - When Santi asks for schema or function changes and credentials/context are available, update or push with the Supabase CLI immediately.
 - If credentials/context are missing, access is unavailable, or a command is blocked, stop and report the exact blocker.
 - Do not invent expected remote state. Use checked-in context, Supabase CLI output, or Santi-provided facts.
-- The documented pre-release linked project is `orvel-qa-dev`. Production identity is the non-revealing digest in `supabase/production-project-ref.sha256`. Do not invent project refs.
+- There is **no pre-release Supabase project** since #1133: production is the only remote environment. Its identity is the non-revealing digest in `supabase/production-project-ref.sha256`. Local work uses the Supabase CLI's local stack. Do not invent project refs.
 
 ## Required Reporting
 

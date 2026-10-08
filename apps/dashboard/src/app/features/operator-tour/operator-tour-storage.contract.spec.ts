@@ -53,6 +53,20 @@ describe('operator tour storage contract', () => {
     expect(storage.hasCompleted()).toBe(false);
   });
 
+  it('bumps the revision so the first-run journey reaches veteran operators', () => {
+    // #1136 turned the tour into a guided first-steps journey. Operators who
+    // dismissed revision 1 must still see it once, so the revision moved on.
+    expect(OPERATOR_TOUR_VERSION).toBeGreaterThan(1);
+  });
+
+  it('ignores a completion recorded by the previous revision', () => {
+    const previousKey = `orvel.operator-tour.v${OPERATOR_TOUR_VERSION - 1}.completed`;
+    const store = createMemoryStore({ [previousKey]: String(OPERATOR_TOUR_VERSION - 1) });
+    const storage = createOperatorTourStorage(store);
+
+    expect(storage.hasCompleted()).toBe(false);
+  });
+
   it('re-runs the tour when the stored value is corrupted', () => {
     const store = createMemoryStore({ [OPERATOR_TOUR_STORAGE_KEY]: 'yes-please' });
     const storage = createOperatorTourStorage(store);

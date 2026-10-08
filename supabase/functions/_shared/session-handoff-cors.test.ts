@@ -52,13 +52,15 @@ Deno.test("production allows the three artifact origins plus www, and no localho
   });
 });
 
-Deno.test("qa allows its own three artifact origins and no production-only or localhost origins", () => {
+Deno.test("the retired qa environment resolves production origins and never localhost", () => {
+  // #1133 deleted the pre-release environment. If a deployment still declares ENVIRONMENT=qa, it
+  // must not resurrect the qa origins or fall back to the localhost allowlist.
   withEnvironment({ ENVIRONMENT: "qa" }, () => {
     const origins = getSessionHandoffAllowedOrigins();
 
-    assert(origins.includes("https://qa.orvel.pro"));
-    assert(origins.includes("https://app.qa.orvel.pro"));
-    assert(origins.includes("https://dashboard.qa.orvel.pro"));
+    assert(origins.includes("https://orvel.pro"));
+    assert(origins.includes("https://dashboard.orvel.pro"));
+    assertEquals(origins.filter((origin) => origin.includes("qa")), []);
     assertEquals(localhostOrigins(origins), []);
   });
 });
@@ -81,7 +83,7 @@ Deno.test("an unknown deployed environment fails safe: no localhost origins", ()
 Deno.test("configured and base-url origins are still merged in", () => {
   withEnvironment(
     {
-      ENVIRONMENT: "qa",
+      ENVIRONMENT: "production",
       SESSION_HANDOFF_ALLOWED_ORIGINS: "https://extra.example, https://otro.example",
       APP_BASE_URL: "https://app-base.example/",
     },
