@@ -151,3 +151,97 @@ h6 {
     color: var(--text-secondary);
   }
 }
+
+/**
+ * Operator tour popover.
+ *
+ * driver.js ships a light default theme, so the first-run tour used to open as a
+ * white card on top of the dark dashboard. Only the rules driver.css hardcodes
+ * are overridden here, with the same tokens the rest of the shell uses. The
+ * class comes from `OPERATOR_TOUR_POPOVER_CLASS` in the tour feature.
+ */
+.orvel-operator-tour.driver-popover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--or-space-4);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+}
+
+.orvel-operator-tour .driver-popover-title {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.orvel-operator-tour .driver-popover-description {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.orvel-operator-tour .driver-popover-progress-text {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.orvel-operator-tour .driver-popover-close-btn {
+  color: var(--text-secondary);
+}
+
+.orvel-operator-tour .driver-popover-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.orvel-operator-tour .driver-popover-footer-btn {
+  color: var(--text-secondary);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.orvel-operator-tour .driver-popover-footer-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.orvel-operator-tour .driver-popover-next-btn {
+  background-color: var(--primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.orvel-operator-tour .driver-popover-next-btn:hover {
+  background-color: var(--primary-hover);
+}
+
+/**
+ * driver.js draws the arrow with borders: one side carries the colour and the
+ * other three are transparent. Repainting the whole border would turn the arrow
+ * into a square, so the visible side is recoloured one by one. The reset comes
+ * first on purpose: it ties with the side rules on specificity, so source order
+ * decides.
+ */
+.orvel-operator-tour .driver-popover-arrow {
+  border-color: transparent;
+}
+
+.orvel-operator-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--bg-secondary);
+}
+
+.orvel-operator-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--bg-secondary);
+}
+
+.orvel-operator-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--bg-secondary);
+}
+
+.orvel-operator-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--bg-secondary);
+}
