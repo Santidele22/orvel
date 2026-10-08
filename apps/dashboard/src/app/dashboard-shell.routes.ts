@@ -12,12 +12,14 @@ import { ServicioService } from './features/servicios/data-access/servicio.servi
 import { BusinessService } from './features/settings/data-access/business.service';
 import { provideBookingQueries } from './features/booking/booking-queries.providers';
 import { OperatorTourHelpButtonComponent } from './features/operator-tour/operator-tour-help-button.component';
+import { OperatorTourInviteComponent } from './features/operator-tour/operator-tour-invite.component';
 import { OperatorTourService } from './features/operator-tour/operator-tour.service';
 import { readOnboardingState } from './features/onboarding/data-access/onboarding-storage';
 import {
   DASHBOARD_ONBOARDING_PAYLOAD,
   DASHBOARD_TOUR,
-  DASHBOARD_TOUR_HELP_COMPONENT
+  DASHBOARD_TOUR_HELP_COMPONENT,
+  DASHBOARD_TOUR_INVITE_COMPONENT
 } from '@orvel/dashboard-core/shell/dashboard-chrome.ports';
 
 export const dashboardShellChildren: Routes = [
@@ -72,6 +74,7 @@ export const dashboardShellProviders: (Provider | EnvironmentProviders)[] = [
   // Bind core shell chrome ports to the feature implementations.
   { provide: DASHBOARD_TOUR, useExisting: OperatorTourService },
   { provide: DASHBOARD_TOUR_HELP_COMPONENT, useValue: OperatorTourHelpButtonComponent },
+  { provide: DASHBOARD_TOUR_INVITE_COMPONENT, useValue: OperatorTourInviteComponent },
   { provide: DASHBOARD_ONBOARDING_PAYLOAD, useValue: readOnboardingState }
 ];
 
