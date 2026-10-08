@@ -4,9 +4,12 @@ import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 import {
   OPERATOR_TOUR_STEPS,
+  TOUR_ROUTES,
   TOUR_SURFACE_BREAKPOINTS,
   TOUR_TARGET_ATTRIBUTE,
   filterOperatorTourSteps,
+  isSameTourRoute,
+  normalizeTourRoute,
   resolveTourSurface,
   type OperatorTourStep,
   type TourSurface,
@@ -35,6 +38,10 @@ const templateMarkup = [
   read('shared/dashboard-sidebar/templates/zen-sidebar.component.ts'),
   readCore('shell/mobile-bottom-nav/mobile-bottom-nav.component.ts'),
   read('features/operator-tour/operator-tour-help-button.component.ts'),
+  // The journey now walks the first-steps pages, so their anchors are part of
+  // the shipped contract too.
+  read('features/servicios/pages/servicios.page.html'),
+  read('features/settings/pages/themes/configuracion-zen-theme.component.html'),
 ].join('\n');
 
 const templateDocument = new JSDOM(`<body>${templateMarkup}</body>`).window.document;
@@ -173,6 +180,91 @@ describe('operator tour steps contract', () => {
     expect(mobile.at(-1)?.id).toBe('repetir-tutorial');
   });
 
+  it('declares the shell route of every anchored step', () => {
+    for (const step of OPERATOR_TOUR_STEPS) {
+      if (!step.target) continue;
+
+      expect(step.route, `${step.id} needs the route its anchor lives on`).toBeTruthy();
+    }
+  });
+
+  it('normalizes both shell mounts to one route identity', () => {
+    expect(normalizeTourRoute('/dashboard/servicios/')).toBe('/servicios');
+    expect(normalizeTourRoute('/servicios')).toBe('/servicios');
+    expect(normalizeTourRoute('/dashboard/inicio?tab=equipo')).toBe('/inicio');
+    expect(normalizeTourRoute('/dashboard/servicios#team')).toBe('/servicios');
+    expect(isSameTourRoute('/dashboard/servicios', '/servicios')).toBe(true);
+    expect(isSameTourRoute('/dashboard/servicios', '/dashboard/configuracion')).toBe(false);
+  });
+
+  it('keeps first-steps anchors that are not mounted yet on the active route', () => {
+    const ids = filterOperatorTourSteps('desktop', {
+      activeRoute: TOUR_ROUTES.inicio,
+      hasElement: () => false,
+    }).map((step) => step.id);
+
+    // The servicios and configuracion pages are not in the DOM while the tour
+    // is planned on Inicio, so a probe miss must not delete the journey.
+    expect(ids).toContain('primer-paso-servicios');
+    expect(ids).toContain('detalle-negocio');
+    expect(ids).toContain('detalle-equipo');
+  });
+
+  it('probes the anchors of the active route only', () => {
+    const dropped = filterOperatorTourSteps('desktop', {
+      activeRoute: TOUR_ROUTES.configuracion,
+      hasElement: () => false,
+    }).map((step) => step.id);
+    const kept = filterOperatorTourSteps('desktop', {
+      activeRoute: TOUR_ROUTES.configuracion,
+      hasElement: (selector: string) => anchorName(selector) === 'config-equipo',
+    }).map((step) => step.id);
+
+    // On its own route the detail step depends on the picked tab, so the probe
+    // is the authority there...
+    expect(dropped).not.toContain('detalle-equipo');
+    expect(kept).toContain('detalle-equipo');
+    expect(kept).not.toContain('detalle-negocio');
+    // ...while steps from other routes stay planned: they are not mounted yet.
+    expect(dropped).toContain('primer-paso-servicios');
+  });
+
+  it('walks the first steps in order: services, business, team, then the link', () => {
+    const ids = OPERATOR_TOUR_STEPS.map((step) => step.id);
+
+    expect(ids.indexOf('primer-paso-servicios')).toBeLessThan(ids.indexOf('paso-negocio'));
+    expect(ids.indexOf('detalle-negocio')).toBeLessThan(ids.indexOf('paso-equipo'));
+    expect(ids.indexOf('detalle-equipo')).toBeLessThan(ids.indexOf('compartir-link'));
+  });
+
+  it('anchors the first steps on the real first-steps pages', () => {
+    const required = ['servicios-add', 'config-tabs', 'config-negocio', 'config-equipo'];
+
+    for (const name of required) {
+      expect(
+        templateDocument.querySelector(`[${TOUR_TARGET_ATTRIBUTE}="${name}"]`),
+        `${name} is missing from the shipped templates`,
+      ).not.toBeNull();
+    }
+  });
+
+  it('lets the operator pick the settings tab instead of switching it behind their back', () => {
+    const tabSteps = OPERATOR_TOUR_STEPS.filter((step) => step.id.startsWith('paso-'));
+
+    expect(tabSteps.length).toBeGreaterThan(0);
+    for (const step of tabSteps) {
+      expect(step.advanceOnClick, `${step.id} must advance on the tab tap`).toBe(true);
+      expect(anchorName(step.target ?? ''), `${step.id} must point at the tab bar`).toBe('config-tabs');
+    }
+  });
+
+  it('closes the journey back on the home route so the link step is reachable', () => {
+    const linkStep = OPERATOR_TOUR_STEPS.find((step) => step.id === 'compartir-link');
+
+    expect(linkStep?.route).toBe(TOUR_ROUTES.inicio);
+    expect(linkStep?.target).toBe(`[${TOUR_TARGET_ATTRIBUTE}="home-booking-portal"]`);
+  });
+
   it('drops optional steps whose anchor is absent at runtime', () => {
     const presentAnchors = new Set(['sidebar-nav', 'home-metrics', 'tour-help']);
     const filtered = filterOperatorTourSteps('desktop', {
@@ -190,7 +282,7 @@ describe('operator tour steps contract', () => {
     expect(ids).toContain('metrica-operativa');
     expect(ids).toContain('navegacion-lateral');
     expect(ids.at(-1)).toBe('repetir-tutorial');
-    expect(ids).not.toContain('panel-reservas');
+    expect(ids).not.toContain('compartir-link');
   });
 
   it('always keeps structural anchors, even when the probe rejects them', () => {
@@ -207,6 +299,17 @@ describe('operator tour steps contract', () => {
     const filtered = filterOperatorTourSteps('mobile', { hasElement: () => false });
     const ids = filtered.map((step) => step.id);
 
-    expect(ids).toEqual(['inicio-tour', 'navegacion-movil', 'repetir-tutorial']);
+    // On a bare Inicio the journey keeps the welcome, the mobile navigation,
+    // the replay control and every first-steps step that lives elsewhere.
+    expect(ids).toEqual([
+      'inicio-tour',
+      'navegacion-movil',
+      'primer-paso-servicios',
+      'paso-negocio',
+      'detalle-negocio',
+      'paso-equipo',
+      'detalle-equipo',
+      'repetir-tutorial',
+    ]);
   });
 });
