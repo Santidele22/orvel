@@ -24,7 +24,7 @@ export const PRELAUNCH_RUBROS: Record<PrelaunchRubroId, PrelaunchRubro> = {
   peluqueria: {
     title: 'Peluquería',
     tag: 'Cortes y color sin estrés.',
-    image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800',
+    image: '/images/rubro-peluqueria.jpg',
     headline: 'Color y corte dejan de pelearse en la agenda.',
     why: 'En peluquería el problema no es “tener turnos”. Es mezclar servicios de 30 minutos con decoloraciones de 3 horas, sin que alguien que entra sin reserva te desordene el día.',
     features: [
@@ -53,7 +53,7 @@ export const PRELAUNCH_RUBROS: Record<PrelaunchRubroId, PrelaunchRubro> = {
   unas: {
     title: 'Uñas',
     tag: 'Organización al minuto.',
-    image: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=800',
+    image: '/images/rubro-unas.jpg',
     headline: 'Cada servicio tiene su reloj. La agenda también.',
     why: 'Manicura, kapping, soft gel y nail art no duran lo mismo. Si la agenda trata todo como “uñas”, se te pisan las clientas y se te va el tiempo de limado.',
     features: [
@@ -82,7 +82,7 @@ export const PRELAUNCH_RUBROS: Record<PrelaunchRubroId, PrelaunchRubro> = {
   barberia: {
     title: 'Barbería',
     tag: 'Reservas automáticas.',
-    image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800',
+    image: '/images/rubro-barberia.jpg',
     headline: 'La silla gira. La libreta no tiene que hacerlo.',
     why: 'En barbería conviven el cliente de siempre que entra y espera, el que reserva fade + barba, y el mensaje a las 22. Orvel ordena eso sin volver el local una recepción de mensajes.',
     features: [
@@ -111,7 +111,7 @@ export const PRELAUNCH_RUBROS: Record<PrelaunchRubroId, PrelaunchRubro> = {
   masajes: {
     title: 'Masajes',
     tag: 'Tiempo entre sesiones.',
-    image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800',
+    image: '/images/rubro-masajes.jpg',
     headline: 'El turno incluye lo que no se ve: cabina, cambio y silencio.',
     why: 'Un masaje de 60 minutos no es 60 minutos de agenda. Hay recepción, cambio de sábanas, ventilación y que la persona anterior no se cruce con la siguiente.',
     features: [
