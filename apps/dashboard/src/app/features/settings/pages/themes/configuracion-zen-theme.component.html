@@ -17,6 +17,7 @@
             [class.text-white]="isActiveTab(tab.key)"
             [class.bg-bg-primary]="!isActiveTab(tab.key)"
             [class.text-text-secondary]="!isActiveTab(tab.key)"
+            [attr.data-tour]="'config-tab-' + tab.key"
             (click)="setSettingsTab(tab.key)" [attr.aria-pressed]="isActiveTab(tab.key)">
             <i [class]="tab.icon"></i>
             <span>{{ tab.label }}</span>
@@ -75,7 +76,7 @@
         <!-- Datos Personales (Perfil de Usuario) -->
         <article [class]="ui.cardGlass + ' space-y-zen-lg'">
           <div class="flex items-center justify-between pb-zen-md">
-            <h2 [class]="ui.titleSection">Datos Personales</h2>
+            <h2 [class]="ui.titleSection" data-tour="config-perfil-datos">Datos Personales</h2>
             <i class="ri-user-settings-line text-tertiary"></i>
           </div>
 
@@ -134,7 +135,7 @@
         <!-- Información de Contacto -->
         <article [class]="ui.cardGlass + ' space-y-zen-lg'">
           <div class="flex items-center justify-between pb-zen-md">
-            <h2 [class]="ui.titleSection">Contacto Público</h2>
+            <h2 [class]="ui.titleSection" data-tour="config-perfil-contacto">Contacto Público</h2>
             <i class="ri-customer-service-2-line text-tertiary"></i>
           </div>
 
@@ -157,7 +158,7 @@
         <!-- Configuración de Cuenta y Plan -->
         <article [class]="ui.cardGlass + ' space-y-zen-lg'">
           <div class="flex items-center justify-between pb-zen-md">
-            <h2 [class]="ui.titleSection">Cuenta y Suscripción</h2>
+            <h2 [class]="ui.titleSection" data-tour="config-perfil-cuenta">Cuenta y Suscripción</h2>
             <div
               class="px-zen-md py-0.5 rounded-full bg-bg-primary border border-primary/20 text-primary font-bold text-[10px] uppercase tracking-wider shadow-sm">
               Socio {{ planDisplayLabel() }}
@@ -293,7 +294,7 @@
 
         @if (isActiveTab('negocio')) {
         <!-- Políticas de Reserva y Logística -->
-        <article [class]="ui.cardGlass + ' space-y-zen-lg'" data-tour="config-negocio">
+        <article [class]="ui.cardGlass + ' space-y-zen-lg'" data-tour="config-politicas">
           <div class="flex items-center justify-between pb-zen-md">
             <h2 [class]="ui.titleSection">Políticas y Logística</h2>
             <i class="ri-settings-3-line text-tertiary"></i>
@@ -357,7 +358,7 @@
         </article>
 
         <article class="space-y-3" formGroupName="workingHours" data-testid="working-hours-section">
-          <p class="px-1 text-[10px] font-black uppercase tracking-widest text-tertiary">Horarios de atención del local</p>
+          <p class="px-1 text-[10px] font-black uppercase tracking-widest text-tertiary" data-tour="config-horarios">Horarios de atención del local</p>
 
           <div class="overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary/80">
             @for (day of weekdayRows; track day.key) {

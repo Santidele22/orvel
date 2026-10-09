@@ -106,4 +106,40 @@ describe('operator tour service contract', () => {
 
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
+
+  it('hands driver.js the exact settings tab button, right before the content it opens', async () => {
+    // #1153: the strip alone was a click-to-advance guess, so the tour moved on
+    // with the previous tab still active and the content step had no anchor.
+    const driverFactory = vi.fn(() => ({ drive: vi.fn(), destroy: vi.fn(), moveTo: vi.fn() }));
+    vi.doMock('driver.js', () => ({ driver: driverFactory }));
+
+    try {
+      const service = configure(createRouter(TOUR_ROUTES.inicio));
+
+      await service.run();
+
+      const config = driverFactory.mock.calls[0]?.[0] as {
+        steps: readonly { element?: string; advanceOnClick?: boolean }[];
+      };
+      const elementOf = (anchorName: string) => `[data-tour="${anchorName}"]`;
+      const indexOf = (anchorName: string) =>
+        config.steps.findIndex((step) => step.element === elementOf(anchorName));
+
+      const negocioAt = indexOf('config-tab-negocio');
+
+      expect(negocioAt, 'the tour must plan the Negocio tab button').toBeGreaterThanOrEqual(0);
+      expect(config.steps[negocioAt]?.advanceOnClick).toBe(true);
+      expect(indexOf('config-politicas')).toBe(negocioAt + 1);
+      expect(indexOf('config-tab-equipo')).toBeGreaterThan(indexOf('config-horarios'));
+      expect(indexOf('config-equipo')).toBe(indexOf('config-tab-equipo') + 1);
+      expect(indexOf('config-tab-perfil')).toBeGreaterThan(indexOf('config-equipo'));
+      expect(indexOf('config-perfil-datos')).toBe(indexOf('config-tab-perfil') + 1);
+      // The strip introduces the tabs; it never waits for a click again.
+      expect(config.steps[indexOf('config-tabs')]?.advanceOnClick).toBe(false);
+
+      service.teardown();
+    } finally {
+      vi.doUnmock('driver.js');
+    }
+  });
 });

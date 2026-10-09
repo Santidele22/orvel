@@ -54,9 +54,11 @@ describe('operator tour storage contract', () => {
   });
 
   it('bumps the revision so the first-run journey reaches veteran operators', () => {
-    // #1136 turned the tour into a guided first-steps journey. Operators who
-    // dismissed revision 1 must still see it once, so the revision moved on.
-    expect(OPERATOR_TOUR_VERSION).toBeGreaterThan(1);
+    // #1136 turned the tour into a guided first-steps journey (revision 2) and
+    // #1153 rewrote the configuration leg (revision 3). Operators who dismissed
+    // an earlier revision must still see the current script once, so the
+    // revision keeps moving forward with the script.
+    expect(OPERATOR_TOUR_VERSION).toBeGreaterThanOrEqual(3);
   });
 
   it('ignores a completion recorded by the previous revision', () => {
