@@ -299,7 +299,7 @@
             <i class="ri-settings-3-line text-tertiary"></i>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-xl">
+          <div class="grid grid-cols-1 gap-zen-xl">
             <div class="space-y-zen-md">
               <p [class]="ui.labelMicro + ' text-secondary'">Aprobación de Turnos</p>
               <div
@@ -312,54 +312,7 @@
                 <input type="checkbox" formControlName="autoConfirm" class="h-5 w-5 accent-primary cursor-pointer" />
               </div>
             </div>
-            <div class="space-y-zen-md">
-              <p [class]="ui.labelMicro + ' text-secondary'">Seña</p>
-              <div
-                class="flex items-center justify-between p-zen-md rounded-zen-card bg-bg-primary border border-white/5 shadow-inner">
-                <div class="space-y-1">
-                  <p class="text-sm font-semibold text-primary">Pedir seña para reservar</p>
-                  <p class="text-[10px] text-tertiary leading-tight">Si no se confirma la seña, el horario se libera.</p>
-                </div>
-                <input type="checkbox" formControlName="depositEnabled" class="h-5 w-5 accent-primary cursor-pointer" />
-              </div>
-            </div>
           </div>
-
-          @if (settingsForm.get('depositEnabled')?.value) {
-          <div class="space-y-zen-md">
-            <div class="space-y-zen-sm">
-              <label [class]="ui.labelMicro + ' text-secondary'">Porcentaje de seña</label>
-              <div
-                class="inline-flex rounded-full border border-white/10 bg-black/40 p-0.5"
-                role="group"
-                aria-label="Porcentaje de seña"
-                data-testid="deposit-percent-segment"
-              >
-                @for (pct of [25, 50, 100]; track pct) {
-                  <label
-                    class="cursor-pointer select-none rounded-full px-4 py-1.5 text-sm font-semibold transition-colors"
-                    [class.bg-primary]="settingsForm.get('depositPercent')?.value === pct"
-                    [class.text-white]="settingsForm.get('depositPercent')?.value === pct"
-                    [class.text-secondary]="settingsForm.get('depositPercent')?.value !== pct"
-                  >
-                    <input type="radio" formControlName="depositPercent" [value]="pct" class="sr-only" />
-                    {{ pct }}%
-                  </label>
-                }
-              </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-zen-md">
-              <div class="space-y-zen-sm">
-                <label [class]="ui.labelMicro + ' text-secondary'">Alias</label>
-                <input type="text" formControlName="depositAlias" [class]="ui.input" placeholder="tu.alias.mp" />
-              </div>
-              <div class="space-y-zen-sm">
-                <label [class]="ui.labelMicro + ' text-secondary'">CBU / CVU</label>
-                <input type="text" formControlName="depositCbu" [class]="ui.input" />
-              </div>
-            </div>
-          </div>
-          }
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-zen-md">
             <div class="space-y-zen-sm">

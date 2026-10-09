@@ -159,7 +159,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     surfaces: ['desktop', 'mobile'],
     title: 'Próximos turnos',
     description:
-      'Los turnos que vienen, con cliente, servicio y hora. Si un turno espera seña, lo confirmás desde acá en un toque.',
+      'Los turnos que vienen, con cliente, servicio y hora.',
     side: 'top',
     align: 'start',
     optional: true,
@@ -194,7 +194,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     surfaces: ['desktop', 'mobile'],
     title: 'Paso 2: configurá tu negocio',
     description:
-      'Tocá Negocio y seguimos. Ahí definís los horarios de atención, cómo se aprueban los turnos y si pedís seña para reservar.',
+      'Tocá Negocio y seguimos. Ahí definís los horarios de atención y cómo se aprueban los turnos.',
     side: 'bottom',
     align: 'center',
     advanceOnClick: true,
@@ -206,7 +206,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     surfaces: ['desktop', 'mobile'],
     title: 'Reglas y horarios',
     description:
-      'Desde acá ajustás la aprobación de turnos, la seña, y los días y horarios de atención. Lo que guardes, tus clientes lo ven al instante.',
+      'Desde acá ajustás la aprobación de turnos y los días y horarios de atención. Lo que guardes, tus clientes lo ven al instante.',
     side: 'top',
     align: 'start',
     optional: true,

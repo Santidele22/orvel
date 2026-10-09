@@ -144,7 +144,7 @@ describe('Contract: landing public SEO', () => {
 
     expect(index).toContain('Orvel — Software de gestión de turnos para peluquería, uñas y barbería');
     expect(index).toContain(
-      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Seña por alias o CBU, sin Mercado Pago. Empezá gratis, sin tarjeta.',
+      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Empezá gratis, sin tarjeta.',
     );
   });
 
@@ -152,13 +152,13 @@ describe('Contract: landing public SEO', () => {
     const index = await readFile(new URL('../pages/index.astro', import.meta.url), 'utf8');
 
     expect(index).toContain(
-      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Seña por alias o CBU, sin Mercado Pago. Empezá gratis, sin tarjeta.',
+      'Agenda online para negocios de belleza en Argentina. El cliente reserva por un link; vos ves la agenda. Empezá gratis, sin tarjeta.',
     );
     expect(index).toMatch(/featureList/);
     expect(index).toContain('Agenda de turnos');
     expect(index).toContain('Turnero público por link');
     expect(index).toContain('Varios profesionales');
-    expect(index).toContain('Seña por alias o CBU');
+    expect(index).toContain('Bloqueos de horarios');
     expect(index).not.toMatch(/aggregateRating/);
   });
 

@@ -34,11 +34,11 @@ describe('Public booking professional picker', () => {
     expect(pageHtml).toMatch(/canShowContactStep\(\)/);
   });
 
-  it('does not show contact or seña until the client advances from schedule', () => {
+  it('does not show contact until the client advances from schedule, and asks for no seña', () => {
     expect(pageTs).toMatch(/canShowContactStep\(\)[\s\S]{0,180}expandedStep\(\) === 'contact'/);
     expect(pageTs).not.toMatch(/preloadedSlot \|\| slots\[0\]/);
     expect(pageTs).not.toMatch(/this\.selectedSlot = slots\[0\]\?\.startsAtIso/);
-    expect(pageHtml).toMatch(/canShowContactStep\(\)[\s\S]{0,400}booking-deposit-required-notice/);
+    expect(pageHtml).not.toMatch(/deposit|se[nñ]a/i);
     expect(pageHtml).toMatch(/rescheduleMode\(\) \|\| canShowContactStep\(\)[\s\S]{0,240}booking-submit-action/);
   });
 

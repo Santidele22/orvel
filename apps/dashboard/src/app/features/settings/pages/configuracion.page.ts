@@ -124,10 +124,6 @@ export class ConfiguracionPage {
     cancelationGracePeriod: [24, [Validators.min(0)]],
     autoConfirm: [true],
     maxAdvanceDays: [90, [Validators.min(1)]],
-    depositEnabled: [false],
-    depositPercent: [0],
-    depositAlias: [''],
-    depositCbu: [''],
 
     // Logistics
     allowMultipleServices: [true],
@@ -471,10 +467,6 @@ export class ConfiguracionPage {
       plan: saved.plan,
       capacity: saved.capacity ?? 1,
       allowClientProfessionalSelection: saved.allowClientProfessionalSelection ?? false,
-      depositEnabled: saved.depositEnabled ?? false,
-      depositPercent: Number(saved.depositPercent ?? 0),
-      depositAlias: saved.depositAlias ?? '',
-      depositCbu: saved.depositCbu ?? ''
     });
   }
 
@@ -634,14 +626,6 @@ export class ConfiguracionPage {
         cancelationGracePeriod: values.cancelationGracePeriod,
         autoConfirm: values.autoConfirm,
         maxAdvanceDays: values.maxAdvanceDays,
-        depositEnabled: values.depositEnabled,
-        depositPercent: values.depositEnabled && [25, 50, 100].includes(Number(values.depositPercent))
-          ? Number(values.depositPercent)
-          : values.depositEnabled
-            ? 50
-            : 0,
-        depositAlias: values.depositAlias.trim(),
-        depositCbu: values.depositCbu.trim(),
         capacity: values.capacity,
         allowClientProfessionalSelection: values.allowClientProfessionalSelection,
         firstName: values.firstName,
@@ -1081,10 +1065,6 @@ export class ConfiguracionPage {
     this.settingsForm.patchValue({
       ...saved,
       workingHours: workingHoursToFormValue(saved.workingHours),
-      depositEnabled: saved.depositEnabled ?? false,
-      depositPercent: Number(saved.depositPercent ?? 0),
-      depositAlias: saved.depositAlias ?? '',
-      depositCbu: saved.depositCbu ?? '',
       phone: saved.phone ?? ''
     } as never);
   }
