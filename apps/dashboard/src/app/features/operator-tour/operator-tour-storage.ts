@@ -9,10 +9,12 @@
 
 /**
  * Revision of the tour, not of the storage format. #1136 turned the tour into a
- * guided first-steps journey, so revision 2 must still reach operators who had
- * already dismissed revision 1: a stale revision is not a completion.
+ * guided first-steps journey (revision 2) and #1153 rewrote the configuration
+ * leg to walk the three settings tabs (revision 3), so a revision must still
+ * reach operators who had already dismissed the previous one: a stale revision
+ * is not a completion.
  */
-export const OPERATOR_TOUR_VERSION = 2;
+export const OPERATOR_TOUR_VERSION = 3;
 
 export const OPERATOR_TOUR_STORAGE_KEY = `orvel.operator-tour.v${OPERATOR_TOUR_VERSION}.completed`;
 
