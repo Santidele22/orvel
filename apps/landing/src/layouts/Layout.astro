@@ -3,7 +3,6 @@ import "../styles/global.css";
 import "../styles/remixicon-used.css";
 import "@fontsource-variable/onest";
 import Preloader from "../components/organisms/Preloader.astro";
-import Analytics from "@vercel/analytics/astro";
 import { marketingCanonicalUrl } from "../lib/public-origin";
 
 interface Props {
@@ -57,7 +56,7 @@ const canonicalUrl = marketingCanonicalUrl(Astro.url.pathname);
 
         <title>{title}</title>
         <slot name="jsonLd" />
-        <Analytics />
+        
     </head>
     <body class="bg-bg-primary text-text-primary antialiased">
         {showPreloader && <Preloader />}
