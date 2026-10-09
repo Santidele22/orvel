@@ -278,9 +278,6 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.2.2(vite@7.3.5(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3))
-      '@vercel/analytics':
-        specifier: ^2.0.1
-        version: 2.0.1(svelte@5.56.3)
       astro:
         specifier: ^6.4.8
         version: 6.4.8(@types/node@25.6.0)(@vercel/functions@3.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.60.2)(sass@1.97.3)

@@ -22,8 +22,10 @@ to-company-os-export/
 marketing/
 screenshots/
 
-# Local HyperFrames video production (large binary media, not committed)
+# Local HyperFrames video production (large binary media, not committed).
+# The landing ships its own video assets, so that folder is exempt on purpose.
 videos/
+!apps/landing/public/videos/
 
 # Skill registry locks (local cache)
 skills-lock.json
