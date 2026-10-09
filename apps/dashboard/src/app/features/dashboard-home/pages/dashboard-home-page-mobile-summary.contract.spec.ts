@@ -100,14 +100,9 @@ describe('DashboardHomePage mobile summary visual contract', () => {
     expect(componentSource).not.toMatch(/length:\s*18/);
   });
 
-  it('lets the operator confirm a pending seña from Inicio', () => {
-    expect(templateSource).toContain('Confirmar seña');
-    expect(templateSource).not.toContain('Seña recibida');
-    expect(templateSource).toMatch(/turno\.depositPending/);
-    expect(componentSource).toMatch(/confirmDepositReceived\s*\(/);
-    expect(componentSource).toMatch(/dashboardService\.confirmDepositReceived\s*\(/);
-    expect(componentSource).not.toMatch(/claimBookingDeposit/);
-    expect(componentSource).toMatch(/No pudimos confirmar la seña/);
+  it('renders no seña confirmation affordance in Inicio', () => {
+    expect(templateSource).not.toMatch(/deposit|se[nñ]a/i);
+    expect(componentSource).not.toMatch(/depositPending|confirmDepositReceived/);
   });
 
   it('renders Próximo turno from featuredAppointments without mock names or times', () => {

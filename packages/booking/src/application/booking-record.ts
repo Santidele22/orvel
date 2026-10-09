@@ -11,14 +11,16 @@ export type BookingRecord = {
   createdAt: Date; updatedAt: Date;
 };
 
-export function isDepositUnpaid(status?: string | null): boolean {
-  return status === 'pending' || status === 'claim_pending';
+// The manual seña (alias/CBU deposit) was retired from the product: no booking
+// is ever held for an unconfirmed transfer anymore, so no deposit state is
+// pending. Both helpers stay in the domain contract because the database still
+// carries bookings.deposit_status and its history, and dashboard-core still maps
+// it, but they no longer describe a waiting state.
+export function isDepositUnpaid(_status?: string | null): boolean {
+  return false;
 }
 
-export function appointmentStatusLabel(estado: BookingEstado, depositStatus?: string | null): string {
-  if (isDepositUnpaid(depositStatus) && (estado === 'confirmado' || estado === 'pendiente')) {
-    return depositStatus === 'claim_pending' ? 'Seña avisada' : 'Pendiente de seña';
-  }
+export function appointmentStatusLabel(estado: BookingEstado, _depositStatus?: string | null): string {
   return estado;
 }
 export const TO_DB_STATUS: Record<BookingEstado, string> = {

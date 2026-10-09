@@ -197,7 +197,6 @@ export class DashboardHomeComponent {
   protected readonly copied = signal(false);
   protected readonly copyFailed = signal(false);
   protected readonly receiptSent = signal(false);
-  protected readonly confirmingDepositId = signal<string | null>(null);
   private hydratedUserId: string | null = null;
 
   constructor() {
@@ -339,25 +338,6 @@ export class DashboardHomeComponent {
   protected hasBookingUrl(): boolean {
     const slug = this.businessSettings.settings()?.slug?.trim();
     return Boolean(slug && slug !== 'id-pendiente');
-  }
-
-  protected async confirmDepositReceived(bookingId: string, event?: Event): Promise<void> {
-    event?.stopPropagation();
-    if (this.confirmingDepositId()) {
-      return;
-    }
-    const userId = this.authService.user()?.id ?? '';
-    this.confirmingDepositId.set(bookingId);
-    try {
-      const confirmed = await this.dashboardService.confirmDepositReceived(bookingId, userId);
-      if (!confirmed) {
-        window.alert('No pudimos confirmar la seña. Intentá de nuevo.');
-      }
-    } catch {
-      window.alert('No pudimos confirmar la seña. Intentá de nuevo.');
-    } finally {
-      this.confirmingDepositId.set(null);
-    }
   }
 
   protected async copyBookingUrl(): Promise<void> {
