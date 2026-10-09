@@ -49,12 +49,61 @@ const templateDocument = new JSDOM(`<body>${templateMarkup}</body>`).window.docu
 const ANCHOR_PATTERN = new RegExp(`^\\[${TOUR_TARGET_ATTRIBUTE}="([a-z0-9-]+)"\\]$`);
 const TRACKED_PATTERN = new RegExp(`^\\[${TOUR_TARGET_ATTRIBUTE}=`);
 
+const CONFIG_THEME_TEMPLATE = 'features/settings/pages/themes/configuracion-zen-theme.component.html';
+const CONFIG_THEME_COMPONENT = 'features/settings/pages/themes/configuracion-zen-theme.component.ts';
+
+/**
+ * The settings tab buttons are rendered by one `@for`, so their anchors come
+ * from the binding `[attr.data-tour]="'config-tab-' + tab.key"` and are not
+ * literal attributes in the raw markup. The guard expands that binding from the
+ * tab keys the component declares, so renaming or dropping a tab leaves the
+ * matching step anchored to nothing and fails here instead of in production.
+ */
+function declaredConfigTabAnchors(): string[] {
+  const bindsTabAnchors = read(CONFIG_THEME_TEMPLATE).includes(
+    `[attr.data-tour]="'config-tab-' + tab.key"`,
+  );
+  if (!bindsTabAnchors) return [];
+
+  const tabsBlock = /readonly tabs\s*=\s*\[([\s\S]*?)\];/.exec(read(CONFIG_THEME_COMPONENT))?.[1] ?? '';
+
+  return [...tabsBlock.matchAll(/key:\s*'([a-z0-9-]+)'/g)].map((match) => `config-tab-${match[1]}`);
+}
+
+const DECLARED_CONFIG_TAB_ANCHORS = declaredConfigTabAnchors();
+
+/**
+ * A step whose anchor lives inside `@if (isActiveTab(...))` only exists once its
+ * tab is active: the tab button is the step that proves which one the operator
+ * picked, and the strip alone never did.
+ */
+const TAB_GATED_CONTENT: readonly { readonly tab: string; readonly anchors: readonly string[] }[] = [
+  { tab: 'config-tab-negocio', anchors: ['config-politicas', 'config-horarios'] },
+  { tab: 'config-tab-equipo', anchors: ['config-equipo'] },
+  {
+    tab: 'config-tab-perfil',
+    anchors: ['config-perfil-datos', 'config-perfil-contacto', 'config-perfil-cuenta'],
+  },
+];
+
 function anchorName(target: string): string {
   return ANCHOR_PATTERN.exec(target)?.[1] ?? '';
 }
 
+function anchorIsRendered(name: string): boolean {
+  if (DECLARED_CONFIG_TAB_ANCHORS.includes(name)) return true;
+
+  return templateDocument.querySelector(`[${TOUR_TARGET_ATTRIBUTE}="${name}"]`) !== null;
+}
+
 function resolvesInTemplates(step: OperatorTourStep): boolean {
-  return templateDocument.querySelector(step.target ?? '') !== null;
+  const name = anchorName(step.target ?? '');
+
+  return name ? anchorIsRendered(name) : templateDocument.querySelector(step.target ?? '') !== null;
+}
+
+function stepIndexOfAnchor(name: string): number {
+  return OPERATOR_TOUR_STEPS.findIndex((step) => anchorName(step.target ?? '') === name);
 }
 
 const trackedSteps = OPERATOR_TOUR_STEPS.filter((step) => TRACKED_PATTERN.test(step.target ?? ''));
@@ -172,9 +221,14 @@ describe('operator tour steps contract', () => {
     const declared = new Set(
       OPERATOR_TOUR_STEPS.map((step) => anchorName(step.target ?? '')).filter(Boolean),
     );
-    const present = [...templateDocument.querySelectorAll(`[${TOUR_TARGET_ATTRIBUTE}]`)]
-      .map((element) => element.getAttribute(TOUR_TARGET_ATTRIBUTE) ?? '')
-      .filter(Boolean);
+    const present = [
+      ...[...templateDocument.querySelectorAll(`[${TOUR_TARGET_ATTRIBUTE}]`)]
+        .map((element) => element.getAttribute(TOUR_TARGET_ATTRIBUTE) ?? '')
+        .filter(Boolean),
+      // Tab anchors come from a binding, so they are invisible to the raw
+      // markup query above and have to be expanded explicitly.
+      ...DECLARED_CONFIG_TAB_ANCHORS,
+    ];
 
     expect(present.length).toBeGreaterThan(0);
     for (const name of new Set(present)) {
@@ -230,8 +284,8 @@ describe('operator tour steps contract', () => {
     // The servicios and configuracion pages are not in the DOM while the tour
     // is planned on Inicio, so a probe miss must not delete the journey.
     expect(ids).toContain('primer-paso-servicios');
-    expect(ids).toContain('detalle-negocio');
-    expect(ids).toContain('detalle-equipo');
+    expect(ids).toContain('configuracion-politicas');
+    expect(ids).toContain('configuracion-equipo');
   });
 
   it('probes the anchors of the active route only', () => {
@@ -246,39 +300,93 @@ describe('operator tour steps contract', () => {
 
     // On its own route the detail step depends on the picked tab, so the probe
     // is the authority there...
-    expect(dropped).not.toContain('detalle-equipo');
-    expect(kept).toContain('detalle-equipo');
-    expect(kept).not.toContain('detalle-negocio');
+    expect(dropped).not.toContain('configuracion-equipo');
+    expect(kept).toContain('configuracion-equipo');
+    expect(kept).not.toContain('configuracion-politicas');
     // ...while steps from other routes stay planned: they are not mounted yet.
     expect(dropped).toContain('primer-paso-servicios');
   });
 
-  it('walks the first steps in order: services, business, team, then the link', () => {
+  it('walks the first steps in order: services, business, team, profile, then the link', () => {
     const ids = OPERATOR_TOUR_STEPS.map((step) => step.id);
 
-    expect(ids.indexOf('primer-paso-servicios')).toBeLessThan(ids.indexOf('paso-negocio'));
-    expect(ids.indexOf('detalle-negocio')).toBeLessThan(ids.indexOf('paso-equipo'));
-    expect(ids.indexOf('detalle-equipo')).toBeLessThan(ids.indexOf('compartir-link'));
+    expect(ids.indexOf('primer-paso-servicios')).toBeLessThan(ids.indexOf('configuracion-general'));
+    expect(ids.indexOf('configuracion-politicas')).toBeLessThan(ids.indexOf('configuracion-tab-equipo'));
+    expect(ids.indexOf('configuracion-equipo')).toBeLessThan(ids.indexOf('configuracion-tab-perfil'));
+    expect(ids.indexOf('configuracion-perfil-cuenta')).toBeLessThan(ids.indexOf('compartir-link'));
   });
 
   it('anchors the first steps on the real first-steps pages', () => {
-    const required = ['servicios-add', 'config-tabs', 'config-negocio', 'config-equipo'];
+    const required = [
+      'servicios-add',
+      'config-tabs',
+      'config-politicas',
+      'config-horarios',
+      'config-equipo',
+      'config-perfil-datos',
+      'config-perfil-contacto',
+      'config-perfil-cuenta',
+    ];
 
     for (const name of required) {
-      expect(
-        templateDocument.querySelector(`[${TOUR_TARGET_ATTRIBUTE}="${name}"]`),
-        `${name} is missing from the shipped templates`,
-      ).not.toBeNull();
+      expect(anchorIsRendered(name), `${name} is missing from the shipped templates`).toBe(true);
     }
   });
 
-  it('lets the operator pick the settings tab instead of switching it behind their back', () => {
-    const tabSteps = OPERATOR_TOUR_STEPS.filter((step) => step.id.startsWith('paso-'));
+  it('asks for the exact tab button before highlighting the content behind it', () => {
+    for (const { tab, anchors } of TAB_GATED_CONTENT) {
+      const tabIndex = stepIndexOfAnchor(tab);
 
-    expect(tabSteps.length).toBeGreaterThan(0);
-    for (const step of tabSteps) {
-      expect(step.advanceOnClick, `${step.id} must advance on the tab tap`).toBe(true);
-      expect(anchorName(step.target ?? ''), `${step.id} must point at the tab bar`).toBe('config-tabs');
+      expect(tabIndex, `${tab} has no step`).toBeGreaterThanOrEqual(0);
+      const tabStep = OPERATOR_TOUR_STEPS[tabIndex];
+      expect(tabStep?.advanceOnClick, `${tab} must advance when the operator taps it`).toBe(true);
+
+      for (const name of anchors) {
+        const contentIndex = stepIndexOfAnchor(name);
+
+        expect(contentIndex, `${name} has no step`).toBeGreaterThan(tabIndex);
+        // The closest tab step before the content is the tab that renders it.
+        const previousTabStep = OPERATOR_TOUR_STEPS.slice(0, contentIndex)
+          .reverse()
+          .find((step) => DECLARED_CONFIG_TAB_ANCHORS.includes(anchorName(step.target ?? '')));
+
+        expect(
+          anchorName(previousTabStep?.target ?? ''),
+          `${name} is not preceded by ${tab}`,
+        ).toBe(tab);
+      }
+    }
+  });
+
+  it('never waits for a tab click on the whole strip', () => {
+    // The stall in #1153: the team step highlighted the strip and advanced on
+    // any click over it, so the tour moved on with the active tab still on
+    // Perfil and the team content step had no anchor to highlight.
+    const stripStep = OPERATOR_TOUR_STEPS.find(
+      (step) => anchorName(step.target ?? '') === 'config-tabs',
+    );
+
+    expect(stripStep).toBeDefined();
+    expect(stripStep?.advanceOnClick ?? false).toBe(false);
+  });
+
+  it('keeps every tab-gated content step optional so a missing tab is skipped', () => {
+    for (const { anchors } of TAB_GATED_CONTENT) {
+      for (const name of anchors) {
+        const step = OPERATOR_TOUR_STEPS.find((candidate) => anchorName(candidate.target ?? '') === name);
+
+        expect(step?.optional, `${name} must be optional`).toBe(true);
+      }
+    }
+  });
+
+  it('covers every settings tab the page renders', () => {
+    expect(DECLARED_CONFIG_TAB_ANCHORS.length).toBeGreaterThan(0);
+    expect(new Set(DECLARED_CONFIG_TAB_ANCHORS)).toEqual(
+      new Set(TAB_GATED_CONTENT.map((entry) => entry.tab)),
+    );
+    for (const { tab } of TAB_GATED_CONTENT) {
+      expect(stepIndexOfAnchor(tab), `${tab} has no step`).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -329,10 +437,16 @@ describe('operator tour steps contract', () => {
       'inicio-tour',
       'navegacion-movil',
       'primer-paso-servicios',
-      'paso-negocio',
-      'detalle-negocio',
-      'paso-equipo',
-      'detalle-equipo',
+      'configuracion-general',
+      'configuracion-tab-negocio',
+      'configuracion-politicas',
+      'configuracion-horarios',
+      'configuracion-tab-equipo',
+      'configuracion-equipo',
+      'configuracion-tab-perfil',
+      'configuracion-perfil-datos',
+      'configuracion-perfil-contacto',
+      'configuracion-perfil-cuenta',
       'repetir-tutorial',
     ]);
   });
