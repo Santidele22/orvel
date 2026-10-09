@@ -9,12 +9,12 @@ const MP_AS_PROCESSOR =
   /se procesan con Mercado Pago|Integración con[\s\S]*Mercado Pago|cobrar turnos[\s\S]*Mercado Pago/i;
 
 describe('Contract: parked launch marketing copy matches v1', () => {
-  it('does not sell Mercado Pago checkout on /plan and names señas plus several professionals', async () => {
+  it('does not sell Mercado Pago checkout on /plan and carries no seña copy', async () => {
     const source = await readFile(ROADMAP, 'utf8');
 
-    expect(source).toMatch(/seña/i);
-    expect(source).toMatch(/alias o CBU|alias\/CBU/i);
+    expect(source).not.toMatch(/\bse[nñ]as?\b/i);
     expect(source).toMatch(/varios profesionales/i);
+    expect(source).toMatch(/sin cobro online/i);
     expect(source).not.toMatch(MP_AS_PROCESSOR);
   });
 

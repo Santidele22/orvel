@@ -20,11 +20,12 @@ describe('Contract: no PremiumTrial public copy', () => {
     }
   });
 
-  it('lists equipo and seña on both Free and Premium cards', async () => {
+  it('lists equipo on both Free and Premium cards and promises no seña', async () => {
     const source = await readFile(PRICING_PATH, 'utf8');
 
-    expect(source).toMatch(/FREE:[\s\S]*Equipo con varios profesionales[\s\S]*Seña opcional en el turnero[\s\S]*PREMIUM:/);
-    expect(source).toMatch(/PREMIUM:[\s\S]*Equipo con varios profesionales[\s\S]*Seña opcional en el turnero/);
+    expect(source).toMatch(/FREE:[\s\S]*Equipo con varios profesionales[\s\S]*PREMIUM:/);
+    expect(source).toMatch(/PREMIUM:[\s\S]*Equipo con varios profesionales/);
+    expect(source).not.toMatch(/\bse[nñ]as?\b/i);
     expect(source).not.toMatch(/Agenda sin límites/);
     expect(source).not.toMatch(/Más rubros/);
   });

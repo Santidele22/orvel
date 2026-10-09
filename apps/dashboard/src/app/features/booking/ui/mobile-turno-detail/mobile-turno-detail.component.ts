@@ -1,9 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { isDepositUnpaid, type BookingQueries } from '@orvel/booking/application';
-import { DashboardService } from '@orvel/dashboard-core/dashboard/dashboard.service';
-import { AuthService } from '@orvel/dashboard-core/auth/auth.service';
+import { type BookingQueries } from '@orvel/booking/application';
 import { BOOKING_QUERIES } from '@orvel/booking/infrastructure';
 import { createIsMobileSignal } from '@orvel/dashboard-core/platform/is-mobile';
 import { getBranchContextService } from '@orvel/dashboard-core/branches/branch-context.service';
@@ -59,44 +57,6 @@ export class MobileTurnoDetailComponent {
 
   readonly telefono = computed(() => this.turno()?.cliente?.telefono ?? null);
   readonly isEmpty = computed(() => this.turno() === undefined);
-  protected readonly isDepositUnpaid = isDepositUnpaid;
-  private readonly dashboardService = inject(DashboardService);
-  private readonly authService = inject(AuthService);
-  protected readonly confirmingDepositId = signal<string | null>(null);
-  protected readonly rejectingDepositId = signal<string | null>(null);
-
-  protected async confirmDepositReceived(): Promise<void> {
-    const bookingId = this.turno()?.id;
-    const userId = this.authService.user()?.id;
-    if (!bookingId || !userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
-    this.confirmingDepositId.set(bookingId);
-    try {
-      const ok = await this.dashboardService.confirmDepositReceived(bookingId, userId);
-      if (ok) {
-        window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
-        this.back();
-      }
-    } finally {
-      this.confirmingDepositId.set(null);
-    }
-  }
-
-  protected async rejectBookingDepositUnseen(): Promise<void> {
-    const bookingId = this.turno()?.id;
-    const userId = this.authService.user()?.id;
-    if (!bookingId || !userId || this.confirmingDepositId() || this.rejectingDepositId()) return;
-    this.rejectingDepositId.set(bookingId);
-    try {
-      const ok = await this.dashboardService.rejectBookingDepositUnseen(bookingId, userId);
-      if (ok) {
-        window.dispatchEvent(new CustomEvent('operator.agenda.sync'));
-        this.back();
-      }
-    } finally {
-      this.rejectingDepositId.set(null);
-    }
-  }
-
   back(): void {
     this.router.navigate(['/dashboard/turnos']);
   }
