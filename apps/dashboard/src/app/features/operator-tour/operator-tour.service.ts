@@ -14,6 +14,7 @@ import {
   planOperatorTourAdvance,
   planOperatorTourWaits,
   requiredNavigation,
+  requiredSettingsTabAnchor,
   type OperatorTourDirection,
 } from './operator-tour-journey';
 import { browserPlatform } from '@orvel/dashboard-core/platform/platform.adapter';
@@ -344,7 +345,50 @@ export class OperatorTourService {
       void this.navigateThenMove(plan.navigateTo, plan.index);
       return;
     }
-    this.driver?.moveTo(plan.index);
+    this.moveTo(plan.index);
+  }
+
+  /**
+   * Hands a step to driver.js, activating the settings tab it needs first.
+   *
+   * The operator can tap the highlighted tab button, but the popover's
+   * "Siguiente" has to work on its own: the panel lives behind
+   * `@if (isActiveTab(...))`, so without the activation driver.js never finds
+   * the anchor and silently skips the step.
+   */
+  private moveTo(index: number): void {
+    this.activateSettingsTab(this.steps[index]);
+    this.driver?.moveTo(index);
+  }
+
+  /**
+   * Presses the tab button a step depends on, unless its panel is already
+   * rendered (the operator picked that tab themselves).
+   *
+   * The click deliberately does not bubble: driver.js listens on `document` and
+   * reads any click inside the highlighted element as the operator tapping it,
+   * which would advance the tour on its own.
+   */
+  private activateSettingsTab(step: OperatorTourStep | undefined): void {
+    const buttonSelector = requiredSettingsTabAnchor(step);
+    if (!buttonSelector || !step?.target) {
+      return;
+    }
+
+    try {
+      if (typeof document === 'undefined' || typeof MouseEvent === 'undefined') {
+        return;
+      }
+      if (document.querySelector(step.target)) {
+        return;
+      }
+
+      document
+        .querySelector<HTMLElement>(buttonSelector)
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
+    } catch {
+      // A blocked activation degrades to the skip-missing-element rule.
+    }
   }
 
   private async navigateThenMove(url: string, index: number): Promise<void> {
@@ -364,7 +408,7 @@ export class OperatorTourService {
       // The operator closed the tour while the route was loading.
       return;
     }
-    driver.moveTo(index);
+    this.moveTo(index);
   }
 
   private handleHighlightStarted(index: number | undefined): void {
