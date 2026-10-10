@@ -43,6 +43,22 @@ export const TOUR_SURFACE_BREAKPOINTS = {
 
 export type TourSurface = keyof typeof TOUR_SURFACE_BREAKPOINTS;
 
+/**
+ * Settings tabs of the configuration page. The name is the tab `key` the page
+ * renders, so the anchor a step needs can be derived from it once.
+ */
+export type TourSettingsTab = 'perfil' | 'negocio' | 'equipo';
+
+/**
+ * Prefix of the tab button anchors, shared with the template binding
+ * `[attr.data-tour]="'config-tab-' + tab.key"` so the two cannot drift.
+ */
+export const TOUR_SETTINGS_TAB_ANCHOR_PREFIX = 'config-tab-';
+
+export function settingsTabAnchor(tab: TourSettingsTab): string {
+  return `${TOUR_SETTINGS_TAB_ANCHOR_PREFIX}${tab}`;
+}
+
 export type TourPopoverSide = 'top' | 'right' | 'bottom' | 'left';
 export type TourPopoverAlign = 'start' | 'center' | 'end';
 
@@ -70,6 +86,13 @@ export interface OperatorTourStep {
    * the tour never describes a tab the operator is not looking at.
    */
   readonly advanceOnClick?: boolean;
+  /**
+   * Settings tab whose panel holds this anchor. The panel is rendered by
+   * `@if (isActiveTab(...))`, so without this the step has no anchor until the
+   * operator taps the tab, and "Siguiente" would skip it. The tour activates the
+   * tab instead, which keeps both ways of moving forward working.
+   */
+  readonly settingsTab?: TourSettingsTab;
 }
 
 export interface OperatorTourFilterOptions {
@@ -203,7 +226,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     // active, so the tour asks for the exact button before walking the content.
     // The strip is always in the DOM and never proved which tab was picked.
     id: 'configuracion-tab-negocio',
-    target: anchor('config-tab-negocio'),
+    target: anchor(settingsTabAnchor('negocio')),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
     title: 'Empezá por Negocio',
@@ -218,6 +241,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-politicas'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'negocio',
     title: 'Políticas y logística',
     description:
       'Aprobación de turnos (automática o manual), anticipación mínima, cancelación y pausas. Lo que guardes, tus clientes lo ven al instante.',
@@ -230,6 +254,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-horarios'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'negocio',
     title: 'Horarios de atención',
     description:
       'Días y franjas del local, con descansos y bloqueos. Son los que tu portal usa para ofrecer turnos disponibles.',
@@ -239,7 +264,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
   },
   {
     id: 'configuracion-tab-equipo',
-    target: anchor('config-tab-equipo'),
+    target: anchor(settingsTabAnchor('equipo')),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
     title: 'Paso 3: tu equipo (si hace falta)',
@@ -254,6 +279,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-equipo'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'equipo',
     title: 'Profesionales y agenda',
     description:
       'Sumá profesionales, elegí con qué servicios atiende cada uno y si el cliente puede elegir con quién atenderse. Cada uno tiene su link.',
@@ -263,7 +289,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
   },
   {
     id: 'configuracion-tab-perfil',
-    target: anchor('config-tab-perfil'),
+    target: anchor(settingsTabAnchor('perfil')),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
     title: 'Y acá, lo tuyo',
@@ -277,6 +303,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-perfil-datos'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'perfil',
     title: 'Tus datos personales',
     description:
       'Tu nombre, apellido y teléfono: los usamos para avisarte de tus turnos. No se publican en tu portal.',
@@ -289,6 +316,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-perfil-contacto'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'perfil',
     title: 'Contacto público',
     description:
       'El correo de soporte que ve tu cliente cuando entra al portal de reservas.',
@@ -301,6 +329,7 @@ export const OPERATOR_TOUR_STEPS: readonly OperatorTourStep[] = [
     target: anchor('config-perfil-cuenta'),
     route: TOUR_ROUTES.configuracion,
     surfaces: ['desktop', 'mobile'],
+    settingsTab: 'perfil',
     title: 'Cuenta y suscripción',
     description:
       'Cambiá tu email o tu contraseña desde acá y mirá tu plan actual. Premium se activa a mano.',
