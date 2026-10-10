@@ -1,5 +1,7 @@
 import {
+  TOUR_TARGET_ATTRIBUTE,
   isSameTourRoute,
+  settingsTabAnchor,
   type OperatorTourStep,
 } from './operator-tour-steps';
 
@@ -40,6 +42,21 @@ export function requiredNavigation(
   if (!step?.route) return undefined;
 
   return isSameTourRoute(step.route, activeRoute) ? undefined : step.route;
+}
+
+/**
+ * Selector of the settings tab button a step needs active before it can be
+ * shown, or undefined when the step does not depend on a tab.
+ *
+ * The configuration panels live behind `@if (isActiveTab(...))`, so a step that
+ * points inside one has no anchor until its tab is active. Resolving the button
+ * here keeps the decision pure and lets the service press it, so "Siguiente"
+ * reaches the panel instead of skipping the step as a missing anchor.
+ */
+export function requiredSettingsTabAnchor(step: OperatorTourStep | undefined): string | undefined {
+  if (!step?.settingsTab) return undefined;
+
+  return `[${TOUR_TARGET_ATTRIBUTE}="${settingsTabAnchor(step.settingsTab)}"]`;
 }
 
 export function planOperatorTourAdvance(

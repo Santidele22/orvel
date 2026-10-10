@@ -5,12 +5,14 @@ import { describe, expect, it } from 'vitest';
 import {
   OPERATOR_TOUR_STEPS,
   TOUR_ROUTES,
+  TOUR_SETTINGS_TAB_ANCHOR_PREFIX,
   TOUR_SURFACE_BREAKPOINTS,
   TOUR_TARGET_ATTRIBUTE,
   filterOperatorTourSteps,
   isSameTourRoute,
   normalizeTourRoute,
   resolveTourSurface,
+  settingsTabAnchor,
   type OperatorTourStep,
   type TourSurface,
   type TourSurfaceEnvironment,
@@ -61,13 +63,15 @@ const CONFIG_THEME_COMPONENT = 'features/settings/pages/themes/configuracion-zen
  */
 function declaredConfigTabAnchors(): string[] {
   const bindsTabAnchors = read(CONFIG_THEME_TEMPLATE).includes(
-    `[attr.data-tour]="'config-tab-' + tab.key"`,
+    `[attr.data-tour]="'${TOUR_SETTINGS_TAB_ANCHOR_PREFIX}' + tab.key"`,
   );
   if (!bindsTabAnchors) return [];
 
   const tabsBlock = /readonly tabs\s*=\s*\[([\s\S]*?)\];/.exec(read(CONFIG_THEME_COMPONENT))?.[1] ?? '';
 
-  return [...tabsBlock.matchAll(/key:\s*'([a-z0-9-]+)'/g)].map((match) => `config-tab-${match[1]}`);
+  return [...tabsBlock.matchAll(/key:\s*'([a-z0-9-]+)'/g)].map(
+    (match) => `${TOUR_SETTINGS_TAB_ANCHOR_PREFIX}${match[1]}`,
+  );
 }
 
 const DECLARED_CONFIG_TAB_ANCHORS = declaredConfigTabAnchors();
@@ -75,13 +79,14 @@ const DECLARED_CONFIG_TAB_ANCHORS = declaredConfigTabAnchors();
 /**
  * A step whose anchor lives inside `@if (isActiveTab(...))` only exists once its
  * tab is active: the tab button is the step that proves which one the operator
- * picked, and the strip alone never did.
+ * picked, and the strip alone never did. The step also declares that tab, so the
+ * tour can activate it when the operator advances with "Siguiente" instead.
  */
 const TAB_GATED_CONTENT: readonly { readonly tab: string; readonly anchors: readonly string[] }[] = [
-  { tab: 'config-tab-negocio', anchors: ['config-politicas', 'config-horarios'] },
-  { tab: 'config-tab-equipo', anchors: ['config-equipo'] },
+  { tab: settingsTabAnchor('negocio'), anchors: ['config-politicas', 'config-horarios'] },
+  { tab: settingsTabAnchor('equipo'), anchors: ['config-equipo'] },
   {
-    tab: 'config-tab-perfil',
+    tab: settingsTabAnchor('perfil'),
     anchors: ['config-perfil-datos', 'config-perfil-contacto', 'config-perfil-cuenta'],
   },
 ];
@@ -377,6 +382,32 @@ describe('operator tour steps contract', () => {
 
         expect(step?.optional, `${name} must be optional`).toBe(true);
       }
+    }
+  });
+
+  it('declares the settings tab each tab-gated step lives in', () => {
+    // The popover's "Siguiente" has to reach the panel too, and the panel only
+    // mounts once its tab is active: the step carries the tab so the tour can
+    // activate it, instead of relying on the operator tapping the button.
+    for (const { tab, anchors } of TAB_GATED_CONTENT) {
+      const expectedTab = tab.slice(TOUR_SETTINGS_TAB_ANCHOR_PREFIX.length);
+
+      for (const name of anchors) {
+        const step = OPERATOR_TOUR_STEPS.find((candidate) => anchorName(candidate.target ?? '') === name);
+
+        expect(step?.settingsTab, `${name} must declare the ${expectedTab} tab`).toBe(expectedTab);
+      }
+    }
+  });
+
+  it('builds the tab anchors from the tab names, never a hand-written string', () => {
+    expect(settingsTabAnchor('negocio')).toBe(`${TOUR_SETTINGS_TAB_ANCHOR_PREFIX}negocio`);
+
+    for (const { tab } of TAB_GATED_CONTENT) {
+      const step = OPERATOR_TOUR_STEPS.find((candidate) => anchorName(candidate.target ?? '') === tab);
+
+      expect(step, `${tab} has no step`).toBeDefined();
+      expect(step?.settingsTab, `${tab} is a tab button, not a panel`).toBeUndefined();
     }
   });
 

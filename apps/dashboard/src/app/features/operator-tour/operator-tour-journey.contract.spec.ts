@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { TOUR_ROUTES, type OperatorTourStep } from './operator-tour-steps';
+import {
+  TOUR_TARGET_ATTRIBUTE,
+  TOUR_ROUTES,
+  settingsTabAnchor,
+  type OperatorTourStep,
+} from './operator-tour-steps';
 import {
   planOperatorTourAdvance,
   planOperatorTourWaits,
   requiredNavigation,
+  requiredSettingsTabAnchor,
   type OperatorTourAdvance,
 } from './operator-tour-journey';
 
@@ -97,6 +103,16 @@ describe('operator tour journey contract', () => {
     expect(requiredNavigation(JOURNEY[1], TOUR_ROUTES.servicios)).toBeUndefined();
     expect(requiredNavigation(JOURNEY[0], '/inicio')).toBeUndefined();
     expect(requiredNavigation(undefined, TOUR_ROUTES.inicio)).toBeUndefined();
+  });
+
+  it('resolves the settings tab whose panel holds a step anchor', () => {
+    const panelStep: OperatorTourStep = { ...step('panel', TOUR_ROUTES.configuracion), settingsTab: 'equipo' };
+
+    expect(requiredSettingsTabAnchor(panelStep)).toBe(
+      `[${TOUR_TARGET_ATTRIBUTE}="${settingsTabAnchor('equipo')}"]`,
+    );
+    expect(requiredSettingsTabAnchor(JOURNEY[0])).toBeUndefined();
+    expect(requiredSettingsTabAnchor(undefined)).toBeUndefined();
   });
 });
 
