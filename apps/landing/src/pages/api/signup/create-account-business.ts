@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
 
+import { ALLOWED_DASHBOARD_ORIGINS } from "../../../lib/server/public-endpoint-guard";
 import { protectPendingSignupPii } from "../../../lib/server/pending-signup-pii-protection";
 import { provisionFreeSignupTenant } from "../../../lib/server/provision-free-signup";
 
@@ -10,15 +11,6 @@ const ALLOWED_PLANS = new Set<SignupPlan>(["FREE", "PREMIUM"]);
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const FREE_CONFIRMATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const ALLOWED_BUSINESS_TYPES = new Set(["peluqueria", "barberia", "unas", "estetica", "spa", "maquillaje", "pestanas", "cejas", "masajes", "otro"]);
-const ALLOWED_DASHBOARD_ORIGINS = new Set([
-  "https://orvel.pro",
-  "https://www.orvel.pro",
-  "https://dashboard.orvel.pro",
-  "http://localhost:4200",
-  "http://127.0.0.1:4200",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-]);
 
 function corsHeaders(request: Request): HeadersInit {
   const origin = request.headers.get("origin") ?? "";

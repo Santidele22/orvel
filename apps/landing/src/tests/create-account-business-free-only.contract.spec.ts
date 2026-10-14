@@ -269,14 +269,16 @@ describe('legacy create-account-business boundary', () => {
 
   it('allows CORS preflight and POST from dashboard origins', async () => {
     const source = await readFile(new URL('../pages/api/signup/create-account-business.ts', import.meta.url), 'utf8');
+    const guardSource = await readFile(new URL('../lib/server/public-endpoint-guard.ts', import.meta.url), 'utf8');
 
     expect(source).toMatch(/export const OPTIONS/);
-    expect(source).toContain('https://dashboard.orvel.pro');
-    expect(source).toContain('https://orvel.pro');
+    expect(source).toMatch(/ALLOWED_DASHBOARD_ORIGINS\s*\}\s*from\s*["'][^"']*public-endpoint-guard["']/);
+    expect(guardSource).toContain('https://dashboard.orvel.pro');
+    expect(guardSource).toContain('https://orvel.pro');
     // #1133 retired the pre-release environment: qa must not linger as an allowed signup origin.
-    expect(source).not.toContain('https://qa.orvel.pro');
+    expect(guardSource).not.toContain('https://qa.orvel.pro');
     expect(source).toContain('Access-Control-Allow-Origin');
-    expect(source).toMatch(/localhost:4200|localhost:3000/);
+    expect(guardSource).toMatch(/localhost:4200|localhost:3000/);
   });
 
   it('subscription auth helper no longer treats legacy account-first signup as a payment-first path', async () => {

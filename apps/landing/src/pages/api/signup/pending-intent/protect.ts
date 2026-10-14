@@ -1,6 +1,11 @@
 import type { APIRoute } from 'astro';
+import { createClient } from '@supabase/supabase-js';
 
 import { createPendingSignupHandoff } from '../../../../lib/server/pending-signup-handoff';
+import {
+  isDisallowedOrigin,
+  isPublicEndpointRateLimited
+} from '../../../../lib/server/public-endpoint-guard';
 
 // createPendingSignupHandoff persists the server intent and internally protects PII with:
 // It also creates a signup_email_confirmation intent and enqueues signup_email_confirmation email before payment.
@@ -53,6 +58,31 @@ function getErrorConstraint(error: unknown): string | undefined {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
+
+    if (isDisallowedOrigin(request)) {
+      return jsonResponse({ error: 'forbidden_origin' }, 403);
+    }
+
+    const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ error: 'pending_signup_config_error', message: 'No pudimos proteger tus datos para iniciar el pago. Reintentá en unos segundos.' }, 500);
+    }
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const guardEmail = typeof body?.email === 'string' ? body.email : '';
+    let rateLimited = false;
+    try {
+      rateLimited = await isPublicEndpointRateLimited(supabaseAdmin, request, guardEmail);
+    } catch {
+      return jsonResponse({ error: 'signup_confirmation_retry', message: 'No pudimos preparar la confirmación. Reintentá en unos segundos.' }, 503);
+    }
+    if (rateLimited) {
+      return jsonResponse(PUBLIC_SIGNUP_CONFIRMATION_REQUESTED, 202);
+    }
+
     await createPendingSignupHandoff(request, {
       email: body?.email,
       first_name: body?.first_name,
