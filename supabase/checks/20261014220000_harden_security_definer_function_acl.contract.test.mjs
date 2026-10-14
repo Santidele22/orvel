@@ -23,7 +23,7 @@ test("issue #1162: release_expired_booking_hold loses anon and authenticated exe
 
   assert.match(
     sql,
-    /revoke execute on function public\.release_expired_booking_hold\(uuid, uuid\) from anon, authenticated;/,
+    /revoke execute on function public\.release_expired_booking_hold\(uuid, uuid\) from public, anon, authenticated;/,
   );
   assert.doesNotMatch(
     sql,

@@ -23,8 +23,10 @@
 BEGIN;
 
 -- #1162: the legitimate caller is the release-expired-booking-holds Edge
--- Function, which authenticates with the service role key.
-REVOKE EXECUTE ON FUNCTION public.release_expired_booking_hold(uuid, uuid) FROM anon, authenticated;
+-- Function, which authenticates with the service role key. PUBLIC must be
+-- revoked too: the PostgreSQL default EXECUTE TO PUBLIC would otherwise keep
+-- anon/authenticated effectively allowed even after revoking them directly.
+REVOKE EXECUTE ON FUNCTION public.release_expired_booking_hold(uuid, uuid) FROM PUBLIC, anon, authenticated;
 
 -- #1163: internal helper; every in-repo caller is SECURITY DEFINER and runs
 -- as the function owner, so no caller needs a grant. service_role keeps it
