@@ -1,7 +1,12 @@
 import type { APIRoute } from 'astro';
+import { createClient } from '@supabase/supabase-js';
 
 import { createSupabaseSignupAdapter } from '../../../../lib/supabase-auth-adapter';
 import { unprotectPendingSignupPii } from '../../../../lib/server/pending-signup-pii-protection';
+import {
+  isDisallowedOrigin,
+  isPublicEndpointRateLimited
+} from '../../../../lib/server/public-endpoint-guard';
 
 const FREE_SIGNUP_PLAN = 'FREE';
 
@@ -43,6 +48,30 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const pii = await unprotectPendingSignupPii(pendingSignupIntent as Record<string, unknown>);
+
+    if (isDisallowedOrigin(request)) {
+      return jsonResponse({ ok: false, error: 'forbidden_origin' }, 403);
+    }
+
+    const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ ok: false, error: 'pending_signup_finalize_config_missing' }, 500);
+    }
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    let rateLimited = false;
+    try {
+      rateLimited = await isPublicEndpointRateLimited(supabaseAdmin, request, pii.email);
+    } catch {
+      return jsonResponse({ ok: false, error: 'signup_confirmation_retry' }, 503);
+    }
+    if (rateLimited) {
+      return jsonResponse({ ok: true, email: pii.email }, 200);
+    }
+
     const signup = createSupabaseSignupAdapter({
       SUPABASE_URL: import.meta.env.PUBLIC_SUPABASE_URL,
       SUPABASE_ANON_KEY: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,

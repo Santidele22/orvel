@@ -79,6 +79,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy account-closure --project-ref ${{ steps.target.outputs.supabase_ref }}
 
+      - name: Deploy appointment-reminders-24h
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
+        run: supabase functions deploy appointment-reminders-24h --project-ref ${{ steps.target.outputs.supabase_ref }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.0.8

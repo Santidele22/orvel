@@ -9,6 +9,11 @@ const unprotectPendingSignupPii = vi.fn(async () => ({
   phone: '+5491100000000',
   email: 'ada@example.test',
 }));
+const createClientMock = vi.fn();
+
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: (...args: unknown[]) => createClientMock(...args),
+}));
 
 vi.mock('../lib/supabase-auth-adapter', () => ({
   createSupabaseSignupAdapter,
@@ -48,6 +53,12 @@ describe('pending signup finalize plan boundary', () => {
     signup.mockResolvedValue({ ok: true, user: { email: 'ada@example.test' } });
     createSupabaseSignupAdapter.mockClear();
     unprotectPendingSignupPii.mockClear();
+    createClientMock.mockReset();
+    createClientMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
+    });
+    vi.stubEnv('SUPABASE_URL', 'https://supabase.example.test');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role-key');
   });
 
   it.each(['STARTED', 'STARTER', 'GROWTH', 'PRO', 'BASIC', 'MEDIUM'])(
@@ -72,5 +83,60 @@ describe('pending signup finalize plan boundary', () => {
     expect(body).toEqual({ ok: true, email: 'ada@example.test' });
     expect(createSupabaseSignupAdapter).toHaveBeenCalledTimes(1);
     expect(signup).toHaveBeenCalledWith(expect.objectContaining({ plan: 'FREE' }));
+    const adminClient = createClientMock.mock.results[0]?.value as { rpc: ReturnType<typeof vi.fn> };
+    expect(adminClient.rpc).toHaveBeenCalledWith('guard_signup_request_rate_limit', expect.objectContaining({
+      p_bucket_hash: expect.any(String),
+      p_email_hmac: expect.any(String),
+      p_max_requests: 5,
+    }));
+  });
+
+  it('returns 503 signup_confirmation_retry without signing up when the rate guard RPC errors', async () => {
+    createClientMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'schema cache lookup failed' } }),
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const response = await postFinalize(validBody('FREE'));
+      const body = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(body).toEqual({ ok: false, error: 'signup_confirmation_retry' });
+      expect(JSON.stringify(body)).not.toContain('PGRST202');
+      expect(signup).not.toHaveBeenCalled();
+      expect(createSupabaseSignupAdapter).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('returns the generic success body without signing up when the rate guard reports limited', async () => {
+    createClientMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
+    });
+
+    const response = await postFinalize(validBody('FREE'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, email: 'ada@example.test' });
+    expect(signup).not.toHaveBeenCalled();
+    expect(createSupabaseSignupAdapter).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 forbidden_origin without signing up for a disallowed Origin', async () => {
+    const request = new Request('https://orvel.test/api/signup/pending-intent/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', origin: 'https://evil.example' },
+      body: JSON.stringify(validBody('FREE')),
+    });
+
+    const response = await POST({ request } as Parameters<typeof POST>[0]);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body).toEqual({ ok: false, error: 'forbidden_origin' });
+    expect(createClientMock).not.toHaveBeenCalled();
+    expect(signup).not.toHaveBeenCalled();
   });
 });
