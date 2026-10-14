@@ -63,7 +63,10 @@ describe('Issue #344 slice 2 — operator web push send', () => {
     expect(config).toMatch(/\[functions\.process-web-push-outbox\]\s*\nverify_jwt\s*=\s*true/);
     expect(config).toMatch(/Authorization: Bearer \$SERVICE_ROLE_KEY/);
     expect(helper).toMatch(/isPrivilegedWebPushAuthorization/);
-    expect(helper).toMatch(/role\s*===\s*"service_role"|===\s*"service_role"/);
+    // #1167: authorization is the exact service-role key only; a locally decoded
+    // role claim must never authorize (it is not signature-verified).
+    expect(helper).toMatch(/timingSafeEqualString/);
+    expect(helper).not.toMatch(/return\s+role\s*===\s*"service_role"/);
     expect(helper).not.toMatch(/expectedCronKey|cronKeyHeader/);
   });
 
