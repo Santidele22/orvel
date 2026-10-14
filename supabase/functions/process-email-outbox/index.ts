@@ -91,12 +91,10 @@ function isRejectedPublicEmailRole(authorizationHeader: string | null): boolean 
 }
 
 function hasPrivilegedEmailInvocationAuthorization(authorizationHeader: string | null, serviceRoleKey: string | undefined): boolean {
-  if (hasServiceRoleAuthorization(authorizationHeader, serviceRoleKey)) return true;
-
-  // Secondary JWT role fallback is safe only because supabase/config.toml explicitly sets
-  // [functions.process-email-outbox] verify_jwt=true. Supabase Edge Runtime rejects invalid
-  // JWTs before this function executes, so this local decode is role extraction, not verification.
-  return getEmailInvocationJwtRole(authorizationHeader) === "service_role";
+  // #1167: only the exact service-role key authorizes draining the outbox. The
+  // previous decoded-JWT-role fallback trusted an unverified `role` claim and
+  // would have authorized any forged JWT if the gateway check ever drifted.
+  return hasServiceRoleAuthorization(authorizationHeader, serviceRoleKey);
 }
 
 function hasServiceRoleAuthorization(authorizationHeader: string | null, serviceRoleKey: string | undefined): boolean {

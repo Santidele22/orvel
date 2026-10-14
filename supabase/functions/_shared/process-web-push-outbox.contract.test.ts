@@ -93,7 +93,7 @@ function unsignedJwt(role: string): string {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ role })}.sig`;
 }
 
-Deno.test("isPrivilegedWebPushAuthorization accepts exact service_role key and JWT role", () => {
+Deno.test("isPrivilegedWebPushAuthorization accepts only the exact service_role key", () => {
   assertEquals(
     isPrivilegedWebPushAuthorization({
       authorizationHeader: "Bearer service-role-material",
@@ -101,12 +101,14 @@ Deno.test("isPrivilegedWebPushAuthorization accepts exact service_role key and J
     }),
     true,
   );
+  // #1167: a JWT whose payload merely claims service_role must NOT authorize,
+  // because the claim is decoded locally without signature verification.
   assertEquals(
     isPrivilegedWebPushAuthorization({
       authorizationHeader: `Bearer ${unsignedJwt("service_role")}`,
       serviceRoleKey: "other-service-role-material",
     }),
-    true,
+    false,
   );
 });
 
