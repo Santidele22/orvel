@@ -14,6 +14,8 @@ funemon.project.json
 .opencode/
 .atl/
 .pi/
+.kimi-code/
+.engram/
 
 # Brand assets handoff (move to company-os repo, then delete this folder)
 to-company-os-export/
