@@ -1,10 +1,15 @@
 import type { APIRoute } from 'astro';
+import { createClient } from '@supabase/supabase-js';
 
 import {
   validateWaitlist,
   WAITLIST_PERSISTENCE_UNAVAILABLE
 } from '../../lib/waitlist';
 import { appendWaitlistToSheet } from '../../lib/waitlist-sheet';
+import {
+  isDisallowedOrigin,
+  isPublicEndpointRateLimited
+} from '../../lib/server/public-endpoint-guard';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -35,6 +40,35 @@ export const POST: APIRoute = async ({ request }) => {
       },
       400
     );
+  }
+
+  if (isDisallowedOrigin(request)) {
+    return jsonResponse({ error: 'forbidden_origin', message: 'El pedido no es válido.' }, 403);
+  }
+
+  const supabaseUrl = import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse(
+      { error: 'waitlist_config_error', message: 'Todavía no podemos guardar tu lugar. Intentá de nuevo más tarde.' },
+      500
+    );
+  }
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+
+  let rateLimited = false;
+  try {
+    rateLimited = await isPublicEndpointRateLimited(supabaseAdmin, request, result.data.email);
+  } catch {
+    return jsonResponse(
+      { error: 'waitlist_retry', message: 'Todavía no podemos guardar tu lugar. Intentá de nuevo más tarde.' },
+      503
+    );
+  }
+  if (rateLimited) {
+    return jsonResponse({ status: 'ok', offer: null }, 200);
   }
 
   const persist = await appendWaitlistToSheet(result.data, {
