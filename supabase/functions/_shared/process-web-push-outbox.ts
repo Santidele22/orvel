@@ -86,8 +86,9 @@ export function isPrivilegedWebPushAuthorization(input: {
   const serviceRoleKey = input.serviceRoleKey?.trim() || "";
   if (serviceRoleKey && timingSafeEqualString(bearer, serviceRoleKey)) return true;
 
-  // Safe only with verify_jwt=true on process-web-push-outbox (gateway verifies the JWT).
-  return role === "service_role";
+  // #1167: no JWT-role fallback. A locally decoded `role` claim is not verified,
+  // so an unsigned/forged JWT must never authorize draining the outbox.
+  return false;
 }
 
 export function isOperatorWebPushEventType(eventType: string): boolean {
