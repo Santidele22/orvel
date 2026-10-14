@@ -446,6 +446,13 @@ verify_jwt = false
 [functions.signup-email-verification-lifecycle]
 verify_jwt = false
 
+# 24h appointment reminder clock. An external scheduler POSTs this function
+# with CRON_KEY / x-cron-key / Bearer, same as purge-elapsed-bookings.
+# Without this entry the gateway default (verify_jwt = true) rejects the
+# scheduler with 401 and reminders silently never enqueue (#1168).
+[functions.appointment-reminders-24h]
+verify_jwt = false
+
 # Drain follow-up: POST {project_url}/functions/v1/process-web-push-outbox
 # with Authorization: Bearer $SERVICE_ROLE_KEY (same vault Bearer as the INSERT trigger).
 # Do not put CRON_KEY in Authorization. Scheduler interval is operational (~1-5 min).
