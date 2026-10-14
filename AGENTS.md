@@ -104,10 +104,14 @@ Hard rules:
 | `supabase/` | Edge functions and migrations. Follow Supabase Safety and `infra/context/supabase.md`. |
 | `openspec/` | SDD artifacts. Preserve existing changes; do not rewrite unrelated specs. |
 | `infra/`, `docs/` | Context, ADRs, runbooks. Keep concise, current, and evidence-based. |
-| `tests/e2e/`, `playwright.config.ts` | Playwright e2e. |
+| `tests/e2e/`, `playwright.config.ts` | Playwright e2e. The seam variant lives in `tests/e2e-seam/` with `playwright.seam.config.ts` (`pnpm run test:e2e:seam`). |
 | `scripts/`, `tools/` | Repo-local tooling. Do not change root package-manager or architecture without Santi approval. |
 
-Root `pnpm run check` is the default local verification gate (dashboard + landing builds, critical Supabase function tests, static checks). Use a narrower test command when the change is scoped to one app.
+Root `pnpm run check` is the default local verification gate (dashboard, dashboard-web and landing builds, critical Supabase function tests, static checks). Use a narrower test command when the change is scoped to one app.
+
+The package manager is pnpm 11 (`pnpm-lock.yaml`). Two secondary lockfiles exist on purpose: `bun.lock` serves `apps/dashboard` and `deno.lock` pins the Supabase Edge Functions toolchain. Do not delete or "unify" them.
+
+Root-level `dashboard/`, `landing/`, and `shared/` are never canonical: they only hold stale local artifacts from the pre-`apps/` layout (`node_modules/`, `.angular/`, `.astro/`, `dist/`). Never read or edit them as source; the real code lives under `apps/`. `task/board.md` is the tracked kanban board — keep it.
 
 ## Supabase Safety
 
