@@ -1,0 +1,39 @@
+name: Appointment reminders 24h scheduler
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: appointment-reminders-24h-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke-appointment-reminders-24h:
+    name: Invoke appointment-reminders-24h Edge Function
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enqueue 24h appointment reminders
+        env:
+          APPOINTMENT_REMINDERS_24H_FUNCTION_URL: ${{ secrets.APPOINTMENT_REMINDERS_24H_FUNCTION_URL }}
+          APPOINTMENT_REMINDERS_24H_CRON_SECRET: ${{ secrets.APPOINTMENT_REMINDERS_24H_CRON_SECRET }}
+        run: |
+          if [ -z "$APPOINTMENT_REMINDERS_24H_FUNCTION_URL" ] || [ -z "$APPOINTMENT_REMINDERS_24H_CRON_SECRET" ]; then
+            echo "Appointment reminders 24h scheduler secrets are not configured."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent --output /dev/null \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-max-time 180 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer ${APPOINTMENT_REMINDERS_24H_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$APPOINTMENT_REMINDERS_24H_FUNCTION_URL"
