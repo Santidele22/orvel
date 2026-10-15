@@ -15,12 +15,12 @@ type AvailabilityModule = {
 
 async function loadAvailabilityCore(): Promise<AvailabilityModule> {
   try {
-    const mod = await import('../../features/booking/data-access/availability-core');
+    const mod = await import('@orvel/booking/domain');
     return mod as AvailabilityModule;
   } catch {
-    // TODO(Aurora): crear módulo puro availability-core con computeAvailableSlots y reglas deterministas
+    // TODO(Aurora): módulo puro availability-core con computeAvailableSlots y reglas deterministas
     throw new Error(
-      'TODO(Aurora): falta src/app/features/booking/data-access/availability-core.ts con computeAvailableSlots()'
+      'TODO(Aurora): falta @orvel/booking/domain con computeAvailableSlots()'
     );
   }
 }
