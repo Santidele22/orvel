@@ -84,6 +84,16 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
         run: supabase functions deploy appointment-reminders-24h --project-ref ${{ steps.target.outputs.supabase_ref }}
 
+      - name: Deploy purge-elapsed-bookings
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
+        run: supabase functions deploy purge-elapsed-bookings --project-ref ${{ steps.target.outputs.supabase_ref }}
+
+      - name: Deploy signup-email-verification-lifecycle
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
+        run: supabase functions deploy signup-email-verification-lifecycle --project-ref ${{ steps.target.outputs.supabase_ref }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.0.8

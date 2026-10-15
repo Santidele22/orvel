@@ -442,12 +442,16 @@ verify_jwt = true
 verify_jwt = false
 
 # Hourly cron is enough for the 48h reminder / 7d public-turnero windows.
-# Authenticate with CRON_KEY like appointment-reminders-24h.
+# Scheduled by .github/workflows/signup-email-verification-lifecycle.yml, which POSTs
+# with Authorization: Bearer $SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_CRON_SECRET
+# (must match the shared CRON_KEY function secret).
 [functions.signup-email-verification-lifecycle]
 verify_jwt = false
 
-# 24h appointment reminder clock. An external scheduler POSTs this function
-# with CRON_KEY / x-cron-key / Bearer, same as purge-elapsed-bookings.
+# 24h appointment reminder clock. Scheduled hourly by
+# .github/workflows/appointment-reminders-24h.yml, which POSTs with
+# Authorization: Bearer $APPOINTMENT_REMINDERS_24H_CRON_SECRET (must match the
+# shared CRON_KEY function secret).
 # Without this entry the gateway default (verify_jwt = true) rejects the
 # scheduler with 401 and reminders silently never enqueue (#1168).
 [functions.appointment-reminders-24h]
@@ -459,8 +463,10 @@ verify_jwt = false
 [functions.process-web-push-outbox]
 verify_jwt = true
 
-# Recurring elapsed-booking purge. An external scheduler POSTs this function
-# with CRON_KEY / x-cron-key / Bearer, same as appointment-reminders-24h.
+# Recurring elapsed-booking purge. Scheduled every 15 min by
+# .github/workflows/purge-elapsed-bookings.yml, which POSTs with
+# Authorization: Bearer $PURGE_ELAPSED_BOOKINGS_CRON_SECRET (must match the
+# shared CRON_KEY function secret).
 [functions.purge-elapsed-bookings]
 verify_jwt = false
 

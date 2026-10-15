@@ -1,0 +1,39 @@
+name: Signup email verification lifecycle scheduler
+
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: signup-email-verification-lifecycle-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke-signup-email-verification-lifecycle:
+    name: Invoke signup-email-verification-lifecycle Edge Function
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run signup email verification lifecycle
+        env:
+          SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_FUNCTION_URL: ${{ secrets.SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_FUNCTION_URL }}
+          SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_CRON_SECRET: ${{ secrets.SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_CRON_SECRET }}
+        run: |
+          if [ -z "$SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_FUNCTION_URL" ] || [ -z "$SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_CRON_SECRET" ]; then
+            echo "Signup email verification lifecycle scheduler secrets are not configured."
+            exit 1
+          fi
+
+          curl --fail --show-error --silent --output /dev/null \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 2 \
+            --retry-delay 10 \
+            --retry-max-time 180 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer ${SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$SIGNUP_EMAIL_VERIFICATION_LIFECYCLE_FUNCTION_URL"
